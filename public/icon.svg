@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <!-- Central Tech Hexagon & Aaditech "A" Symbol -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#glowGrad)" stroke-width="12" opacity="0.4" stroke-dasharray="16 12"/>
+  <path d="M256 96 L376 384 L316 384 L288 312 L224 312 L196 384 L136 384 Z M256 192 L236 264 L276 264 Z" fill="#ffffff"/>
+  <circle cx="256" cy="140" r="16" fill="#38bdf8"/>
+  <circle cx="360" cy="360" r="12" fill="#818cf8"/>
+  <circle cx="152" cy="360" r="12" fill="#38bdf8"/>
+</svg>
