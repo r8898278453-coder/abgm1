@@ -311,6 +311,89 @@ export const generateAiContentSchema = z.object({
   preferredLanguage: z.string().trim().max(64).optional(),
 }).passthrough();
 
+// 12. Rank Radar Keyword Scan Schema
+export const rankScanSchema = z.object({
+  keyword: z
+    .string()
+    .trim()
+    .min(2, 'Keyword must be at least 2 characters long')
+    .max(150, 'Keyword must be under 150 characters'),
+  city: z.string().trim().max(128).optional(),
+  targetAreas: z.array(z.string().trim().max(64)).optional(),
+});
+
+// 13. WhatsApp Send Message Schema
+export const whatsappSendSchema = z.object({
+  to: z
+    .string()
+    .trim()
+    .min(6, 'Recipient phone number is required')
+    .max(32),
+  message: z.string().trim().max(4096).optional(),
+  templateName: z.string().trim().max(128).optional(),
+  languageCode: z.string().trim().max(16).optional().default('en_US'),
+  components: z.array(z.any()).optional(),
+  templateParams: z.array(z.string()).optional(),
+  mediaType: z.enum(['image', 'video', 'document', 'audio']).optional(),
+  mediaUrl: z.string().trim().max(2048).optional(),
+  caption: z.string().trim().max(1024).optional(),
+  companyId: z.string().trim().max(64).optional(),
+});
+
+// 14. WhatsApp Broadcast Campaign Schema
+export const whatsappBroadcastSchema = z.object({
+  recipients: z.array(z.union([z.string(), z.object({ phone: z.string(), name: z.string().optional() })])).min(1, 'At least one recipient is required'),
+  message: z.string().trim().max(4096).optional(),
+  templateName: z.string().trim().max(128).optional(),
+  languageCode: z.string().trim().max(16).optional().default('en_US'),
+  templateParams: z.array(z.string()).optional(),
+  mediaType: z.enum(['image', 'video', 'document', 'audio']).optional(),
+  mediaUrl: z.string().trim().max(2048).optional(),
+  campaignName: z.string().trim().max(191).optional(),
+  companyId: z.string().trim().max(64).optional(),
+});
+
+// 15. Meta Social Post Publishing Schema
+export const metaPublishSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(1, 'Post content or caption is required')
+    .max(5000),
+  caption: z.string().trim().max(5000).optional(),
+  imageUrl: z.string().trim().max(2048).optional(),
+  videoUrl: z.string().trim().max(2048).optional(),
+  platforms: z.array(z.enum(['facebook', 'instagram', 'whatsapp', 'google'])).optional().default(['facebook', 'instagram']),
+  companyId: z.string().trim().max(64).optional(),
+  postId: z.string().trim().max(64).optional(),
+});
+
+// 16. Invoice Creation Schema
+export const createInvoiceSchema = z.object({
+  plan: z.string().trim().min(1, 'Plan description is required').max(128),
+  amount: z.number().positive('Amount must be greater than 0'),
+  gst_amount: z.number().nonnegative().optional(),
+  total_amount: z.number().positive().optional(),
+  payment_method: z.string().trim().max(128).optional().default('UPI / Razorpay'),
+  payment_id: z.string().trim().max(128).optional(),
+  order_id: z.string().trim().max(128).optional(),
+  payment_link_id: z.string().trim().max(128).optional(),
+  customer_name: z.string().trim().max(255).optional(),
+  customer_email: z.string().trim().email().max(255).optional().or(z.literal('')),
+  customer_phone: z.string().trim().max(64).optional(),
+  status: z.enum(['Paid', 'Pending', 'Failed', 'Refunded']).optional().default('Paid'),
+  hsn_code: z.string().trim().max(32).optional().default('998314'),
+  date: z.string().trim().max(32).optional(),
+});
+
+// 17. Subscription Upgrade Schema
+export const upgradeSubscriptionSchema = z.object({
+  planId: z.enum(['starter', 'growth', 'pro', 'agency']),
+  billingCycle: z.enum(['monthly', 'yearly']).optional().default('monthly'),
+  paymentId: z.string().trim().max(128).optional(),
+  orderId: z.string().trim().max(128).optional(),
+});
+
 // ====================================================================
 // Express Middleware Generator for Zod Schemas
 // ====================================================================

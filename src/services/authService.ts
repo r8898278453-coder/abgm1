@@ -434,6 +434,11 @@ export async function sendWhatsAppMessageApi(payload: {
   message?: string;
   templateName?: string;
   languageCode?: string;
+  templateParams?: string[];
+  components?: any[];
+  mediaType?: 'image' | 'video' | 'document' | 'audio';
+  mediaUrl?: string;
+  caption?: string;
   companyId?: string;
 }): Promise<WhatsAppSendResult> {
   try {
@@ -450,6 +455,48 @@ export async function sendWhatsAppMessageApi(payload: {
   }
 }
 
+export interface WhatsAppBroadcastResult {
+  success: boolean;
+  campaignName?: string;
+  totalRecipients?: number;
+  successCount?: number;
+  failCount?: number;
+  configured?: boolean;
+  results?: Array<{
+    recipient: string;
+    success: boolean;
+    messageId?: string;
+    waLink?: string;
+    error?: string;
+  }>;
+  error?: string;
+}
+
+export async function broadcastWhatsAppApi(payload: {
+  recipients: Array<string | { phone: string; name?: string }>;
+  message?: string;
+  templateName?: string;
+  languageCode?: string;
+  templateParams?: string[];
+  mediaType?: 'image' | 'video' | 'document' | 'audio';
+  mediaUrl?: string;
+  campaignName?: string;
+  companyId?: string;
+}): Promise<WhatsAppBroadcastResult> {
+  try {
+    const res = await apiRequest<WhatsAppBroadcastResult>('/api/whatsapp/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Failed to broadcast WhatsApp campaign',
+    };
+  }
+}
+
 export async function getWhatsAppStatusApi(companyId?: string): Promise<{
   configured: boolean;
   phoneNumberId?: string | null;
@@ -462,6 +509,60 @@ export async function getWhatsAppStatusApi(companyId?: string): Promise<{
       configured: Boolean(res.configured),
       phoneNumberId: res.phoneNumberId || null,
       wabaId: res.wabaId || null,
+    };
+  } catch {
+    return { configured: false };
+  }
+}
+
+// ---------------- META SOCIAL INTEGRATION SERVICES (FACEBOOK & INSTAGRAM) ---------------- //
+
+export interface MetaSocialPublishResult {
+  success: boolean;
+  configured?: boolean;
+  message?: string;
+  results?: {
+    facebook?: { success: boolean; id?: string; error?: string };
+    instagram?: { success: boolean; id?: string; error?: string };
+  };
+  error?: string;
+}
+
+export async function publishToMetaSocialApi(payload: {
+  content: string;
+  caption?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  platforms?: Array<'facebook' | 'instagram' | 'whatsapp' | 'google'>;
+  companyId?: string;
+  postId?: string;
+}): Promise<MetaSocialPublishResult> {
+  try {
+    const res = await apiRequest<MetaSocialPublishResult>('/api/meta/publish-post', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Failed to publish to Meta Social channels',
+    };
+  }
+}
+
+export async function getMetaSocialStatusApi(companyId?: string): Promise<{
+  configured: boolean;
+  pageId?: string | null;
+  instagramId?: string | null;
+}> {
+  try {
+    const url = companyId ? `/api/meta/status?companyId=${encodeURIComponent(companyId)}` : '/api/meta/status';
+    const res = await apiRequest<{ success: boolean; configured: boolean; pageId?: string; instagramId?: string }>(url);
+    return {
+      configured: Boolean(res.configured),
+      pageId: res.pageId || null,
+      instagramId: res.instagramId || null,
     };
   } catch {
     return { configured: false };
@@ -617,12 +718,49 @@ export interface GoogleProfileResponse {
   warning?: string;
   error?: string;
   message?: string;
+  newReviewsSynced?: number;
+  syncedReviewsCount?: number;
   data?: GoogleProfileData;
 }
 
 export async function getGoogleProfileApi(companyId: string, refresh = false): Promise<GoogleProfileResponse> {
   const query = refresh ? '?refresh=true' : '';
   return apiRequest<GoogleProfileResponse>(`/api/companies/${encodeURIComponent(companyId)}/google-profile${query}`);
+}
+
+export async function syncGoogleProfileApi(companyId: string): Promise<GoogleProfileResponse> {
+  return apiRequest<GoogleProfileResponse>(`/api/companies/${encodeURIComponent(companyId)}/google-profile/sync`, {
+    method: 'POST',
+  });
+}
+
+// ---------------- LOCAL SEO & GOOGLE MAPS RANK RADAR APIS ---------------- //
+
+export interface RankRadarScanResponse {
+  success: boolean;
+  keyword?: any;
+  keywords?: any[];
+  competitors?: any[];
+  recommendation?: string;
+  message?: string;
+  error?: string;
+}
+
+export async function scanKeywordRankApi(
+  companyId: string,
+  keyword: string,
+  city?: string
+): Promise<RankRadarScanResponse> {
+  return apiRequest<RankRadarScanResponse>(`/api/companies/${encodeURIComponent(companyId)}/rank-radar/scan`, {
+    method: 'POST',
+    body: JSON.stringify({ keyword, city }),
+  });
+}
+
+export async function refreshAllKeywordRanksApi(companyId: string): Promise<RankRadarScanResponse> {
+  return apiRequest<RankRadarScanResponse>(`/api/companies/${encodeURIComponent(companyId)}/rank-radar/refresh-all`, {
+    method: 'POST',
+  });
 }
 
 // ---------------- BRAND MEDIA ASSETS APIS ---------------- //
@@ -771,6 +909,228 @@ export async function startReelRenderApi(
 export async function getReelRenderStatusApi(jobId: string): Promise<GetReelStatusResponse> {
   return apiRequest<GetReelStatusResponse>(`/api/ai/render-reel/${encodeURIComponent(jobId)}/status`);
 }
+
+// ---------------- BILLING, INVOICE LEDGER & SUBSCRIPTIONS API CLIENTS ---------------- //
+
+export interface CompanyInvoiceRecord {
+  id: string;
+  company_id: string;
+  date: string;
+  plan: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_method: string;
+  payment_id?: string;
+  order_id?: string;
+  payment_link_id?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  status: 'Paid' | 'Pending' | 'Failed' | 'Refunded';
+  hsn_code: string;
+  pdf_url?: string;
+  created_at?: string;
+}
+
+export interface CompanySubscriptionRecord {
+  id: string;
+  company_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: 'active' | 'cancelled' | 'past_due' | 'trialing';
+  amount: number;
+  billing_cycle: 'monthly' | 'yearly';
+  current_period_start: string;
+  current_period_end: string;
+  razorpay_subscription_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchCompanyInvoicesApi(companyId: string): Promise<CompanyInvoiceRecord[]> {
+  try {
+    const res = await apiRequest<{ success: boolean; count: number; invoices: CompanyInvoiceRecord[] }>(
+      `/api/companies/${encodeURIComponent(companyId)}/invoices`
+    );
+    return res.invoices || [];
+  } catch (err) {
+    console.warn('Failed to fetch invoices:', err);
+    return [];
+  }
+}
+
+export async function fetchCompanySubscriptionApi(companyId: string): Promise<CompanySubscriptionRecord | null> {
+  try {
+    const res = await apiRequest<{ success: boolean; subscription: CompanySubscriptionRecord }>(
+      `/api/companies/${encodeURIComponent(companyId)}/subscription`
+    );
+    return res.subscription || null;
+  } catch (err) {
+    console.warn('Failed to fetch subscription:', err);
+    return null;
+  }
+}
+
+export async function upgradeSubscriptionApi(
+  companyId: string,
+  planId: 'starter' | 'growth' | 'pro' | 'agency',
+  billingCycle = 'monthly',
+  paymentId?: string,
+  orderId?: string
+): Promise<{ success: boolean; subscription: CompanySubscriptionRecord; invoice?: CompanyInvoiceRecord }> {
+  return apiRequest<{ success: boolean; subscription: CompanySubscriptionRecord; invoice?: CompanyInvoiceRecord }>(
+    `/api/companies/${encodeURIComponent(companyId)}/subscription/upgrade`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ planId, billingCycle, paymentId, orderId }),
+    }
+  );
+}
+
+export async function fetchInvoiceDetailsApi(invoiceId: string): Promise<any | null> {
+  try {
+    const res = await apiRequest<{ success: boolean; invoice: any }>(
+      `/api/invoices/${encodeURIComponent(invoiceId)}/download`
+    );
+    return res.invoice || null;
+  } catch (err) {
+    console.warn('Failed to fetch invoice details:', err);
+    return null;
+  }
+}
+
+// ---------------- CUSTOM DOMAINS & WEBSITE BUILDER API CLIENTS ---------------- //
+
+export interface CompanyDomainRecord {
+  id: string;
+  company_id: string;
+  domain: string;
+  status: 'active' | 'pending_verification' | 'failed';
+  ssl_status: 'active' | 'provisioning' | 'expired';
+  cname_target: string;
+  a_record_target: string;
+  dns_txt_record: string;
+  verified_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WebsiteConfigRecord {
+  id?: string;
+  company_id: string;
+  subdomain?: string;
+  primary_color: string;
+  secondary_color: string;
+  tagline?: string;
+  hero_title?: string;
+  hero_subtitle?: string;
+  meta_description?: string;
+  keywords?: string;
+  google_analytics_id?: string;
+  custom_header_html?: string;
+  enable_whatsapp_cta: boolean;
+  enable_direct_call_cta: boolean;
+  enable_inquiry_form: boolean;
+  pages_json?: string;
+}
+
+export async function fetchCompanyDomainsApi(companyId: string): Promise<CompanyDomainRecord[]> {
+  try {
+    const res = await apiRequest<{ success: boolean; count: number; domains: CompanyDomainRecord[] }>(
+      `/api/companies/${encodeURIComponent(companyId)}/domains`
+    );
+    return res.domains || [];
+  } catch (err) {
+    console.warn('Failed to fetch domains:', err);
+    return [];
+  }
+}
+
+export async function addCompanyDomainApi(companyId: string, domain: string): Promise<CompanyDomainRecord> {
+  const res = await apiRequest<{ success: boolean; domain: CompanyDomainRecord }>(
+    `/api/companies/${encodeURIComponent(companyId)}/domains`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }
+  );
+  return res.domain;
+}
+
+export async function verifyCompanyDomainApi(
+  companyId: string,
+  domainId: string
+): Promise<{ success: boolean; domain: CompanyDomainRecord; verification: any }> {
+  return apiRequest<{ success: boolean; domain: CompanyDomainRecord; verification: any }>(
+    `/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}/verify`,
+    {
+      method: 'POST',
+    }
+  );
+}
+
+export async function deleteCompanyDomainApi(companyId: string, domainId: string): Promise<boolean> {
+  const res = await apiRequest<{ success: boolean; message: string }>(
+    `/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+  return res.success;
+}
+
+export async function fetchWebsiteConfigApi(companyId: string): Promise<WebsiteConfigRecord | null> {
+  try {
+    const res = await apiRequest<{ success: boolean; config: WebsiteConfigRecord }>(
+      `/api/companies/${encodeURIComponent(companyId)}/website/config`
+    );
+    return res.config || null;
+  } catch (err) {
+    console.warn('Failed to fetch website config:', err);
+    return null;
+  }
+}
+
+export async function saveWebsiteConfigApi(
+  companyId: string,
+  config: Partial<WebsiteConfigRecord>
+): Promise<WebsiteConfigRecord> {
+  const res = await apiRequest<{ success: boolean; config: WebsiteConfigRecord }>(
+    `/api/companies/${encodeURIComponent(companyId)}/website/config`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }
+  );
+  return res.config;
+}
+
+export async function downloadStaticWebsiteZip(companyId: string, domain = 'bga.aaditechs.in'): Promise<void> {
+  const token = getStoredToken();
+  const url = `/api/companies/${encodeURIComponent(companyId)}/website/export`;
+  const response = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download static website zip package');
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = `storefront-${domain.replace(/[^a-z0-9]/gi, '_')}.zip`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+
 
 
 

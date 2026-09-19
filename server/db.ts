@@ -143,6 +143,77 @@ export interface DbThemeHistory {
   used_at: string;
 }
 
+export interface DbInvoice {
+  id: string;
+  company_id: string;
+  date: string;
+  plan: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_method: string;
+  payment_id?: string;
+  order_id?: string;
+  payment_link_id?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  status: 'Paid' | 'Pending' | 'Failed' | 'Refunded';
+  hsn_code?: string;
+  pdf_url?: string;
+  created_at?: string;
+}
+
+export interface DbSubscription {
+  id: string;
+  company_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: 'active' | 'past_due' | 'cancelled' | 'trialing';
+  amount: number;
+  billing_cycle: 'monthly' | 'yearly';
+  current_period_start: string;
+  current_period_end: string;
+  razorpay_subscription_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DbCustomDomain {
+  id: string;
+  company_id: string;
+  domain: string;
+  status: 'active' | 'pending_verification' | 'failed';
+  ssl_status: 'active' | 'provisioning' | 'expired';
+  cname_target: string;
+  a_record_target: string;
+  dns_txt_record: string;
+  verified_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DbWebsiteConfig {
+  id: string;
+  company_id: string;
+  subdomain: string;
+  primary_color: string;
+  secondary_color: string;
+  tagline?: string;
+  hero_title?: string;
+  hero_subtitle?: string;
+  meta_description?: string;
+  keywords?: string;
+  google_analytics_id?: string;
+  custom_header_html?: string;
+  enable_whatsapp_cta: boolean;
+  enable_direct_call_cta: boolean;
+  enable_inquiry_form: boolean;
+  pages_json?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 let pool: mysql.Pool | null = null;
 let isMySqlAvailable = false;
 let tablesInitialized = false;
@@ -152,6 +223,115 @@ let hasLoggedFailure = false;
 const RETRY_COOLDOWN_MS = 60000;
 const inMemoryCompanyAssets: DbCompanyAsset[] = [];
 const inMemoryThemeHistory: DbThemeHistory[] = [];
+
+const inMemoryCustomDomains: DbCustomDomain[] = [
+  {
+    id: 'dom_bga_aaditechs',
+    company_id: 'comp_aaditech_main',
+    domain: 'bga.aaditechs.in',
+    status: 'active',
+    ssl_status: 'active',
+    cname_target: 'cname.bga.aaditechs.in',
+    a_record_target: '77.37.54.108',
+    dns_txt_record: 'bga-site-verification=aaditech_main_prod_2026',
+    verified_at: '2026-09-01T00:00:00.000Z',
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z',
+  },
+];
+
+const inMemoryWebsiteConfigs: DbWebsiteConfig[] = [
+  {
+    id: 'web_aaditech_main',
+    company_id: 'comp_aaditech_main',
+    subdomain: 'aaditech',
+    primary_color: '#4f46e5',
+    secondary_color: '#06b6d4',
+    tagline: 'Autonomous AI Growth Engine & Local SEO Authority',
+    hero_title: 'Aaditech Solution - Official Services Hub',
+    hero_subtitle: 'Trusted Professional Solutions serving clients across Thane, Mumbai MMR & Navi Mumbai with guaranteed satisfaction.',
+    meta_description: 'Official storefront and local SEO hub for Aaditech Solution Private Limited.',
+    keywords: 'local seo, it services, software development, thane, mumbai',
+    enable_whatsapp_cta: true,
+    enable_direct_call_cta: true,
+    enable_inquiry_form: true,
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z',
+  },
+];
+
+const inMemoryInvoices: DbInvoice[] = [
+  {
+    id: 'INV-2026-0901',
+    company_id: 'comp_aaditech_main',
+    date: '2026-09-01',
+    plan: 'Growth Tier (Monthly)',
+    amount: 799.00,
+    gst_amount: 143.82,
+    total_amount: 942.82,
+    payment_method: 'UPI / Razorpay (r8898278453@okaxis)',
+    payment_id: 'pay_RzpGrowthSep26',
+    order_id: 'order_RzpGwt901',
+    customer_name: 'Aaditech Solution Private Limited',
+    customer_email: 'info@aaditechs.in',
+    customer_phone: '+91 22 4963 8603',
+    status: 'Paid',
+    hsn_code: '998314',
+    created_at: '2026-09-01T10:00:00.000Z',
+  },
+  {
+    id: 'INV-2026-0801',
+    company_id: 'comp_aaditech_main',
+    date: '2026-08-01',
+    plan: 'Growth Tier (Monthly)',
+    amount: 799.00,
+    gst_amount: 143.82,
+    total_amount: 942.82,
+    payment_method: 'UPI / Razorpay (r8898278453@okaxis)',
+    payment_id: 'pay_RzpGrowthAug26',
+    order_id: 'order_RzpGwt801',
+    customer_name: 'Aaditech Solution Private Limited',
+    customer_email: 'info@aaditechs.in',
+    customer_phone: '+91 22 4963 8603',
+    status: 'Paid',
+    hsn_code: '998314',
+    created_at: '2026-08-01T10:00:00.000Z',
+  },
+  {
+    id: 'INV-2026-0701',
+    company_id: 'comp_aaditech_main',
+    date: '2026-07-01',
+    plan: 'Starter Tier (Intro)',
+    amount: 499.00,
+    gst_amount: 89.82,
+    total_amount: 588.82,
+    payment_method: 'Net Banking (HDFC Bank)',
+    payment_id: 'pay_RzpStarterJul26',
+    order_id: 'order_RzpStr701',
+    customer_name: 'Aaditech Solution Private Limited',
+    customer_email: 'info@aaditechs.in',
+    customer_phone: '+91 22 4963 8603',
+    status: 'Paid',
+    hsn_code: '998314',
+    created_at: '2026-07-01T10:00:00.000Z',
+  },
+];
+
+const inMemorySubscriptions: DbSubscription[] = [
+  {
+    id: 'sub_aaditech_growth',
+    company_id: 'comp_aaditech_main',
+    plan_id: 'growth',
+    plan_name: 'Growth Tier',
+    status: 'active',
+    amount: 799.00,
+    billing_cycle: 'monthly',
+    current_period_start: '2026-09-01T00:00:00.000Z',
+    current_period_end: '2026-10-01T00:00:00.000Z',
+    created_at: '2026-07-01T10:00:00.000Z',
+    updated_at: '2026-09-01T10:00:00.000Z',
+  },
+];
 
 export function handleDbError(context: string, err: any) {
   if (
@@ -871,6 +1051,116 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           INDEX idx_cth_company_used (company_id, used_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
+
+      // 14. Invoices Table (GST Compliant Invoices via Razorpay / Direct)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          date VARCHAR(32) NOT NULL,
+          plan VARCHAR(128) NOT NULL,
+          amount DECIMAL(10,2) NOT NULL,
+          gst_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+          total_amount DECIMAL(10,2) NOT NULL,
+          payment_method VARCHAR(128) NOT NULL DEFAULT 'UPI / Razorpay',
+          payment_id VARCHAR(128) DEFAULT NULL,
+          order_id VARCHAR(128) DEFAULT NULL,
+          payment_link_id VARCHAR(128) DEFAULT NULL,
+          customer_name VARCHAR(255) DEFAULT NULL,
+          customer_email VARCHAR(255) DEFAULT NULL,
+          customer_phone VARCHAR(64) DEFAULT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'Paid',
+          hsn_code VARCHAR(32) DEFAULT '998314',
+          pdf_url VARCHAR(512) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_invoices_company (company_id),
+          INDEX idx_invoices_payment (payment_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 15. Subscriptions Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          plan_id VARCHAR(64) NOT NULL DEFAULT 'growth',
+          plan_name VARCHAR(128) NOT NULL DEFAULT 'Growth Tier',
+          status VARCHAR(32) NOT NULL DEFAULT 'active',
+          amount DECIMAL(10,2) NOT NULL DEFAULT 799.00,
+          billing_cycle VARCHAR(32) NOT NULL DEFAULT 'monthly',
+          current_period_start TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          current_period_end TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          razorpay_subscription_id VARCHAR(128) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_company_sub (company_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 16. Custom Domains Table (Static Hosting & Domain Routing)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS custom_domains (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          domain VARCHAR(255) NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'pending_verification',
+          ssl_status VARCHAR(32) NOT NULL DEFAULT 'provisioning',
+          cname_target VARCHAR(255) NOT NULL DEFAULT 'cname.bga.aaditechs.in',
+          a_record_target VARCHAR(64) NOT NULL DEFAULT '77.37.54.108',
+          dns_txt_record VARCHAR(255) DEFAULT NULL,
+          verified_at TIMESTAMP NULL DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_company_domain (company_id, domain),
+          INDEX idx_domains_company (company_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 17. Website Configs Table (Storefront metadata, SEO, custom HTML)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS website_configs (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          subdomain VARCHAR(128) NOT NULL,
+          primary_color VARCHAR(32) NOT NULL DEFAULT '#4f46e5',
+          secondary_color VARCHAR(32) NOT NULL DEFAULT '#06b6d4',
+          tagline VARCHAR(255) DEFAULT NULL,
+          hero_title VARCHAR(255) DEFAULT NULL,
+          hero_subtitle TEXT DEFAULT NULL,
+          meta_description TEXT DEFAULT NULL,
+          keywords TEXT DEFAULT NULL,
+          google_analytics_id VARCHAR(64) DEFAULT NULL,
+          custom_header_html TEXT DEFAULT NULL,
+          enable_whatsapp_cta BOOLEAN NOT NULL DEFAULT TRUE,
+          enable_direct_call_cta BOOLEAN NOT NULL DEFAULT TRUE,
+          enable_inquiry_form BOOLEAN NOT NULL DEFAULT TRUE,
+          pages_json LONGTEXT DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_company_webconfig (company_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // Seed initial custom domains if empty
+      const [existingDomains]: any = await connection.query('SELECT id FROM custom_domains LIMIT 1');
+      if (!existingDomains || existingDomains.length === 0) {
+        await connection.query(`
+          INSERT INTO custom_domains (id, company_id, domain, status, ssl_status, cname_target, a_record_target, dns_txt_record, verified_at)
+          VALUES ('dom_bga_aaditechs', 'comp_aaditech_main', 'bga.aaditechs.in', 'active', 'active', 'cname.bga.aaditechs.in', '77.37.54.108', 'bga-site-verification=aaditech_main_prod_2026', NOW())
+        `);
+      }
+
+      // Seed initial invoices for flagship company if empty
+      const [existingInvoices]: any = await connection.query('SELECT id FROM invoices LIMIT 1');
+      if (!existingInvoices || existingInvoices.length === 0) {
+        await connection.query(`
+          INSERT INTO invoices (id, company_id, date, plan, amount, gst_amount, total_amount, payment_method, payment_id, order_id, customer_name, customer_email, customer_phone, status, hsn_code)
+          VALUES 
+          ('INV-2026-0901', 'comp_aaditech_main', '2026-09-01', 'Growth Tier (Monthly)', 799.00, 143.82, 942.82, 'UPI / Razorpay (r8898278453@okaxis)', 'pay_RzpGrowthSep26', 'order_RzpGwt901', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314'),
+          ('INV-2026-0801', 'comp_aaditech_main', '2026-08-01', 'Growth Tier (Monthly)', 799.00, 143.82, 942.82, 'UPI / Razorpay (r8898278453@okaxis)', 'pay_RzpGrowthAug26', 'order_RzpGwt801', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314'),
+          ('INV-2026-0701', 'comp_aaditech_main', '2026-07-01', 'Starter Tier (Intro)', 499.00, 89.82, 588.82, 'Net Banking (HDFC Bank)', 'pay_RzpStarterJul26', 'order_RzpStr701', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314')
+        `);
+      }
 
       console.log('[Hostinger MySQL] Relational Multi-Tenant Tables verified & ready!');
     } finally {
@@ -1777,6 +2067,58 @@ export async function deleteReview(reviewId: string, companyId?: string): Promis
   return false;
 }
 
+export async function syncGoogleReviewsToDatabase(companyId: string, googleReviews: any[]): Promise<number> {
+  if (!Array.isArray(googleReviews) || googleReviews.length === 0) return 0;
+  let insertedCount = 0;
+
+  for (const gr of googleReviews) {
+    const author = gr.author_name || gr.author || 'Google User';
+    const content = (gr.text || gr.content || '').trim();
+    if (!content && !gr.rating) continue;
+
+    const rating = typeof gr.rating === 'number' ? gr.rating : 5;
+    const sentiment = rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative';
+    const date = gr.time ? new Date(gr.time * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const relativeTime = gr.relative_time_description || 'Recently';
+
+    try {
+      const db = await getDbPool();
+      if (db) {
+        // Check for duplicates
+        const [existing]: any = await db.query(
+          'SELECT id FROM reviews WHERE company_id = ? AND author = ? AND (content = ? OR content LIKE ?) LIMIT 1',
+          [companyId, author, content, `${content.slice(0, 50)}%`]
+        );
+        if (!existing || existing.length === 0) {
+          const id = `rev_gmb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+          await db.query(
+            `INSERT INTO reviews (id, company_id, author, rating, date, relative_time, content, sentiment, topic, is_operational_issue, replied, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              id,
+              companyId,
+              author,
+              rating,
+              date,
+              relativeTime,
+              content,
+              sentiment,
+              'Google Review',
+              rating <= 2 ? 1 : 0,
+              0,
+              'google',
+            ]
+          );
+          insertedCount++;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[syncGoogleReviewsToDatabase] error:', err?.message);
+    }
+  }
+  return insertedCount;
+}
+
 // ---------------- CONTENT POSTS MANAGEMENT (PER-TENANT MYSQL PERSISTENCE) ---------------- //
 
 export async function getCompanyPosts(companyId?: string): Promise<DbContentPost[]> {
@@ -2226,6 +2568,527 @@ export async function getRecentThemeHistory(
       usedAt: h.used_at,
     }));
 }
+
+// ---------------- INVOICES & SUBSCRIPTIONS (BILLING & LEDGER) ---------------- //
+
+export async function getInvoicesByCompany(companyId: string): Promise<DbInvoice[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM invoices WHERE company_id = ? ORDER BY created_at DESC',
+        [companyId]
+      );
+      if (rows && Array.isArray(rows)) {
+        return rows.map((r: any) => ({
+          ...r,
+          amount: Number(r.amount),
+          gst_amount: Number(r.gst_amount),
+          total_amount: Number(r.total_amount),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getInvoicesByCompany', err);
+  }
+
+  return inMemoryInvoices
+    .filter((inv) => inv.company_id === companyId)
+    .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
+}
+
+export async function getInvoiceById(invoiceId: string): Promise<DbInvoice | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM invoices WHERE id = ? LIMIT 1',
+        [invoiceId]
+      );
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          amount: Number(r.amount),
+          gst_amount: Number(r.gst_amount),
+          total_amount: Number(r.total_amount),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getInvoiceById', err);
+  }
+
+  const found = inMemoryInvoices.find((inv) => inv.id === invoiceId);
+  return found || null;
+}
+
+export async function createInvoice(invoice: Partial<DbInvoice> & { company_id: string }): Promise<DbInvoice> {
+  const now = new Date();
+  const dateFormatted = invoice.date || now.toISOString().split('T')[0];
+  const yearMonth = now.toISOString().replace(/-/g, '').slice(0, 6);
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  const invoiceId = invoice.id || `INV-${yearMonth}-${randomSuffix}`;
+  
+  const baseAmount = Number(invoice.amount || 0);
+  const gstAmount = Number(invoice.gst_amount !== undefined ? invoice.gst_amount : +(baseAmount * 0.18).toFixed(2));
+  const totalAmount = Number(invoice.total_amount !== undefined ? invoice.total_amount : +(baseAmount + gstAmount).toFixed(2));
+
+  const newInvoice: DbInvoice = {
+    id: invoiceId,
+    company_id: invoice.company_id,
+    date: dateFormatted,
+    plan: invoice.plan || 'Growth Tier (Monthly)',
+    amount: baseAmount,
+    gst_amount: gstAmount,
+    total_amount: totalAmount,
+    payment_method: invoice.payment_method || 'UPI / Razorpay',
+    payment_id: invoice.payment_id,
+    order_id: invoice.order_id,
+    payment_link_id: invoice.payment_link_id,
+    customer_name: invoice.customer_name || 'Aaditech Solution Client',
+    customer_email: invoice.customer_email || 'billing@aaditechs.in',
+    customer_phone: invoice.customer_phone || '+91 22 4963 8603',
+    status: invoice.status || 'Paid',
+    hsn_code: invoice.hsn_code || '998314',
+    pdf_url: invoice.pdf_url,
+    created_at: now.toISOString(),
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO invoices (
+          id, company_id, date, plan, amount, gst_amount, total_amount,
+          payment_method, payment_id, order_id, payment_link_id,
+          customer_name, customer_email, customer_phone, status, hsn_code, pdf_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          status = VALUES(status),
+          payment_id = VALUES(payment_id),
+          order_id = VALUES(order_id)`,
+        [
+          newInvoice.id,
+          newInvoice.company_id,
+          newInvoice.date,
+          newInvoice.plan,
+          newInvoice.amount,
+          newInvoice.gst_amount,
+          newInvoice.total_amount,
+          newInvoice.payment_method,
+          newInvoice.payment_id || null,
+          newInvoice.order_id || null,
+          newInvoice.payment_link_id || null,
+          newInvoice.customer_name || null,
+          newInvoice.customer_email || null,
+          newInvoice.customer_phone || null,
+          newInvoice.status,
+          newInvoice.hsn_code || '998314',
+          newInvoice.pdf_url || null,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('createInvoice', err);
+  }
+
+  // Update in-memory store
+  const existingIdx = inMemoryInvoices.findIndex((inv) => inv.id === newInvoice.id);
+  if (existingIdx >= 0) {
+    inMemoryInvoices[existingIdx] = newInvoice;
+  } else {
+    inMemoryInvoices.unshift(newInvoice);
+  }
+
+  return newInvoice;
+}
+
+export async function getSubscriptionByCompany(companyId: string): Promise<DbSubscription | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM subscriptions WHERE company_id = ? LIMIT 1',
+        [companyId]
+      );
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          amount: Number(r.amount),
+          current_period_start: r.current_period_start instanceof Date ? r.current_period_start.toISOString() : String(r.current_period_start),
+          current_period_end: r.current_period_end instanceof Date ? r.current_period_end.toISOString() : String(r.current_period_end),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getSubscriptionByCompany', err);
+  }
+
+  const found = inMemorySubscriptions.find((sub) => sub.company_id === companyId);
+  return found || null;
+}
+
+export async function upsertSubscription(
+  sub: Partial<DbSubscription> & { company_id: string; plan_id: string }
+): Promise<DbSubscription> {
+  const now = new Date();
+  const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const subId = sub.id || `sub_${sub.company_id}_${sub.plan_id}`;
+
+  const planNames: Record<string, string> = {
+    starter: 'Starter Tier',
+    growth: 'Growth Tier',
+    pro: 'Pro Automation Tier',
+    agency: 'Agency Multi-Client',
+  };
+  const planPrices: Record<string, number> = {
+    starter: 499,
+    growth: 799,
+    pro: 1499,
+    agency: 4999,
+  };
+
+  const updatedSub: DbSubscription = {
+    id: subId,
+    company_id: sub.company_id,
+    plan_id: sub.plan_id,
+    plan_name: sub.plan_name || planNames[sub.plan_id] || 'Custom Plan',
+    status: sub.status || 'active',
+    amount: sub.amount !== undefined ? Number(sub.amount) : (planPrices[sub.plan_id] || 799),
+    billing_cycle: sub.billing_cycle || 'monthly',
+    current_period_start: sub.current_period_start || now.toISOString(),
+    current_period_end: sub.current_period_end || nextMonth.toISOString(),
+    razorpay_subscription_id: sub.razorpay_subscription_id,
+    created_at: now.toISOString(),
+    updated_at: now.toISOString(),
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO subscriptions (
+          id, company_id, plan_id, plan_name, status, amount,
+          billing_cycle, current_period_start, current_period_end, razorpay_subscription_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          plan_id = VALUES(plan_id),
+          plan_name = VALUES(plan_name),
+          status = VALUES(status),
+          amount = VALUES(amount),
+          billing_cycle = VALUES(billing_cycle),
+          current_period_start = VALUES(current_period_start),
+          current_period_end = VALUES(current_period_end),
+          razorpay_subscription_id = VALUES(razorpay_subscription_id)`,
+        [
+          updatedSub.id,
+          updatedSub.company_id,
+          updatedSub.plan_id,
+          updatedSub.plan_name,
+          updatedSub.status,
+          updatedSub.amount,
+          updatedSub.billing_cycle,
+          new Date(updatedSub.current_period_start),
+          new Date(updatedSub.current_period_end),
+          updatedSub.razorpay_subscription_id || null,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('upsertSubscription', err);
+  }
+
+  const existingIdx = inMemorySubscriptions.findIndex((s) => s.company_id === updatedSub.company_id);
+  if (existingIdx >= 0) {
+    inMemorySubscriptions[existingIdx] = updatedSub;
+  } else {
+    inMemorySubscriptions.push(updatedSub);
+  }
+
+  return updatedSub;
+}
+
+// ---------------- CUSTOM DOMAINS & WEBSITE CONFIGURATION ---------------- //
+
+export async function getCustomDomainsByCompany(companyId: string): Promise<DbCustomDomain[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM custom_domains WHERE company_id = ? ORDER BY created_at DESC',
+        [companyId]
+      );
+      if (rows && Array.isArray(rows)) {
+        return rows.map((r: any) => ({
+          ...r,
+          verified_at: r.verified_at instanceof Date ? r.verified_at.toISOString() : r.verified_at ? String(r.verified_at) : null,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getCustomDomainsByCompany', err);
+  }
+
+  return inMemoryCustomDomains.filter((d) => d.company_id === companyId);
+}
+
+export async function getCustomDomainById(domainId: string): Promise<DbCustomDomain | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM custom_domains WHERE id = ? LIMIT 1',
+        [domainId]
+      );
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          verified_at: r.verified_at instanceof Date ? r.verified_at.toISOString() : r.verified_at ? String(r.verified_at) : null,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getCustomDomainById', err);
+  }
+
+  return inMemoryCustomDomains.find((d) => d.id === domainId) || null;
+}
+
+export async function createCustomDomain(
+  data: Partial<DbCustomDomain> & { company_id: string; domain: string }
+): Promise<DbCustomDomain> {
+  const cleanDomain = data.domain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const id = data.id || `dom_${cleanDomain.replace(/[^a-z0-9]/g, '_')}_${Math.floor(1000 + Math.random() * 9000)}`;
+  const now = new Date().toISOString();
+  const txtRecord = `bga-site-verification=${cleanDomain.replace(/[^a-z0-9]/g, '')}_${Date.now().toString(36)}`;
+
+  const newDomain: DbCustomDomain = {
+    id,
+    company_id: data.company_id,
+    domain: cleanDomain,
+    status: data.status || 'pending_verification',
+    ssl_status: data.ssl_status || 'provisioning',
+    cname_target: data.cname_target || 'cname.bga.aaditechs.in',
+    a_record_target: data.a_record_target || '77.37.54.108',
+    dns_txt_record: data.dns_txt_record || txtRecord,
+    verified_at: data.verified_at || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO custom_domains (
+          id, company_id, domain, status, ssl_status, cname_target,
+          a_record_target, dns_txt_record, verified_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          status = VALUES(status),
+          ssl_status = VALUES(ssl_status),
+          cname_target = VALUES(cname_target),
+          a_record_target = VALUES(a_record_target),
+          dns_txt_record = VALUES(dns_txt_record),
+          verified_at = VALUES(verified_at)`,
+        [
+          newDomain.id,
+          newDomain.company_id,
+          newDomain.domain,
+          newDomain.status,
+          newDomain.ssl_status,
+          newDomain.cname_target,
+          newDomain.a_record_target,
+          newDomain.dns_txt_record,
+          newDomain.verified_at ? new Date(newDomain.verified_at) : null,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('createCustomDomain', err);
+  }
+
+  const existingIdx = inMemoryCustomDomains.findIndex((d) => d.id === newDomain.id || (d.company_id === newDomain.company_id && d.domain === newDomain.domain));
+  if (existingIdx >= 0) {
+    inMemoryCustomDomains[existingIdx] = newDomain;
+  } else {
+    inMemoryCustomDomains.push(newDomain);
+  }
+
+  return newDomain;
+}
+
+export async function updateCustomDomainStatus(
+  domainId: string,
+  status: 'active' | 'pending_verification' | 'failed',
+  sslStatus: 'active' | 'provisioning' | 'expired' = 'active'
+): Promise<DbCustomDomain | null> {
+  const verifiedAt = status === 'active' ? new Date().toISOString() : null;
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        'UPDATE custom_domains SET status = ?, ssl_status = ?, verified_at = ? WHERE id = ?',
+        [status, sslStatus, verifiedAt ? new Date(verifiedAt) : null, domainId]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('updateCustomDomainStatus', err);
+  }
+
+  const found = inMemoryCustomDomains.find((d) => d.id === domainId);
+  if (found) {
+    found.status = status;
+    found.ssl_status = sslStatus;
+    found.verified_at = verifiedAt;
+    found.updated_at = new Date().toISOString();
+    return found;
+  }
+  return null;
+}
+
+export async function deleteCustomDomain(domainId: string): Promise<boolean> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query('DELETE FROM custom_domains WHERE id = ?', [domainId]);
+    }
+  } catch (err: any) {
+    handleDbError('deleteCustomDomain', err);
+  }
+
+  const idx = inMemoryCustomDomains.findIndex((d) => d.id === domainId);
+  if (idx >= 0) {
+    inMemoryCustomDomains.splice(idx, 1);
+    return true;
+  }
+  return true;
+}
+
+export async function getWebsiteConfigByCompany(companyId: string): Promise<DbWebsiteConfig | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM website_configs WHERE company_id = ? LIMIT 1',
+        [companyId]
+      );
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          enable_whatsapp_cta: Boolean(r.enable_whatsapp_cta),
+          enable_direct_call_cta: Boolean(r.enable_direct_call_cta),
+          enable_inquiry_form: Boolean(r.enable_inquiry_form),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getWebsiteConfigByCompany', err);
+  }
+
+  return inMemoryWebsiteConfigs.find((c) => c.company_id === companyId) || null;
+}
+
+export async function upsertWebsiteConfig(
+  data: Partial<DbWebsiteConfig> & { company_id: string }
+): Promise<DbWebsiteConfig> {
+  const id = data.id || `web_${data.company_id}`;
+  const now = new Date().toISOString();
+
+  const updatedConfig: DbWebsiteConfig = {
+    id,
+    company_id: data.company_id,
+    subdomain: data.subdomain || data.company_id.replace(/^comp_/, ''),
+    primary_color: data.primary_color || '#4f46e5',
+    secondary_color: data.secondary_color || '#06b6d4',
+    tagline: data.tagline || 'Autonomous AI Growth Engine & Local SEO Authority',
+    hero_title: data.hero_title || 'Official Services Hub',
+    hero_subtitle: data.hero_subtitle || 'Trusted professional solutions serving clients with guaranteed satisfaction.',
+    meta_description: data.meta_description || 'Official storefront and local SEO hub.',
+    keywords: data.keywords || 'local seo, marketing, services',
+    google_analytics_id: data.google_analytics_id,
+    custom_header_html: data.custom_header_html,
+    enable_whatsapp_cta: data.enable_whatsapp_cta !== undefined ? data.enable_whatsapp_cta : true,
+    enable_direct_call_cta: data.enable_direct_call_cta !== undefined ? data.enable_direct_call_cta : true,
+    enable_inquiry_form: data.enable_inquiry_form !== undefined ? data.enable_inquiry_form : true,
+    pages_json: data.pages_json,
+    created_at: now,
+    updated_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO website_configs (
+          id, company_id, subdomain, primary_color, secondary_color,
+          tagline, hero_title, hero_subtitle, meta_description, keywords,
+          google_analytics_id, custom_header_html, enable_whatsapp_cta,
+          enable_direct_call_cta, enable_inquiry_form, pages_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          subdomain = VALUES(subdomain),
+          primary_color = VALUES(primary_color),
+          secondary_color = VALUES(secondary_color),
+          tagline = VALUES(tagline),
+          hero_title = VALUES(hero_title),
+          hero_subtitle = VALUES(hero_subtitle),
+          meta_description = VALUES(meta_description),
+          keywords = VALUES(keywords),
+          google_analytics_id = VALUES(google_analytics_id),
+          custom_header_html = VALUES(custom_header_html),
+          enable_whatsapp_cta = VALUES(enable_whatsapp_cta),
+          enable_direct_call_cta = VALUES(enable_direct_call_cta),
+          enable_inquiry_form = VALUES(enable_inquiry_form),
+          pages_json = VALUES(pages_json)`,
+        [
+          updatedConfig.id,
+          updatedConfig.company_id,
+          updatedConfig.subdomain,
+          updatedConfig.primary_color,
+          updatedConfig.secondary_color,
+          updatedConfig.tagline || null,
+          updatedConfig.hero_title || null,
+          updatedConfig.hero_subtitle || null,
+          updatedConfig.meta_description || null,
+          updatedConfig.keywords || null,
+          updatedConfig.google_analytics_id || null,
+          updatedConfig.custom_header_html || null,
+          updatedConfig.enable_whatsapp_cta ? 1 : 0,
+          updatedConfig.enable_direct_call_cta ? 1 : 0,
+          updatedConfig.enable_inquiry_form ? 1 : 0,
+          updatedConfig.pages_json || null,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('upsertWebsiteConfig', err);
+  }
+
+  const existingIdx = inMemoryWebsiteConfigs.findIndex((c) => c.company_id === updatedConfig.company_id);
+  if (existingIdx >= 0) {
+    inMemoryWebsiteConfigs[existingIdx] = updatedConfig;
+  } else {
+    inMemoryWebsiteConfigs.push(updatedConfig);
+  }
+
+  return updatedConfig;
+}
+
 
 
 

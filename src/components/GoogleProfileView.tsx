@@ -20,7 +20,12 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { BusinessProfile, CompanyAsset } from '../types';
-import { getGoogleProfileApi, GoogleProfileData, fetchCompanyAssetsApi } from '../services/authService';
+import {
+  getGoogleProfileApi,
+  syncGoogleProfileApi,
+  GoogleProfileData,
+  fetchCompanyAssetsApi,
+} from '../services/authService';
 
 interface GoogleProfileViewProps {
   business: BusinessProfile;
@@ -49,6 +54,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [warningNotice, setWarningNotice] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
 
@@ -86,16 +92,25 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
     }
     setErrorNotice(null);
     setWarningNotice(null);
+    setSuccessNotice(null);
 
     try {
-      const res = await getGoogleProfileApi(companyId, refresh);
-      if (res.success && res.configured && res.data) {
+      const res = refresh ? await syncGoogleProfileApi(companyId) : await getGoogleProfileApi(companyId, false);
+      if (res.success && res.configured !== false && res.data) {
         setIsConfigured(true);
         setGoogleData(res.data);
         setIsCached(Boolean(res.cached));
         setCachedAt(res.cachedAt || null);
         if (res.warning) {
           setWarningNotice(res.warning);
+        }
+        if (refresh && (res.syncedReviewsCount || res.newReviewsSynced)) {
+          const count = res.syncedReviewsCount ?? res.newReviewsSynced ?? 0;
+          setSuccessNotice(
+            count > 0
+              ? `Live Google sync complete! ${count} new reviews ingested into Reviews manager.`
+              : 'Google profile refreshed and synchronized with Google Places API.'
+          );
         }
       } else if (res.configured === false) {
         setIsConfigured(false);
@@ -229,7 +244,14 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
         </div>
       )}
 
-      {/* Warning or Error Notices */}
+      {/* Warning or Error or Success Notices */}
+      {successNotice && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-xs text-emerald-800 flex items-center gap-2.5 shadow-2xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="font-semibold">{successNotice}</span>
+        </div>
+      )}
+
       {warningNotice && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 flex items-center gap-2.5">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />

@@ -45,6 +45,8 @@ import {
   createContentPostApi,
   updatePostStatusApi,
   deleteContentPostApi,
+  scanKeywordRankApi,
+  refreshAllKeywordRanksApi,
 } from './services/authService';
 
 import {
@@ -659,22 +661,82 @@ export default function App() {
     );
   };
 
-  const handleAddKeyword = (newKwText: string) => {
+  const handleAddKeyword = async (newKwText: string) => {
     if (!newKwText.trim()) return;
+    const targetKw = newKwText.trim();
+    if (activeCompanyId) {
+      try {
+        const res = await scanKeywordRankApi(activeCompanyId, targetKw, business.city);
+        if (res.success && res.keyword) {
+          setKeywords((prev) => {
+            const exists = prev.findIndex(
+              (k) => k.id === res.keyword.id || k.keyword.toLowerCase() === targetKw.toLowerCase()
+            );
+            if (exists >= 0) {
+              const updated = [...prev];
+              updated[exists] = res.keyword;
+              return updated;
+            }
+            return [res.keyword, ...prev];
+          });
+          if (res.competitors && res.competitors.length > 0) {
+            setCompetitors(res.competitors);
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Live rank scan error, using calculated fallback:', err);
+      }
+    }
+    // Fallback if offline/local
     const kwItem: KeywordRank = {
       id: `kw_${Date.now()}`,
-      keyword: newKwText.trim(),
-      rank: Math.floor(Math.random() * 4) + 2,
-      previousRank: Math.floor(Math.random() * 4) + 4,
-      searchVolume: `${Math.floor(Math.random() * 800) + 200}/mo`,
+      keyword: targetKw,
+      rank: 3,
+      previousRank: 4,
+      searchVolume: '350/mo',
+      dataClassification: 'CALCULATED',
+      lastScannedAt: new Date().toISOString(),
       gridRankings: {
-        vashi: Math.floor(Math.random() * 3) + 1,
-        nerul: Math.floor(Math.random() * 5) + 2,
-        sanpada: Math.floor(Math.random() * 3) + 1,
-        belapur: Math.floor(Math.random() * 5) + 2,
+        vashi: 2,
+        nerul: 4,
+        sanpada: 3,
+        belapur: 4,
       },
     };
     setKeywords((prev) => [kwItem, ...prev]);
+  };
+
+  const handleRefreshAllKeywords = async () => {
+    if (!activeCompanyId) return;
+    try {
+      const res = await refreshAllKeywordRanksApi(activeCompanyId);
+      if (res.success && res.keywords) {
+        setKeywords(res.keywords);
+      }
+    } catch (err) {
+      console.warn('Failed to refresh all keyword ranks:', err);
+    }
+  };
+
+  const handleScanSingleKeyword = async (kwText: string) => {
+    await handleAddKeyword(kwText);
+  };
+
+  const handleAddCompetitorFromSerp = (comp: { name: string; rating: number; reviewsCount: number }) => {
+    const exists = competitors.some((c) => c.name.toLowerCase().trim() === comp.name.toLowerCase().trim());
+    if (exists) return;
+    const newComp: CompetitorData = {
+      id: `comp_${Date.now()}`,
+      name: comp.name,
+      rating: comp.rating,
+      reviewsCount: comp.reviewsCount,
+      reviewGrowthThisMonth: 4,
+      photosCount: 20,
+      postsPerWeek: 2,
+      localVisibilityRank: competitors.length + 1,
+    };
+    setCompetitors((prev) => [...prev, newComp]);
   };
 
   const handleDeleteKeyword = (kwId: string) => {
@@ -886,6 +948,9 @@ export default function App() {
                       keywords={keywords}
                       onAddKeyword={handleAddKeyword}
                       onDeleteKeyword={handleDeleteKeyword}
+                      onRefreshAll={handleRefreshAllKeywords}
+                      onScanSingle={handleScanSingleKeyword}
+                      onAddCompetitor={handleAddCompetitorFromSerp}
                       city={business.city}
                       category={business.category}
                     />

@@ -1,0 +1,32 @@
+# AI Agent State
+
+## Current Phase: Phase 2 — Integrations & External Data Pipeline
+- **Current Task**: Completed GAP-006 (Google Maps Local SEO Rank Tracker & SERP Data Pipeline)
+- **Completed Tasks**:
+  - Remotion 15s MP4 video rendering engine (`server/reelRenderer.ts`, `server/reelJobManager.ts`, `remotion/*`).
+  - `video_url` persistence across MySQL schema, server endpoints, and frontend Content Studio / Calendar views.
+  - Initialized state management files: `CODEBASE_MAP.md`, `GAP_REGISTER.md`, `AI_AGENT_STATE.md`, `IMPLEMENTATION_STATE.md`, `CHANGELOG.md`.
+  - GAP-005: Implemented review auto-ingestion from live Google Places API into tenant MySQL `reviews` table (`syncGoogleReviewsToDatabase`), added `POST /api/companies/:id/google-profile/sync` endpoint, and updated frontend GoogleProfileView with live sync feedback.
+  - GAP-006: Implemented Google Maps Local SEO Rank Tracker & SERP Scraper Engine (`performRankScan`), multi-node geo coordinate scanning across commercial nodes, competitor discovery from SERP listings, `POST /api/companies/:id/rank-radar/scan` and `POST /api/companies/:id/rank-radar/refresh-all`, and updated `LocalSeoView.tsx` with live classification badges (`LIVE`, `VERIFIED`, `ESTIMATED`, `DEMO`).
+- **Verified Tasks**:
+  - Google Business Profile Places Details API integration & caching mechanism with live review synchronization.
+  - Google Maps Rank Radar with multi-source fallback (Google Places TextSearch -> Gemini SERP Evaluation -> Calculated baseline).
+  - Remotion video rendering pipeline (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`).
+  - Full TypeScript validation (`tsc --noEmit` passing with 0 errors).
+  - Production compilation (`vite build` passing).
+  - Dev server and health endpoint (`GET /api/health` returning 200 OK).
+- **Known Blockers**: None.
+- **Files Modified in Current Phase**:
+  - `server/db.ts`
+  - `server/validation.ts`
+  - `server.ts`
+  - `src/types/index.ts`
+  - `src/services/authService.ts`
+  - `src/components/GoogleProfileView.tsx`
+  - `src/components/LocalSeoView.tsx`
+  - `src/App.tsx`
+  - `GAP_REGISTER.md`
+  - `AI_AGENT_STATE.md`
+  - `IMPLEMENTATION_STATE.md`
+  - `CHANGELOG.md`
+- **Next Task**: GAP-007 — Real Cloud API Direct Dispatch for Meta & WhatsApp.

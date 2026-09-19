@@ -229,6 +229,103 @@ CREATE TABLE IF NOT EXISTS `content_theme_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
+-- Table structure for table `invoices`
+-- GST compliant invoices generated via Razorpay / direct billing
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `invoices` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `date` varchar(32) NOT NULL,
+  `plan` varchar(128) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `gst_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `total_amount` decimal(10,2) NOT NULL,
+  `payment_method` varchar(128) NOT NULL DEFAULT 'UPI / Razorpay',
+  `payment_id` varchar(128) DEFAULT NULL,
+  `order_id` varchar(128) DEFAULT NULL,
+  `payment_link_id` varchar(128) DEFAULT NULL,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `customer_email` varchar(255) DEFAULT NULL,
+  `customer_phone` varchar(64) DEFAULT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'Paid',
+  `hsn_code` varchar(32) DEFAULT '998314',
+  `pdf_url` varchar(512) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_invoices_company` (`company_id`),
+  KEY `idx_invoices_payment` (`payment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `subscriptions`
+-- Multi-tenant subscription tiers and billing cycle management
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `subscriptions` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `plan_id` varchar(64) NOT NULL DEFAULT 'growth',
+  `plan_name` varchar(128) NOT NULL DEFAULT 'Growth Tier',
+  `status` varchar(32) NOT NULL DEFAULT 'active',
+  `amount` decimal(10,2) NOT NULL DEFAULT 799.00,
+  `billing_cycle` varchar(32) NOT NULL DEFAULT 'monthly',
+  `current_period_start` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `current_period_end` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `razorpay_subscription_id` varchar(128) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_company_sub` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `custom_domains`
+-- Static Hosting & Custom Domain Binding with DNS Verification
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `custom_domains` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `domain` varchar(255) NOT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'pending_verification',
+  `ssl_status` varchar(32) NOT NULL DEFAULT 'provisioning',
+  `cname_target` varchar(255) NOT NULL DEFAULT 'cname.bga.aaditechs.in',
+  `a_record_target` varchar(64) NOT NULL DEFAULT '77.37.54.108',
+  `dns_txt_record` varchar(255) DEFAULT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_company_domain` (`company_id`, `domain`),
+  KEY `idx_domains_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `website_configs`
+-- Storefront metadata, SEO, custom styling, and subpages
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `website_configs` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `subdomain` varchar(128) NOT NULL,
+  `primary_color` varchar(32) NOT NULL DEFAULT '#4f46e5',
+  `secondary_color` varchar(32) NOT NULL DEFAULT '#06b6d4',
+  `tagline` varchar(255) DEFAULT NULL,
+  `hero_title` varchar(255) DEFAULT NULL,
+  `hero_subtitle` text DEFAULT NULL,
+  `meta_description` text DEFAULT NULL,
+  `keywords` text DEFAULT NULL,
+  `google_analytics_id` varchar(64) DEFAULT NULL,
+  `custom_header_html` text DEFAULT NULL,
+  `enable_whatsapp_cta` tinyint(1) NOT NULL DEFAULT 1,
+  `enable_direct_call_cta` tinyint(1) NOT NULL DEFAULT 1,
+  `enable_inquiry_form` tinyint(1) NOT NULL DEFAULT 1,
+  `pages_json` longtext DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_company_webconfig` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
 -- Seed Data for Aaditech BGA (bga.aaditechs.in)
 -- --------------------------------------------------------
 INSERT INTO `companies` (`id`, `user_id`, `name`, `legal_name`, `category`, `city`, `phone`, `website`, `google_place_id`, `autopilot_enabled`, `score`, `rank_position`)

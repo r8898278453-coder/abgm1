@@ -122,11 +122,20 @@ export interface KeywordRank {
   rank: number;
   previousRank: number;
   searchVolume: string;
+  dataClassification?: 'LIVE' | 'VERIFIED' | 'ESTIMATED' | 'CALCULATED' | 'DEMO' | 'SEEDED';
+  lastScannedAt?: string;
+  topCompetitors?: {
+    name: string;
+    rating: number;
+    reviewsCount: number;
+    position: number;
+  }[];
   gridRankings: {
     vashi: number;
     nerul: number;
     sanpada: number;
     belapur: number;
+    [key: string]: number;
   };
 }
 
