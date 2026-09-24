@@ -3,9 +3,15 @@
 ## Architecture Overview
 - **Frontend**: React 18 + Vite SPA, Tailwind CSS, Lucide icons.
 - **Backend**: Express.js server (`server.ts`) with custom routing, JWT auth, rate limiting, and Vite middleware.
-- **Rendering Engines**:
+- **Rendering Engines & Services**:
   - Node Canvas template graphic renderer (`server/templateRenderer.ts`).
   - Remotion server-side 9:16 vertical video reel engine with ffmpeg bundle (`server/reelRenderer.ts`, `server/reelJobManager.ts`, `remotion/*`).
+  - Centralized Meta & WhatsApp Cloud API service (`server/metaWhatsAppService.ts`).
+  - Billing & Webhook Idempotency service (`server/billingService.ts`).
+  - Deterministic Growth Intelligence engine (`server/growthScoreEngine.ts`).
+  - Real Revenue Attribution engine (`server/revenueAttribution.ts`).
+  - Grounded AI Executive Summary engine (`server/aiExecutiveSummary.ts`).
+  - 8-Stage Autonomous Decision & Governance engine (`server/autonomousEngine.ts`).
 - **Database / Persistence**:
   - MySQL via `mysql2/promise` with auto self-healing schema creation/migrations (`schema.sql`, `server/db.ts`).
   - Memory fallback cache if MySQL is not configured or offline.

@@ -252,7 +252,7 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
 
                       <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between">
                         <span className="text-[11px] text-slate-400">
-                          Score: <strong className="text-white">{c.score || 82}/100</strong>
+                          Score: <strong className="text-white">{c.score !== null && c.score !== undefined ? `${c.score}/100` : 'N/A'}</strong>
                         </span>
                         {!isCurrent && onSelectCompany ? (
                           <button

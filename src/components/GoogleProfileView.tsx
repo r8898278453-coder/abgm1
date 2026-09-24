@@ -180,10 +180,10 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
             <MapPin className="w-7 h-7 text-indigo-600" />
-            Google Business Profile Manager & Health
+            Google Places Profile & Maps Health
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Manage your official Google Maps Presence, business attributes, services catalog, and live Places API sync.
+            Manage your official Google Maps Presence, business attributes, services catalog, and live Google Places API sync.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
               className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-xs border border-slate-200 disabled:opacity-60"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} />
-              <span>{isRefreshing ? 'Syncing...' : 'Sync from Google'}</span>
+              <span>{isRefreshing ? 'Syncing...' : 'Sync from Places API'}</span>
             </button>
           )}
           <button
@@ -220,10 +220,10 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base font-black text-slate-900">
-                    Connect your Google Business Profile in Integrations to see live data
+                    Connect your Google Places API in Integrations to sync live data
                   </h3>
                   <span className="text-[10px] uppercase tracking-wider bg-amber-200/80 text-amber-900 font-extrabold px-2.5 py-0.5 rounded-full">
-                    API Sync Offline
+                    Places API Disconnected
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
@@ -236,7 +236,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
                 onClick={() => onNavigate('integrations')}
                 className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs flex-shrink-0 self-start md:self-center"
               >
-                <span>Connect Google Profile in Integrations</span>
+                <span>Configure Places API in Integrations</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             )}

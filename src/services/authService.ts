@@ -1,4 +1,4 @@
-import { AuthUser, CompanyRecord, LeadItem, ReviewItem, ContentPost, CompanyAsset, SocialTemplate } from '../types';
+import { AuthUser, CompanyRecord, LeadItem, ReviewItem, ContentPost, CompanyAsset, SocialTemplate, InternalCampaign, ExternalAdCampaign } from '../types';
 import { API_BASE_URL } from '../config/apiConfig';
 
 const TOKEN_KEY = 'abga_auth_token';
@@ -403,6 +403,27 @@ export async function updatePostStatusApi(postId: string, status: string, compan
   }
 }
 
+export async function publishContentPostApi(postId: string, companyId?: string, force?: boolean): Promise<{ success: boolean; result?: any; error?: string }> {
+  try {
+    const res = await apiRequest<{ success: boolean; result?: any; error?: string }>(`/api/content-posts/${encodeURIComponent(postId)}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ companyId, force }),
+    });
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Publishing request failed' };
+  }
+}
+
+export async function getPublishingHistoryApi(postId: string): Promise<{ success: boolean; records: any[] }> {
+  try {
+    const res = await apiRequest<{ success: boolean; records: any[] }>(`/api/content-posts/${encodeURIComponent(postId)}/publishing-history`);
+    return { success: Boolean(res.success), records: res.records || [] };
+  } catch {
+    return { success: false, records: [] };
+  }
+}
+
 export async function deleteContentPostApi(postId: string, companyId?: string): Promise<boolean> {
   try {
     const url = companyId
@@ -412,6 +433,179 @@ export async function deleteContentPostApi(postId: string, companyId?: string): 
     return Boolean(res.success);
   } catch (err) {
     console.warn('Failed to delete content post from MySQL:', err);
+    return false;
+  }
+}
+
+// ---------------- INTERNAL & EXTERNAL CAMPAIGN SERVICES ---------------- //
+
+export async function getInternalCampaignsApi(companyId?: string): Promise<InternalCampaign[]> {
+  try {
+    const url = companyId ? `/api/campaigns/internal?company_id=${encodeURIComponent(companyId)}` : '/api/campaigns/internal';
+    const res = await apiRequest<{ success: boolean; campaigns: any[] }>(url);
+    if (res.success && Array.isArray(res.campaigns)) {
+      return res.campaigns.map((c) => ({
+        id: c.id,
+        companyId: c.company_id,
+        name: c.name,
+        objective: c.objective,
+        status: c.status,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        plannedBudget: Number(c.planned_budget) || 0,
+        channels: Array.isArray(c.channels) ? c.channels : [],
+        externalCampaignId: c.external_campaign_id || null,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.warn('Failed to fetch internal campaigns:', err);
+    return [];
+  }
+}
+
+export async function createInternalCampaignApi(campaign: Partial<InternalCampaign> & { company_id?: string }): Promise<InternalCampaign | null> {
+  try {
+    const res = await apiRequest<{ success: boolean; campaign: any }>('/api/campaigns/internal', {
+      method: 'POST',
+      body: JSON.stringify({
+        company_id: campaign.companyId || campaign.company_id,
+        name: campaign.name,
+        objective: campaign.objective,
+        status: campaign.status || 'active',
+        start_date: campaign.startDate,
+        end_date: campaign.endDate,
+        planned_budget: campaign.plannedBudget,
+        channels: campaign.channels,
+        external_campaign_id: campaign.externalCampaignId,
+      }),
+    });
+    if (res.success && res.campaign) {
+      const c = res.campaign;
+      return {
+        id: c.id,
+        companyId: c.company_id,
+        name: c.name,
+        objective: c.objective,
+        status: c.status,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        plannedBudget: Number(c.planned_budget) || 0,
+        channels: Array.isArray(c.channels) ? c.channels : [],
+        externalCampaignId: c.external_campaign_id || null,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('Failed to create internal campaign:', err);
+    return null;
+  }
+}
+
+export async function updateInternalCampaignApi(
+  id: string,
+  updates: Partial<InternalCampaign>,
+  companyId?: string
+): Promise<boolean> {
+  try {
+    const payload: any = { company_id: companyId };
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.objective !== undefined) payload.objective = updates.objective;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.startDate !== undefined) payload.start_date = updates.startDate;
+    if (updates.endDate !== undefined) payload.end_date = updates.endDate;
+    if (updates.plannedBudget !== undefined) payload.planned_budget = updates.plannedBudget;
+    if (updates.channels !== undefined) payload.channels = updates.channels;
+    if (updates.externalCampaignId !== undefined) payload.external_campaign_id = updates.externalCampaignId;
+
+    const res = await apiRequest<{ success: boolean }>(`/api/campaigns/internal/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return Boolean(res.success);
+  } catch (err) {
+    console.warn('Failed to update internal campaign:', err);
+    return false;
+  }
+}
+
+export async function deleteInternalCampaignApi(id: string, companyId?: string): Promise<boolean> {
+  try {
+    const url = companyId
+      ? `/api/campaigns/internal/${encodeURIComponent(id)}?company_id=${encodeURIComponent(companyId)}`
+      : `/api/campaigns/internal/${encodeURIComponent(id)}`;
+    const res = await apiRequest<{ success: boolean }>(url, { method: 'DELETE' });
+    return Boolean(res.success);
+  } catch (err) {
+    console.warn('Failed to delete internal campaign:', err);
+    return false;
+  }
+}
+
+export async function getExternalAdCampaignsApi(companyId?: string): Promise<ExternalAdCampaign[]> {
+  try {
+    const url = companyId ? `/api/campaigns/external?company_id=${encodeURIComponent(companyId)}` : '/api/campaigns/external';
+    const res = await apiRequest<{ success: boolean; campaigns: any[] }>(url);
+    if (res.success && Array.isArray(res.campaigns)) {
+      return res.campaigns.map((c) => ({
+        id: c.id,
+        companyId: c.company_id,
+        internalCampaignId: c.internal_campaign_id || null,
+        provider: c.provider,
+        externalCampaignId: c.external_campaign_id,
+        name: c.name,
+        status: c.status,
+        fetchedAt: c.fetched_at,
+        spend: c.spend !== null ? Number(c.spend) : 'UNAVAILABLE',
+        impressions: c.impressions !== null ? Number(c.impressions) : 'UNAVAILABLE',
+        clicks: c.clicks !== null ? Number(c.clicks) : 'UNAVAILABLE',
+        conversions: c.conversions !== null ? Number(c.conversions) : 'UNAVAILABLE',
+        conversionTrackingStatus: c.conversion_tracking_status || 'UNAVAILABLE',
+        revenue: c.revenue !== null ? Number(c.revenue) : 'UNAVAILABLE',
+        revenueAttributionStatus: c.revenue_attribution_status || 'UNAVAILABLE',
+        roas: c.roas !== null ? Number(c.roas) : 'UNAVAILABLE',
+        rawMetricsJson: c.raw_metrics_json,
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.warn('Failed to fetch external ad campaigns:', err);
+    return [];
+  }
+}
+
+export async function syncExternalAdCampaignsApi(
+  companyId?: string,
+  provider = 'meta_ads'
+): Promise<{ success: boolean; syncResult?: any; error?: string }> {
+  try {
+    const res = await apiRequest<{ success: boolean; syncResult?: any; error?: string }>('/api/campaigns/external/sync', {
+      method: 'POST',
+      body: JSON.stringify({ company_id: companyId, provider }),
+    });
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Sync request failed' };
+  }
+}
+
+export async function linkInternalToExternalCampaignApi(
+  internalId: string,
+  externalCampaignId: string | null,
+  companyId?: string
+): Promise<boolean> {
+  try {
+    const res = await apiRequest<{ success: boolean }>(`/api/campaigns/internal/${encodeURIComponent(internalId)}/link-external`, {
+      method: 'POST',
+      body: JSON.stringify({ external_campaign_id: externalCampaignId, company_id: companyId }),
+    });
+    return Boolean(res.success);
+  } catch (err) {
+    console.warn('Failed to link internal to external campaign:', err);
     return false;
   }
 }
@@ -938,7 +1132,7 @@ export interface CompanySubscriptionRecord {
   company_id: string;
   plan_id: string;
   plan_name: string;
-  status: 'active' | 'cancelled' | 'past_due' | 'trialing';
+  status: 'trial' | 'active' | 'past_due' | 'payment_failed' | 'cancelled' | 'expired' | 'trialing';
   amount: number;
   billing_cycle: 'monthly' | 'yearly';
   current_period_start: string;

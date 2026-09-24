@@ -16,8 +16,12 @@ import {
   AlertCircle,
   Users2,
   ExternalLink,
+  Layers,
+  Globe,
+  Info,
 } from 'lucide-react';
-import { KeywordRank } from '../types';
+import { KeywordRank, RankObservation } from '../types';
+import { DataStatusBadge } from './DataStatusBadge';
 
 interface LocalSeoViewProps {
   keywords: KeywordRank[];
@@ -29,6 +33,43 @@ interface LocalSeoViewProps {
   city?: string;
   category?: string;
   isScanning?: boolean;
+}
+
+const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  thane: { lat: 19.2183, lng: 72.9781 },
+  mumbai: { lat: 19.076, lng: 72.8777 },
+  'navi mumbai': { lat: 19.033, lng: 73.0297 },
+  pune: { lat: 18.5204, lng: 73.8567 },
+  delhi: { lat: 28.7041, lng: 77.1025 },
+  bangalore: { lat: 12.9716, lng: 77.5946 },
+  bengaluru: { lat: 12.9716, lng: 77.5946 },
+  hyderabad: { lat: 17.385, lng: 78.4867 },
+};
+
+function fallback9Grid(city: string) {
+  const norm = city.toLowerCase().trim();
+  const center = CITY_COORDS[norm] || CITY_COORDS.thane;
+  const latDelta = 3.5 / 111.32;
+  const lngDelta = 3.5 / (111.32 * Math.cos((center.lat * Math.PI) / 180));
+
+  const offsets = [
+    { label: 'NW (-3.5km, +3.5km)', dLat: latDelta, dLng: -lngDelta },
+    { label: 'N (0km, +3.5km)', dLat: latDelta, dLng: 0 },
+    { label: 'NE (+3.5km, +3.5km)', dLat: latDelta, dLng: lngDelta },
+    { label: 'W (-3.5km, 0km)', dLat: 0, dLng: -lngDelta },
+    { label: 'Center (0km, 0km)', dLat: 0, dLng: 0 },
+    { label: 'E (+3.5km, 0km)', dLat: 0, dLng: lngDelta },
+    { label: 'SW (-3.5km, -3.5km)', dLat: -latDelta, dLng: -lngDelta },
+    { label: 'S (0km, -3.5km)', dLat: -latDelta, dLng: 0 },
+    { label: 'SE (+3.5km, -3.5km)', dLat: -latDelta, dLng: lngDelta },
+  ];
+
+  return offsets.map((o, idx) => ({
+    gridIndex: idx,
+    label: o.label,
+    lat: Number((center.lat + o.dLat).toFixed(6)),
+    lng: Number((center.lng + o.dLng).toFixed(6)),
+  }));
 }
 
 export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
@@ -48,7 +89,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
   const [activeScanningKw, setActiveScanningKw] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const selectedKw = keywords.length > 0 ? (keywords.find((k) => k.id === selectedKwId) || keywords[0]) : null;
+  const selectedKw = keywords.length > 0 ? keywords.find((k) => k.id === selectedKwId) || keywords[0] : null;
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +100,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onAddKeyword) {
         await onAddKeyword(target);
-        setStatusMessage(`Live SERP scan complete for "${target}".`);
+        setStatusMessage(`Local SERP scan processed for "${target}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } finally {
@@ -73,7 +114,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onRefreshAll) {
         await onRefreshAll();
-        setStatusMessage('All tracked keyword SERP rankings refreshed.');
+        setStatusMessage('Tracked keyword rank observations refreshed.');
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } finally {
@@ -86,7 +127,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onScanSingle) {
         await onScanSingle(kwText);
-        setStatusMessage(`Refreshed live rank for "${kwText}".`);
+        setStatusMessage(`Refreshed rank radar for "${kwText}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } finally {
@@ -102,34 +143,43 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
   ];
 
   const getClassificationBadge = (classification?: string) => {
-    switch (classification) {
-      case 'LIVE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE GOOGLE 3-PACK
-          </span>
-        );
-      case 'VERIFIED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-            <ShieldCheck className="w-3 h-3 text-sky-600" /> VERIFIED SERP
-          </span>
-        );
-      case 'ESTIMATED':
-      case 'CALCULATED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Sparkles className="w-3 h-3 text-indigo-600" /> ESTIMATED
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-            DEMO / SEEDED
-          </span>
-        );
-    }
+    return <DataStatusBadge status={classification || 'UNAVAILABLE'} />;
   };
+
+  // Build the 9 nodes for the 3x3 visualizer
+  const gridCoords = fallback9Grid(city);
+  const observationsList: Array<{
+    gridIndex: number;
+    label: string;
+    lat: number;
+    lng: number;
+    position: number | null;
+    status: string;
+    evidence?: string;
+  }> = gridCoords.map((c, idx) => {
+    const matchedObs = selectedKw?.observations?.find((o) => o.gridIndex === idx);
+    if (matchedObs) {
+      return {
+        gridIndex: idx,
+        label: matchedObs.gridLabel || c.label,
+        lat: matchedObs.latitude,
+        lng: matchedObs.longitude,
+        position: matchedObs.position,
+        status: matchedObs.status,
+        evidence: matchedObs.sourceEvidence,
+      };
+    }
+    // Check fallback gridRankings dictionary
+    const posVal = selectedKw?.gridRankings?.[`node_${idx}`];
+    return {
+      gridIndex: idx,
+      label: c.label,
+      lat: c.lat,
+      lng: c.lng,
+      position: typeof posVal === 'number' && posVal > 0 ? posVal : null,
+      status: selectedKw?.dataClassification || 'UNAVAILABLE',
+    };
+  });
 
   return (
     <div className="space-y-6 pb-12">
@@ -138,10 +188,10 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
             <Compass className="w-7 h-7 text-indigo-600" />
-            Local SEO & Google Maps Rank Radar
+            Local SEO 3x3 Geo-Rank Radar
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Real-time Google 3-Pack rank tracking & SERP competitor intelligence for {city}.
+            Real provider-based 9-node Google Maps 3-Pack rank tracking across physical coordinates for {city}.
           </p>
         </div>
 
@@ -152,7 +202,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
             className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition flex items-center gap-2 shadow-2xs disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isRefreshingAll ? 'animate-spin text-indigo-600' : ''}`} />
-            {isRefreshingAll ? 'Scanning SERP...' : 'Refresh All Rankings'}
+            {isRefreshingAll ? 'Scanning Grid...' : 'Refresh All Rankings'}
           </button>
         </div>
       </div>
@@ -165,31 +215,21 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
         </div>
       )}
 
-      {/* AI Geo-Visibility Insight Card (Bento Banner) */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-                AI Local SEO Geo-Diagnosis ({city})
-              </span>
-              <span className="text-[10px] bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded-md">
-                Live Radar
-              </span>
+      {/* Provider Status Notice */}
+      {selectedKw?.dataClassification === 'UNAVAILABLE' && (
+        <div className="bg-amber-50/90 border border-amber-200 rounded-3xl p-5 shadow-sm flex items-start gap-3.5">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <div className="font-bold text-amber-900 flex items-center gap-2">
+              <span>Verified Rank Tracking Provider Not Configured</span>
+              <DataStatusBadge status="UNAVAILABLE" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 mt-0.5">
-              Strong Top 3 Google Map Pack visibility across central {city}, with expansion opportunities in regional corridors.
-            </h3>
-            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-3xl">
-              Dominating local search queries within 5 km of prime commercial centers.
-              <strong> Recommended Action:</strong> Publish localized service landing pages for surrounding zip codes and generate review replies with targeted local anchor keywords.
+            <p className="text-amber-800 leading-relaxed">
+              Google does not provide arbitrary Local SERP rank queries through the standard Google Places or Business Profile APIs. To collect real 3-Pack ranking observations across the 9 geo-coordinates below, configure a verified provider (such as <strong>DataForSEO</strong> or <strong>SerpAPI</strong>) under Settings &gt; Integrations.
             </p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Add Keyword Card */}
       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
@@ -197,7 +237,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5 text-indigo-600" /> Track & Scan New Local Keyword
           </h3>
-          <span className="text-[11px] text-slate-400">Scans live Google Maps SERP & 3-Pack position</span>
+          <span className="text-[11px] text-slate-400">Scans 9 physical coordinates across {city}</span>
         </div>
 
         <form onSubmit={handleAddSubmit} className="flex gap-2">
@@ -207,7 +247,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
               type="text"
               value={newKw}
               onChange={(e) => setNewKw(e.target.value)}
-              placeholder="e.g. laptop repair near me, best website designer thane west"
+              placeholder="e.g. website development in thane, mobile app company near me"
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-medium"
             />
           </div>
@@ -218,11 +258,11 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
           >
             {activeScanningKw ? (
               <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Scanning SERP...
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Scanning Grid...
               </>
             ) : (
               <>
-                <Plus className="w-3.5 h-3.5" /> Scan & Track
+                <Plus className="w-3.5 h-3.5" /> Scan 3x3 Grid
               </>
             )}
           </button>
@@ -244,19 +284,24 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
         </div>
       </div>
 
-      {/* Interactive Rank Grid & SERP Competitors */}
+      {/* Interactive 3x3 Geo-Rank Grid & SERP Competitors */}
       {selectedKw ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   Inspecting Keyword:
                 </span>
                 {getClassificationBadge(selectedKw.dataClassification)}
+                {selectedKw.provider && (
+                  <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                    Provider: {selectedKw.provider}
+                  </span>
+                )}
                 {selectedKw.lastScannedAt && (
                   <span className="text-[10px] text-slate-400">
-                    Scanned {new Date(selectedKw.lastScannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Scanned {new Date(selectedKw.lastScannedAt).toLocaleString()}
                   </span>
                 )}
               </div>
@@ -264,75 +309,108 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                 "{selectedKw.keyword}"
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-semibold">Search Volume:</span>
-              <span className="bg-slate-50 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 font-bold">
-                {selectedKw.searchVolume}
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">Center Position</div>
+                <div className="text-base font-black text-slate-900">
+                  {selectedKw.rank ? `#${selectedKw.rank}` : <span className="text-slate-400 font-normal">Unranked</span>}
+                </div>
+              </div>
               <button
                 onClick={() => handleRescanSingle(selectedKw.keyword)}
                 disabled={activeScanningKw === selectedKw.keyword}
-                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-xs font-semibold flex items-center gap-1"
-                title="Rescan this keyword on Google SERP"
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition text-xs font-semibold flex items-center gap-1.5"
+                title="Rescan 3x3 grid for this keyword"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${activeScanningKw === selectedKw.keyword ? 'animate-spin text-indigo-600' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${activeScanningKw === selectedKw.keyword ? 'animate-spin text-indigo-600' : ''}`} />
+                <span className="hidden sm:inline">Rescan</span>
               </button>
             </div>
           </div>
 
-          {/* 4 Node Grid Visualizer */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Area A */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center shadow-2xs">
-              <div className="text-[11px] text-slate-500 font-bold mb-1">Node A: Central Commercial Hub</div>
-              <div className={`text-3xl font-black my-1.5 ${selectedKw.gridRankings?.vashi <= 3 ? 'text-emerald-700' : 'text-amber-600'}`}>
-                #{selectedKw.gridRankings?.vashi || selectedKw.rank}
+          {/* 3x3 Geographic Grid Matrix (9 Real Coordinates) */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                <Layers className="w-4 h-4 text-indigo-600" />
+                <span>3x3 Geographic Radius Matrix (9 Points • 3.5 km Radius)</span>
               </div>
-              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
-                {selectedKw.gridRankings?.vashi <= 3 ? 'Top 3 Map Pack ⭐' : 'Page 1 Organic'}
-              </span>
+              <span className="text-[11px] text-slate-400">Centered at {city}</span>
             </div>
 
-            {/* Area B */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center shadow-2xs">
-              <div className="text-[11px] text-slate-500 font-bold mb-1">Node B: Market District</div>
-              <div className={`text-3xl font-black my-1.5 ${selectedKw.gridRankings?.sanpada <= 3 ? 'text-emerald-700' : 'text-amber-600'}`}>
-                #{selectedKw.gridRankings?.sanpada || selectedKw.rank}
-              </div>
-              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
-                {selectedKw.gridRankings?.sanpada <= 3 ? 'Top 3 Map Pack ⭐' : 'Page 1 Organic'}
-              </span>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {observationsList.map((obs) => {
+                const isCenter = obs.gridIndex === 4;
+                const isRanked = typeof obs.position === 'number' && obs.position > 0;
+                const isTop3 = isRanked && (obs.position as number) <= 3;
+                const isTop10 = isRanked && (obs.position as number) <= 10;
 
-            {/* Area C */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center shadow-2xs">
-              <div className="text-[11px] text-slate-500 font-bold mb-1">Node C: Transit Junction</div>
-              <div className={`text-3xl font-black my-1.5 ${selectedKw.gridRankings?.nerul <= 3 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                #{selectedKw.gridRankings?.nerul || selectedKw.rank + 1}
-              </div>
-              <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full">
-                Position #{selectedKw.gridRankings?.nerul || selectedKw.rank + 1}
-              </span>
-            </div>
+                return (
+                  <div
+                    key={obs.gridIndex}
+                    className={`border rounded-2xl p-3.5 transition flex flex-col justify-between ${
+                      isCenter
+                        ? 'bg-indigo-50/50 border-indigo-200 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center ${
+                            isCenter ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {obs.gridIndex + 1}
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-800 truncate">{obs.label}</span>
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
+                          <Globe className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <span>{obs.lat.toFixed(4)}°, {obs.lng.toFixed(4)}°</span>
+                        </div>
+                      </div>
 
-            {/* Area D */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center shadow-2xs">
-              <div className="text-[11px] text-slate-500 font-bold mb-1">Node D: Tech Park & Suburbs</div>
-              <div className={`text-3xl font-black my-1.5 ${selectedKw.gridRankings?.belapur <= 3 ? 'text-emerald-700' : 'text-amber-600'}`}>
-                #{selectedKw.gridRankings?.belapur || selectedKw.rank + 2}
-              </div>
-              <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full">
-                Position #{selectedKw.gridRankings?.belapur || selectedKw.rank + 2}
-              </span>
+                      <div className="text-right flex-shrink-0">
+                        {isRanked ? (
+                          <div className={`text-xl font-black ${isTop3 ? 'text-emerald-600' : isTop10 ? 'text-amber-600' : 'text-slate-700'}`}>
+                            #{obs.position}
+                          </div>
+                        ) : (
+                          <div className="text-xs font-semibold text-slate-400 mt-1">
+                            {obs.status === 'UNAVAILABLE' ? 'N/A' : 'Unranked'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 font-medium">
+                        {isCenter ? 'Center Origin' : `Grid Node #${obs.gridIndex + 1}`}
+                      </span>
+                      {isRanked ? (
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
+                          isTop3 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {isTop3 ? '3-Pack ⭐' : `Position #${obs.position}`}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">
+                          {obs.status === 'UNAVAILABLE' ? 'Provider Required' : '>20 SERP'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Real SERP Competitors Identified for this keyword */}
+          {/* Real SERP Competitors Discovered */}
           {selectedKw.topCompetitors && selectedKw.topCompetitors.length > 0 && (
-            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Users2 className="w-3.5 h-3.5 text-indigo-600" /> Competitors Identified on Google Maps for this Keyword
+                  <Users2 className="w-3.5 h-3.5 text-indigo-600" /> Discovered SERP Competitors on Google Maps
                 </span>
                 <span className="text-[11px] text-slate-400">{selectedKw.topCompetitors.length} local listings</span>
               </div>
@@ -370,7 +448,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
         <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm text-center">
           <Compass className="w-10 h-10 text-slate-300 mx-auto mb-2" />
           <h3 className="font-bold text-slate-800 text-sm">No Keyword Selected</h3>
-          <p className="text-xs text-slate-500 mt-1">Add or choose a target keyword above to inspect local Google 3-Pack geo rankings.</p>
+          <p className="text-xs text-slate-500 mt-1">Add or choose a target keyword above to inspect local 3x3 Google Maps rankings.</p>
         </div>
       )}
 
@@ -378,9 +456,9 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-            Tracked High-Intent Local Keywords
+            Tracked Local Keywords ({keywords.length})
           </h3>
-          <span className="text-xs text-slate-500 font-semibold">{keywords.length} Active Trackers</span>
+          <span className="text-xs text-slate-400 font-medium">Historical Observations Persisted</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -388,18 +466,16 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
             <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200 font-bold">
               <tr>
                 <th className="p-3">Target Keyword</th>
-                <th className="p-3">Current Rank</th>
+                <th className="p-3">Center Rank</th>
                 <th className="p-3">Data Truth</th>
-                <th className="p-3">Trend (30d)</th>
+                <th className="p-3">Trend</th>
                 <th className="p-3">Search Vol</th>
-                <th className="p-3">Node A</th>
-                <th className="p-3">Node B</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {keywords.map((kw) => {
-                const diff = (kw.previousRank || kw.rank) - kw.rank;
+                const diff = typeof kw.diff === 'number' ? kw.diff : (kw.previousRank && kw.rank ? kw.previousRank - kw.rank : 0);
                 const isSelected = selectedKw?.id === kw.id;
                 return (
                   <tr
@@ -413,7 +489,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                       {kw.keyword}
                     </td>
                     <td className="p-3 font-black text-slate-900">
-                      #{kw.rank}
+                      {kw.rank ? `#${kw.rank}` : <span className="text-slate-400 font-normal">--</span>}
                     </td>
                     <td className="p-3">
                       {getClassificationBadge(kw.dataClassification)}
@@ -433,9 +509,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                         </span>
                       )}
                     </td>
-                    <td className="p-3 text-slate-600">{kw.searchVolume}</td>
-                    <td className="p-3 font-bold text-emerald-700">#{kw.gridRankings?.vashi || kw.rank}</td>
-                    <td className="p-3 font-bold text-amber-700">#{kw.gridRankings?.sanpada || kw.rank}</td>
+                    <td className="p-3 text-slate-500">{kw.searchVolume || '--'}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -475,4 +549,5 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     </div>
   );
 };
+
 

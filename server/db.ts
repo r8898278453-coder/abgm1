@@ -37,7 +37,7 @@ export interface DbLead {
   email?: string;
   service: string;
   budget?: string;
-  stage: 'new' | 'contacted' | 'qualified' | 'quotation' | 'won' | 'lost';
+  stage: 'new' | 'contacted' | 'qualified' | 'opportunity' | 'quotation' | 'won' | 'lost';
   intent_score: number;
   source: string;
   notes?: string;
@@ -88,7 +88,7 @@ export interface DbContentPost {
   cta?: string;
   image_url?: string;
   video_url?: string;
-  status: 'draft' | 'pending_approval' | 'scheduled' | 'published';
+  status: 'draft' | 'pending_approval' | 'scheduled' | 'publishing' | 'published' | 'failed' | 'unknown';
   scheduled_date?: string;
   scheduled_time?: string;
   time_slot?: string;
@@ -169,7 +169,7 @@ export interface DbSubscription {
   company_id: string;
   plan_id: string;
   plan_name: string;
-  status: 'active' | 'past_due' | 'cancelled' | 'trialing';
+  status: 'trial' | 'active' | 'past_due' | 'payment_failed' | 'cancelled' | 'expired' | 'trialing';
   amount: number;
   billing_cycle: 'monthly' | 'yearly';
   current_period_start: string;
@@ -214,6 +214,138 @@ export interface DbWebsiteConfig {
   updated_at?: string;
 }
 
+export interface DbRankObservation {
+  id: string;
+  company_id: string;
+  keyword: string;
+  latitude: number;
+  longitude: number;
+  grid_index: number;
+  grid_label?: string;
+  timestamp: string;
+  provider: string;
+  position: number | null;
+  status: 'LIVE' | 'VERIFIED' | 'UNAVAILABLE' | 'FAILED';
+  source_evidence?: string;
+  top_competitors_json?: string;
+}
+
+export interface DbCompetitorObservation {
+  id: string;
+  company_id: string;
+  competitor_id: string;
+  name: string;
+  place_id?: string | null;
+  address?: string | null;
+  rating: number | null;
+  reviews_count: number | null;
+  photos_count: number | null;
+  posts_per_week: number | null;
+  rank_position: number | null;
+  provider: string;
+  timestamp: string;
+  status: 'LIVE' | 'VERIFIED' | 'USER_ENTERED' | 'UNAVAILABLE';
+  raw_payload?: string | null;
+}
+
+export interface DbPublishingRecord {
+  id: string;
+  post_id: string;
+  company_id: string;
+  platform: string;
+  status: 'PUBLISHED' | 'FAILED' | 'UNKNOWN' | 'RETRYING';
+  provider_post_id?: string | null;
+  attempt_count: number;
+  max_attempts: number;
+  error_type?: 'PERMANENT' | 'RETRYABLE' | 'TIMEOUT_UNKNOWN' | null;
+  error_message?: string | null;
+  idempotency_key: string;
+  published_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInternalCampaign {
+  id: string;
+  company_id: string;
+  name: string;
+  objective: string;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  start_date: string;
+  end_date: string;
+  planned_budget: number;
+  channels: string[];
+  external_campaign_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DbExternalAdCampaign {
+  id: string;
+  company_id: string;
+  internal_campaign_id?: string | null;
+  provider: string; // 'meta_ads' | 'google_ads'
+  external_campaign_id: string;
+  name: string;
+  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'UNKNOWN' | 'NOT_CONFIGURED';
+  fetched_at: string | null;
+  spend: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  conversions: number | null;
+  conversion_tracking_status: 'ACTIVE' | 'UNAVAILABLE';
+  revenue: number | null;
+  revenue_attribution_status: 'VERIFIED' | 'UNAVAILABLE';
+  roas: number | null;
+  raw_metrics_json?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DbAutonomousRecommendation {
+  id: string;
+  company_id: string;
+  observation: string;
+  evidence_ids: string[];
+  source: string;
+  timestamp: string;
+  recommended_action: string;
+  action_type: string;
+  action_payload?: any;
+  affected_metric: string;
+  confidence: number;
+  risk: 'low' | 'medium' | 'high';
+  approval_requirement: 'auto' | 'required';
+  status: 'pending' | 'approved' | 'rejected' | 'executed' | 'dismissed';
+  created_at?: string;
+}
+
+export interface DbAutonomousAction {
+  id: string;
+  company_id: string;
+  recommendation_id?: string | null;
+  action_type: string;
+  payload?: any;
+  source_evidence?: any;
+  approval_status: 'pending_approval' | 'approved' | 'rejected' | 'auto_approved';
+  execution_state: 'idle' | 'queued' | 'executing' | 'executed' | 'failed' | 'blocked';
+  provider_response?: any;
+  verification_state: 'unverified' | 'verified' | 'failed' | 'unavailable';
+  error?: string | null;
+  executed_at?: string | null;
+  created_at?: string;
+}
+
+export interface DbAutonomousAuditLog {
+  id: string;
+  company_id: string;
+  action_id?: string | null;
+  actor: string;
+  event_type: string;
+  details?: any;
+  timestamp?: string;
+}
+
 let pool: mysql.Pool | null = null;
 let isMySqlAvailable = false;
 let tablesInitialized = false;
@@ -223,6 +355,45 @@ let hasLoggedFailure = false;
 const RETRY_COOLDOWN_MS = 60000;
 const inMemoryCompanyAssets: DbCompanyAsset[] = [];
 const inMemoryThemeHistory: DbThemeHistory[] = [];
+const inMemoryRankObservations: DbRankObservation[] = [];
+const inMemoryCompetitorObservations: DbCompetitorObservation[] = [];
+const inMemoryPublishingRecords: DbPublishingRecord[] = [];
+const inMemoryAutonomousRecommendations: DbAutonomousRecommendation[] = [];
+const inMemoryAutonomousActions: DbAutonomousAction[] = [];
+const inMemoryAutonomousAuditLogs: DbAutonomousAuditLog[] = [];
+
+const inMemoryInternalCampaigns: DbInternalCampaign[] = [
+  {
+    id: 'camp_1',
+    company_id: 'comp_aaditech_main',
+    name: 'Mumbai MMR Business Digitalization Drive',
+    objective: 'Generate qualified inquiries for custom websites & Android apps',
+    status: 'active',
+    start_date: '2026-08-20',
+    end_date: '2026-09-25',
+    planned_budget: 25000,
+    channels: ['Google Search', 'LinkedIn Sponsored', 'WhatsApp Broadcasts'],
+    external_campaign_id: null,
+    created_at: '2026-08-20T00:00:00.000Z',
+    updated_at: '2026-08-20T00:00:00.000Z',
+  },
+  {
+    id: 'camp_2',
+    company_id: 'comp_aaditech_main',
+    name: 'Google 3-Pack Local Dominance Accelerator',
+    objective: 'Attract doctors, retail owners & service providers for Local SEO',
+    status: 'active',
+    start_date: '2026-08-28',
+    end_date: '2026-09-30',
+    planned_budget: 16000,
+    channels: ['Google Business Profile', 'Meta Video Ads'],
+    external_campaign_id: null,
+    created_at: '2026-08-28T00:00:00.000Z',
+    updated_at: '2026-08-28T00:00:00.000Z',
+  },
+];
+
+const inMemoryExternalAdCampaigns: DbExternalAdCampaign[] = [];
 
 const inMemoryCustomDomains: DbCustomDomain[] = [
   {
@@ -1097,6 +1268,16 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
 
+      // 15b. Processed Webhook Events Table (Idempotency)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS processed_webhook_events (
+          id VARCHAR(128) PRIMARY KEY,
+          event_type VARCHAR(64) NOT NULL,
+          company_id VARCHAR(64) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
       // 16. Custom Domains Table (Static Hosting & Domain Routing)
       await connection.query(`
         CREATE TABLE IF NOT EXISTS custom_domains (
@@ -1161,6 +1342,180 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           ('INV-2026-0701', 'comp_aaditech_main', '2026-07-01', 'Starter Tier (Intro)', 499.00, 89.82, 588.82, 'Net Banking (HDFC Bank)', 'pay_RzpStarterJul26', 'order_RzpStr701', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314')
         `);
       }
+
+      // 18. Rank Observations Table (Geocoded 3x3 Grid Historical Observations)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS rank_observations (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          keyword VARCHAR(191) NOT NULL,
+          latitude DECIMAL(10,7) NOT NULL,
+          longitude DECIMAL(10,7) NOT NULL,
+          grid_index INT NOT NULL,
+          grid_label VARCHAR(128) DEFAULT NULL,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          provider VARCHAR(64) NOT NULL,
+          position INT DEFAULT NULL,
+          status VARCHAR(32) NOT NULL,
+          source_evidence TEXT DEFAULT NULL,
+          top_competitors_json LONGTEXT DEFAULT NULL,
+          INDEX idx_ro_comp_kw (company_id, keyword),
+          INDEX idx_ro_timestamp (timestamp)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 19. Competitor Observations Table (Historical Snapshots & Change Tracking)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS competitor_observations (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          competitor_id VARCHAR(64) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          place_id VARCHAR(128) DEFAULT NULL,
+          address VARCHAR(512) DEFAULT NULL,
+          rating DECIMAL(3,2) DEFAULT NULL,
+          reviews_count INT DEFAULT NULL,
+          photos_count INT DEFAULT NULL,
+          posts_per_week DECIMAL(4,2) DEFAULT NULL,
+          rank_position INT DEFAULT NULL,
+          provider VARCHAR(64) NOT NULL,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          status VARCHAR(32) NOT NULL,
+          raw_payload LONGTEXT DEFAULT NULL,
+          INDEX idx_co_comp_competitor (company_id, competitor_id),
+          INDEX idx_co_timestamp (timestamp)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 20. Publishing Records Table (Content -> Job -> Provider API -> Provider Success -> Record -> Published)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS publishing_records (
+          id VARCHAR(64) PRIMARY KEY,
+          post_id VARCHAR(64) NOT NULL,
+          company_id VARCHAR(64) NOT NULL,
+          platform VARCHAR(64) NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'RETRYING',
+          provider_post_id VARCHAR(128) DEFAULT NULL,
+          attempt_count INT NOT NULL DEFAULT 1,
+          max_attempts INT NOT NULL DEFAULT 3,
+          error_type VARCHAR(64) DEFAULT NULL,
+          error_message TEXT DEFAULT NULL,
+          idempotency_key VARCHAR(128) NOT NULL,
+          published_at TIMESTAMP NULL DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_pub_post_plat (post_id, platform),
+          INDEX idx_pub_company (company_id),
+          INDEX idx_pub_idempotency (idempotency_key),
+          INDEX idx_pub_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 21. Internal Campaigns Table (Marketing Plans, Objectives, Timelines & Budgets)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS internal_campaigns (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          objective TEXT NOT NULL,
+          status ENUM('draft', 'active', 'paused', 'completed') NOT NULL DEFAULT 'active',
+          start_date VARCHAR(64) NOT NULL,
+          end_date VARCHAR(64) NOT NULL,
+          planned_budget DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+          channels TEXT DEFAULT NULL,
+          external_campaign_id VARCHAR(128) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_int_camp_company (company_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 22. External Ad Campaigns Table (Telemetry from Verified Ad Providers)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS external_ad_campaigns (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          internal_campaign_id VARCHAR(64) DEFAULT NULL,
+          provider VARCHAR(64) NOT NULL,
+          external_campaign_id VARCHAR(128) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
+          fetched_at VARCHAR(64) DEFAULT NULL,
+          spend DECIMAL(10,2) DEFAULT NULL,
+          impressions BIGINT DEFAULT NULL,
+          clicks BIGINT DEFAULT NULL,
+          conversions BIGINT DEFAULT NULL,
+          conversion_tracking_status VARCHAR(32) NOT NULL DEFAULT 'UNAVAILABLE',
+          revenue DECIMAL(10,2) DEFAULT NULL,
+          revenue_attribution_status VARCHAR(32) NOT NULL DEFAULT 'UNAVAILABLE',
+          roas DECIMAL(10,2) DEFAULT NULL,
+          raw_metrics_json LONGTEXT DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_ext_camp_prov_id (company_id, provider, external_campaign_id),
+          INDEX idx_ext_camp_company (company_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 23. Autonomous Recommendations Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS autonomous_recommendations (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          observation TEXT NOT NULL,
+          evidence_ids TEXT NOT NULL,
+          source VARCHAR(64) NOT NULL,
+          timestamp VARCHAR(64) NOT NULL,
+          recommended_action TEXT NOT NULL,
+          action_type VARCHAR(64) NOT NULL,
+          action_payload LONGTEXT DEFAULT NULL,
+          affected_metric VARCHAR(128) NOT NULL,
+          confidence INT NOT NULL DEFAULT 85,
+          risk ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
+          approval_requirement ENUM('auto', 'required') NOT NULL DEFAULT 'required',
+          status VARCHAR(32) NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_ar_company (company_id),
+          INDEX idx_ar_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 24. Autonomous Actions Table (Execution State Machine)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS autonomous_actions (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          recommendation_id VARCHAR(64) DEFAULT NULL,
+          action_type VARCHAR(64) NOT NULL,
+          payload LONGTEXT DEFAULT NULL,
+          source_evidence LONGTEXT DEFAULT NULL,
+          approval_status VARCHAR(32) NOT NULL DEFAULT 'pending_approval',
+          execution_state VARCHAR(32) NOT NULL DEFAULT 'idle',
+          provider_response LONGTEXT DEFAULT NULL,
+          verification_state VARCHAR(32) NOT NULL DEFAULT 'unverified',
+          error TEXT DEFAULT NULL,
+          executed_at VARCHAR(64) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_aa_company (company_id),
+          INDEX idx_aa_approval (approval_status),
+          INDEX idx_aa_execution (execution_state)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 25. Autonomous Audit Logs Table (Immutable Governance Trail)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS autonomous_audit_logs (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          action_id VARCHAR(64) DEFAULT NULL,
+          actor VARCHAR(128) NOT NULL,
+          event_type VARCHAR(64) NOT NULL,
+          details LONGTEXT DEFAULT NULL,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_aal_company (company_id),
+          INDEX idx_aal_timestamp (timestamp)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
 
       console.log('[Hostinger MySQL] Relational Multi-Tenant Tables verified & ready!');
     } finally {
@@ -1408,6 +1763,7 @@ export async function getCompanyById(companyId: string): Promise<DbCompany | nul
 }
 
 export async function createCompany(data: {
+  id?: string;
   user_id: string;
   name: string;
   legal_name?: string;
@@ -1416,9 +1772,12 @@ export async function createCompany(data: {
   phone?: string;
   website?: string;
   google_place_id?: string;
+  autopilot_enabled?: boolean | number;
+  score?: number;
+  rank_position?: number;
 }): Promise<DbCompany> {
   const newCompany: DbCompany = {
-    id: `comp_${crypto.randomUUID().replace(/-/g, '')}`,
+    id: data.id || `comp_${crypto.randomUUID().replace(/-/g, '')}`,
     user_id: data.user_id,
     name: data.name.trim(),
     legal_name: data.legal_name?.trim() || data.name.trim(),
@@ -1427,9 +1786,9 @@ export async function createCompany(data: {
     phone: data.phone || '+91 98200 12345',
     website: data.website || '',
     google_place_id: data.google_place_id || '',
-    autopilot_enabled: true,
-    score: 82,
-    rank_position: 2,
+    autopilot_enabled: data.autopilot_enabled !== undefined ? Boolean(data.autopilot_enabled) : true,
+    score: data.score ?? 82,
+    rank_position: data.rank_position ?? 2,
     created_at: new Date().toISOString(),
   };
 
@@ -1727,6 +2086,29 @@ export async function getCompanyIntegration(companyId: string, provider: string)
   }
 
   return inMemoryIntegrations.find((i) => i.company_id === companyId && i.provider === provider) || null;
+}
+
+export async function getCompanyIntegrationsByProvider(provider: string): Promise<DbIntegration[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE provider = ?',
+        [provider]
+      );
+      if (rows && Array.isArray(rows)) {
+        return rows.map((r: any) => ({
+          ...r,
+          credentials: r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {},
+          config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
+        }));
+      }
+    }
+  } catch (err: any) {
+    console.warn('[getCompanyIntegrationsByProvider] MySQL error:', err?.message);
+  }
+
+  return inMemoryIntegrations.filter((i) => i.provider === provider);
 }
 
 export async function saveCompanyIntegration(
@@ -2410,6 +2792,523 @@ export async function deleteContentPost(postId: string, companyId?: string): Pro
   return false;
 }
 
+// ---------------- CONTENT PUBLISHING RECORDS & IDEMPOTENCY ---------------- //
+
+export async function createPublishingRecord(
+  data: Omit<DbPublishingRecord, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+): Promise<DbPublishingRecord> {
+  const id = data.id || `pubrec_${crypto.randomUUID().replace(/-/g, '')}`;
+  const now = new Date().toISOString();
+  const record: DbPublishingRecord = {
+    id,
+    post_id: data.post_id,
+    company_id: data.company_id,
+    platform: data.platform,
+    status: data.status,
+    provider_post_id: data.provider_post_id || null,
+    attempt_count: data.attempt_count || 1,
+    max_attempts: data.max_attempts || 3,
+    error_type: data.error_type || null,
+    error_message: data.error_message || null,
+    idempotency_key: data.idempotency_key,
+    published_at: data.published_at || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(`
+        INSERT INTO publishing_records (
+          id, post_id, company_id, platform, status, provider_post_id,
+          attempt_count, max_attempts, error_type, error_message,
+          idempotency_key, published_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        record.id,
+        record.post_id,
+        record.company_id,
+        record.platform,
+        record.status,
+        record.provider_post_id,
+        record.attempt_count,
+        record.max_attempts,
+        record.error_type,
+        record.error_message,
+        record.idempotency_key,
+        record.published_at,
+        record.created_at,
+        record.updated_at,
+      ]);
+    }
+  } catch (err: any) {
+    console.warn('[createPublishingRecord] MySQL insert warning:', err?.message);
+  }
+
+  inMemoryPublishingRecords.unshift(record);
+  return record;
+}
+
+export async function updatePublishingRecord(
+  id: string,
+  updates: Partial<DbPublishingRecord>
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  let dbSuccess = false;
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const setClauses: string[] = ['updated_at = ?'];
+      const setValues: any[] = [now];
+
+      if (updates.status !== undefined) {
+        setClauses.push('status = ?');
+        setValues.push(updates.status);
+      }
+      if (updates.provider_post_id !== undefined) {
+        setClauses.push('provider_post_id = ?');
+        setValues.push(updates.provider_post_id);
+      }
+      if (updates.attempt_count !== undefined) {
+        setClauses.push('attempt_count = ?');
+        setValues.push(updates.attempt_count);
+      }
+      if (updates.error_type !== undefined) {
+        setClauses.push('error_type = ?');
+        setValues.push(updates.error_type);
+      }
+      if (updates.error_message !== undefined) {
+        setClauses.push('error_message = ?');
+        setValues.push(updates.error_message);
+      }
+      if (updates.published_at !== undefined) {
+        setClauses.push('published_at = ?');
+        setValues.push(updates.published_at);
+      }
+
+      setValues.push(id);
+      await db.query(`UPDATE publishing_records SET ${setClauses.join(', ')} WHERE id = ?`, setValues);
+      dbSuccess = true;
+    }
+  } catch (err: any) {
+    console.warn('[updatePublishingRecord] MySQL update warning:', err?.message);
+  }
+
+  const inMem = inMemoryPublishingRecords.find((r) => r.id === id);
+  if (inMem) {
+    Object.assign(inMem, updates, { updated_at: now });
+    return true;
+  }
+
+  return dbSuccess;
+}
+
+export async function getPublishingRecordsByPostId(postId: string): Promise<DbPublishingRecord[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM publishing_records WHERE post_id = ? ORDER BY created_at DESC',
+        [postId]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((r: any) => ({
+          ...r,
+          published_at: r.published_at ? new Date(r.published_at).toISOString() : null,
+          created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+    }
+  } catch (err: any) {
+    console.warn('[getPublishingRecordsByPostId] MySQL select warning:', err?.message);
+  }
+
+  return inMemoryPublishingRecords.filter((r) => r.post_id === postId);
+}
+
+export async function getLatestPublishingRecord(
+  postId: string,
+  platform?: string
+): Promise<DbPublishingRecord | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      let query = 'SELECT * FROM publishing_records WHERE post_id = ?';
+      const params: any[] = [postId];
+      if (platform) {
+        query += ' AND platform = ?';
+        params.push(platform);
+      }
+      query += ' ORDER BY created_at DESC LIMIT 1';
+      const [rows]: any = await db.query(query, params);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          published_at: r.published_at ? new Date(r.published_at).toISOString() : null,
+          created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[getLatestPublishingRecord] MySQL select warning:', err?.message);
+  }
+
+  const found = inMemoryPublishingRecords.filter(
+    (r) => r.post_id === postId && (!platform || r.platform === platform)
+  );
+  return found.length > 0 ? found[0] : null;
+}
+
+export async function isPostAlreadyPublished(postId: string, platform?: string): Promise<boolean> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      let query = "SELECT id FROM publishing_records WHERE post_id = ? AND status = 'PUBLISHED'";
+      const params: any[] = [postId];
+      if (platform) {
+        query += ' AND platform = ?';
+        params.push(platform);
+      }
+      query += ' LIMIT 1';
+      const [rows]: any = await db.query(query, params);
+      if (Array.isArray(rows) && rows.length > 0) {
+        return true;
+      }
+    }
+  } catch {}
+
+  return inMemoryPublishingRecords.some(
+    (r) => r.post_id === postId && r.status === 'PUBLISHED' && (!platform || r.platform === platform)
+  );
+}
+
+// ---------------- INTERNAL & EXTERNAL CAMPAIGNS (METRIC SEPARATION) ---------------- //
+
+export async function getInternalCampaigns(companyId?: string): Promise<DbInternalCampaign[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+      const [rows]: any = await db.query(
+        'SELECT * FROM internal_campaigns WHERE company_id = ? ORDER BY created_at DESC',
+        [targetCompanyId]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((r: any) => {
+          let channels: string[] = [];
+          if (r.channels) {
+            try {
+              channels = typeof r.channels === 'string' ? JSON.parse(r.channels) : r.channels;
+            } catch {
+              channels = String(r.channels).split(',').map((s: string) => s.trim());
+            }
+          }
+          return {
+            id: r.id,
+            company_id: r.company_id,
+            name: r.name,
+            objective: r.objective,
+            status: r.status,
+            start_date: r.start_date,
+            end_date: r.end_date,
+            planned_budget: Number(r.planned_budget) || 0,
+            channels,
+            external_campaign_id: r.external_campaign_id || null,
+            created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+            updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+          };
+        });
+      }
+    }
+  } catch (err: any) {
+    console.warn('[getInternalCampaigns] MySQL select warning:', err?.message);
+  }
+
+  const targetCompanyId = companyId || 'comp_aaditech_main';
+  return inMemoryInternalCampaigns.filter((c) => c.company_id === targetCompanyId || !companyId);
+}
+
+export async function createInternalCampaign(
+  data: Omit<DbInternalCampaign, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+): Promise<DbInternalCampaign> {
+  const id = data.id || `camp_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const now = new Date().toISOString();
+  const campaign: DbInternalCampaign = {
+    id,
+    company_id: data.company_id,
+    name: data.name,
+    objective: data.objective,
+    status: data.status || 'active',
+    start_date: data.start_date,
+    end_date: data.end_date,
+    planned_budget: Number(data.planned_budget) || 0,
+    channels: Array.isArray(data.channels) ? data.channels : [],
+    external_campaign_id: data.external_campaign_id || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO internal_campaigns (id, company_id, name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          campaign.id,
+          campaign.company_id,
+          campaign.name,
+          campaign.objective,
+          campaign.status,
+          campaign.start_date,
+          campaign.end_date,
+          campaign.planned_budget,
+          JSON.stringify(campaign.channels),
+          campaign.external_campaign_id,
+          campaign.created_at,
+          campaign.updated_at,
+        ]
+      );
+    }
+  } catch (err: any) {
+    console.warn('[createInternalCampaign] MySQL insert error:', err?.message);
+  }
+
+  inMemoryInternalCampaigns.unshift(campaign);
+  return campaign;
+}
+
+export async function updateInternalCampaign(
+  id: string,
+  updates: Partial<DbInternalCampaign>,
+  companyId?: string
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  let dbSuccess = false;
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const setClauses: string[] = ['updated_at = ?'];
+      const setValues: any[] = [now];
+
+      if (updates.name !== undefined) {
+        setClauses.push('name = ?');
+        setValues.push(updates.name);
+      }
+      if (updates.objective !== undefined) {
+        setClauses.push('objective = ?');
+        setValues.push(updates.objective);
+      }
+      if (updates.status !== undefined) {
+        setClauses.push('status = ?');
+        setValues.push(updates.status);
+      }
+      if (updates.start_date !== undefined) {
+        setClauses.push('start_date = ?');
+        setValues.push(updates.start_date);
+      }
+      if (updates.end_date !== undefined) {
+        setClauses.push('end_date = ?');
+        setValues.push(updates.end_date);
+      }
+      if (updates.planned_budget !== undefined) {
+        setClauses.push('planned_budget = ?');
+        setValues.push(Number(updates.planned_budget) || 0);
+      }
+      if (updates.channels !== undefined) {
+        setClauses.push('channels = ?');
+        setValues.push(JSON.stringify(updates.channels));
+      }
+      if (updates.external_campaign_id !== undefined) {
+        setClauses.push('external_campaign_id = ?');
+        setValues.push(updates.external_campaign_id);
+      }
+
+      let query = `UPDATE internal_campaigns SET ${setClauses.join(', ')} WHERE id = ?`;
+      setValues.push(id);
+      if (companyId) {
+        query += ' AND company_id = ?';
+        setValues.push(companyId);
+      }
+
+      await db.query(query, setValues);
+      dbSuccess = true;
+    }
+  } catch (err: any) {
+    console.warn('[updateInternalCampaign] MySQL update error:', err?.message);
+  }
+
+  const existing = inMemoryInternalCampaigns.find((c) => c.id === id && (!companyId || c.company_id === companyId));
+  if (existing) {
+    Object.assign(existing, updates, { updated_at: now });
+    return true;
+  }
+  return dbSuccess;
+}
+
+export async function deleteInternalCampaign(id: string, companyId?: string): Promise<boolean> {
+  let dbSuccess = false;
+  try {
+    const db = await getDbPool();
+    if (db) {
+      if (companyId) {
+        await db.query('DELETE FROM internal_campaigns WHERE id = ? AND company_id = ?', [id, companyId]);
+      } else {
+        await db.query('DELETE FROM internal_campaigns WHERE id = ?', [id]);
+      }
+      dbSuccess = true;
+    }
+  } catch (err: any) {
+    console.warn('[deleteInternalCampaign] MySQL delete error:', err?.message);
+  }
+
+  const idx = inMemoryInternalCampaigns.findIndex((c) => c.id === id && (!companyId || c.company_id === companyId));
+  if (idx >= 0) {
+    inMemoryInternalCampaigns.splice(idx, 1);
+    return true;
+  }
+  return dbSuccess;
+}
+
+export async function getExternalAdCampaigns(companyId?: string): Promise<DbExternalAdCampaign[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+      const [rows]: any = await db.query(
+        'SELECT * FROM external_ad_campaigns WHERE company_id = ? ORDER BY fetched_at DESC, created_at DESC',
+        [targetCompanyId]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          internal_campaign_id: r.internal_campaign_id || null,
+          provider: r.provider,
+          external_campaign_id: r.external_campaign_id,
+          name: r.name,
+          status: r.status,
+          fetched_at: r.fetched_at ? new Date(r.fetched_at).toISOString() : null,
+          spend: r.spend !== null ? Number(r.spend) : null,
+          impressions: r.impressions !== null ? Number(r.impressions) : null,
+          clicks: r.clicks !== null ? Number(r.clicks) : null,
+          conversions: r.conversions !== null ? Number(r.conversions) : null,
+          conversion_tracking_status: r.conversion_tracking_status || 'UNAVAILABLE',
+          revenue: r.revenue !== null ? Number(r.revenue) : null,
+          revenue_attribution_status: r.revenue_attribution_status || 'UNAVAILABLE',
+          roas: r.roas !== null ? Number(r.roas) : null,
+          raw_metrics_json: r.raw_metrics_json || null,
+          created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+        }));
+      }
+    }
+  } catch (err: any) {
+    console.warn('[getExternalAdCampaigns] MySQL select warning:', err?.message);
+  }
+
+  const targetCompanyId = companyId || 'comp_aaditech_main';
+  return inMemoryExternalAdCampaigns.filter((c) => c.company_id === targetCompanyId || !companyId);
+}
+
+export async function upsertExternalAdCampaign(
+  campaign: Omit<DbExternalAdCampaign, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+): Promise<DbExternalAdCampaign> {
+  const id = campaign.id || `extcamp_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const now = new Date().toISOString();
+
+  const record: DbExternalAdCampaign = {
+    id,
+    company_id: campaign.company_id,
+    internal_campaign_id: campaign.internal_campaign_id || null,
+    provider: campaign.provider,
+    external_campaign_id: campaign.external_campaign_id,
+    name: campaign.name,
+    status: campaign.status,
+    fetched_at: campaign.fetched_at || now,
+    spend: campaign.spend !== undefined ? campaign.spend : null,
+    impressions: campaign.impressions !== undefined ? campaign.impressions : null,
+    clicks: campaign.clicks !== undefined ? campaign.clicks : null,
+    conversions: campaign.conversions !== undefined ? campaign.conversions : null,
+    conversion_tracking_status: campaign.conversion_tracking_status || 'UNAVAILABLE',
+    revenue: campaign.revenue !== undefined ? campaign.revenue : null,
+    revenue_attribution_status: campaign.revenue_attribution_status || 'UNAVAILABLE',
+    roas: campaign.roas !== undefined ? campaign.roas : null,
+    raw_metrics_json: campaign.raw_metrics_json || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO external_ad_campaigns (
+          id, company_id, internal_campaign_id, provider, external_campaign_id,
+          name, status, fetched_at, spend, impressions, clicks, conversions,
+          conversion_tracking_status, revenue, revenue_attribution_status, roas,
+          raw_metrics_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name),
+          status = VALUES(status),
+          fetched_at = VALUES(fetched_at),
+          spend = VALUES(spend),
+          impressions = VALUES(impressions),
+          clicks = VALUES(clicks),
+          conversions = VALUES(conversions),
+          conversion_tracking_status = VALUES(conversion_tracking_status),
+          revenue = VALUES(revenue),
+          revenue_attribution_status = VALUES(revenue_attribution_status),
+          roas = VALUES(roas),
+          raw_metrics_json = VALUES(raw_metrics_json),
+          updated_at = VALUES(updated_at)`,
+        [
+          record.id,
+          record.company_id,
+          record.internal_campaign_id,
+          record.provider,
+          record.external_campaign_id,
+          record.name,
+          record.status,
+          record.fetched_at,
+          record.spend,
+          record.impressions,
+          record.clicks,
+          record.conversions,
+          record.conversion_tracking_status,
+          record.revenue,
+          record.revenue_attribution_status,
+          record.roas,
+          record.raw_metrics_json,
+          record.created_at,
+          record.updated_at,
+        ]
+      );
+    }
+  } catch (err: any) {
+    console.warn('[upsertExternalAdCampaign] MySQL upsert warning:', err?.message);
+  }
+
+  const existingIdx = inMemoryExternalAdCampaigns.findIndex(
+    (c) => c.company_id === record.company_id && c.provider === record.provider && c.external_campaign_id === record.external_campaign_id
+  );
+  if (existingIdx >= 0) {
+    record.id = inMemoryExternalAdCampaigns[existingIdx].id;
+    inMemoryExternalAdCampaigns[existingIdx] = record;
+  } else {
+    inMemoryExternalAdCampaigns.unshift(record);
+  }
+
+  return record;
+}
+
 // ---------------- COMPANY ASSETS (LOGO, PHOTOS, BRAND MEDIA) ---------------- //
 
 export async function createCompanyAsset(
@@ -2625,7 +3524,83 @@ export async function getInvoiceById(invoiceId: string): Promise<DbInvoice | nul
   return found || null;
 }
 
+export async function getInvoiceByPaymentId(paymentId: string, companyId?: string): Promise<DbInvoice | null> {
+  if (!paymentId) return null;
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const sql = companyId
+        ? 'SELECT * FROM invoices WHERE payment_id = ? AND company_id = ? LIMIT 1'
+        : 'SELECT * FROM invoices WHERE payment_id = ? LIMIT 1';
+      const params = companyId ? [paymentId, companyId] : [paymentId];
+      const [rows]: any = await db.query(sql, params);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          amount: Number(r.amount),
+          gst_amount: Number(r.gst_amount),
+          total_amount: Number(r.total_amount),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getInvoiceByPaymentId', err);
+  }
+
+  const found = inMemoryInvoices.find(
+    (inv) => inv.payment_id === paymentId && (!companyId || inv.company_id === companyId)
+  );
+  return found || null;
+}
+
+export async function getInvoiceByOrderId(orderId: string, companyId?: string): Promise<DbInvoice | null> {
+  if (!orderId) return null;
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const sql = companyId
+        ? 'SELECT * FROM invoices WHERE order_id = ? AND company_id = ? LIMIT 1'
+        : 'SELECT * FROM invoices WHERE order_id = ? LIMIT 1';
+      const params = companyId ? [orderId, companyId] : [orderId];
+      const [rows]: any = await db.query(sql, params);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          ...r,
+          amount: Number(r.amount),
+          gst_amount: Number(r.gst_amount),
+          total_amount: Number(r.total_amount),
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getInvoiceByOrderId', err);
+  }
+
+  const found = inMemoryInvoices.find(
+    (inv) => inv.order_id === orderId && (!companyId || inv.company_id === companyId)
+  );
+  return found || null;
+}
+
 export async function createInvoice(invoice: Partial<DbInvoice> & { company_id: string }): Promise<DbInvoice> {
+  // Duplicate prevention check: Check if an invoice with matching payment_id or order_id already exists
+  if (invoice.payment_id) {
+    const existingByPayment = await getInvoiceByPaymentId(invoice.payment_id, invoice.company_id);
+    if (existingByPayment) {
+      return existingByPayment;
+    }
+  }
+  if (invoice.order_id) {
+    const existingByOrder = await getInvoiceByOrderId(invoice.order_id, invoice.company_id);
+    if (existingByOrder) {
+      return existingByOrder;
+    }
+  }
+
   const now = new Date();
   const dateFormatted = invoice.date || now.toISOString().split('T')[0];
   const yearMonth = now.toISOString().replace(/-/g, '').slice(0, 6);
@@ -3088,6 +4063,823 @@ export async function upsertWebsiteConfig(
 
   return updatedConfig;
 }
+
+// ---------------- LOCAL SEO RANK OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
+
+export async function saveRankObservations(observations: DbRankObservation[]): Promise<void> {
+  if (!observations || observations.length === 0) return;
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const values = observations.map((obs) => [
+        obs.id,
+        obs.company_id,
+        obs.keyword,
+        obs.latitude,
+        obs.longitude,
+        obs.grid_index,
+        obs.grid_label || null,
+        obs.timestamp,
+        obs.provider,
+        obs.position,
+        obs.status,
+        obs.source_evidence || null,
+        obs.top_competitors_json || null,
+      ]);
+
+      await db.query(
+        `INSERT INTO rank_observations (
+          id, company_id, keyword, latitude, longitude,
+          grid_index, grid_label, timestamp, provider,
+          position, status, source_evidence, top_competitors_json
+        ) VALUES ?`,
+        [values]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('saveRankObservations', err);
+  }
+
+  // Always keep in-memory backup
+  for (const obs of observations) {
+    inMemoryRankObservations.unshift(obs);
+  }
+}
+
+export async function getLatestKeywordObservations(
+  companyId: string,
+  keyword?: string
+): Promise<DbRankObservation[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      if (keyword) {
+        // Find the most recent timestamp for this keyword
+        const [timeRows]: any = await db.query(
+          `SELECT timestamp FROM rank_observations
+           WHERE company_id = ? AND keyword = ?
+           ORDER BY timestamp DESC LIMIT 1`,
+          [companyId, keyword]
+        );
+
+        if (timeRows && timeRows.length > 0) {
+          const latestTime = timeRows[0].timestamp;
+          const [rows]: any = await db.query(
+            `SELECT * FROM rank_observations
+             WHERE company_id = ? AND keyword = ? AND timestamp = ?
+             ORDER BY grid_index ASC`,
+            [companyId, keyword, latestTime]
+          );
+          if (rows && rows.length > 0) {
+            return rows.map((r: any) => ({
+              id: r.id,
+              company_id: r.company_id,
+              keyword: r.keyword,
+              latitude: Number(r.latitude),
+              longitude: Number(r.longitude),
+              grid_index: Number(r.grid_index),
+              grid_label: r.grid_label,
+              timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+              provider: r.provider,
+              position: r.position !== null ? Number(r.position) : null,
+              status: r.status,
+              source_evidence: r.source_evidence,
+              top_competitors_json: r.top_competitors_json,
+            }));
+          }
+        }
+      } else {
+        // Return latest observation per keyword
+        const [rows]: any = await db.query(
+          `SELECT ro.* FROM rank_observations ro
+           INNER JOIN (
+             SELECT keyword, MAX(timestamp) as max_time
+             FROM rank_observations
+             WHERE company_id = ?
+             GROUP BY keyword
+           ) latest ON ro.keyword = latest.keyword AND ro.timestamp = latest.max_time
+           WHERE ro.company_id = ?
+           ORDER BY ro.keyword ASC, ro.grid_index ASC`,
+          [companyId, companyId]
+        );
+        if (rows && rows.length > 0) {
+          return rows.map((r: any) => ({
+            id: r.id,
+            company_id: r.company_id,
+            keyword: r.keyword,
+            latitude: Number(r.latitude),
+            longitude: Number(r.longitude),
+            grid_index: Number(r.grid_index),
+            grid_label: r.grid_label,
+            timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+            provider: r.provider,
+            position: r.position !== null ? Number(r.position) : null,
+            status: r.status,
+            source_evidence: r.source_evidence,
+            top_competitors_json: r.top_competitors_json,
+          }));
+        }
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getLatestKeywordObservations', err);
+  }
+
+  // In-memory fallback
+  if (keyword) {
+    const matching = inMemoryRankObservations.filter(
+      (o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase()
+    );
+    if (matching.length === 0) return [];
+
+    const latestTime = matching[0].timestamp;
+    return matching
+      .filter((o) => o.timestamp === latestTime)
+      .sort((a, b) => a.grid_index - b.grid_index);
+  }
+
+  const map = new Map<string, DbRankObservation>();
+  const allCompanyObs = inMemoryRankObservations
+    .filter((o) => o.company_id === companyId)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+  for (const obs of allCompanyObs) {
+    map.set(`${obs.keyword}_${obs.grid_index}`, obs);
+  }
+  return Array.from(map.values());
+}
+
+export async function getKeywordObservationHistory(
+  companyId: string,
+  keyword: string,
+  limit = 50
+): Promise<DbRankObservation[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        `SELECT * FROM rank_observations
+         WHERE company_id = ? AND keyword = ?
+         ORDER BY timestamp DESC, grid_index ASC
+         LIMIT ?`,
+        [companyId, keyword, limit]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          keyword: r.keyword,
+          latitude: Number(r.latitude),
+          longitude: Number(r.longitude),
+          grid_index: Number(r.grid_index),
+          grid_label: r.grid_label,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          provider: r.provider,
+          position: r.position !== null ? Number(r.position) : null,
+          status: r.status,
+          source_evidence: r.source_evidence,
+          top_competitors_json: r.top_competitors_json,
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getKeywordObservationHistory', err);
+  }
+
+  return inMemoryRankObservations
+    .filter((o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase())
+    .slice(0, limit);
+}
+
+export async function calculateHistoricalTrend(
+  companyId: string,
+  keyword: string,
+  currentRank: number | null
+): Promise<{ previousRank: number | null; diff: number | null; historyCount: number }> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      // Get distinct timestamps for this keyword
+      const [timeRows]: any = await db.query(
+        `SELECT DISTINCT timestamp FROM rank_observations
+         WHERE company_id = ? AND keyword = ?
+         ORDER BY timestamp DESC LIMIT 5`,
+        [companyId, keyword]
+      );
+
+      if (timeRows && timeRows.length > 1) {
+        const prevTimestamp = timeRows[1].timestamp;
+        const [prevRows]: any = await db.query(
+          `SELECT position, grid_index FROM rank_observations
+           WHERE company_id = ? AND keyword = ? AND timestamp = ?`,
+          [companyId, keyword, prevTimestamp]
+        );
+
+        const centerObs = prevRows?.find((r: any) => r.grid_index === 4) || prevRows?.[0];
+        const prevRank = centerObs && centerObs.position !== null ? Number(centerObs.position) : null;
+
+        let diff: number | null = null;
+        if (typeof currentRank === 'number' && typeof prevRank === 'number') {
+          diff = prevRank - currentRank; // positive means improved
+        }
+
+        return {
+          previousRank: prevRank,
+          diff,
+          historyCount: timeRows.length,
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('calculateHistoricalTrend', err);
+  }
+
+  // In-memory fallback
+  const matching = inMemoryRankObservations.filter(
+    (o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase()
+  );
+  const timestamps = Array.from(new Set(matching.map((m) => m.timestamp))).sort((a, b) => b.localeCompare(a));
+
+  if (timestamps.length > 1) {
+    const prevTime = timestamps[1];
+    const prevObs = matching.filter((m) => m.timestamp === prevTime);
+    const centerObs = prevObs.find((o) => o.grid_index === 4) || prevObs[0];
+    const prevRank = centerObs && centerObs.position !== null ? centerObs.position : null;
+
+    let diff: number | null = null;
+    if (typeof currentRank === 'number' && typeof prevRank === 'number') {
+      diff = prevRank - currentRank;
+    }
+
+    return {
+      previousRank: prevRank,
+      diff,
+      historyCount: timestamps.length,
+    };
+  }
+
+  return {
+    previousRank: null,
+    diff: null,
+    historyCount: timestamps.length,
+  };
+}
+
+// ---------------- COMPETITOR OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
+
+export async function saveCompetitorObservation(obs: DbCompetitorObservation): Promise<void> {
+  // In-memory update
+  const existingIdx = inMemoryCompetitorObservations.findIndex((o) => o.id === obs.id);
+  if (existingIdx >= 0) {
+    inMemoryCompetitorObservations[existingIdx] = { ...obs };
+  } else {
+    inMemoryCompetitorObservations.unshift({ ...obs });
+  }
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO competitor_observations 
+         (id, company_id, competitor_id, name, place_id, address, rating, reviews_count, photos_count, posts_per_week, rank_position, provider, timestamp, status, raw_payload)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           name = VALUES(name),
+           place_id = VALUES(place_id),
+           address = VALUES(address),
+           rating = VALUES(rating),
+           reviews_count = VALUES(reviews_count),
+           photos_count = VALUES(photos_count),
+           posts_per_week = VALUES(posts_per_week),
+           rank_position = VALUES(rank_position),
+           provider = VALUES(provider),
+           status = VALUES(status),
+           raw_payload = VALUES(raw_payload)`,
+        [
+          obs.id,
+          obs.company_id,
+          obs.competitor_id,
+          obs.name,
+          obs.place_id || null,
+          obs.address || null,
+          obs.rating !== null && obs.rating !== undefined ? Number(obs.rating) : null,
+          obs.reviews_count !== null && obs.reviews_count !== undefined ? Number(obs.reviews_count) : null,
+          obs.photos_count !== null && obs.photos_count !== undefined ? Number(obs.photos_count) : null,
+          obs.posts_per_week !== null && obs.posts_per_week !== undefined ? Number(obs.posts_per_week) : null,
+          obs.rank_position !== null && obs.rank_position !== undefined ? Number(obs.rank_position) : null,
+          obs.provider,
+          obs.timestamp ? new Date(obs.timestamp) : new Date(),
+          obs.status,
+          obs.raw_payload || null,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('saveCompetitorObservation', err);
+  }
+}
+
+export async function saveCompetitorObservations(observations: DbCompetitorObservation[]): Promise<void> {
+  if (!observations || observations.length === 0) return;
+  for (const obs of observations) {
+    await saveCompetitorObservation(obs);
+  }
+}
+
+export async function getCompetitorObservationHistory(
+  companyId: string,
+  competitorId: string,
+  limit = 50
+): Promise<DbCompetitorObservation[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        `SELECT * FROM competitor_observations 
+         WHERE company_id = ? AND competitor_id = ? 
+         ORDER BY timestamp DESC 
+         LIMIT ?`,
+        [companyId, competitorId, limit]
+      );
+
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          competitor_id: r.competitor_id,
+          name: r.name,
+          place_id: r.place_id,
+          address: r.address,
+          rating: r.rating !== null ? Number(r.rating) : null,
+          reviews_count: r.reviews_count !== null ? Number(r.reviews_count) : null,
+          photos_count: r.photos_count !== null ? Number(r.photos_count) : null,
+          posts_per_week: r.posts_per_week !== null ? Number(r.posts_per_week) : null,
+          rank_position: r.rank_position !== null ? Number(r.rank_position) : null,
+          provider: r.provider,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          status: r.status,
+          raw_payload: r.raw_payload,
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getCompetitorObservationHistory', err);
+  }
+
+  // In-memory fallback
+  return inMemoryCompetitorObservations
+    .filter((o) => o.company_id === companyId && o.competitor_id === competitorId)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, limit);
+}
+
+export async function getLatestCompetitorObservations(companyId: string): Promise<DbCompetitorObservation[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        `SELECT co.* FROM competitor_observations co
+         INNER JOIN (
+           SELECT competitor_id, MAX(timestamp) AS max_timestamp
+           FROM competitor_observations
+           WHERE company_id = ?
+           GROUP BY competitor_id
+         ) latest ON co.competitor_id = latest.competitor_id AND co.timestamp = latest.max_timestamp
+         WHERE co.company_id = ?`,
+        [companyId, companyId]
+      );
+
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          competitor_id: r.competitor_id,
+          name: r.name,
+          place_id: r.place_id,
+          address: r.address,
+          rating: r.rating !== null ? Number(r.rating) : null,
+          reviews_count: r.reviews_count !== null ? Number(r.reviews_count) : null,
+          photos_count: r.photos_count !== null ? Number(r.photos_count) : null,
+          posts_per_week: r.posts_per_week !== null ? Number(r.posts_per_week) : null,
+          rank_position: r.rank_position !== null ? Number(r.rank_position) : null,
+          provider: r.provider,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          status: r.status,
+          raw_payload: r.raw_payload,
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getLatestCompetitorObservations', err);
+  }
+
+  // In-memory fallback
+  const map = new Map<string, DbCompetitorObservation>();
+  const matching = inMemoryCompetitorObservations
+    .filter((o) => o.company_id === companyId)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+  for (const obs of matching) {
+    map.set(obs.competitor_id, obs);
+  }
+  return Array.from(map.values());
+}
+
+export async function getCompetitorHistoricalBaseline(
+  companyId: string,
+  competitorId: string
+): Promise<{ latest: DbCompetitorObservation | null; previous: DbCompetitorObservation | null }> {
+  try {
+    const history = await getCompetitorObservationHistory(companyId, competitorId, 5);
+    if (history.length >= 2) {
+      return {
+        latest: history[0],
+        previous: history[1],
+      };
+    } else if (history.length === 1) {
+      return {
+        latest: history[0],
+        previous: null,
+      };
+    }
+  } catch (err: any) {
+    handleDbError('getCompetitorHistoricalBaseline', err);
+  }
+
+  return {
+    latest: null,
+    previous: null,
+  };
+}
+
+// ---------------- AUTONOMOUS GOVERNANCE & EXECUTION QUERIES ---------------- //
+
+export async function createAutonomousRecommendation(
+  rec: Omit<DbAutonomousRecommendation, 'id' | 'created_at'> & { id?: string }
+): Promise<DbAutonomousRecommendation> {
+  const id = rec.id || `rec_${crypto.randomUUID().replace(/-/g, '')}`;
+  const now = new Date().toISOString();
+  const fullRec: DbAutonomousRecommendation = {
+    id,
+    company_id: rec.company_id,
+    observation: rec.observation,
+    evidence_ids: rec.evidence_ids || [],
+    source: rec.source,
+    timestamp: rec.timestamp || now,
+    recommended_action: rec.recommended_action,
+    action_type: rec.action_type,
+    action_payload: rec.action_payload,
+    affected_metric: rec.affected_metric,
+    confidence: rec.confidence ?? 85,
+    risk: rec.risk || 'medium',
+    approval_requirement: rec.approval_requirement || 'required',
+    status: rec.status || 'pending',
+    created_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO autonomous_recommendations 
+        (id, company_id, observation, evidence_ids, source, timestamp, recommended_action, action_type, action_payload, affected_metric, confidence, risk, approval_requirement, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          fullRec.id,
+          fullRec.company_id,
+          fullRec.observation,
+          JSON.stringify(fullRec.evidence_ids),
+          fullRec.source,
+          fullRec.timestamp,
+          fullRec.recommended_action,
+          fullRec.action_type,
+          fullRec.action_payload ? JSON.stringify(fullRec.action_payload) : null,
+          fullRec.affected_metric,
+          fullRec.confidence,
+          fullRec.risk,
+          fullRec.approval_requirement,
+          fullRec.status,
+          fullRec.created_at,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('createAutonomousRecommendation', err);
+  }
+
+  inMemoryAutonomousRecommendations.unshift(fullRec);
+  return fullRec;
+}
+
+export async function getAutonomousRecommendationsByCompany(
+  companyId: string,
+  limit = 50
+): Promise<DbAutonomousRecommendation[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM autonomous_recommendations WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
+        [companyId, limit]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          observation: r.observation,
+          evidence_ids: typeof r.evidence_ids === 'string' ? JSON.parse(r.evidence_ids) : (r.evidence_ids || []),
+          source: r.source,
+          timestamp: r.timestamp,
+          recommended_action: r.recommended_action,
+          action_type: r.action_type,
+          action_payload: typeof r.action_payload === 'string' ? JSON.parse(r.action_payload) : r.action_payload,
+          affected_metric: r.affected_metric,
+          confidence: Number(r.confidence),
+          risk: r.risk,
+          approval_requirement: r.approval_requirement,
+          status: r.status,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getAutonomousRecommendationsByCompany', err);
+  }
+
+  return inMemoryAutonomousRecommendations
+    .filter((r) => r.company_id === companyId)
+    .slice(0, limit);
+}
+
+export async function updateAutonomousRecommendationStatus(
+  id: string,
+  status: 'pending' | 'approved' | 'rejected' | 'executed' | 'dismissed'
+): Promise<boolean> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query('UPDATE autonomous_recommendations SET status = ? WHERE id = ?', [status, id]);
+    }
+  } catch (err: any) {
+    handleDbError('updateAutonomousRecommendationStatus', err);
+  }
+
+  const inMem = inMemoryAutonomousRecommendations.find((r) => r.id === id);
+  if (inMem) {
+    inMem.status = status;
+    return true;
+  }
+  return false;
+}
+
+export async function createAutonomousAction(
+  action: Omit<DbAutonomousAction, 'id' | 'created_at'> & { id?: string }
+): Promise<DbAutonomousAction> {
+  const id = action.id || `act_${crypto.randomUUID().replace(/-/g, '')}`;
+  const now = new Date().toISOString();
+  const fullAction: DbAutonomousAction = {
+    id,
+    company_id: action.company_id,
+    recommendation_id: action.recommendation_id || null,
+    action_type: action.action_type,
+    payload: action.payload,
+    source_evidence: action.source_evidence,
+    approval_status: action.approval_status || 'pending_approval',
+    execution_state: action.execution_state || 'idle',
+    provider_response: action.provider_response,
+    verification_state: action.verification_state || 'unverified',
+    error: action.error || null,
+    executed_at: action.executed_at || null,
+    created_at: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO autonomous_actions 
+        (id, company_id, recommendation_id, action_type, payload, source_evidence, approval_status, execution_state, provider_response, verification_state, error, executed_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          fullAction.id,
+          fullAction.company_id,
+          fullAction.recommendation_id,
+          fullAction.action_type,
+          fullAction.payload ? JSON.stringify(fullAction.payload) : null,
+          fullAction.source_evidence ? JSON.stringify(fullAction.source_evidence) : null,
+          fullAction.approval_status,
+          fullAction.execution_state,
+          fullAction.provider_response ? JSON.stringify(fullAction.provider_response) : null,
+          fullAction.verification_state,
+          fullAction.error,
+          fullAction.executed_at,
+          fullAction.created_at,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('createAutonomousAction', err);
+  }
+
+  inMemoryAutonomousActions.unshift(fullAction);
+  return fullAction;
+}
+
+export async function getAutonomousActionsByCompany(
+  companyId: string,
+  limit = 50
+): Promise<DbAutonomousAction[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM autonomous_actions WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
+        [companyId, limit]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          recommendation_id: r.recommendation_id,
+          action_type: r.action_type,
+          payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload,
+          source_evidence: typeof r.source_evidence === 'string' ? JSON.parse(r.source_evidence) : r.source_evidence,
+          approval_status: r.approval_status,
+          execution_state: r.execution_state,
+          provider_response: typeof r.provider_response === 'string' ? JSON.parse(r.provider_response) : r.provider_response,
+          verification_state: r.verification_state,
+          error: r.error,
+          executed_at: r.executed_at,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getAutonomousActionsByCompany', err);
+  }
+
+  return inMemoryAutonomousActions
+    .filter((a) => a.company_id === companyId)
+    .slice(0, limit);
+}
+
+export async function getAutonomousActionById(id: string): Promise<DbAutonomousAction | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query('SELECT * FROM autonomous_actions WHERE id = ? LIMIT 1', [id]);
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          company_id: r.company_id,
+          recommendation_id: r.recommendation_id,
+          action_type: r.action_type,
+          payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload,
+          source_evidence: typeof r.source_evidence === 'string' ? JSON.parse(r.source_evidence) : r.source_evidence,
+          approval_status: r.approval_status,
+          execution_state: r.execution_state,
+          provider_response: typeof r.provider_response === 'string' ? JSON.parse(r.provider_response) : r.provider_response,
+          verification_state: r.verification_state,
+          error: r.error,
+          executed_at: r.executed_at,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+        };
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getAutonomousActionById', err);
+  }
+
+  return inMemoryAutonomousActions.find((a) => a.id === id) || null;
+}
+
+export async function updateAutonomousAction(
+  id: string,
+  updates: Partial<DbAutonomousAction>
+): Promise<DbAutonomousAction | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const setClauses: string[] = [];
+      const values: any[] = [];
+
+      if (updates.approval_status !== undefined) {
+        setClauses.push('approval_status = ?');
+        values.push(updates.approval_status);
+      }
+      if (updates.execution_state !== undefined) {
+        setClauses.push('execution_state = ?');
+        values.push(updates.execution_state);
+      }
+      if (updates.provider_response !== undefined) {
+        setClauses.push('provider_response = ?');
+        values.push(updates.provider_response ? JSON.stringify(updates.provider_response) : null);
+      }
+      if (updates.verification_state !== undefined) {
+        setClauses.push('verification_state = ?');
+        values.push(updates.verification_state);
+      }
+      if (updates.error !== undefined) {
+        setClauses.push('error = ?');
+        values.push(updates.error);
+      }
+      if (updates.executed_at !== undefined) {
+        setClauses.push('executed_at = ?');
+        values.push(updates.executed_at);
+      }
+
+      if (setClauses.length > 0) {
+        values.push(id);
+        await db.query(`UPDATE autonomous_actions SET ${setClauses.join(', ')} WHERE id = ?`, values);
+      }
+    }
+  } catch (err: any) {
+    handleDbError('updateAutonomousAction', err);
+  }
+
+  const inMem = inMemoryAutonomousActions.find((a) => a.id === id);
+  if (inMem) {
+    Object.assign(inMem, updates);
+    return inMem;
+  }
+  return null;
+}
+
+export async function recordAutonomousAuditLog(
+  log: Omit<DbAutonomousAuditLog, 'id' | 'timestamp'> & { id?: string }
+): Promise<DbAutonomousAuditLog> {
+  const id = log.id || `aal_${crypto.randomUUID().replace(/-/g, '')}`;
+  const now = new Date().toISOString();
+  const fullLog: DbAutonomousAuditLog = {
+    id,
+    company_id: log.company_id,
+    action_id: log.action_id || null,
+    actor: log.actor,
+    event_type: log.event_type,
+    details: log.details,
+    timestamp: now,
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `INSERT INTO autonomous_audit_logs (id, company_id, action_id, actor, event_type, details, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          fullLog.id,
+          fullLog.company_id,
+          fullLog.action_id,
+          fullLog.actor,
+          fullLog.event_type,
+          fullLog.details ? JSON.stringify(fullLog.details) : null,
+          fullLog.timestamp,
+        ]
+      );
+    }
+  } catch (err: any) {
+    handleDbError('recordAutonomousAuditLog', err);
+  }
+
+  inMemoryAutonomousAuditLogs.unshift(fullLog);
+  return fullLog;
+}
+
+export async function getAutonomousAuditLogsByCompany(
+  companyId: string,
+  limit = 50
+): Promise<DbAutonomousAuditLog[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM autonomous_audit_logs WHERE company_id = ? ORDER BY timestamp DESC LIMIT ?',
+        [companyId, limit]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: r.id,
+          company_id: r.company_id,
+          action_id: r.action_id,
+          actor: r.actor,
+          event_type: r.event_type,
+          details: typeof r.details === 'string' ? JSON.parse(r.details) : r.details,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+        }));
+      }
+    }
+  } catch (err: any) {
+    handleDbError('getAutonomousAuditLogsByCompany', err);
+  }
+
+  return inMemoryAutonomousAuditLogs
+    .filter((l) => l.company_id === companyId)
+    .slice(0, limit);
+}
+
+
 
 
 

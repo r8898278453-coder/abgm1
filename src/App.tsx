@@ -688,21 +688,19 @@ export default function App() {
         console.warn('Live rank scan error, using calculated fallback:', err);
       }
     }
-    // Fallback if offline/local
+    // Fallback if offline/unconfigured - return UNAVAILABLE without fabricating data
     const kwItem: KeywordRank = {
       id: `kw_${Date.now()}`,
       keyword: targetKw,
-      rank: 3,
-      previousRank: 4,
-      searchVolume: '350/mo',
-      dataClassification: 'CALCULATED',
+      rank: null,
+      previousRank: null,
+      diff: null,
+      searchVolume: null,
+      dataClassification: 'UNAVAILABLE',
+      provider: 'unconfigured',
       lastScannedAt: new Date().toISOString(),
-      gridRankings: {
-        vashi: 2,
-        nerul: 4,
-        sanpada: 3,
-        belapur: 4,
-      },
+      gridRankings: {},
+      evidenceNotes: 'No verified SERP rank provider configured.',
     };
     setKeywords((prev) => [kwItem, ...prev]);
   };
@@ -959,6 +957,7 @@ export default function App() {
                   {renderedTab === 'competitors' && (
                     <CompetitorsView
                       competitors={competitors}
+                      companyId={activeCompanyId || undefined}
                       onNavigate={setActiveTab}
                       onUpdateCompetitors={setCompetitors}
                     />

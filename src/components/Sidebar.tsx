@@ -71,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         {
           id: 'google' as NavTab,
-          label: 'Google Profile & Health',
+          label: 'Google Places & Health',
           icon: MapPin,
           badge: null,
         },

@@ -24,6 +24,7 @@ import {
   createContentPostApi,
   updatePostStatusApi,
   deleteContentPostApi,
+  publishContentPostApi,
 } from '../services/authService';
 
 interface CalendarViewProps {
@@ -72,21 +73,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   const handlePublishPost = async (postId: string) => {
     const previous = [...localPosts];
-    // Optimistic UI update
+    // Optimistic UI state: set to publishing while state machine executes
     setLocalPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
+      prev.map((p) => (p.id === postId ? { ...p, status: 'publishing' as const } : p))
     );
     setIsPublishingId(postId);
     setActionError(null);
 
     try {
-      const ok = await updatePostStatusApi(postId, 'published', companyId);
-      if (!ok) throw new Error('Status update failed on server');
-      setPlanSuccessToast('✓ Post published to MySQL database successfully!');
-      setTimeout(() => setPlanSuccessToast(null), 4000);
-      onUpdatePostStatus?.(postId);
+      const resp = await publishContentPostApi(postId, companyId);
+      if (resp.success && resp.result?.overallStatus === 'PUBLISHED') {
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
+        );
+        setPlanSuccessToast(`✓ ${resp.result?.message || 'Post published and verified by provider.'}`);
+        setTimeout(() => setPlanSuccessToast(null), 4000);
+        onUpdatePostStatus?.(postId);
+      } else if (resp.result?.overallStatus === 'UNKNOWN') {
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'unknown' as const } : p))
+        );
+        setActionError(`⚠️ Provider state unknown: ${resp.result?.message || 'Network timeout while publishing'}`);
+      } else {
+        const errorMsg = resp.result?.message || resp.error || 'Provider rejected publishing request';
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'failed' as const } : p))
+        );
+        setActionError(`Failed to publish post: ${errorMsg}`);
+      }
     } catch (err: any) {
-      console.error('Failed to publish post in MySQL:', err);
+      console.error('Failed to execute publishing job:', err);
       setLocalPosts(previous);
       setActionError(`Failed to publish post: ${err?.message || 'Server error'}. Status reverted.`);
     } finally {
@@ -367,6 +383,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                         post.status === 'published'
                           ? 'bg-emerald-100 text-emerald-800'
+                          : post.status === 'publishing'
+                          ? 'bg-amber-100 text-amber-800 animate-pulse'
+                          : post.status === 'failed'
+                          ? 'bg-rose-100 text-rose-800'
+                          : post.status === 'unknown'
+                          ? 'bg-amber-100 text-amber-800'
                           : 'bg-indigo-100 text-indigo-800'
                       }`}
                     >
@@ -437,14 +459,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {post.status === 'scheduled' && (
+                    {post.status !== 'published' && post.status !== 'publishing' && (
                       <button
                         onClick={() => handlePublishPost(post.id)}
                         disabled={isPublishingId === post.id}
                         className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-2xs flex items-center gap-1 disabled:opacity-50"
                       >
                         <Check className="w-3 h-3" />
-                        <span>{isPublishingId === post.id ? 'Publishing...' : 'Publish to MySQL'}</span>
+                        <span>{isPublishingId === post.id ? 'Publishing...' : post.status === 'failed' || post.status === 'unknown' ? 'Retry Publish' : 'Publish Now'}</span>
                       </button>
                     )}
                     <button

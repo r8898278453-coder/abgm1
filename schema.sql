@@ -326,6 +326,145 @@ CREATE TABLE IF NOT EXISTS `website_configs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
+-- Table structure for table `publishing_records`
+-- Immutable audit log & idempotency store for autonomous/manual publishing
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `publishing_records` (
+  `id` varchar(64) NOT NULL,
+  `post_id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `platform` varchar(64) NOT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'RETRYING',
+  `provider_post_id` varchar(128) DEFAULT NULL,
+  `attempt_count` int(11) NOT NULL DEFAULT 1,
+  `max_attempts` int(11) NOT NULL DEFAULT 3,
+  `error_type` varchar(64) DEFAULT NULL,
+  `error_message` text DEFAULT NULL,
+  `idempotency_key` varchar(128) NOT NULL,
+  `published_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_pub_post_plat` (`post_id`, `platform`),
+  KEY `idx_pub_company` (`company_id`),
+  KEY `idx_pub_idempotency` (`idempotency_key`),
+  KEY `idx_pub_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `internal_campaigns`
+-- Stores internal marketing initiatives, dates, channels, and planned budgets
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `internal_campaigns` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `objective` text NOT NULL,
+  `status` enum('draft','active','paused','completed') NOT NULL DEFAULT 'active',
+  `start_date` varchar(64) NOT NULL,
+  `end_date` varchar(64) NOT NULL,
+  `planned_budget` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `channels` text DEFAULT NULL,
+  `external_campaign_id` varchar(128) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_int_camp_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `external_ad_campaigns`
+-- Stores telemetry fetched directly from verified external ad providers (Meta Ads, Google Ads)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `external_ad_campaigns` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `internal_campaign_id` varchar(64) DEFAULT NULL,
+  `provider` varchar(64) NOT NULL,
+  `external_campaign_id` varchar(128) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'UNKNOWN',
+  `fetched_at` varchar(64) DEFAULT NULL,
+  `spend` decimal(10,2) DEFAULT NULL,
+  `impressions` bigint(20) DEFAULT NULL,
+  `clicks` bigint(20) DEFAULT NULL,
+  `conversions` bigint(20) DEFAULT NULL,
+  `conversion_tracking_status` varchar(32) NOT NULL DEFAULT 'UNAVAILABLE',
+  `revenue` decimal(10,2) DEFAULT NULL,
+  `revenue_attribution_status` varchar(32) NOT NULL DEFAULT 'UNAVAILABLE',
+  `roas` decimal(10,2) DEFAULT NULL,
+  `raw_metrics_json` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_ext_camp_prov_id` (`company_id`, `provider`, `external_campaign_id`),
+  KEY `idx_ext_camp_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for `autonomous_recommendations`
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `autonomous_recommendations` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `observation` text NOT NULL,
+  `evidence_ids` text NOT NULL,
+  `source` varchar(64) NOT NULL,
+  `timestamp` varchar(64) NOT NULL,
+  `recommended_action` text NOT NULL,
+  `action_type` varchar(64) NOT NULL,
+  `action_payload` longtext DEFAULT NULL,
+  `affected_metric` varchar(128) NOT NULL,
+  `confidence` int(11) NOT NULL DEFAULT 85,
+  `risk` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+  `approval_requirement` enum('auto','required') NOT NULL DEFAULT 'required',
+  `status` varchar(32) NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ar_company` (`company_id`),
+  KEY `idx_ar_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for `autonomous_actions`
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `autonomous_actions` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `recommendation_id` varchar(64) DEFAULT NULL,
+  `action_type` varchar(64) NOT NULL,
+  `payload` longtext DEFAULT NULL,
+  `source_evidence` longtext DEFAULT NULL,
+  `approval_status` varchar(32) NOT NULL DEFAULT 'pending_approval',
+  `execution_state` varchar(32) NOT NULL DEFAULT 'idle',
+  `provider_response` longtext DEFAULT NULL,
+  `verification_state` varchar(32) NOT NULL DEFAULT 'unverified',
+  `error` text DEFAULT NULL,
+  `executed_at` varchar(64) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_aa_company` (`company_id`),
+  KEY `idx_aa_approval` (`approval_status`),
+  KEY `idx_aa_execution` (`execution_state`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for `autonomous_audit_logs`
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `autonomous_audit_logs` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `action_id` varchar(64) DEFAULT NULL,
+  `actor` varchar(128) NOT NULL,
+  `event_type` varchar(64) NOT NULL,
+  `details` longtext DEFAULT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_aal_company` (`company_id`),
+  KEY `idx_aal_timestamp` (`timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
 -- Seed Data for Aaditech BGA (bga.aaditechs.in)
 -- --------------------------------------------------------
 INSERT INTO `companies` (`id`, `user_id`, `name`, `legal_name`, `category`, `city`, `phone`, `website`, `google_place_id`, `autopilot_enabled`, `score`, `rank_position`)

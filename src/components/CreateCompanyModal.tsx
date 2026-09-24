@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Building2, Sparkles, MapPin, Globe, Phone, Tag, CheckCircle2, ArrowRight, X } from 'lucide-react';
 import { createCompanyApi, saveCompanyData } from '../services/authService';
-import { CompanyRecord } from '../types';
+import { CompanyRecord, BusinessProfile } from '../types';
+import { calculateGrowthIntelligenceScore, toGrowthScorePayload } from '../services/growthScoreEngine';
 
 interface CreateCompanyModalProps {
   isOpen: boolean;
@@ -60,16 +61,61 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         google_place_id: googlePlaceId.trim() || undefined,
       });
 
-      // Generate localized fresh initial data for this specific company
-      const initialPayload = {
-        growth_score: {
-          overall: 78,
-          localSeo: 82,
-          reputation: 80,
-          contentVelocity: 70,
-          responseRate: 92,
-          conversionRate: 75,
+      // Generate localized fresh initial data for this specific company with centralized Growth Intelligence Score
+      const profileData: BusinessProfile = {
+        id: `biz_${company.id}`,
+        name: name.trim(),
+        category,
+        subCategory: category,
+        address: `${city.trim()}, India`,
+        city: city.trim(),
+        state: 'Maharashtra',
+        country: 'India',
+        phone: phone.trim() || '',
+        email: `contact@${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}.in`,
+        website: website.trim() || '',
+        whatsapp: phone.trim() || '',
+        description: `${name.trim()} is a leading ${category} business in ${city.trim()}.`,
+        services: [category],
+        products: [],
+        priceRange: '₹₹',
+        openingHours: 'Mon - Sat: 9:30 AM - 7:30 PM',
+        serviceAreas: [city.trim()],
+        brandKit: {
+          logoUrl: '',
+          primaryColor: '#4f46e5',
+          secondaryColor: '#0f172a',
+          fontFamily: 'Plus Jakarta Sans',
+          tagline: 'Delivering Quality and Excellence Everyday',
+          brandTone: 'Professional, Courteous & Prompt',
+          preferredLanguage: 'English & Hindi',
         },
+        connectedAccounts: {
+          googleBusiness: Boolean(googlePlaceId.trim()),
+          metaFacebook: false,
+          metaInstagram: false,
+          whatsappBusiness: false,
+          telegramBot: false,
+          website: Boolean(website.trim()),
+        },
+      };
+
+      const calculatedScore = toGrowthScorePayload(
+        calculateGrowthIntelligenceScore({
+          businessProfile: profileData,
+          reviews: [],
+          rankObservations: [],
+          keywordRanks: [],
+          contentPosts: [],
+          leads: [],
+          campaigns: [],
+          auditItems: [],
+        })
+      );
+
+      const initialPayload = {
+        growth_score: calculatedScore,
+        business: profileData,
         audit_items: [
           {
             id: 'audit_1',

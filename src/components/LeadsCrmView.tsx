@@ -73,7 +73,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
   const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string | null>(null);
   const [copiedPayLink, setCopiedPayLink] = useState(false);
 
-  const stages: LeadItem['stage'][] = ['new', 'contacted', 'qualified', 'quotation', 'won', 'lost'];
+  const stages: LeadItem['stage'][] = ['new', 'contacted', 'qualified', 'opportunity', 'quotation', 'won', 'lost'];
 
   const handleSelectLead = (lead: LeadItem) => {
     setSelectedLead(lead);
@@ -304,7 +304,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
       )}
 
       {/* Pipeline Stage Bar Bento Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {stages.map((st) => {
           const count = leads.filter((l) => l.stage === st).length;
           const isActive = filterStage === st;

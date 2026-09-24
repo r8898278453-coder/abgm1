@@ -101,13 +101,13 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500">Business Health</span>
                   <span className="text-xs font-extrabold text-indigo-600">
-                    {growthScore.overall}/100
+                    {growthScore.overall !== null ? `${growthScore.overall}/100` : (growthScore.statusLabel || 'UNAVAILABLE')}
                   </span>
                 </div>
                 <div className="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-full bg-indigo-600 rounded-full"
-                    style={{ width: `${growthScore.overall}%` }}
+                    style={{ width: `${growthScore.overall !== null ? growthScore.overall : 0}%` }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">

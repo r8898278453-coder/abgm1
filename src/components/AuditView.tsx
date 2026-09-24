@@ -9,9 +9,13 @@ import {
   Sparkles,
   ArrowRight,
   RefreshCw,
+  Eye,
+  FileCode2,
+  X,
 } from 'lucide-react';
 import { GrowthScore, AuditItem, BusinessProfile } from '../types';
 import { initialGrowthScore } from '../data/initialData';
+import { DataStatusBadge } from './DataStatusBadge';
 
 interface AuditViewProps {
   growthScore?: GrowthScore;
@@ -32,6 +36,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
   const resolveItem = onResolveItem || onFixItem || (() => {});
   const [filter, setFilter] = useState<'all' | 'critical' | 'important' | 'recommended' | 'resolved'>('all');
   const [isScanning, setIsScanning] = useState(false);
+  const [showTelemetryModal, setShowTelemetryModal] = useState(false);
 
   const handleRescan = () => {
     setIsScanning(true);
@@ -81,6 +86,10 @@ export const AuditView: React.FC<AuditViewProps> = ({
     }
   };
 
+  const isUnavailable = growthScore.overall === null || growthScore.status === 'UNAVAILABLE';
+  const isIncomplete = growthScore.status === 'INCOMPLETE_DATA';
+  const statusLabel = growthScore.statusLabel || (isUnavailable ? 'UNAVAILABLE' : isIncomplete ? 'INCOMPLETE DATA' : 'CALCULATED');
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -94,14 +103,25 @@ export const AuditView: React.FC<AuditViewProps> = ({
             Continuous 360° health scan across Google Maps, Reviews, Local SEO, Content & Leads.
           </p>
         </div>
-        <button
-          onClick={handleRescan}
-          disabled={isScanning}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs w-fit"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-          <span>{isScanning ? 'Scanning Business...' : 'Run Full AI Audit'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {growthScore.telemetry && growthScore.telemetry.length > 0 && (
+            <button
+              onClick={() => setShowTelemetryModal(true)}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-2xl transition border border-slate-300"
+            >
+              <FileCode2 className="w-3.5 h-3.5 text-slate-600" />
+              <span>Telemetry & Formula Audit</span>
+            </button>
+          )}
+          <button
+            onClick={handleRescan}
+            disabled={isScanning}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs w-fit"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+            <span>{isScanning ? 'Scanning Business...' : 'Run Full AI Audit'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Growth Score & 7-Pillar Breakdown in Bento Grid */}
@@ -109,24 +129,56 @@ export const AuditView: React.FC<AuditViewProps> = ({
         {/* Left: Dark Bento Tile for Composite Score */}
         <div className="lg:col-span-4 bg-slate-900 rounded-3xl p-6 shadow-xl text-white flex flex-col justify-between">
           <div>
-            <div className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-3">
-              Composite Growth Score
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                Growth Intelligence Score
+              </div>
+              <DataStatusBadge
+                status={growthScore.status || (isUnavailable ? 'UNAVAILABLE' : 'CALCULATED')}
+                label={statusLabel}
+                className="bg-white/10 text-white border-white/20 text-[10px]"
+              />
             </div>
             <div className="text-6xl font-black tracking-tight flex items-baseline gap-1">
-              <span>{growthScore.overall}</span>
+              <span>{growthScore.overall !== null ? growthScore.overall : '--'}</span>
               <span className="text-xl text-slate-500 font-bold">/100</span>
             </div>
-            <div className="text-xs font-semibold text-emerald-400 mt-2 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" /> Strong Local Foundation
-            </div>
+
+            {isUnavailable ? (
+              <div className="text-xs font-semibold text-amber-400 mt-2 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" /> Insufficient Verified Signals
+              </div>
+            ) : isIncomplete ? (
+              <div className="text-xs font-semibold text-sky-400 mt-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Partial Verified Signals
+              </div>
+            ) : (
+              <div className="text-xs font-semibold text-emerald-400 mt-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Deterministic Composite Active
+              </div>
+            )}
+
             <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-              Your business is outperforming 78% of electronics & repair centers in Navi Mumbai. Fixing the 2 critical items can take you to <strong>88/100</strong> within 7 days.
+              {isUnavailable
+                ? (growthScore.insufficientDataReason || 'No verified marketing signals available yet. Connect Google Business, website, or log reviews to compute score.')
+                : isIncomplete
+                ? (growthScore.insufficientDataReason || 'Score calculated from available pillars. Connect remaining channels for complete 7-pillar telemetry.')
+                : 'Score calculated from deterministic evidence across Google Business NAP consistency, 3x3 local SEO ranking, review volume, and reply engagement.'}
             </p>
           </div>
 
           <div className="pt-4 mt-6 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>Benchmark: Top 10% in Sector 17</span>
-            <span className="text-indigo-400 font-bold">Target: 95+</span>
+            <span>Engine: Deterministic 7-Pillar</span>
+            {growthScore.telemetry && growthScore.telemetry.length > 0 ? (
+              <button
+                onClick={() => setShowTelemetryModal(true)}
+                className="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+              >
+                <Eye className="w-3 h-3" /> View Audit Telemetry
+              </button>
+            ) : (
+              <span className="text-slate-500 font-mono text-[11px]">Audit Ready</span>
+            )}
           </div>
         </div>
 
@@ -154,12 +206,16 @@ export const AuditView: React.FC<AuditViewProps> = ({
               <div key={pillar.label} className="space-y-1">
                 <div className="flex justify-between text-xs font-medium">
                   <span className="text-slate-700 font-semibold">{pillar.label}</span>
-                  <span className="font-bold text-slate-900">{pillar.score} / 100</span>
+                  {pillar.score !== null && pillar.score !== undefined ? (
+                    <span className="font-bold text-slate-900">{pillar.score} / 100</span>
+                  ) : (
+                    <span className="font-bold text-slate-400 text-[11px] uppercase">UNAVAILABLE</span>
+                  )}
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                   <div
                     className={`${pillar.color} h-2 rounded-full transition-all duration-700 ease-out`}
-                    style={{ width: `${pillar.score}%` }}
+                    style={{ width: `${pillar.score !== null && pillar.score !== undefined ? pillar.score : 0}%` }}
                   />
                 </div>
               </div>
@@ -167,6 +223,81 @@ export const AuditView: React.FC<AuditViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Telemetry / Formula Inspector Modal */}
+      {showTelemetryModal && growthScore.telemetry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <FileCode2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Growth Intelligence Score Telemetry & Formulas
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Strict audit log of input values, deterministic equations, timestamps, and data statuses.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTelemetryModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl transition hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {growthScore.telemetry.map((t, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{t.metric}</span>
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                        Weight: {t.weight}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DataStatusBadge status={t.status} label={t.status} className="text-[10px]" />
+                      <span className="font-black text-sm text-slate-900">
+                        {t.score !== null ? `${t.score} / 100` : 'UNAVAILABLE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-xs">
+                    <div className="text-slate-500">
+                      <strong className="text-slate-700">Formula:</strong> <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-[11px] text-slate-800">{t.formula}</code>
+                    </div>
+                    <div className="text-slate-500">
+                      <strong className="text-slate-700">Audit Timestamp:</strong> <span className="font-mono text-[11px] text-slate-600">{t.timestamp}</span>
+                    </div>
+                    <div className="text-slate-500">
+                      <strong className="text-slate-700">Verified Input Values:</strong>
+                      <pre className="mt-1 bg-slate-900 text-emerald-400 p-2.5 rounded-xl font-mono text-[11px] overflow-x-auto max-h-32">
+                        {JSON.stringify(t.inputValues, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+              <span>All scores are computed with 0 hardcoded growth or fabricated metrics.</span>
+              <button
+                onClick={() => setShowTelemetryModal(false)}
+                className="bg-slate-900 text-white font-bold px-4 py-2 rounded-xl hover:bg-slate-800 transition"
+              >
+                Close Audit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top 10 Prioritized Problems in Bento Container */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
@@ -188,7 +319,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
                 filter === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              All (10)
+              All ({safeAuditItems.length})
             </button>
             <button
               onClick={() => setFilter('critical')}

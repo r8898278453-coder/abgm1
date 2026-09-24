@@ -19,6 +19,8 @@ import {
   CreditCard,
   IndianRupee,
   Copy,
+  Mail,
+  BarChart3,
 } from 'lucide-react';
 import { BusinessProfile } from '../types';
 import {
@@ -107,6 +109,16 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const [rzpCreating, setRzpCreating] = useState(false);
   const [rzpResult, setRzpResult] = useState<any | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Email Tester States
+  const [isEmailTestOpen, setIsEmailTestOpen] = useState(false);
+  const [emailTestRecipient, setEmailTestRecipient] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSendResult, setEmailSendResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Meta Ads Sync State
+  const [metaAdsSyncing, setMetaAdsSyncing] = useState(false);
+  const [metaAdsSyncMessage, setMetaAdsSyncMessage] = useState<string | null>(null);
 
   // Fetch real integration statuses from backend
   const fetchIntegrations = useCallback(async () => {
@@ -379,6 +391,65 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     }
   };
 
+  // Transactional Email Test Send Handler
+  const handleSendTestEmail = async () => {
+    setEmailSending(true);
+    setEmailSendResult(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/integrations/email/test-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: emailTestRecipient.trim() || undefined,
+          companyId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailSendResult({
+          success: true,
+          message: data.message || 'Live test verification email dispatched successfully!',
+        });
+      } else {
+        setEmailSendResult({
+          success: false,
+          message: data.error || 'Failed to dispatch email. Please verify SMTP or API credentials.',
+        });
+      }
+    } catch (err: any) {
+      setEmailSendResult({
+        success: false,
+        message: err?.message || 'Network error communicating with email service.',
+      });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // Meta Ads Direct Sync Handler
+  const handleSyncMetaAds = async () => {
+    setMetaAdsSyncing(true);
+    setMetaAdsSyncMessage(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/campaigns/external/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, provider: 'meta_ads' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMetaAdsSyncMessage(`Synced ${data.syncedCampaignsCount ?? 0} verified ad campaign(s) from Meta Marketing API.`);
+        await fetchIntegrations();
+      } else {
+        setMetaAdsSyncMessage(`Sync failed: ${data.message || data.error || 'Check Meta Ads credentials.'}`);
+      }
+    } catch (err: any) {
+      setMetaAdsSyncMessage(`Network error during Meta Ads sync: ${err?.message}`);
+    } finally {
+      setMetaAdsSyncing(false);
+    }
+  };
+
   const connectedCount = integrations.filter((i) => i.connected).length;
 
   return (
@@ -422,6 +493,22 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Meta Ads Sync Notice */}
+      {metaAdsSyncMessage && (
+        <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between text-xs text-sky-900 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-sky-600 shrink-0" />
+            <span className="font-semibold">{metaAdsSyncMessage}</span>
+          </div>
+          <button
+            onClick={() => setMetaAdsSyncMessage(null)}
+            className="text-sky-600 hover:text-sky-800 font-bold ml-3"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Grid of Real Integrations */}
       {loading && integrations.length === 0 ? (
@@ -555,6 +642,30 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                     >
                       <CreditCard className="w-3 h-3 text-indigo-600" />
                       Test Checkout / Link
+                    </button>
+                  )}
+
+                  {item.id === 'transactional_email' && (
+                    <button
+                      onClick={() => {
+                        setIsEmailTestOpen(true);
+                        setEmailSendResult(null);
+                      }}
+                      className="flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200/60 px-2.5 py-1 rounded-lg transition"
+                    >
+                      <Mail className="w-3 h-3 text-violet-600" />
+                      Send Test Email
+                    </button>
+                  )}
+
+                  {item.id === 'meta_ads' && (
+                    <button
+                      onClick={handleSyncMetaAds}
+                      disabled={metaAdsSyncing}
+                      className="flex items-center gap-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200/60 px-2.5 py-1 rounded-lg transition"
+                    >
+                      <BarChart3 className={`w-3 h-3 text-sky-600 ${metaAdsSyncing ? 'animate-spin' : ''}`} />
+                      {metaAdsSyncing ? 'Syncing...' : 'Sync Ad Telemetry'}
                     </button>
                   )}
 
@@ -1280,6 +1391,91 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   {rzpCreating ? 'Generating...' : 'Generate Payment Link'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transactional Email Live Test Modal */}
+      {isEmailTestOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center text-xl">
+                  📧
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Test Transactional Email Dispatch</h3>
+                  <p className="text-xs text-slate-500">Sends a live verification email to test SMTP or API delivery.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsEmailTestOpen(false);
+                  setEmailSendResult(null);
+                }}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Recipient Email Address</label>
+              <input
+                type="email"
+                value={emailTestRecipient}
+                onChange={(e) => setEmailTestRecipient(e.target.value)}
+                placeholder="e.g. admin@yourdomain.com or your personal email"
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-violet-500 bg-white"
+              />
+              <p className="text-[11px] text-slate-500">
+                Leave empty to send directly to your logged-in administrator account.
+              </p>
+            </div>
+
+            {emailSendResult && (
+              <div
+                className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                  emailSendResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                    : 'bg-rose-50 border-rose-200 text-rose-950'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold">
+                  {emailSendResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{emailSendResult.success ? 'Email Delivered Successfully' : 'Delivery Failed'}</span>
+                </div>
+                <p className="text-[11px] leading-relaxed pl-6">{emailSendResult.message}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEmailTestOpen(false);
+                  setEmailSendResult(null);
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={emailSending}
+                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              >
+                {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {emailSending ? 'Dispatching...' : 'Send Live Test Email'}
+              </button>
             </div>
           </div>
         </div>

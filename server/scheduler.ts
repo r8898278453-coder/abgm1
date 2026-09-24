@@ -28,9 +28,11 @@ import {
   getCompanyReviews,
   sendTelegramPushAlert,
   getCompanyById,
+  getCompanyIntegration,
   DbContentPost,
   DbCompany,
 } from './db';
+import { executePublishingJob } from './publishingEngine';
 
 // Global registration guard for development hot-reloads and container lifecycles
 declare global {
@@ -155,49 +157,66 @@ export async function runAutoPublishJob(): Promise<{
   for (const post of scheduledPosts) {
     if (isScheduledTimePassed(post.scheduled_date, post.scheduled_time, post.time_slot)) {
       try {
-        await updateContentPostStatus(post.id, 'published', post.company_id);
-        publishedPosts.push({
-          id: post.id,
-          title: post.title || post.caption.slice(0, 40),
-          companyId: post.company_id,
-        });
+        // Execute strict publishing state machine: Content -> Job -> Provider API -> Provider Success -> Record -> PUBLISHED
+        const jobResult = await executePublishingJob(post);
 
-        schedulerStatus.stats.totalPostsPublished += 1;
-        console.log(
-          `[Scheduler:AutoPublish] Published post "${post.id}" ("${post.title || post.caption.slice(0, 30)}") for company "${post.company_id}".`
-        );
+        if (jobResult.overallStatus === 'PUBLISHED') {
+          publishedPosts.push({
+            id: post.id,
+            title: post.title || post.caption.slice(0, 40),
+            companyId: post.company_id,
+          });
 
-        // Fetch company details for rich Telegram alert
-        let compName = post.company_id;
-        try {
-          const comp = await getCompanyById(post.company_id);
-          if (comp?.name) compName = comp.name;
-        } catch {}
+          schedulerStatus.stats.totalPostsPublished += 1;
+          console.log(
+            `[Scheduler:AutoPublish] Successfully published post "${post.id}" ("${post.title || post.caption.slice(0, 30)}") for company "${post.company_id}". Providers: ${jobResult.message}`
+          );
 
-        const mediaBadge = post.video_url ? '\n🎬 *Format:* 15-Second Remotion MP4 Reel Video' : '';
+          // Fetch company details for rich Telegram alert
+          let compName = post.company_id;
+          try {
+            const comp = await getCompanyById(post.company_id);
+            if (comp?.name) compName = comp.name;
+          } catch {}
 
-        const alertMsg = `🚀 *AUTONOMOUS ENGINE: POST PUBLISHED!*
+          const mediaBadge = post.video_url ? '\n🎬 *Format:* 15-Second Remotion MP4 Reel Video' : '';
+          const platforms = Array.isArray(post.platforms) && post.platforms.length > 0
+            ? post.platforms
+            : [post.channel || 'google'];
+
+          const alertMsg = `🚀 *AUTONOMOUS ENGINE: POST PUBLISHED!*
 
 🏢 *Business:* ${compName}
 📝 *Title:* ${post.title || 'Campaign Update'}
-🏷️ *Platforms:* ${(post.platforms || [post.channel || 'google']).join(', ')}${mediaBadge}
+🏷️ *Platforms:* ${platforms.join(', ')}${mediaBadge}
 ⏰ *Scheduled For:* ${post.scheduled_date} ${post.scheduled_time || post.time_slot || ''}
 💬 *Caption Preview:* "${post.caption.slice(0, 140)}${post.caption.length > 140 ? '...' : ''}"
 
-⚡ Published autonomously by ABGA Autopilot Engine.`;
+⚡ Published autonomously by ABGA Autopilot Engine. Status: ${jobResult.overallStatus}`;
 
-        // Send Telegram alert confirming the auto-publish
-        sendTelegramPushAlert(alertMsg).catch((err) => {
-          console.warn('[Scheduler:AutoPublish] Telegram alert dispatch notice:', err?.message);
-        });
+          // Send Telegram alert confirming verified auto-publish
+          sendTelegramPushAlert(alertMsg).catch((err) => {
+            console.warn('[Scheduler:AutoPublish] Telegram alert dispatch notice:', err?.message);
+          });
+        } else if (jobResult.overallStatus === 'SKIPPED_ALREADY_PUBLISHED') {
+          console.log(`[Scheduler:AutoPublish] Post "${post.id}" was already published. Skipped duplicate dispatch.`);
+        } else if (jobResult.overallStatus === 'UNKNOWN') {
+          console.warn(
+            `[Scheduler:AutoPublish] Post "${post.id}" provider status is UNKNOWN (timeout/unconfirmed): ${jobResult.message}. Post marked as UNKNOWN.`
+          );
+        } else {
+          console.warn(
+            `[Scheduler:AutoPublish] Post "${post.id}" failed auto-publish requirements: ${jobResult.message}. Post marked as FAILED.`
+          );
+        }
       } catch (err: any) {
-        console.error(`[Scheduler:AutoPublish] Failed to publish post ${post.id}:`, err?.message);
+        console.error(`[Scheduler:AutoPublish] Failed to execute publishing job for post ${post.id}:`, err?.message);
       }
     }
   }
 
   console.log(
-    `[Scheduler:AutoPublish] Finished. Examined ${scheduledPosts.length} posts, published ${publishedPosts.length}.`
+    `[Scheduler:AutoPublish] Finished. Examined ${scheduledPosts.length} posts, verified published ${publishedPosts.length}.`
   );
 
   return {

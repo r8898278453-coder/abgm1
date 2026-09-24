@@ -11,6 +11,7 @@ import {
   AutonomousAction,
   TelegramMessage,
 } from '../types';
+import { calculateGrowthIntelligenceScore, toGrowthScorePayload } from '../services/growthScoreEngine';
 
 export const initialBusiness: BusinessProfile = {
   id: 'biz_aaditech',
@@ -60,19 +61,6 @@ export const initialBusiness: BusinessProfile = {
     whatsappBusiness: true,
     telegramBot: true,
     website: true,
-  },
-};
-
-export const initialGrowthScore: GrowthScore = {
-  overall: 82,
-  breakdown: {
-    googleProfile: 88,
-    localSeo: 76,
-    reviews: 93,
-    socialMedia: 68,
-    content: 64,
-    website: 89,
-    customerEngagement: 84,
   },
 };
 
@@ -233,7 +221,9 @@ export const initialKeywords: KeywordRank[] = [
     keyword: 'IT company in Thane Mumbai',
     rank: 2,
     previousRank: 3,
+    diff: 1,
     searchVolume: '3,800 /mo',
+    dataClassification: 'DEMO',
     gridRankings: { vashi: 3, nerul: 4, sanpada: 2, belapur: 2 },
   },
   {
@@ -241,7 +231,9 @@ export const initialKeywords: KeywordRank[] = [
     keyword: 'website development company near me',
     rank: 1,
     previousRank: 2,
+    diff: 1,
     searchVolume: '5,200 /mo',
+    dataClassification: 'DEMO',
     gridRankings: { vashi: 1, nerul: 2, sanpada: 1, belapur: 2 },
   },
   {
@@ -249,7 +241,9 @@ export const initialKeywords: KeywordRank[] = [
     keyword: 'mobile app development Mumbai',
     rank: 3,
     previousRank: 4,
+    diff: 1,
     searchVolume: '4,100 /mo',
+    dataClassification: 'DEMO',
     gridRankings: { vashi: 2, nerul: 3, sanpada: 2, belapur: 4 },
   },
   {
@@ -257,7 +251,9 @@ export const initialKeywords: KeywordRank[] = [
     keyword: 'local SEO agency Thane',
     rank: 2,
     previousRank: 1,
+    diff: -1,
     searchVolume: '1,900 /mo',
+    dataClassification: 'DEMO',
     gridRankings: { vashi: 2, nerul: 3, sanpada: 1, belapur: 2 },
   },
   {
@@ -265,7 +261,9 @@ export const initialKeywords: KeywordRank[] = [
     keyword: 'software development company India',
     rank: 4,
     previousRank: 5,
+    diff: 1,
     searchVolume: '8,500 /mo',
+    dataClassification: 'DEMO',
     gridRankings: { vashi: 4, nerul: 5, sanpada: 3, belapur: 4 },
   },
 ];
@@ -575,16 +573,32 @@ export const freshBlankBusiness: BusinessProfile = {
   },
 };
 
-export const freshBlankGrowthScore: GrowthScore = {
-  overall: 50,
-  breakdown: {
-    googleProfile: 50,
-    localSeo: 40,
-    reviews: 50,
-    socialMedia: 45,
-    content: 40,
-    website: 60,
-    customerEngagement: 55,
-  },
-};
+export const initialGrowthScore: GrowthScore = toGrowthScorePayload(
+  calculateGrowthIntelligenceScore({
+    businessProfile: initialBusiness,
+    reviews: initialReviews,
+    keywordRanks: initialKeywords,
+    contentPosts: initialPosts,
+    leads: initialLeads,
+    campaigns: initialCampaigns,
+    auditItems: initialAuditItems,
+    customDomainVerified: true,
+    rankPosition: 1,
+    overrideTimestamp: '2026-09-20T00:00:00.000Z',
+  })
+);
+
+export const freshBlankGrowthScore: GrowthScore = toGrowthScorePayload(
+  calculateGrowthIntelligenceScore({
+    businessProfile: null,
+    reviews: [],
+    rankObservations: [],
+    keywordRanks: [],
+    contentPosts: [],
+    leads: [],
+    campaigns: [],
+    auditItems: [],
+    overrideTimestamp: '2026-09-20T00:00:00.000Z',
+  })
+);
 
