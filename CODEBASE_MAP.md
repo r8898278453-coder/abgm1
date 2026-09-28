@@ -65,10 +65,16 @@
   - `POST /api/whatsapp/webhook` (Inbound webhook with HMAC-SHA256 signature verification)
   - `GET /api/meta/status`
   - `POST /api/meta/publish-post` (Facebook Page & Instagram Business 2-step publishing)
-- **Autonomous Engine**:
-  - `GET /api/autonomous/actions`
-  - `POST /api/autonomous/actions/:id/approve`
-  - `POST /api/autonomous/run-cycle`
+- **Autonomous Governance & Execution Engine**:
+  - `GET /api/autonomous/status` (Health, kill-switch status, pending approval counts)
+  - `POST /api/autonomous/kill-switch` (Global emergency stop and per-tenant autopilot toggle)
+  - `POST /api/autonomous/run-cycle` (Telemetry observation and recommendation cycle)
+  - `GET /api/autonomous/recommendations` (List evidence-grounded recommendations)
+  - `GET /api/autonomous/actions` (List queued, approved, executed actions)
+  - `POST /api/autonomous/actions/:id/approve` (Human approval gate)
+  - `POST /api/autonomous/actions/:id/reject` (Human rejection gate)
+  - `POST /api/autonomous/actions/:id/execute` (Verified execution through the 8-stage gate)
+  - `GET /api/autonomous/audit-logs` (Immutable audit trail query)
 
 ## Frontend Views (`src/components/`)
 - `DashboardView.tsx`: Overview analytics and high-level summaries.
