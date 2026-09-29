@@ -3,11 +3,35 @@ import express from 'express';
 import { findUserById, DbUser } from './db';
 
 // Enterprise JWT / HMAC-SHA256 Security Configuration
-// Prioritizes environment secret, with strong fallback for development
-const AUTH_SECRET =
-  process.env.AUTH_SECRET ||
-  process.env.JWT_SECRET ||
-  'aaditech_bga_enterprise_jwt_sec_2026_x89f_secure_auth';
+// Enforces strict secret requirement in production mode with fail-fast validation.
+export function resolveAuthSecret(): string {
+  const envSecret = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+
+  if (isProd) {
+    if (!envSecret || envSecret.trim().length < 16) {
+      throw new Error(
+        'FATAL_SECURITY_ERROR: In production mode, AUTH_SECRET or JWT_SECRET must be explicitly set with at least 16 characters. Refusing to boot with insecure/missing secret.'
+      );
+    }
+    return envSecret.trim();
+  }
+
+  // In non-production/development mode, use environment secret or generate a secure per-process random secret
+  if (envSecret && envSecret.trim()) {
+    return envSecret.trim();
+  }
+
+  // Generate secure per-process runtime secret for development/testing if unset
+  if (!(global as any).__abga_dev_auth_secret) {
+    (global as any).__abga_dev_auth_secret = crypto.randomBytes(32).toString('hex');
+  }
+  return (global as any).__abga_dev_auth_secret;
+}
+
+export function getAuthSecret(): string {
+  return resolveAuthSecret();
+}
 
 // Token expiration: 7 days in seconds
 const TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
@@ -70,7 +94,8 @@ export function generateAuthToken(user: { id: string; email: string; role?: stri
 
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signature = computeHmacSignature(`${encodedHeader}.${encodedPayload}`, AUTH_SECRET);
+  const secret = getAuthSecret();
+  const signature = computeHmacSignature(`${encodedHeader}.${encodedPayload}`, secret);
 
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 }
@@ -78,7 +103,7 @@ export function generateAuthToken(user: { id: string; email: string; role?: stri
 /**
  * Validates a JWT token cryptographically:
  * 1. Verifies the token structure (header.payload.signature)
- * 2. Recalculates the HMAC-SHA256 signature using AUTH_SECRET
+ * 2. Recalculates the HMAC-SHA256 signature using getAuthSecret()
  * 3. Compares signatures using timingSafeEqual to prevent side-channel timing attacks
  * 4. Verifies expiration (exp) and required claims
  * 
@@ -97,7 +122,14 @@ export function verifyAuthToken(token: string): TokenPayload | null {
   const [headerB64, payloadB64, signature] = parts;
 
   // 1. Validate signature using constant-time comparison
-  const expectedSignature = computeHmacSignature(`${headerB64}.${payloadB64}`, AUTH_SECRET);
+  let secret: string;
+  try {
+    secret = getAuthSecret();
+  } catch {
+    return null;
+  }
+
+  const expectedSignature = computeHmacSignature(`${headerB64}.${payloadB64}`, secret);
   const sigBuffer = Buffer.from(signature, 'utf-8');
   const expectedBuffer = Buffer.from(expectedSignature, 'utf-8');
 

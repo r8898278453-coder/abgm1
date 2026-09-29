@@ -46,7 +46,7 @@ export interface RankScanResult {
   observations: RankObservation[];
   overallRank: number | null;
   searchVolume: string | null;
-  status: 'LIVE' | 'VERIFIED' | 'UNAVAILABLE';
+  status: 'LIVE' | 'PARTIAL' | 'FAILED' | 'VERIFIED' | 'UNAVAILABLE';
   topCompetitors: Array<{ name: string; rating: number; reviewsCount: number; position: number }>;
   evidenceNotes: string;
 }
@@ -265,16 +265,33 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
 
     const centerObs = observations.find((o) => o.gridIndex === 4) || observations[0];
     const validPositions = observations.map((o) => o.position).filter((p): p is number => typeof p === 'number');
-    const overallRank = centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null);
+    const successCount = observations.filter((o) => o.status === 'LIVE' || o.status === 'VERIFIED').length;
+
+    let overallStatus: 'LIVE' | 'PARTIAL' | 'FAILED' = 'FAILED';
+    if (successCount === observations.length && successCount > 0) {
+      overallStatus = 'LIVE';
+    } else if (successCount > 0) {
+      overallStatus = 'PARTIAL';
+    } else {
+      overallStatus = 'FAILED';
+    }
+
+    const overallRank = overallStatus === 'FAILED'
+      ? null
+      : (centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null));
 
     return {
       provider: this.providerId,
       observations,
       overallRank,
       searchVolume: null, // DataForSEO search volume requires keyword_data API
-      status: 'LIVE',
+      status: overallStatus,
       topCompetitors: Array.from(allCompetitors.values()),
-      evidenceNotes: `Live 9-node geolocated DataForSEO scan completed at ${nowIso}.`,
+      evidenceNotes: overallStatus === 'LIVE'
+        ? `Live 9-node geolocated DataForSEO scan completed at ${nowIso}.`
+        : overallStatus === 'PARTIAL'
+        ? `Partial DataForSEO scan (${successCount}/${observations.length} nodes succeeded).`
+        : `DataForSEO scan failed for all 9 coordinates.`,
     };
   }
 }
@@ -391,16 +408,33 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
 
     const centerObs = observations.find((o) => o.gridIndex === 4) || observations[0];
     const validPositions = observations.map((o) => o.position).filter((p): p is number => typeof p === 'number');
-    const overallRank = centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null);
+    const successCount = observations.filter((o) => o.status === 'LIVE' || o.status === 'VERIFIED').length;
+
+    let overallStatus: 'LIVE' | 'PARTIAL' | 'FAILED' = 'FAILED';
+    if (successCount === observations.length && successCount > 0) {
+      overallStatus = 'LIVE';
+    } else if (successCount > 0) {
+      overallStatus = 'PARTIAL';
+    } else {
+      overallStatus = 'FAILED';
+    }
+
+    const overallRank = overallStatus === 'FAILED'
+      ? null
+      : (centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null));
 
     return {
       provider: this.providerId,
       observations,
       overallRank,
       searchVolume: null,
-      status: 'LIVE',
+      status: overallStatus,
       topCompetitors: Array.from(allCompetitors.values()),
-      evidenceNotes: `Live SerpApi geolocated scan completed at ${nowIso}.`,
+      evidenceNotes: overallStatus === 'LIVE'
+        ? `Live SerpApi geolocated scan completed at ${nowIso}.`
+        : overallStatus === 'PARTIAL'
+        ? `Partial SerpApi scan (${successCount}/${observations.length} nodes succeeded).`
+        : `SerpApi scan failed for all 9 coordinates.`,
     };
   }
 }

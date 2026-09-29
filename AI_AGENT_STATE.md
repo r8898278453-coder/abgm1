@@ -1,7 +1,24 @@
 # AI Agent State
 
-## Current Phase: Phase 4 — P0 Production Safety & Data Truth Hardening
-- **Current Task**: Completed P0 production-safety fixes across Demo Data Isolation, Data Truth Status, Fake Success Elimination, and Tenant IDOR Protection.
+## Current Phase: Phase 0 — Consolidation & Canonical Architecture
+- **Current Task**: Established ONE canonical implementation for every major capability across backend, rendering engines, database helpers, provider adapters, frontend views, and background schedulers.
+- **Consolidation Findings & Actions**:
+  - **Content Publishing**: Canonical `server/publishingEngine.ts` (`executePublishingJob`) via `POST /api/content-posts/:id/publish`. Migrated `ContentStudioView.tsx` from status-only patching to canonical state machine. `CalendarView.tsx` and `scheduler.ts` already use canonical engine.
+  - **Scheduler**: Canonical `server/scheduler.ts` with hot-reload single-daemon guard (`global.__abga_scheduler_started`).
+  - **Video Rendering**: Canonical `server/reelJobManager.ts` + `server/reelRenderer.ts` + `remotion/*`.
+  - **Google Integrations**: Canonical `POST /api/companies/:id/google-profile/sync` + Google Places Details API with review deduplication.
+  - **Local SEO Rank Radar**: Canonical `server/localSeoProvider.ts` (`performRankScan`, `saveRankObservations`).
+  - **Competitor Intelligence**: Canonical `server/competitorProvider.ts` (`fetchCompetitorObservation`, `calculateCompetitorChanges`).
+  - **Meta & WhatsApp Cloud API**: Canonical `server/metaWhatsAppService.ts` (`publishToFacebookPage`, `publishToInstagram`, `sendWhatsAppCloudMessage`).
+  - **Growth Intelligence Score**: Canonical `server/growthScoreEngine.ts` (`calculateGrowthIntelligenceScore`, `toGrowthScorePayload`).
+  - **AI Executive Summary**: Canonical `server/aiExecutiveSummary.ts` (`collectTruthfulEvidence`, `buildEvidenceGroundedPrompt`).
+  - **Revenue Attribution**: Canonical `server/revenueAttribution.ts` (`calculateRevenueAttribution`, `normalizeSource`, `isProviderVerifiedPayment`).
+  - **Campaigns & Ads Separation**: Canonical `server/adCampaignService.ts` (`getInternalCampaigns`, `getExternalAdCampaigns`).
+  - **Autonomous Governance**: Canonical `server/autonomousEngine.ts` (8-stage lifecycle engine with kill switch & audit logs).
+  - **Authentication & RBAC**: Canonical `server/auth.ts` + `getAuthUserFromRequest`/`getUserCompanies` in `server/db.ts`.
+  - **Integration Live Testing**: Canonical `POST /api/integrations/test` in `server.ts`.
+  - **Data Status Badges**: Canonical `src/components/DataStatusBadge.tsx` (10 standard data classifications).
+  - **Company Creation Baseline**: Cleaned `CreateCompanyModal.tsx` to provision empty arrays for keywords and competitors on initial setup.
 - **Completed Tasks**:
   - **GAP-001**: Remotion 15s MP4 video rendering engine (`server/reelRenderer.ts`, `server/reelJobManager.ts`, `remotion/*`).
   - **GAP-002**: `video_url` persistence across MySQL schema, server endpoints, and frontend Content Studio / Calendar views.
@@ -26,5 +43,5 @@
   - Production compilation (`vite build` passing).
   - Dev server and health endpoint (`GET /api/health` returning 200 OK).
 - **Known Blockers**: None.
-- **Status**: Complete across Phases 1, 2, and 3.
+- **Status**: Complete Phase 0 Consolidation.
 

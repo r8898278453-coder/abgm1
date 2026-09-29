@@ -1,6 +1,7 @@
 import {
   getCompanyById,
   getCompanyIntegrations,
+  getCompanyIntegration,
   getCompanyReviews,
   updateReviewReply,
   getAllLeads,
@@ -15,12 +16,15 @@ import {
   updateAutonomousAction,
   recordAutonomousAuditLog,
   getAutonomousAuditLogsByCompany,
+  getPostById,
+  createContentPost,
   DbAutonomousRecommendation,
   DbAutonomousAction,
   DbAutonomousAuditLog,
 } from './db';
 import { getCompanyExternalAdCampaigns } from './adCampaignService';
 import { sendWhatsAppCloudMessage, resolveWhatsAppCredentials } from './metaWhatsAppService';
+import { executePublishingJob } from './publishingEngine';
 
 // Global emergency stop state
 let globalEmergencyStop = false;
@@ -649,46 +653,196 @@ export async function executeAutonomousAction(
         affectedMetric: 'Lead Conversion Speed',
         measuredDelta: 'Follow-up dispatched in < 2 hrs',
       };
-    } else {
-      // Generic action types (publish_post, adjust_campaign, etc.)
-      const providerResp = {
-        actionType: action.action_type,
-        executedAt: nowIso,
-        verified: true,
-      };
-
-      await updateAutonomousAction(actionId, {
-        execution_state: 'executed',
-        verification_state: 'verified',
-        provider_response: providerResp,
-        executed_at: nowIso,
-        error: null,
-      });
-
-      if (action.recommendation_id) {
-        await updateAutonomousRecommendationStatus(action.recommendation_id, 'executed');
+    } else if (action.action_type === 'publish_post') {
+      const payload = action.payload || {};
+      let targetPost = payload.postId ? await getPostById(payload.postId) : null;
+      if (!targetPost) {
+        targetPost = await createContentPost({
+          company_id: action.company_id,
+          title: payload.title || `Autonomous Post: ${payload.keyword || 'Local Update'}`,
+          platforms: Array.isArray(payload.platforms) ? payload.platforms : ['google'],
+          caption: payload.caption || `Top-rated services in ${company.city || 'your area'} from ${company.name}.`,
+          status: 'scheduled',
+          scheduled_date: new Date().toISOString().split('T')[0],
+          scheduled_time: `${new Date().toISOString().split('T')[0]} 10:00:00`,
+          time_slot: '10:00 AM',
+          hashtags: Array.isArray(payload.hashtags) ? payload.hashtags : [],
+        });
       }
 
-      await recordAutonomousAuditLog({
-        company_id: action.company_id,
-        action_id: actionId,
-        actor: context.actor || context.userId,
-        event_type: 'ACTION_EXECUTED_VERIFIED',
-        details: {
-          actionType: action.action_type,
+      // Execute canonical publishing job
+      const pubResult = await executePublishingJob(targetPost);
+
+      if (pubResult.overallStatus === 'PUBLISHED') {
+        const providerResp = {
+          provider: 'canonical_publishing_engine',
+          postId: targetPost.id,
+          overallStatus: pubResult.overallStatus,
+          platformResults: pubResult.platformResults,
+          publishedAt: nowIso,
+          verified: true,
+        };
+
+        await updateAutonomousAction(actionId, {
+          execution_state: 'executed',
+          verification_state: 'verified',
+          provider_response: providerResp,
+          executed_at: nowIso,
+          error: null,
+        });
+
+        if (action.recommendation_id) {
+          await updateAutonomousRecommendationStatus(action.recommendation_id, 'executed');
+        }
+
+        await recordAutonomousAuditLog({
+          company_id: action.company_id,
+          action_id: actionId,
+          actor: context.actor || context.userId,
+          event_type: 'ACTION_EXECUTED_VERIFIED',
+          details: {
+            actionType: action.action_type,
+            providerResponse: providerResp,
+          },
+        });
+
+        return {
+          actionId,
+          companyId: action.company_id,
+          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
+          status: 'EXECUTED',
+          verificationState: 'verified',
+          code: 'EXECUTION_SUCCESS',
+          message: `Post successfully published and confirmed by external provider (Post ID: ${targetPost.id}).`,
           providerResponse: providerResp,
-        },
+          affectedMetric: 'Local SEO & Social Velocity',
+          measuredDelta: '+1 Published Post',
+        };
+      } else {
+        const errorDetails = pubResult.message || 'All target platforms failed or unconfigured.';
+        await updateAutonomousAction(actionId, {
+          execution_state: 'failed',
+          verification_state: 'failed',
+          error: errorDetails,
+          provider_response: { platformResults: pubResult.platformResults, status: pubResult.overallStatus },
+        });
+
+        await recordAutonomousAuditLog({
+          company_id: action.company_id,
+          action_id: actionId,
+          actor: context.actor || context.userId,
+          event_type: 'ACTION_EXECUTION_FAILED',
+          details: {
+            actionType: action.action_type,
+            error: errorDetails,
+          },
+        });
+
+        return {
+          actionId,
+          companyId: action.company_id,
+          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
+          status: 'FAILED',
+          verificationState: 'failed',
+          code: 'PUBLISHING_PROVIDER_FAILED',
+          message: `Publishing failed: ${errorDetails}`,
+          providerResponse: { platformResults: pubResult.platformResults },
+        };
+      }
+    } else if (action.action_type === 'adjust_campaign') {
+      const payload = action.payload || {};
+      const metaAdsInteg = await getCompanyIntegration(action.company_id, 'meta_ads').catch(() => null);
+      const adAccountId = metaAdsInteg?.credentials?.adAccountId || metaAdsInteg?.credentials?.ad_account_id || process.env.META_AD_ACCOUNT_ID;
+      const accessToken = metaAdsInteg?.credentials?.accessToken || metaAdsInteg?.credentials?.access_token || process.env.META_ADS_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
+
+      if (!adAccountId || !accessToken) {
+        await updateAutonomousAction(actionId, {
+          execution_state: 'blocked',
+          verification_state: 'unavailable',
+          error: 'Meta Ads API credentials (adAccountId and accessToken) are not configured.',
+        });
+        return {
+          actionId,
+          companyId: action.company_id,
+          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
+          status: 'BLOCKED',
+          verificationState: 'unavailable',
+          code: 'BLOCKED_PROVIDER_NOT_CONFIGURED',
+          message: 'Meta Marketing API credentials are not configured in Integrations.',
+        };
+      }
+
+      const sanitizedAccountId = String(adAccountId).startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      const targetId = payload.externalCampaignId || sanitizedAccountId;
+
+      const metaRes = await fetch(`https://graph.facebook.com/v21.0/${targetId}?access_token=${encodeURIComponent(accessToken)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: payload.status || 'ACTIVE',
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const metaData = await metaRes.json();
+      if (metaRes.ok && (metaData.success || metaData.id)) {
+        const providerResp = {
+          provider: 'meta_marketing_api',
+          targetId,
+          adjustmentType: payload.adjustmentType || 'budget_reallocation',
+          rawResponse: metaData,
+          verified: true,
+        };
+
+        await updateAutonomousAction(actionId, {
+          execution_state: 'executed',
+          verification_state: 'verified',
+          provider_response: providerResp,
+          executed_at: nowIso,
+          error: null,
+        });
+
+        if (action.recommendation_id) {
+          await updateAutonomousRecommendationStatus(action.recommendation_id, 'executed');
+        }
+
+        await recordAutonomousAuditLog({
+          company_id: action.company_id,
+          action_id: actionId,
+          actor: context.actor || context.userId,
+          event_type: 'ACTION_EXECUTED_VERIFIED',
+          details: { actionType: action.action_type, providerResponse: providerResp },
+        });
+
+        return {
+          actionId,
+          companyId: action.company_id,
+          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
+          status: 'EXECUTED',
+          verificationState: 'verified',
+          code: 'EXECUTION_SUCCESS',
+          message: `Campaign optimization applied via Meta Marketing API (Target: ${targetId}).`,
+          providerResponse: providerResp,
+          affectedMetric: 'Meta ROAS & Cost Per Acquisition',
+        };
+      } else {
+        throw new Error(metaData.error?.message || `Meta Marketing API error (status ${metaRes.status})`);
+      }
+    } else {
+      // Unknown or unsupported action type -> Strictly BLOCKED with no fake execution
+      await updateAutonomousAction(actionId, {
+        execution_state: 'blocked',
+        verification_state: 'unavailable',
+        error: `Action type "${action.action_type}" has no registered outbound provider execution adapter.`,
       });
 
       return {
         actionId,
         companyId: action.company_id,
         lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
-        status: 'EXECUTED',
-        verificationState: 'verified',
-        code: 'EXECUTION_SUCCESS',
-        message: `Autonomous action "${action.action_type}" executed and verified successfully.`,
-        providerResponse: providerResp,
+        status: 'BLOCKED',
+        verificationState: 'unavailable',
+        code: 'UNSUPPORTED_ACTION_TYPE',
+        message: `Autonomous action "${action.action_type}" is not supported by any active provider adapter.`,
       };
     }
   } catch (err: any) {

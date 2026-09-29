@@ -145,16 +145,8 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
             solution: 'Trigger automated SMS/WhatsApp review invite upon service completion.',
           },
         ],
-        keywords: [
-          { keyword: `${category.toLowerCase().split(',')[0]} in ${city}`, rank: 2, volume: 1850, change: 1 },
-          { keyword: `best ${category.toLowerCase().split(',')[0]} near me`, rank: 3, volume: 3200, change: 2 },
-          { keyword: `${name.toLowerCase()} ${city}`, rank: 1, volume: 920, change: 0 },
-        ],
-        competitors: [
-          { name: `Top Competitor A (${city})`, rank: 1, reviews: 142, rating: 4.6, callsEstimate: 280 },
-          { name: name, rank: 2, reviews: 38, rating: 4.8, callsEstimate: 195, isSelf: true },
-          { name: `Regional Competitor B`, rank: 3, reviews: 89, rating: 4.3, callsEstimate: 140 },
-        ],
+        keywords: [],
+        competitors: [],
         reviews: [],
         posts: [],
         campaigns: [],

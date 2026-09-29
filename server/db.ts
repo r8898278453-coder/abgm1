@@ -97,11 +97,13 @@ export interface DbContentPost {
   created_at?: string;
 }
 
+export type IntegrationStatus = 'not_configured' | 'saved' | 'testing' | 'verified' | 'connected' | 'disconnected' | 'error';
+
 export interface DbIntegration {
   id: string;
   company_id: string;
   provider: string;
-  status: 'connected' | 'disconnected' | 'error';
+  status: IntegrationStatus;
   credentials?: Record<string, any>;
   config?: Record<string, any>;
   last_tested_at?: string | null;
@@ -1783,12 +1785,12 @@ export async function createCompany(data: {
     legal_name: data.legal_name?.trim() || data.name.trim(),
     category: data.category.trim(),
     city: data.city.trim(),
-    phone: data.phone || '+91 98200 12345',
+    phone: data.phone || '',
     website: data.website || '',
     google_place_id: data.google_place_id || '',
     autopilot_enabled: data.autopilot_enabled !== undefined ? Boolean(data.autopilot_enabled) : true,
-    score: data.score ?? 82,
-    rank_position: data.rank_position ?? 2,
+    score: data.score !== undefined ? data.score : 0,
+    rank_position: data.rank_position,
     created_at: new Date().toISOString(),
   };
 
@@ -1810,7 +1812,7 @@ export async function createCompany(data: {
           newCompany.google_place_id,
           newCompany.autopilot_enabled ? 1 : 0,
           newCompany.score,
-          newCompany.rank_position,
+          newCompany.rank_position !== undefined ? newCompany.rank_position : null,
         ]
       );
       return newCompany;
@@ -2115,7 +2117,7 @@ export async function saveCompanyIntegration(
   companyId: string,
   provider: string,
   data: {
-    status: 'connected' | 'disconnected' | 'error';
+    status: IntegrationStatus;
     credentials?: Record<string, any>;
     config?: Record<string, any>;
     last_tested_at?: string;
@@ -4066,8 +4068,40 @@ export async function upsertWebsiteConfig(
 
 // ---------------- LOCAL SEO RANK OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
 
-export async function saveRankObservations(observations: DbRankObservation[]): Promise<void> {
-  if (!observations || observations.length === 0) return;
+export async function saveRankObservations(
+  observationsOrCompanyId: DbRankObservation[] | string,
+  keywordParam?: string,
+  observationsParam?: any[]
+): Promise<void> {
+  let rawList: any[] = [];
+  let companyIdFallback = '';
+  let keywordFallback = '';
+
+  if (typeof observationsOrCompanyId === 'string') {
+    companyIdFallback = observationsOrCompanyId;
+    keywordFallback = keywordParam || '';
+    rawList = Array.isArray(observationsParam) ? observationsParam : [];
+  } else if (Array.isArray(observationsOrCompanyId)) {
+    rawList = observationsOrCompanyId;
+  }
+
+  if (!rawList || rawList.length === 0) return;
+
+  const observations: DbRankObservation[] = rawList.map((obs: any) => ({
+    id: obs.id || `obs_${crypto.randomUUID().slice(0, 10)}`,
+    company_id: obs.company_id || obs.companyId || companyIdFallback,
+    keyword: obs.keyword || keywordFallback,
+    latitude: Number(obs.latitude ?? obs.lat ?? 0),
+    longitude: Number(obs.longitude ?? obs.lng ?? 0),
+    grid_index: Number(obs.grid_index ?? obs.gridIndex ?? 0),
+    grid_label: obs.grid_label || obs.gridLabel || null,
+    timestamp: obs.timestamp || new Date().toISOString(),
+    provider: obs.provider || 'dataforseo',
+    position: typeof obs.position === 'number' ? obs.position : null,
+    status: obs.status || 'LIVE',
+    source_evidence: obs.source_evidence || obs.sourceEvidence || null,
+    top_competitors_json: obs.top_competitors_json || (obs.topCompetitors ? JSON.stringify(obs.topCompetitors) : null),
+  }));
 
   try {
     const db = await getDbPool();

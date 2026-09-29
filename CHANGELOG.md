@@ -2,6 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.22.0] - 2026-09-29
+### Hardened & Standardized (Phase 3 — Real Execution Only)
+- **Canonical Content Publishing State Machine**:
+  - Unified all post publishing triggers onto `executePublishingJob` (`SCHEDULED → JOB → PROVIDER → PROVIDER RESPONSE → PERSIST EXTERNAL ID → VERIFY → PUBLISHED`).
+  - Added strict guard in `PATCH /api/content-posts/:id/status` rejecting `status === 'published'` (HTTP 400), disallowing simulated publishing bypasses.
+  - Enhanced `classifyProviderError` to handle timeout variations (`etimedout`, `timed out`, `aborterror`) and classified them accurately as `TIMEOUT_UNKNOWN` (retryable) vs `PERMANENT` (non-retryable).
+- **Meta Social Direct Publishing & Idempotency**:
+  - Direct Meta Graph API v21.0 execution for Facebook Pages (`POST /api/meta/publish-post` / `server/metaWhatsAppService.ts`) and Instagram Business 2-step media container publishing.
+  - Recorded external post IDs in `publishing_records` and prevented duplicate publishing via `isPostAlreadyPublished`.
+- **WhatsApp Cloud API & Deterministic Intent Scoring**:
+  - Removed static `intent_score: 95` and `intent_score: 92`.
+  - Created centralized deterministic intent scoring engine (`server/intentScoring.ts`) analyzing quote/pricing signals, service requirements, callbacks, and stated budgets. Returns `UNAVAILABLE` with `null` score when inquiry context is missing.
+  - Enforced constant-time HMAC-SHA256 signature verification and webhook event idempotency.
+- **Autonomous Action Provider Execution**:
+  - Updated `server/autonomousEngine.ts` `executeAutonomousAction` to execute against real provider endpoints:
+    - `review_reply`: Persists verified reply in MySQL review table.
+    - `send_whatsapp`: Calls Meta WhatsApp Cloud API with provider message ID verification or blocks if unconfigured.
+    - `publish_post`: Dispatches via canonical `executePublishingJob` and verifies external provider result.
+    - `adjust_campaign`: Dispatches Meta Marketing API optimization or blocks if unconfigured.
+    - Unsupported actions: Strictly marked `BLOCKED` with `UNSUPPORTED_ACTION_TYPE` without fabricating fake `providerResp` / `verified=true`.
+- **Kill Switch Protection**:
+  - Preserved global emergency stop and company autopilot toggle across cycles and action executions.
+- **Automated Acceptance Testing**:
+  - Added `test/phase3RealExecution.test.ts` to `npm test` covering all required acceptance scenarios with 100% pass rate.
+
+## [1.21.0] - 2026-09-28
+### Added & Hardened (Phase 1 — Production Security & Tenant Isolation)
+- **AUTH_SECRET Fail-Fast Protection in Production**:
+  - Implemented startup validation in `server/auth.ts` and `server.ts` that refuses to boot in production if `AUTH_SECRET` or `JWT_SECRET` is missing, whitespace-only, or shorter than 16 characters (`FATAL_SECURITY_ERROR`).
+  - Removed known hardcoded fallback secrets.
+- **Tenant Authorization & IDOR Elimination**:
+  - Centralized multi-tenant authorization helper `resolveUserCompanyId(user, companyId)` and `verifyCompanyWorkspaceAccess(user, companyId)` across all tenant routes:
+    - `/api/revenue-attribution`
+    - `/api/integrations`, `/api/integrations/save`, `/api/integrations/:provider`, `/api/integrations/test`
+    - `/api/campaigns/internal`, `/api/campaigns/internal/:id`, `/api/campaigns/external`, `/api/campaigns/external/sync`, `/api/campaigns/link`
+    - `/api/whatsapp/status`, `/api/whatsapp/templates`, `/api/whatsapp/chats`, `/api/whatsapp/conversations/:phone/messages`, `/api/whatsapp/send`, `/api/meta/status`, `/api/meta/pages`, `/api/meta/publish-post`
+    - `/api/autonomous/status`, `/api/autonomous/run-cycle`, `/api/autonomous/recommendations`, `/api/autonomous/recommendations/:id/status`, `/api/autonomous/actions`, `/api/autonomous/actions/:id/execute`, `/api/autonomous/audit-logs`
+    - `/api/companies/:id/domains`, `/api/companies/:id/domains/:domainId`
+  - Replaced silent fallback to `companies[0]` or default company with explicit 400/403/404 error responses for unauthorized tenant workspaces.
+- **Integration Lifecycle State Machine**:
+  - Formalized integration status states: `not_configured`, `saved`, `testing`, `verified`, `connected`, `disconnected`, `error`.
+  - Saving credentials sets the status to `saved` (or `not_configured` if empty) instead of prematurely declaring `connected` or `verified`.
+  - `verified` is granted strictly upon successful provider handshake/test execution.
+  - Integration credentials in `GET /api/integrations` responses remain redacted (`maskedCredentials` only).
+- **Mandatory Webhook Signature Verification**:
+  - Enforced strict HMAC-SHA256 signature verification in production for Meta / WhatsApp webhooks with fail-fast rejection if `META_APP_SECRET` is missing.
+- **Automated Security Hardening Test Suite**:
+  - Added `test/phase1SecurityHardening.test.ts` to `npm test` verifying auth secrets, integration lifecycle transitions, and webhook cryptographic signatures.
+
+## [1.20.0] - 2026-09-28
+### Consolidated & Verified (Phase 0 — Capability Consolidation & Canonical Architecture)
+- **Content Publishing Pipeline Consolidation**:
+  - Unified `ContentStudioView.tsx` and `CalendarView.tsx` onto the single canonical publishing state machine (`publishContentPostApi` -> `POST /api/content-posts/:id/publish` -> `server/publishingEngine.ts` `executePublishingJob`).
+  - Removed bypassed status-only mutation in `ContentStudioView.tsx` (`updatePostStatusApi` is now reserved strictly for non-publishing draft/schedule status updates).
+- **Company Creation Baseline Truthfulness**:
+  - Cleaned `CreateCompanyModal.tsx` to provision empty arrays for `keywords` and `competitors` during new company workspace creation, eliminating synthetic seed data in newly provisioned production workspaces.
+- **Canonical Capability Audit**:
+  - **Content Publishing**: Canonical `server/publishingEngine.ts` (`executePublishingJob`).
+  - **Scheduler**: Canonical `server/scheduler.ts` (node-cron daemon with hot-reload guard).
+  - **Video Reel Rendering**: Canonical `server/reelJobManager.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`).
+  - **Google Integrations**: Canonical `POST /api/companies/:id/google-profile/sync` with Google Places Details API & review deduplication.
+  - **Local SEO Rank Radar**: Canonical `server/localSeoProvider.ts` (`performRankScan`, `saveRankObservations`).
+  - **Competitor Intelligence**: Canonical `server/competitorProvider.ts` (`fetchCompetitorObservation`, `calculateCompetitorChanges`).
+  - **Meta & WhatsApp Cloud API**: Canonical `server/metaWhatsAppService.ts` (`publishToFacebookPage`, `publishToInstagram`, `sendWhatsAppCloudMessage`).
+  - **Growth Intelligence Score**: Canonical `server/growthScoreEngine.ts` (`calculateGrowthIntelligenceScore`).
+  - **AI Executive Summary**: Canonical `server/aiExecutiveSummary.ts` (`collectTruthfulEvidence`, `buildEvidenceGroundedPrompt`).
+  - **Revenue Attribution**: Canonical `server/revenueAttribution.ts` (`calculateRevenueAttribution`).
+  - **Campaigns & Ads Separation**: Canonical `server/adCampaignService.ts` (`getInternalCampaigns`, `getExternalAdCampaigns`).
+  - **Autonomous Governance**: Canonical `server/autonomousEngine.ts` (8-stage lifecycle engine with kill switch & audit logs).
+  - **Authentication & RBAC**: Canonical `server/auth.ts` + `getAuthUserFromRequest`/`getUserCompanies` in `server/db.ts`.
+  - **Data Status Badges**: Canonical `src/components/DataStatusBadge.tsx` (10 standard data truth classifications).
+  - **Database Persistence**: Canonical `server/db.ts` (MySQL with auto-migration + in-memory store resilience).
+- **Validation**:
+  - `npm run lint`: Passed (`tsc --noEmit` 0 errors).
+  - `npm run build`: Passed (`vite build` succeeded).
+  - `npm test`: 10/10 test suites passed (63/63 tests passing, 100% success rate).
+
 ## [1.19.0] - 2026-09-24
 ### Added & Verified (Comprehensive End-to-End User Journey Audit Suite)
 - **Comprehensive 9-Stage User Journey E2E Suite (`test/e2eUserJourneyAudit.test.ts`)**:

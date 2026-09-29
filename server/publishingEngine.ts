@@ -88,6 +88,10 @@ export function classifyProviderError(
   // 3. Timeout / Abort errors -> Provider state unknown
   if (
     lower.includes('timeout') ||
+    lower.includes('timed out') ||
+    lower.includes('time out') ||
+    lower.includes('etimedout') ||
+    lower.includes('esockettimedout') ||
     lower.includes('aborted') ||
     lower.includes('aborterror') ||
     lower.includes('econnreset') ||

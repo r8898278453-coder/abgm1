@@ -143,7 +143,7 @@ export function buildStructuredEvidence(
   }
 
   // 3. CRM Leads & Conversion
-  if (inputs.leads !== null && inputs.leads !== undefined) {
+  if (inputs.leads && inputs.leads.length > 0) {
     const leads = inputs.leads;
     const totalLeads = leads.length;
     const newLeads = leads.filter((l) => l.stage === 'new').length;
@@ -219,7 +219,7 @@ export function buildStructuredEvidence(
   }
 
   // 5. Content Publishing Velocity
-  if (inputs.posts !== null && inputs.posts !== undefined) {
+  if (inputs.posts && inputs.posts.length > 0) {
     const posts = inputs.posts;
     const publishedPosts = posts.filter((p) => p.status === 'published');
     const scheduledPosts = posts.filter((p) => p.status === 'scheduled');
@@ -375,13 +375,19 @@ export function generateDeterministicSummary(
   const takeaways: string[] = [];
 
   // Determine overall status
-  let overallStatus: EvidenceStatus = 'VERIFIED';
+  let overallStatus: EvidenceStatus = 'UNAVAILABLE';
   if (hasDemo) {
     overallStatus = 'DEMO';
   } else if (allUnavailable) {
     overallStatus = 'UNAVAILABLE';
-  } else if (evidence.some((e) => e.status === 'CALCULATED')) {
+  } else if (evidence.some((e) => (e.status === 'LIVE' || e.status === 'VERIFIED') && e.value !== null)) {
+    overallStatus = 'VERIFIED';
+  } else if (evidence.some((e) => e.status === 'CALCULATED' && e.value !== null)) {
     overallStatus = 'CALCULATED';
+  } else if (evidence.some((e) => e.status === 'USER_ENTERED' && e.value !== null && e.value !== 'Disconnected')) {
+    overallStatus = 'USER_ENTERED';
+  } else {
+    overallStatus = 'UNAVAILABLE';
   }
 
   if (allUnavailable) {

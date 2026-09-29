@@ -145,24 +145,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
               Local SEO 3-Pack
             </h2>
-            <DataStatusBadge status="ESTIMATED" label="ESTIMATED" className="border-indigo-500/40 text-indigo-300 bg-indigo-900/40" />
+            <DataStatusBadge
+              status={business.rank_position ? 'LIVE' : 'UNAVAILABLE'}
+              label={business.rank_position ? `RANK #${business.rank_position}` : 'UNAVAILABLE'}
+              className="border-indigo-500/40 text-indigo-300 bg-indigo-900/40"
+            />
           </div>
 
           <div className="my-3">
             <div className="text-4xl font-black tracking-tight">
-              {business.serviceAreas?.length ? Math.min(95, business.serviceAreas.length * 25) : 85}
-              <span className="text-lg text-slate-400 font-medium ml-0.5">%</span>
+              {business.rank_position ? (
+                <>
+                  #{business.rank_position}
+                  <span className="text-lg text-slate-400 font-medium ml-1">Rank</span>
+                </>
+              ) : (
+                <span className="text-slate-400 text-3xl font-medium">--</span>
+              )}
             </div>
             <p className="text-[11px] text-slate-300 mt-1 font-medium">
-              {business.city || 'Regional'} Radius Coverage
+              {business.rank_position
+                ? `${business.city || 'Local'} Verified 3-Pack Position`
+                : '3-Pack Radar Scan Required'}
             </p>
             <div className="h-1.5 bg-slate-800 w-full rounded-full mt-3">
-              <div className="h-full bg-indigo-400 w-[85%] rounded-full shadow-[0_0_10px_rgba(129,140,248,0.6)]" />
+              <div
+                className="h-full bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(129,140,248,0.6)]"
+                style={{
+                  width: business.rank_position
+                    ? `${Math.max(15, 100 - (business.rank_position - 1) * 15)}%`
+                    : '0%',
+                }}
+              />
             </div>
           </div>
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-            <span>{business.city ? `${business.city} Target Areas` : 'Search Radar'}</span>
+            <span>{business.city ? `${business.city} Radar` : 'Search Radar'}</span>
             <button
               onClick={() => onNavigate('seo')}
               className="text-indigo-400 hover:text-indigo-300 font-bold"
@@ -361,8 +380,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Google Business & Maps Signals
           </h2>
           <DataStatusBadge
-            status={isGoogleConnected ? 'LIVE' : 'DEMO'}
-            label={isGoogleConnected ? 'LIVE GOOGLE SYNC' : 'DEMO BENCHMARK DATA'}
+            status={isGoogleConnected ? 'LIVE' : 'UNAVAILABLE'}
+            label={isGoogleConnected ? 'LIVE GOOGLE SYNC' : 'PROVIDER NOT CONNECTED'}
           />
         </div>
 
@@ -371,12 +390,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Search Views</span>
-              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center">
-                +14% <ArrowUpRight className="w-3 h-3" />
+              <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
               </span>
             </div>
-            <div className="text-3xl font-black text-slate-900 my-1">
-              {isGoogleConnected ? '18,420' : '18,420'}
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1">
+              {isGoogleConnected ? '--' : 'UNAVAILABLE'}
             </div>
             <p className="text-[11px] text-slate-500">Queries in {business.city || 'Region'}</p>
           </div>
@@ -385,11 +404,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Maps Visibility</span>
-              <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center">
-                Benchmark
+              <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
               </span>
             </div>
-            <div className="text-3xl font-black text-slate-900 my-1">24,190</div>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1">
+              {isGoogleConnected ? '--' : 'UNAVAILABLE'}
+            </div>
             <p className="text-[11px] text-slate-500">Local map views</p>
           </div>
 
@@ -397,12 +418,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Phone Calls</span>
-              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center">
-                Active
+              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {totalLeads > 0 ? 'CRM Tracked' : 'Active'}
               </span>
             </div>
-            <div className="text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
-              <PhoneCall className="w-5 h-5 text-indigo-600" /> {totalLeads * 3 || 45}
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
+              <PhoneCall className="w-5 h-5 text-indigo-600" /> {totalLeads}
             </div>
             <p className="text-[11px] text-slate-500">Inbound inquiries</p>
           </div>
@@ -411,12 +432,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Directions</span>
-              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center">
-                +16% <ArrowUpRight className="w-3 h-3" />
+              <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
               </span>
             </div>
-            <div className="text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
-              <Navigation className="w-5 h-5 text-indigo-600" /> 520
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
+              <Navigation className="w-5 h-5 text-indigo-600" /> {isGoogleConnected ? '--' : 'UNAVAILABLE'}
             </div>
             <p className="text-[11px] text-slate-500">Store visits</p>
           </div>
@@ -425,12 +446,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition col-span-2 sm:col-span-1 flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Site Clicks</span>
-              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center">
-                +8% <ArrowUpRight className="w-3 h-3" />
+              <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
               </span>
             </div>
-            <div className="text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
-              <Globe className="w-5 h-5 text-indigo-600" /> 840
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
+              <Globe className="w-5 h-5 text-indigo-600" /> {isGoogleConnected ? '--' : 'UNAVAILABLE'}
             </div>
             <p className="text-[11px] text-slate-500">Website referrals</p>
           </div>

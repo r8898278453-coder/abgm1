@@ -24,6 +24,9 @@ export interface CompetitorFetchContext {
   name: string;
   city?: string;
   placeId?: string | null;
+  keyword?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface ICompetitorProvider {
@@ -160,30 +163,59 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
     try {
       const url = new URL('https://serpapi.com/search.json');
       url.searchParams.set('engine', 'google_maps');
-      url.searchParams.set('q', `${context.name} ${context.city || ''}`.trim());
       url.searchParams.set('api_key', key);
+
+      // Strict Rule: If tracked keyword is specified, measure competitor rank on that keyword at specific coordinates.
+      // If keyword is NOT specified, query place directly and rankPosition is strictly NULL.
+      if (context.keyword) {
+        url.searchParams.set('q', context.keyword);
+        if (typeof context.latitude === 'number' && typeof context.longitude === 'number') {
+          url.searchParams.set('ll', `@${context.latitude},${context.longitude},14z`);
+        }
+      } else {
+        url.searchParams.set('q', `${context.name} ${context.city || ''}`.trim());
+      }
 
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
       const data = await res.json();
 
       if (data.local_results && data.local_results.length > 0) {
-        const top = data.local_results[0];
+        const cleanCompName = context.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let targetItem = data.local_results[0];
+        let observedRank: number | null = null;
+
+        if (context.keyword) {
+          // Find competitor in the keyword search results
+          data.local_results.forEach((item: any, idx: number) => {
+            const itemClean = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const isMatch =
+              (context.placeId && item.place_id === context.placeId) ||
+              (cleanCompName.length > 3 && itemClean.includes(cleanCompName)) ||
+              (itemClean.length > 3 && cleanCompName.includes(itemClean));
+
+            if (isMatch && observedRank === null) {
+              observedRank = idx + 1;
+              targetItem = item;
+            }
+          });
+        }
+
         return {
           id: obsId,
           companyId: context.companyId,
           competitorId: context.competitorId,
-          name: top.title || context.name,
-          placeId: top.place_id || null,
-          address: top.address || null,
-          rating: typeof top.rating === 'number' ? Number(top.rating.toFixed(1)) : null,
-          reviewsCount: typeof top.reviews === 'number' ? top.reviews : null,
-          photosCount: typeof top.photos_count === 'number' ? top.photos_count : null,
-          postsPerWeek: null,
-          rankPosition: typeof top.position === 'number' ? top.position : null,
+          name: targetItem.title || context.name,
+          placeId: targetItem.place_id || null,
+          address: targetItem.address || null,
+          rating: typeof targetItem.rating === 'number' ? Number(targetItem.rating.toFixed(1)) : null,
+          reviewsCount: typeof targetItem.reviews === 'number' ? targetItem.reviews : null,
+          photosCount: typeof targetItem.photos_count === 'number' ? targetItem.photos_count : null,
+          postsPerWeek: null, // Never fabricate
+          rankPosition: observedRank, // Only set if verified in keyword SERP, else null
           provider: this.providerName,
           timestamp,
           dataClassification: 'LIVE',
-          rawPayload: top,
+          rawPayload: targetItem,
         };
       }
     } catch (err: any) {

@@ -1229,6 +1229,46 @@ export interface WebsiteConfigRecord {
   pages_json?: string;
 }
 
+export interface RevenueAttributionResult {
+  companyId: string;
+  totalLeads: number;
+  qualifiedLeads: number;
+  opportunityLeads: number;
+  dealLeads: number;
+  customerCount: number;
+  conversionRate: number;
+  totalRevenue: number;
+  currency: string;
+  roi: number | 'UNAVAILABLE';
+  sources: Array<{
+    source: string;
+    leads: number;
+    qualified: number;
+    opportunities: number;
+    deals: number;
+    customers: number;
+    revenue: number;
+    conversionRate: number;
+    cost: number | null;
+    roi: number | 'UNAVAILABLE';
+    status: string;
+  }>;
+  calculatedAt: string;
+}
+
+export async function fetchRevenueAttributionApi(companyId?: string): Promise<RevenueAttributionResult | null> {
+  try {
+    const url = companyId
+      ? `/api/companies/${encodeURIComponent(companyId)}/revenue-attribution`
+      : '/api/revenue-attribution';
+    const res = await apiRequest<{ success: boolean; attribution: RevenueAttributionResult }>(url);
+    return res.attribution || null;
+  } catch (err) {
+    console.warn('Failed to fetch revenue attribution:', err);
+    return null;
+  }
+}
+
 export async function fetchCompanyDomainsApi(companyId: string): Promise<CompanyDomainRecord[]> {
   try {
     const res = await apiRequest<{ success: boolean; count: number; domains: CompanyDomainRecord[] }>(

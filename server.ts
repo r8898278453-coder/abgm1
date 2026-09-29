@@ -33,6 +33,8 @@ import {
   getCompanyIntegration,
   saveCompanyIntegration,
   deleteCompanyIntegration,
+  DbUser,
+  DbCompany,
   getCompanyReviews,
   getReviewById,
   getReviewCompanyId,
@@ -164,7 +166,8 @@ import {
 } from './server/emailService';
 import { startScheduler, stopScheduler } from './server/scheduler';
 import { executePublishingJob } from './server/publishingEngine';
-import { generateAuthToken, getAuthUserFromRequest } from './server/auth';
+import { calculateMessageIntent } from './server/intentScoring';
+import { generateAuthToken, getAuthUserFromRequest, getAuthSecret } from './server/auth';
 import { renderTemplateToImage } from './server/templateRenderer';
 import { getAllTemplates, getTemplateById } from './server/templates/definitions';
 import { pickThemeForCompany } from './server/themeSelector';
@@ -227,6 +230,16 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(securityHeadersMiddleware);
 app.use(corsMiddleware);
 app.use(requestAuditLogger);
+
+// Enforce fail-fast cryptographic secret verification on boot
+try {
+  getAuthSecret();
+} catch (secErr: any) {
+  if (process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true') {
+    console.error('FATAL PRODUCTION SECURITY ERROR:', secErr?.message);
+    process.exit(1);
+  }
+}
 app.use(
   express.json({
     limit: '5mb',
@@ -650,7 +663,56 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-// ==================== MULTI-COMPANY APIS ==================== //
+// ==================== MULTI-COMPANY APIS & TENANT AUTHORIZATION ==================== //
+
+/**
+ * Verifies that the authenticated user owns the specified company or is a platform admin.
+ * Rejects with 404 if company does not exist, or 403 if IDOR attempt detected.
+ */
+async function verifyCompanyWorkspaceAccess(
+  user: DbUser,
+  companyId: string
+): Promise<{ authorized: boolean; company?: DbCompany; error?: string; status: number }> {
+  if (!companyId) {
+    return { authorized: false, error: 'Company ID is required', status: 400 };
+  }
+  const company = await getCompanyById(companyId);
+  if (!company) {
+    return { authorized: false, error: 'Company workspace not found', status: 404 };
+  }
+  if (company.user_id !== user.id && !user.is_platform_admin) {
+    return { authorized: false, error: 'Access denied to this company workspace', status: 403 };
+  }
+  return { authorized: true, company, status: 200 };
+}
+
+/**
+ * Resolves the effective company ID for tenant-scoped operations:
+ * - If explicit requestedCompanyId is supplied: verifies tenant authorization (returns 403/404 if unauthorized).
+ * - If no company ID supplied: resolves to the authenticated user's primary company.
+ * - If user owns 0 companies: returns 400 Bad Request instead of silently falling back to a global default company.
+ */
+async function resolveUserCompanyId(
+  user: DbUser,
+  requestedCompanyId?: string
+): Promise<{ companyId?: string; error?: string; status: number }> {
+  if (requestedCompanyId) {
+    const check = await verifyCompanyWorkspaceAccess(user, requestedCompanyId);
+    if (!check.authorized) {
+      return { error: check.error, status: check.status };
+    }
+    return { companyId: requestedCompanyId, status: 200 };
+  }
+
+  const userCompanies = await getUserCompanies(user.id);
+  if (!userCompanies || userCompanies.length === 0) {
+    return {
+      error: 'No company workspace associated with authenticated user. Please specify or create a company.',
+      status: 400,
+    };
+  }
+  return { companyId: userCompanies[0].id, status: 200 };
+}
 
 // Get all companies for current user (or all platform companies if platform_admin)
 app.get('/api/companies', async (req, res) => {
@@ -1129,7 +1191,7 @@ app.get('/api/companies/:id/revenue-attribution', async (req, res) => {
   }
 });
 
-// GET /api/revenue-attribution - Retrieve attribution for current user's default company
+// GET /api/revenue-attribution - Retrieve attribution for current user's company
 app.get('/api/revenue-attribution', async (req, res) => {
   try {
     const user = await getAuthUserFromRequest(req);
@@ -1139,31 +1201,12 @@ app.get('/api/revenue-attribution', async (req, res) => {
     }
 
     const targetCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    let effectiveCompanyId = targetCompanyId;
-
-    if (effectiveCompanyId) {
-      const company = await getCompanyById(effectiveCompanyId);
-      if (!company) {
-        res.status(404).json({ success: false, error: 'Company not found' });
-        return;
-      }
-      if (company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      if (userCompanies.length > 0) {
-        effectiveCompanyId = userCompanies[0].id;
-      } else if (user.is_platform_admin) {
-        effectiveCompanyId = await getDefaultCompanyId();
-      }
-    }
-
-    if (!effectiveCompanyId) {
-      res.status(404).json({ success: false, error: 'No company workspace associated with user' });
+    const resolved = await resolveUserCompanyId(user, targetCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const effectiveCompanyId = resolved.companyId;
 
     const [leads, invoices] = await Promise.all([
       getAllLeads(effectiveCompanyId).catch(() => []),
@@ -1629,7 +1672,7 @@ async function performRankScan(
   previousRank: number | null;
   diff: number | null;
   searchVolume: string | null;
-  dataClassification: 'LIVE' | 'VERIFIED' | 'UNAVAILABLE';
+  dataClassification: 'LIVE' | 'VERIFIED' | 'UNAVAILABLE' | 'FAILED' | 'PARTIAL';
   provider: string;
   observations: RankObservation[];
   topCompetitors: Array<{ name: string; rating: number; reviewsCount: number; position: number }>;
@@ -1911,6 +1954,12 @@ app.get('/api/companies/:id/keywords/:kw/history', async (req, res) => {
     }
 
     const { id, kw } = req.params;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
     const history = await getKeywordObservationHistory(id, decodeURIComponent(kw), 50);
     res.json({ success: true, keyword: kw, history });
   } catch (err: any) {
@@ -2166,6 +2215,12 @@ app.get('/api/companies/:id/competitors/:competitorId/history', async (req, res)
     }
 
     const { id, competitorId } = req.params;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
     const history = await getCompetitorObservationHistory(id, competitorId, 50);
     res.json({ success: true, competitorId, history });
   } catch (err: any) {
@@ -2421,6 +2476,29 @@ function maskCredentialsObj(creds: Record<string, any>): Record<string, any> {
   return masked;
 }
 
+async function syncIntegrationStatusAfterVerification(
+  companyId?: string,
+  provider?: string,
+  isSuccess?: boolean,
+  errorMsg?: string
+): Promise<void> {
+  if (!companyId || !provider) return;
+  try {
+    const existing = await getCompanyIntegration(companyId, provider);
+    if (existing) {
+      await saveCompanyIntegration(companyId, provider, {
+        status: isSuccess ? 'connected' : 'error',
+        credentials: existing.credentials,
+        config: existing.config,
+        last_tested_at: new Date().toISOString(),
+        last_error: isSuccess ? null : (errorMsg || 'Provider verification failed'),
+      });
+    }
+  } catch (err: any) {
+    console.warn('[syncIntegrationStatusAfterVerification] Warning:', err?.message);
+  }
+}
+
 // Fetch configured integrations for a company
 app.get('/api/integrations', async (req, res) => {
   try {
@@ -2430,18 +2508,13 @@ app.get('/api/integrations', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-
-    if (companyId) {
-      const company = await getCompanyById(companyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company integrations' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
+    const companyId = resolved.companyId;
 
     const storedIntegrations = await getCompanyIntegrations(companyId);
 
@@ -3194,20 +3267,15 @@ app.post('/api/integrations/save', async (req, res) => {
     }
 
     const { companyId, provider, credentials, config } = req.body;
-
-    let targetCompanyId = companyId;
-    if (!targetCompanyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      targetCompanyId = userCompanies[0]?.id;
-    }
-    if (!targetCompanyId || !provider) {
-      res.status(400).json({ success: false, error: 'Company ID and Provider are required' });
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const targetCompanyId = resolved.companyId;
 
-    const company = await getCompanyById(targetCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to manage integrations for this company' });
+    if (!provider) {
+      res.status(400).json({ success: false, error: 'Provider is required' });
       return;
     }
 
@@ -3228,11 +3296,16 @@ app.post('/api/integrations/save', async (req, res) => {
       }
     }
 
+    const hasCreds = Object.values(cleanCredentials).some(
+      (v) => v !== '' && v !== null && v !== undefined
+    );
+    const initialStatus = hasCreds ? 'saved' : 'disconnected';
+
     const saved = await saveCompanyIntegration(targetCompanyId, provider, {
-      status: 'connected',
+      status: initialStatus as any,
       credentials: cleanCredentials,
       config: config || {},
-      last_tested_at: new Date().toISOString(),
+      last_tested_at: existing?.last_tested_at || null,
       last_error: null,
     });
 
@@ -3258,21 +3331,13 @@ app.delete('/api/integrations/:provider', async (req, res) => {
     }
 
     const { provider } = req.params;
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id;
-    }
-    if (!companyId) {
-      res.status(400).json({ success: false, error: 'Company ID is required' });
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to delete integrations for this company' });
-      return;
-    }
+    const companyId = resolved.companyId;
 
     await deleteCompanyIntegration(companyId, provider);
     res.json({ success: true, message: `Disconnected ${provider}` });
@@ -3287,29 +3352,20 @@ app.delete('/api/integrations/:provider', async (req, res) => {
 app.get('/api/reviews', async (req, res) => {
   try {
     const user = await getAuthUserFromRequest(req);
-    let targetCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-
-    if (user) {
-      const userCompanies = await getUserCompanies(user.id);
-      if (userCompanies.length > 0) {
-        if (targetCompanyId) {
-          const authorized = userCompanies.some((c) => c.id === targetCompanyId) || user.is_platform_admin;
-          if (!authorized) {
-            res.status(403).json({ success: false, error: 'Access denied to this company reviews' });
-            return;
-          }
-        } else {
-          targetCompanyId = userCompanies[0].id;
-        }
-      }
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
     }
 
-    if (!targetCompanyId) {
-      targetCompanyId = (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const reviews = await getCompanyReviews(targetCompanyId);
-    res.json({ success: true, companyId: targetCompanyId, reviews });
+    const reviews = await getCompanyReviews(resolved.companyId);
+    res.json({ success: true, companyId: resolved.companyId, reviews });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -3321,28 +3377,20 @@ app.post('/api/reviews', validateBody(createReviewSchema), async (req, res) => {
     const { author, rating, content, date, relative_time, sentiment, topic, is_operational_issue, source } = req.body;
 
     const user = await getAuthUserFromRequest(req);
-    let targetCompanyId = (req.body.companyId || req.body.company_id || req.query.companyId || req.query.company_id) as string | undefined;
-
-    if (user) {
-      const userCompanies = await getUserCompanies(user.id);
-      if (userCompanies.length > 0) {
-        if (targetCompanyId) {
-          const authorized = userCompanies.some((c) => c.id === targetCompanyId) || user.is_platform_admin;
-          if (!authorized) {
-            targetCompanyId = userCompanies[0].id;
-          }
-        } else {
-          targetCompanyId = userCompanies[0].id;
-        }
-      }
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
     }
 
-    if (!targetCompanyId) {
-      targetCompanyId = (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const requestedCompanyId = (req.body.companyId || req.body.company_id || req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
     const review = await createReview({
-      company_id: targetCompanyId,
+      company_id: resolved.companyId,
       author,
       rating: Number(rating) || 5,
       content,
@@ -3434,29 +3482,20 @@ app.delete('/api/reviews/:id', async (req, res) => {
 app.get(['/api/content-posts', '/api/posts'], async (req, res) => {
   try {
     const user = await getAuthUserFromRequest(req);
-    let targetCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-
-    if (user) {
-      const userCompanies = await getUserCompanies(user.id);
-      if (userCompanies.length > 0) {
-        if (targetCompanyId) {
-          const authorized = userCompanies.some((c) => c.id === targetCompanyId) || user.is_platform_admin;
-          if (!authorized) {
-            res.status(403).json({ success: false, error: 'Access denied to this company content' });
-            return;
-          }
-        } else {
-          targetCompanyId = userCompanies[0].id;
-        }
-      }
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
     }
 
-    if (!targetCompanyId) {
-      targetCompanyId = (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const posts = await getCompanyPosts(targetCompanyId);
-    res.json({ success: true, companyId: targetCompanyId, posts });
+    const posts = await getCompanyPosts(resolved.companyId);
+    res.json({ success: true, companyId: resolved.companyId, posts });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -3495,25 +3534,15 @@ app.post(['/api/content-posts', '/api/posts'], validateBody(createPostSchema), a
       reel_script,
     } = req.body;
 
-    let targetCompanyId = (req.body.companyId || req.body.company_id || req.query.companyId || req.query.company_id) as string | undefined;
-    const userCompanies = await getUserCompanies(user.id);
-    if (userCompanies.length > 0) {
-      if (targetCompanyId) {
-        const authorized = userCompanies.some((c) => c.id === targetCompanyId) || user.is_platform_admin;
-        if (!authorized) {
-          targetCompanyId = userCompanies[0].id;
-        }
-      } else {
-        targetCompanyId = userCompanies[0].id;
-      }
-    }
-
-    if (!targetCompanyId) {
-      targetCompanyId = (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const requestedCompanyId = (req.body.companyId || req.body.company_id || req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
     const newPost = await createContentPost({
-      company_id: targetCompanyId,
+      company_id: resolved.companyId,
       title: title || 'New Campaign Post',
       type: type || 'offer',
       platforms: Array.isArray(platforms) ? platforms : ['google'],
@@ -3550,6 +3579,14 @@ app.patch(['/api/content-posts/:id/status', '/api/posts/:id/status'], async (req
     const { status } = req.body;
     if (!status) {
       res.status(400).json({ success: false, error: 'Status is required' });
+      return;
+    }
+
+    if (status === 'published') {
+      res.status(400).json({
+        success: false,
+        error: "Directly setting status to 'published' via PATCH is forbidden. All publishing must pass through the canonical publishing service via POST /api/content-posts/:id/publish with verified external provider confirmation.",
+      });
       return;
     }
 
@@ -3680,22 +3717,15 @@ app.get('/api/campaigns/internal', async (req, res) => {
       return;
     }
 
-    const companyIdQuery = req.query.company_id as string;
-    let targetCompanyId = companyIdQuery;
-
-    if (companyIdQuery) {
-      const company = await getCompanyById(companyIdQuery);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company campaigns' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      targetCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const companyIdQuery = (req.query.company_id || req.query.companyId) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const campaigns = await getInternalCampaigns(targetCompanyId);
-    res.json({ success: true, campaigns });
+    const campaigns = await getInternalCampaigns(resolved.companyId);
+    res.json({ success: true, companyId: resolved.companyId, campaigns });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -3710,27 +3740,21 @@ app.post('/api/campaigns/internal', async (req, res) => {
       return;
     }
 
-    const { company_id, name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id } = req.body;
+    const { company_id, companyId, name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id } = req.body;
 
     if (!name || !objective) {
       res.status(400).json({ success: false, error: 'Campaign name and objective are required' });
       return;
     }
 
-    let targetCompanyId = company_id;
-    if (company_id) {
-      const company = await getCompanyById(company_id);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to create campaigns for this company' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      targetCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, company_id || companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
     const campaign = await createInternalCampaign({
-      company_id: targetCompanyId,
+      company_id: resolved.companyId,
       name,
       objective,
       status: status || 'active',
@@ -3757,7 +3781,13 @@ app.put('/api/campaigns/internal/:id', async (req, res) => {
     }
 
     const { id } = req.params;
-    const { name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id, company_id } = req.body;
+    const { name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id, company_id, companyId } = req.body;
+
+    const resolved = await resolveUserCompanyId(user, company_id || companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
 
     const success = await updateInternalCampaign(
       id,
@@ -3771,7 +3801,7 @@ app.put('/api/campaigns/internal/:id', async (req, res) => {
         ...(channels !== undefined && { channels }),
         ...(external_campaign_id !== undefined && { external_campaign_id }),
       },
-      company_id
+      resolved.companyId
     );
 
     res.json({ success, message: success ? 'Internal campaign updated' : 'Campaign not found or update failed' });
@@ -3790,9 +3820,14 @@ app.delete('/api/campaigns/internal/:id', async (req, res) => {
     }
 
     const { id } = req.params;
-    const companyIdQuery = req.query.company_id as string;
+    const companyIdQuery = (req.query.company_id || req.query.companyId) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
 
-    const success = await deleteInternalCampaign(id, companyIdQuery);
+    const success = await deleteInternalCampaign(id, resolved.companyId);
     res.json({ success, message: success ? 'Internal campaign deleted' : 'Campaign not found' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
@@ -3808,22 +3843,15 @@ app.get('/api/campaigns/external', async (req, res) => {
       return;
     }
 
-    const companyIdQuery = req.query.company_id as string;
-    let targetCompanyId = companyIdQuery;
-
-    if (companyIdQuery) {
-      const company = await getCompanyById(companyIdQuery);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company ad campaigns' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      targetCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const companyIdQuery = (req.query.company_id || req.query.companyId) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const campaigns = await getCompanyExternalAdCampaigns(targetCompanyId);
-    res.json({ success: true, campaigns });
+    const campaigns = await getCompanyExternalAdCampaigns(resolved.companyId);
+    res.json({ success: true, companyId: resolved.companyId, campaigns });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -3838,21 +3866,14 @@ app.post('/api/campaigns/external/sync', async (req, res) => {
       return;
     }
 
-    const { provider = 'meta_ads', company_id } = req.body;
-    let targetCompanyId = company_id;
-
-    if (company_id) {
-      const company = await getCompanyById(company_id);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to sync ad campaigns for this company' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      targetCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const { provider = 'meta_ads', company_id, companyId } = req.body;
+    const resolved = await resolveUserCompanyId(user, company_id || companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const syncResult = await syncExternalAdCampaigns(targetCompanyId, provider);
+    const syncResult = await syncExternalAdCampaigns(resolved.companyId, provider);
     res.json({
       success: syncResult.status === 'SUCCESS',
       syncResult,
@@ -3872,12 +3893,17 @@ app.post('/api/campaigns/internal/:id/link-external', async (req, res) => {
     }
 
     const { id } = req.params;
-    const { external_campaign_id, company_id } = req.body;
+    const { external_campaign_id, company_id, companyId } = req.body;
+    const resolved = await resolveUserCompanyId(user, company_id || companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
 
     const success = await updateInternalCampaign(
       id,
       { external_campaign_id: external_campaign_id || null },
-      company_id
+      resolved.companyId
     );
 
     res.json({ success, message: 'External campaign link updated' });
@@ -4559,6 +4585,13 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
       targetCompanyId = (await getDefaultCompanyId()) || undefined;
     }
 
+    const intentAnalysis = calculateMessageIntent(notes || service, {
+      service,
+      budget,
+      phone,
+      email,
+    });
+
     const newLead = await createLead({
       company_id: targetCompanyId,
       name,
@@ -4568,7 +4601,7 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
       service: service || 'IT & Digital Growth Services',
       budget: budget || 'Custom Proposal',
       stage: stage || 'new',
-      intent_score: 92,
+      intent_score: intentAnalysis.score ?? 50,
       source: source || 'bga.aaditechs.in Form',
       notes: notes || '',
       ai_suggested_reply: `Namaste ${name}! Aaditech Solution (bga.aaditechs.in) has received your inquiry for ${service || 'our tech solutions'}. Our senior consultant will connect with you on WhatsApp shortly.`,
@@ -4656,21 +4689,17 @@ app.get('/api/whatsapp/status', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (companyId) {
-      const company = await getCompanyById(companyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company integrations' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const companyIdQuery = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const creds = await resolveWhatsAppCredentials(companyId);
+    const creds = await resolveWhatsAppCredentials(resolved.companyId);
     res.json({
       success: true,
+      companyId: resolved.companyId,
       configured: creds.configured,
       status: creds.configured ? 'CONFIGURED' : 'NOT_CONFIGURED',
       phoneNumberId: creds.phoneNumberId ? maskSecret(creds.phoneNumberId) : null,
@@ -4696,17 +4725,12 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
       return;
     }
 
-    let effectiveCompanyId = companyId;
-    if (effectiveCompanyId) {
-      const company = await getCompanyById(effectiveCompanyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      effectiveCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
+    const effectiveCompanyId = resolved.companyId;
 
     let cleanTo = String(to).replace(/[^0-9]/g, '');
     if (cleanTo.length === 10) cleanTo = '91' + cleanTo;
@@ -4780,17 +4804,12 @@ app.post('/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async
 
     const { recipients, message, templateName, languageCode, templateParams, mediaType, mediaUrl, campaignName, companyId } = req.body;
 
-    let effectiveCompanyId = companyId;
-    if (effectiveCompanyId) {
-      const company = await getCompanyById(effectiveCompanyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      effectiveCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
+    const effectiveCompanyId = resolved.companyId;
 
     const creds = await resolveWhatsAppCredentials(effectiveCompanyId);
 
@@ -4965,6 +4984,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
 
       console.log(`[WhatsApp Inbound] Received message ${message.id} from ${contactName} (${fromPhone}) for company ${matchedCompanyId}: ${textBody}`);
 
+      const intentAnalysis = calculateMessageIntent(textBody, {
+        service: 'WhatsApp Direct Inquiry',
+        phone: fromPhone,
+      });
+
       // Auto-ingest lead into database for the matched company tenant
       await createLead({
         company_id: matchedCompanyId,
@@ -4974,9 +4998,9 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         service: 'WhatsApp Direct Inquiry',
         budget: 'Pending Discussion',
         stage: 'new',
-        intent_score: 95,
+        intent_score: intentAnalysis.score ?? 50,
         source: 'WhatsApp Cloud Inbound',
-        notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]`,
+        notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
         ai_suggested_reply: `Namaste ${contactName}! Aaditech Solution has received your message. A dedicated technical consultant will reply right here on WhatsApp within 15 minutes.`,
       }).catch((e) => console.warn('Failed to save inbound WhatsApp lead:', e));
 
@@ -5007,21 +5031,17 @@ app.get('/api/meta/status', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (companyId) {
-      const company = await getCompanyById(companyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company integrations' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const companyIdQuery = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
 
-    const creds = await resolveMetaSocialCredentials(companyId);
+    const creds = await resolveMetaSocialCredentials(resolved.companyId);
     res.json({
       success: true,
+      companyId: resolved.companyId,
       configured: creds.configured,
       status: creds.configured ? 'CONFIGURED' : 'NOT_CONFIGURED',
       pageId: creds.pageId ? maskSecret(creds.pageId) : null,
@@ -5044,17 +5064,12 @@ app.post('/api/meta/publish-post', validateBody(metaPublishSchema), async (req, 
     const { content, caption, imageUrl, videoUrl, platforms, companyId, postId } = req.body;
     const postBody = content || caption || '';
 
-    let effectiveCompanyId = companyId;
-    if (effectiveCompanyId) {
-      const company = await getCompanyById(effectiveCompanyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to this company' });
-        return;
-      }
-    } else {
-      const userCompanies = await getUserCompanies(user.id);
-      effectiveCompanyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
     }
+    const effectiveCompanyId = resolved.companyId;
 
     const creds = await resolveMetaSocialCredentials(effectiveCompanyId);
     const targetPlatforms = Array.isArray(platforms) && platforms.length > 0 ? platforms : ['facebook', 'instagram'];
@@ -5969,17 +5984,14 @@ app.get('/api/autonomous/status', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-    }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
+    const companyIdQuery = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, companyIdQuery);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const companyId = resolved.companyId;
+    const company = await getCompanyById(companyId);
 
     const actions = await getAutonomousActionsByCompany(companyId);
     const recommendations = await getAutonomousRecommendationsByCompany(companyId);
@@ -6021,19 +6033,21 @@ app.post('/api/autonomous/kill-switch', async (req, res) => {
     }
 
     if (companyId && autopilotEnabled !== undefined) {
-      const company = await getCompanyById(companyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to update company autopilot settings.' });
+      const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+      if (!authCheck.authorized) {
+        res.status(authCheck.status).json({ success: false, error: authCheck.error });
         return;
       }
-      // Update in memory & DB
-      company.autopilot_enabled = Boolean(autopilotEnabled);
-      try {
-        const db = await getDbPool();
-        if (db) {
-          await db.query('UPDATE companies SET autopilot_enabled = ? WHERE id = ?', [company.autopilot_enabled ? 1 : 0, companyId]);
-        }
-      } catch {}
+      const company = authCheck.company;
+      if (company) {
+        company.autopilot_enabled = Boolean(autopilotEnabled);
+        try {
+          const db = await getDbPool();
+          if (db) {
+            await db.query('UPDATE companies SET autopilot_enabled = ? WHERE id = ?', [company.autopilot_enabled ? 1 : 0, companyId]);
+          }
+        } catch {}
+      }
     }
 
     res.json({
@@ -6056,17 +6070,13 @@ app.post('/api/autonomous/run-cycle', async (req, res) => {
       return;
     }
 
-    let companyId = req.body.companyId || req.body.company_id;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-    }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
+    const requestedCompanyId = req.body.companyId || req.body.company_id;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const companyId = resolved.companyId;
 
     const approvalPolicy = req.body.approvalPolicy || {};
     const result = await runAutonomousCycle(companyId, approvalPolicy);
@@ -6089,17 +6099,13 @@ app.get('/api/autonomous/recommendations', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-    }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const companyId = resolved.companyId;
 
     const recommendations = await getAutonomousRecommendationsByCompany(companyId);
     res.json({
@@ -6121,17 +6127,13 @@ app.get('/api/autonomous/actions', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-    }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const companyId = resolved.companyId;
 
     const actions = await getAutonomousActionsByCompany(companyId);
     res.json({
@@ -6160,9 +6162,9 @@ app.post('/api/autonomous/actions/:id/approve', async (req, res) => {
       return;
     }
 
-    const company = await getCompanyById(action.company_id);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to approve action for this company' });
+    const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
       return;
     }
 
@@ -6208,9 +6210,9 @@ app.post('/api/autonomous/actions/:id/reject', async (req, res) => {
       return;
     }
 
-    const company = await getCompanyById(action.company_id);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to reject action for this company' });
+    const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
       return;
     }
 
@@ -6258,9 +6260,9 @@ app.post('/api/autonomous/actions/:id/execute', async (req, res) => {
       return;
     }
 
-    const company = await getCompanyById(action.company_id);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to execute action for this company' });
+    const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
       return;
     }
 
@@ -6290,17 +6292,13 @@ app.get('/api/autonomous/audit-logs', async (req, res) => {
       return;
     }
 
-    let companyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    if (!companyId) {
-      const userCompanies = await getUserCompanies(user.id);
-      companyId = userCompanies[0]?.id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-    }
-
-    const company = await getCompanyById(companyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to audit logs for this company' });
+    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
       return;
     }
+    const companyId = resolved.companyId;
 
     const logs = await getAutonomousAuditLogsByCompany(companyId);
     res.json({
@@ -6324,6 +6322,11 @@ app.get('/api/companies/:id/domains', async (req, res) => {
       return;
     }
     const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
     const domains = await getCustomDomainsByCompany(companyId);
     res.json({ success: true, count: domains.length, domains });
   } catch (err: any) {
@@ -6340,6 +6343,11 @@ app.post('/api/companies/:id/domains', async (req, res) => {
       return;
     }
     const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
     const { domain } = req.body;
     if (!domain || typeof domain !== 'string') {
       res.status(400).json({ success: false, error: 'Domain name is required' });
@@ -6366,9 +6374,15 @@ app.post('/api/companies/:id/domains/:domainId/verify', async (req, res) => {
       res.status(401).json({ success: false, error: 'Authentication required' });
       return;
     }
-    const { domainId } = req.params;
+    const { id: companyId, domainId } = req.params;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
     const domainRecord = await getCustomDomainById(domainId);
-    if (!domainRecord) {
+    if (!domainRecord || domainRecord.company_id !== companyId) {
       res.status(404).json({ success: false, error: 'Domain record not found' });
       return;
     }
@@ -6404,7 +6418,19 @@ app.delete('/api/companies/:id/domains/:domainId', async (req, res) => {
       res.status(401).json({ success: false, error: 'Authentication required' });
       return;
     }
-    const { domainId } = req.params;
+    const { id: companyId, domainId } = req.params;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const domainRecord = await getCustomDomainById(domainId);
+    if (!domainRecord || domainRecord.company_id !== companyId) {
+      res.status(404).json({ success: false, error: 'Domain record not found' });
+      return;
+    }
+
     await deleteCustomDomain(domainId);
     res.json({ success: true, message: 'Domain deleted successfully' });
   } catch (err: any) {
@@ -6415,7 +6441,18 @@ app.delete('/api/companies/:id/domains/:domainId', async (req, res) => {
 // Get website builder config
 app.get('/api/companies/:id/website/config', async (req, res) => {
   try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
     const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
     const config = await getWebsiteConfigByCompany(companyId);
     res.json({ success: true, config });
   } catch (err: any) {
@@ -6432,6 +6469,12 @@ app.put('/api/companies/:id/website/config', async (req, res) => {
       return;
     }
     const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
     const updated = await upsertWebsiteConfig({
       company_id: companyId,
       ...req.body,
@@ -6445,15 +6488,18 @@ app.put('/api/companies/:id/website/config', async (req, res) => {
 // Export production static website ZIP bundle
 app.get('/api/companies/:id/website/export', async (req, res) => {
   try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
     const companyId = req.params.id;
-    const company = (await getCompanyById(companyId)) || {
-      id: companyId,
-      name: 'Aaditech Solution',
-      category: 'IT Services & Software Solutions',
-      city: 'Thane',
-      phone: '+91 22 4963 8603',
-      website: 'https://bga.aaditechs.in',
-    };
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+    const company = authCheck.company;
     const config = await getWebsiteConfigByCompany(companyId);
     const domains = await getCustomDomainsByCompany(companyId);
     const primaryDomain = domains.find((d) => d.status === 'active')?.domain || domains[0]?.domain || 'bga.aaditechs.in';

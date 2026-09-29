@@ -203,35 +203,53 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           {step === 3 && (
             <div className="space-y-3">
               <p className="text-slate-600">
-                Connected accounts currently authorized for autonomous publishing and review sync:
+                Connected accounts authorization and integration status:
               </p>
               <div className="space-y-2">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className={`w-4 h-4 ${business.connectedAccounts?.googleBusiness ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <div>
-                      <strong className="text-slate-900">Google Business Profile:</strong> Aaditech Solution (Verified)
+                      <strong className="text-slate-900">Google Places / Business:</strong> {business.name || 'Your Business'}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Connected</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    business.connectedAccounts?.googleBusiness
+                      ? 'text-emerald-700 bg-emerald-100'
+                      : 'text-slate-600 bg-slate-200'
+                  }`}>
+                    {business.connectedAccounts?.googleBusiness ? 'Connected' : 'Not Configured'}
+                  </span>
                 </div>
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className={`w-4 h-4 ${business.connectedAccounts?.whatsappBusiness ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <div>
-                      <strong className="text-slate-900">WhatsApp Business Platform:</strong> +91 98204 55120
+                      <strong className="text-slate-900">WhatsApp Business Platform:</strong> {formData.phone || 'Phone not set'}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Connected</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    business.connectedAccounts?.whatsappBusiness
+                      ? 'text-emerald-700 bg-emerald-100'
+                      : 'text-slate-600 bg-slate-200'
+                  }`}>
+                    {business.connectedAccounts?.whatsappBusiness ? 'Connected' : 'Not Configured'}
+                  </span>
                 </div>
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className={`w-4 h-4 ${business.connectedAccounts?.telegramBot ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <div>
-                      <strong className="text-slate-900">Telegram Bot Gateway:</strong> @AaditechManagerBot
+                      <strong className="text-slate-900">Telegram Bot Gateway:</strong> Real-time Push Alerts
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Connected</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    business.connectedAccounts?.telegramBot
+                      ? 'text-emerald-700 bg-emerald-100'
+                      : 'text-slate-600 bg-slate-200'
+                  }`}>
+                    {business.connectedAccounts?.telegramBot ? 'Connected' : 'Not Configured'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -239,28 +257,30 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
           {step === 4 && (
             <div className="space-y-4">
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
-                <ShieldCheck className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start gap-3">
+                <ShieldCheck className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-emerald-950 text-sm">Initial Business Growth Score: 82/100</h4>
-                  <p className="text-emerald-800 text-xs mt-1">
-                    Google 3-Pack rank #1 in Thane West. Top 5 initial growth actions automatically prioritized.
+                  <h4 className="font-bold text-indigo-950 text-sm">
+                    Workspace Initialized: {formData.name || 'Business'}
+                  </h4>
+                  <p className="text-indigo-800 text-xs mt-1">
+                    Setup complete for {formData.city || 'your area'}. Connect your live providers in Settings &gt; Integrations to begin streaming verified real-time metrics.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <span>1. Google Review Auto-Replies Drafted</span>
-                  <span className="text-emerald-600 font-bold">Ready (3 Pending)</span>
+                  <span>1. Local 3-Pack Rank Radar</span>
+                  <span className="text-indigo-600 font-bold">Ready to Scan</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <span>2. Weekly B2B Post Creative Generated</span>
-                  <span className="text-emerald-600 font-bold">Ready</span>
+                  <span>2. Multi-Channel Content Studio</span>
+                  <span className="text-indigo-600 font-bold">Ready</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <span>3. High-Intent Lead Notification Active</span>
-                  <span className="text-emerald-600 font-bold">WhatsApp + Telegram</span>
+                  <span>3. Inbound Lead Pipeline & CRM</span>
+                  <span className="text-indigo-600 font-bold">Active</span>
                 </div>
               </div>
             </div>

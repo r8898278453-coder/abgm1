@@ -184,16 +184,22 @@ export async function findCompanyByWhatsAppIdentifier(identifiers: {
 
 /**
  * Validates Meta WhatsApp Webhook HMAC-SHA256 signature from 'x-hub-signature-256' header.
+ * In production mode, webhook signature verification is strictly mandatory.
  */
 export function verifyWhatsAppWebhookSignature(options: {
   rawBody: string | Buffer;
   signature?: string;
   appSecret?: string;
+  isProduction?: boolean;
 }): { isValid: boolean; error?: string } {
   const { rawBody, signature, appSecret } = options;
+  const isProd = options.isProduction ?? (process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true');
 
   if (!appSecret) {
-    // If no app secret configured on server or tenant, cannot cryptographically verify
+    if (isProd) {
+      return { isValid: false, error: 'WHATSAPP_APP_SECRET is not configured in production mode. Refusing unverified webhook.' };
+    }
+    // In non-production sandbox without appSecret, return valid only if non-production
     return { isValid: true };
   }
 

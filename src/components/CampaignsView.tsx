@@ -31,7 +31,10 @@ import {
   getExternalAdCampaignsApi,
   syncExternalAdCampaignsApi,
   linkInternalToExternalCampaignApi,
+  fetchRevenueAttributionApi,
+  RevenueAttributionResult,
 } from '../services/authService';
+import { DataStatusBadge } from './DataStatusBadge';
 
 interface CampaignsViewProps {
   campaigns?: any[];
@@ -71,16 +74,19 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   const [customLeads, setCustomLeads] = useState<number>(143);
   const [customCustomers, setCustomCustomers] = useState<number>(31);
   const [customRevenue, setCustomRevenue] = useState<number>(182000);
+  const [attributionData, setAttributionData] = useState<RevenueAttributionResult | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [internalRes, externalRes] = await Promise.all([
+      const [internalRes, externalRes, attrRes] = await Promise.all([
         getInternalCampaignsApi(companyId),
         getExternalAdCampaignsApi(companyId),
+        fetchRevenueAttributionApi(companyId),
       ]);
       setInternalCampaigns(internalRes);
       setExternalCampaigns(externalRes);
+      setAttributionData(attrRes);
     } catch (err: any) {
       console.error('Failed to load campaigns data:', err);
     } finally {
@@ -749,71 +755,72 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
 
           {/* Attribution Channel Matrix */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Compass className="w-4 h-4 text-indigo-600" />
-                Multi-Touch Attribution Journey Tracking
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Full funnel tracking across Google, Instagram, Facebook, WhatsApp, Website, and Telegram.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-indigo-600" />
+                  Verified Multi-Touch Attribution Journey Tracking
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  CRM lifecycle tracking across Google, WhatsApp, Website, Social, and Telegram channels.
+                </p>
+              </div>
+              <DataStatusBadge
+                status={attributionData?.totalRevenue ? 'VERIFIED' : 'CALCULATED'}
+                label={attributionData?.totalRevenue ? 'VERIFIED LEDGER' : 'CALCULATED PIPELINE'}
+              />
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 rounded-l-xl">Channel Source</th>
-                    <th className="px-4 py-3">First-Touch Discovery</th>
-                    <th className="px-4 py-3">Assisted Evaluation</th>
-                    <th className="px-4 py-3">Final Closing Touch</th>
-                    <th className="px-4 py-3 rounded-r-xl">Attributed Revenue</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  <tr className="hover:bg-slate-50/60 transition">
-                    <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      Google Business Profile & Search
-                    </td>
-                    <td className="px-4 py-3">38% (54 inquiries)</td>
-                    <td className="px-4 py-3">71% (Reviews Check)</td>
-                    <td className="px-4 py-3 font-bold text-indigo-600">42% (Direct Phone Call)</td>
-                    <td className="px-4 py-3 font-black text-slate-900">₹76,440</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/60 transition">
-                    <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-pink-500" />
-                      Instagram Reel Ads (Meta Ads)
-                    </td>
-                    <td className="px-4 py-3 font-bold text-indigo-600">44% (63 inquiries)</td>
-                    <td className="px-4 py-3">22% (Profile Visits)</td>
-                    <td className="px-4 py-3">18% (DM Direct)</td>
-                    <td className="px-4 py-3 font-black text-slate-900">₹58,240</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/60 transition">
-                    <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      WhatsApp Business Cloud Inquiries
-                    </td>
-                    <td className="px-4 py-3">10% (14 referrals)</td>
-                    <td className="px-4 py-3">68% (Catalog Browsing)</td>
-                    <td className="px-4 py-3 font-bold text-emerald-600">32% (Payment link clicked)</td>
-                    <td className="px-4 py-3 font-black text-slate-900">₹32,760</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/60 transition">
-                    <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-sky-500" />
-                      Website (aaditechs.in) & Telegram Bot
-                    </td>
-                    <td className="px-4 py-3">8% (12 direct visits)</td>
-                    <td className="px-4 py-3">34% (Audit tool)</td>
-                    <td className="px-4 py-3">8% (Quotation form)</td>
-                    <td className="px-4 py-3 font-black text-slate-900">₹14,560</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {attributionData?.sources && attributionData.sources.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-xl">Channel Source</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Inquiries</th>
+                      <th className="px-4 py-3">Qualified</th>
+                      <th className="px-4 py-3">Won Deals</th>
+                      <th className="px-4 py-3">Conversion</th>
+                      <th className="px-4 py-3 rounded-r-xl">Attributed Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {attributionData.sources.map((src, sIdx) => (
+                      <tr key={sIdx} className="hover:bg-slate-50/60 transition">
+                        <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${
+                            src.source.includes('Google') ? 'bg-blue-500' :
+                            src.source.includes('WhatsApp') ? 'bg-emerald-500' :
+                            src.source.includes('Social') ? 'bg-pink-500' :
+                            src.source.includes('Website') ? 'bg-indigo-500' : 'bg-slate-400'
+                          }`} />
+                          {src.source}
+                        </td>
+                        <td className="px-4 py-3">
+                          <DataStatusBadge status={src.status} />
+                        </td>
+                        <td className="px-4 py-3">{src.leads} leads</td>
+                        <td className="px-4 py-3">{src.qualified}</td>
+                        <td className="px-4 py-3 font-bold text-emerald-600">{src.customers} won</td>
+                        <td className="px-4 py-3 font-semibold text-indigo-600">{src.conversionRate}%</td>
+                        <td className="px-4 py-3 font-black text-slate-900">
+                          {src.revenue > 0 ? `₹${src.revenue.toLocaleString()}` : '₹0'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <Compass className="w-8 h-8 text-slate-300 mx-auto" />
+                <div className="text-xs font-bold text-slate-800">No Multi-Touch Inquiries Recorded</div>
+                <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                  Inbound leads from Google Maps, WhatsApp, and Website forms will automatically be mapped here to compute closed revenue attribution.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

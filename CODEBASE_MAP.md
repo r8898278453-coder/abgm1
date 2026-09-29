@@ -18,6 +18,24 @@
 - **Scheduler & Automation**:
   - Background autonomous daemon (`server/scheduler.ts`) handling post publishing, review auto-responses, competitor analysis, and Telegram alerts.
 
+## Canonical Capability Implementation Map
+- **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `CalendarView.tsx`, `ContentStudioView.tsx`.
+- **Scheduler**: `server/scheduler.ts` (single in-process node-cron daemon with hot-reload guard `global.__abga_scheduler_started`).
+- **Video Reel Rendering**: `server/reelJobManager.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`) + `remotion/*`.
+- **Google Integrations**: `POST /api/companies/:id/google-profile/sync` & `GET /api/companies/:id/google-profile` in `server.ts` with Places Details API & review deduplication.
+- **Local SEO Rank Radar**: `server/localSeoProvider.ts` (`resolveRankProvider`, `performRankScan`) + `POST /api/companies/:id/rank-radar/scan` & `/refresh-all` + `rank_observations` table.
+- **Competitor Intelligence**: `server/competitorProvider.ts` (`resolveCompetitorProvider`, `calculateCompetitorChanges`) + `POST /api/companies/:id/competitors` & `/refresh-all` + `competitor_observations` table.
+- **Meta & WhatsApp Cloud API**: `server/metaWhatsAppService.ts` (`resolveWhatsAppCredentials`, `resolveMetaSocialCredentials`, `findCompanyByWhatsAppIdentifier`, `verifyMetaWebhookHandshake`, `verifyWhatsAppWebhookSignature`, `publishToFacebookPage`, `publishToInstagram`, `sendWhatsAppCloudMessage`).
+- **Growth Intelligence Score**: `server/growthScoreEngine.ts` (`calculateGrowthIntelligenceScore`, `toGrowthScorePayload`) + `GET /api/companies/:id/growth-score` & `POST /api/companies/:id/growth-score/recalculate`.
+- **AI Executive Summary**: `server/aiExecutiveSummary.ts` (`collectTruthfulEvidence`, `buildEvidenceGroundedPrompt`, `generateDeterministicSummary`) via `GET /api/companies/:id/ai-summary`.
+- **Revenue Attribution**: `server/revenueAttribution.ts` (`calculateRevenueAttribution`, `normalizeSource`, `isProviderVerifiedPayment`) via `GET /api/companies/:id/revenue-attribution`.
+- **Campaigns & Ads Separation**: `server/adCampaignService.ts` (`getInternalCampaigns`, `createInternalCampaign`, `getExternalAdCampaigns`, `syncExternalAdCampaignMetrics`).
+- **Autonomous Governance**: `server/autonomousEngine.ts` (8-stage lifecycle engine `OBSERVE → DETECT → ANALYZE → RECOMMEND → APPROVE → EXECUTE → VERIFY → MEASURE` with kill switch and audit logs).
+- **Authentication & RBAC**: `server/auth.ts` (`createAuthToken`, `verifyAuthToken`, `hashPasswordPBKDF2`, `verifyPasswordPBKDF2`) + `getAuthUserFromRequest`/`getUserCompanies` in `server/db.ts`.
+- **Integration Live Testing**: `POST /api/integrations/test` in `server.ts` with direct provider validation.
+- **Data Status Badges**: `src/components/DataStatusBadge.tsx` supporting 10 standard classifications (`LIVE`, `VERIFIED`, `CALCULATED`, `ESTIMATED`, `AI_ESTIMATED`, `USER_ENTERED`, `SEEDED`, `DEMO`, `UNAVAILABLE`, `ERROR`).
+- **Database Persistence**: `server/db.ts` (MySQL with automated self-healing schema creation/migration + in-memory store fallback).
+
 ## Entry Points
 - **Client Entry**: `src/main.tsx` -> `src/App.tsx`
 - **Server Entry**: `server.ts`

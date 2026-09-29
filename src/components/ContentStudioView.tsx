@@ -39,6 +39,7 @@ import { generateMarketingContent } from '../services/aiService';
 import {
   createContentPostApi,
   updatePostStatusApi,
+  publishContentPostApi,
   deleteContentPostApi,
   uploadCompanyAssetApi,
   fetchCompanyAssetsApi,
@@ -595,23 +596,36 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
   const handlePublishPost = async (postId: string) => {
     const previousPosts = [...localPosts];
-    // Optimistic status update
+    // Optimistic status update: set to publishing while state machine executes
     setLocalPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
+      prev.map((p) => (p.id === postId ? { ...p, status: 'publishing' as const } : p))
     );
     setIsPublishingId(postId);
     setPostActionError(null);
 
     try {
-      const ok = await updatePostStatusApi(postId, 'published', companyId);
-      if (!ok) {
-        throw new Error('Failed to update status on server');
+      const resp = await publishContentPostApi(postId, companyId);
+      if (resp.success && resp.result?.overallStatus === 'PUBLISHED') {
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
+        );
+        setScheduleSuccessToast(`✓ ${resp.result?.message || 'Post published and verified by provider.'}`);
+        setTimeout(() => setScheduleSuccessToast(null), 4000);
+        onPublishPost?.(postId);
+      } else if (resp.result?.overallStatus === 'UNKNOWN') {
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'unknown' as const } : p))
+        );
+        setPostActionError(`⚠️ Provider state unknown: ${resp.result?.message || 'Network timeout while publishing'}`);
+      } else {
+        const errorMsg = resp.result?.message || resp.error || 'Provider rejected publishing request';
+        setLocalPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: 'failed' as const } : p))
+        );
+        setPostActionError(`Failed to publish post: ${errorMsg}`);
       }
-      setScheduleSuccessToast('✓ Post published to MySQL successfully!');
-      setTimeout(() => setScheduleSuccessToast(null), 4000);
-      onPublishPost?.(postId);
     } catch (err: any) {
-      console.error('Failed to publish post to MySQL:', err);
+      console.error('Failed to publish post:', err);
       // Roll back
       setLocalPosts(previousPosts);
       setPostActionError(`Failed to publish post: ${err?.message || 'Server error'}. Status reverted.`);

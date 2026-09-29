@@ -1,6 +1,69 @@
 # Implementation State
 
-## Current Phase: Centralized Growth Intelligence Score Service & Forensic Audit
+## Current Phase: Phase 3 — Real Execution Only
+- **Completed in this Phase**:
+  - **1. Canonical Content Publishing & PATCH Bypass Prohibition**:
+    - Unified all publishing triggers onto canonical `executePublishingJob` state machine (`SCHEDULED → JOB → PROVIDER → PROVIDER RESPONSE → PERSIST EXTERNAL ID → VERIFY → PUBLISHED`).
+    - Explicitly forbidden `PATCH /api/content-posts/:id/status` with `status=published` (returns HTTP 400), preventing simulated external publishing without external provider confirmation.
+    - Added comprehensive timeout and error classification in `classifyProviderError` (`PERMANENT`, `RETRYABLE`, `TIMEOUT_UNKNOWN`).
+  - **2. Meta Social Direct Publishing & Idempotency**:
+    - Facebook Page feed/photo publishing & Instagram Business 2-step container creation/publishing (`POST /api/meta/publish-post`).
+    - Persists provider, external ID, timestamp, and response status in `publishing_records` table.
+    - Idempotency gate checks `isPostAlreadyPublished` and returns `SKIPPED_ALREADY_PUBLISHED` for repeat requests.
+  - **3. WhatsApp Verification & Deterministic Intent Scoring**:
+    - Cryptographic HMAC-SHA256 signature verification on `POST /api/whatsapp/webhook` with constant-time equality (`timingSafeEqual`).
+    - Webhook event idempotency via `isWebhookEventProcessed`/`markWebhookEventProcessed`.
+    - Eliminated static `intent_score: 95` and `intent_score: 92`.
+    - Introduced centralized `calculateMessageIntent` engine (`server/intentScoring.ts`) computing real deterministic scores based on pricing/quote keywords, service requests, callback urgency, and budgets. Returns `UNAVAILABLE` with `null` score for empty/unclassifiable inquiries.
+  - **4. Autonomous Action Provider Execution & Anti-Fabrication**:
+    - Real provider execution for all action types in `server/autonomousEngine.ts`:
+      - `review_reply`: Updates review reply in DB with `updateReviewReply`.
+      - `send_whatsapp`: Dispatches via `sendWhatsAppCloudMessage` or aborts with `BLOCKED_PROVIDER_NOT_CONFIGURED`.
+      - `publish_post`: Executes canonical `executePublishingJob` across configured channels and records authentic provider IDs.
+      - `adjust_campaign`: Executes Meta Marketing API adjustments or aborts with `BLOCKED_PROVIDER_NOT_CONFIGURED`.
+      - Unsupported action types: Strictly returns `BLOCKED` with `UNSUPPORTED_ACTION_TYPE` without fabricating fake `providerResp` / `verified=true`.
+  - **5. Preserved Global & Per-Tenant Emergency Kill Switch**:
+    - `globalEmergencyStop` and `autopilot_enabled` checks halt both cycle evaluations and action executions immediately (`KILL_SWITCH_ACTIVE`, `BLOCKED_KILL_SWITCH`).
+  - **6. Automated Acceptance Suite**:
+    - Added `test/phase3RealExecution.test.ts` to master `npm test` script.
+    - 13/13 test suites passing (77/77 tests passing with 100% success rate).
+- **Validation**:
+  - `npm test`: Passed (13 test suites passing, 77/77 tests).
+  - `npm run lint`: Passed (`tsc --noEmit` 0 errors).
+  - `compile_applet`: Passed (`vite build` succeeded).
+
+## Previous Phase: Phase 1 — Production Security & Tenant Isolation Hardening
+- **Completed in this Phase**:
+  - **1. AUTH Secret Fail-Fast**:
+    - Removed hardcoded fallback secrets in `server/auth.ts` and `server.ts`.
+    - In production mode, missing `AUTH_SECRET` or secret shorter than 16 characters throws `FATAL_SECURITY_ERROR` and terminates startup immediately.
+  - **2. Multi-Tenant Authorization & IDOR Elimination**:
+    - Implemented centralized `resolveUserCompanyId(user, companyId)` and `verifyCompanyWorkspaceAccess(user, companyId)`.
+    - Applied strict tenant authorization across all endpoints:
+      - Revenue attribution (`/api/revenue-attribution`)
+      - Integration management (`/api/integrations`, `/api/integrations/save`, `/api/integrations/:provider`, `/api/integrations/test`)
+      - Campaign management (`/api/campaigns/internal`, `/api/campaigns/external`, `/api/campaigns/link`)
+      - WhatsApp & Meta messaging (`/api/whatsapp/*`, `/api/meta/*`)
+      - Autonomous Engine (`/api/autonomous/*`)
+      - Custom domains (`/api/companies/:id/domains/*`)
+    - Guaranteed that unauthorized requests receive 400, 403, or 404 rather than silently defaulting to `companies[0]`.
+  - **3. Integration Lifecycle State Machine**:
+    - Explicit lifecycle states: `not_configured`, `saved`, `testing`, `verified`, `connected`, `disconnected`, `error`.
+    - Saving credentials sets status to `saved` (or `not_configured`), never `verified` or `connected` without a real provider test.
+    - Verified status requires an actual live provider test handshake.
+    - Credentials are redacted with masking on frontend retrieval.
+  - **4. Mandatory Webhook Signature Verification**:
+    - Enforced mandatory HMAC-SHA256 signature verification for WhatsApp/Meta webhooks in production mode.
+    - Rejects webhook payloads if `META_APP_SECRET` is missing in production.
+  - **5. Automated Testing**:
+    - Added `test/phase1SecurityHardening.test.ts` to `npm test`.
+    - 11/11 test suites passing (68/68 tests passing with 100% success rate).
+- **Validation**:
+  - `npm test`: Passed (11 test suites passing).
+  - `npm run lint`: Passed (`tsc --noEmit` 0 errors).
+  - `compile_applet`: Build succeeded.
+
+## Previous Phase: Phase 0 — Consolidation & Canonical Architecture
 - **Completed in this Phase**:
   - **Forensic Audit of Legacy Score**:
     - Identified static/hardcoded scores (e.g., fixed `overall: 88` in `initialGrowthScore` and fixed fallbacks in modal/views).
