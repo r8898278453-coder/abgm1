@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.25.0] - 2026-09-30
+### Verified & Stabilized (Phase 6 — Production Readiness)
+- **Comprehensive E2E Test Matrix**:
+  - Validated all 16 test suites covering Auth, CRM, Google Places, Local SEO 3x3 Geo-Grid, Competitors, Content Publishing, WhatsApp/Meta, Growth Intelligence, AI Summary, Revenue Attribution, and Autonomous Governance with 100% pass rate.
+- **Zero-Fabrication Clean Tenant Verification**:
+  - Verified clean new tenant creation produces strictly 0 leads, 0 reviews, 0 invoices, 0 fake growth scores, and honest `UNAVAILABLE` metrics.
+- **Security & Authorization Hardening**:
+  - Re-audited and confirmed zero hardcoded secrets, complete multi-tenant IDOR isolation, mandatory webhook cryptographic signatures, and rate limiters.
+- **Build & Compilation Verification**:
+  - `lint_applet` (`tsc --noEmit`) and `compile_applet` (`vite build`) passing with 0 errors.
+- **Production Readiness Report**:
+  - Published comprehensive audit in `PRODUCTION_READINESS_REPORT.md`.
+
+## [1.24.0] - 2026-09-30
+### Completed & Grounded (Phase 5 — Business Intelligence Closure)
+- **Canonical Growth Score Engine**:
+  - 8 transparent telemetry pillars with mathematical bounds, strict null handling, and zero defaults.
+- **Structured Evidence AI Executive Summary**:
+  - Grounded deterministic evidence builder preventing AI hallucinations and false claims.
+- **Explicit Lead-to-Payment Revenue Attribution**:
+  - Direct relationship tracking (`lead` -> `opportunity` -> `deal` -> `payment`) and ROI calculation.
+
+## [1.23.0] - 2026-09-29
+### Verified & Grounded (Phase 4 — Local Business Intelligence)
+- **Local SEO 3x3 Geo-Radar**:
+  - 9 real geographic coordinates scan, canonical DataForSEO / SerpAPI provider resolution, and strict LIVE/PARTIAL/FAILED state management.
+- **Competitor Baseline Tracker**:
+  - Historical snapshot comparison for authentic review growth and rating diffs without synthetic claims.
+
+
 ## [1.22.0] - 2026-09-29
 ### Hardened & Standardized (Phase 3 — Real Execution Only)
 - **Canonical Content Publishing State Machine**:

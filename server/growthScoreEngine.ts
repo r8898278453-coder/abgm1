@@ -17,6 +17,7 @@ export interface PillarScoreTelemetry {
   status: 'LIVE' | 'VERIFIED' | 'CALCULATED' | 'INCOMPLETE_DATA' | 'UNAVAILABLE' | 'USER_ENTERED';
   inputValues: Record<string, any>;
   formula: string;
+  source: string;
   timestamp: string;
   notes?: string;
 }
@@ -111,6 +112,7 @@ export function calculateGrowthIntelligenceScore(
     status: googleProfileStatus,
     inputValues: googleProfileInputs,
     formula: googleProfileFormula,
+    source: isGoogleConnected ? 'Google Places API' : 'Business Profile Configuration',
     timestamp: nowIso,
     notes:
       googleProfileScore === null
@@ -176,6 +178,7 @@ export function calculateGrowthIntelligenceScore(
       calculatedAverageRank: avgRank !== null ? Number(avgRank.toFixed(2)) : null,
     },
     formula: localSeoFormula,
+    source: validObsPositions.length > 0 ? 'Local SEO Geo-Radar (3x3 Scan)' : 'Keyword Rank Tracker',
     timestamp: nowIso,
     notes:
       localSeoScore === null
@@ -212,6 +215,7 @@ export function calculateGrowthIntelligenceScore(
       fiveStarCount: reviews.filter((r) => r.rating >= 5).length,
     },
     formula: reviewsFormula,
+    source: isGoogleConnected ? 'Google Places API' : 'MySQL Reviews Database',
     timestamp: nowIso,
     notes:
       reviewsScore === null ? 'No customer reviews recorded in database' : undefined,
@@ -246,6 +250,7 @@ export function calculateGrowthIntelligenceScore(
           : null,
     },
     formula: engagementFormula,
+    source: 'Reputation Management Queue',
     timestamp: nowIso,
     notes:
       customerEngagementScore === null
@@ -286,6 +291,7 @@ export function calculateGrowthIntelligenceScore(
       unresolvedAuditIssues,
     },
     formula: websiteFormula,
+    source: isDomainVerified ? 'DNS Verification Gateway' : 'Business Profile Configuration',
     timestamp: nowIso,
     notes:
       websiteScore === null
@@ -323,6 +329,7 @@ export function calculateGrowthIntelligenceScore(
       draftCount: posts.filter((p) => p.status === 'draft').length,
     },
     formula: contentFormula,
+    source: 'Content Studio Database & Scheduler',
     timestamp: nowIso,
     notes:
       contentScore === null
@@ -369,6 +376,7 @@ export function calculateGrowthIntelligenceScore(
         qualifiedLeads > 0 ? Math.round((wonLeads / qualifiedLeads) * 100) : null,
     },
     formula: leadFormula,
+    source: 'CRM Leads Database',
     timestamp: nowIso,
     notes:
       leadConversionScore === null ? 'No leads recorded in CRM pipeline' : undefined,
@@ -405,6 +413,7 @@ export function calculateGrowthIntelligenceScore(
       campaignLeads,
     },
     formula: campaignFormula,
+    source: 'Campaigns Service & Meta Ads Adapter',
     timestamp: nowIso,
     notes:
       campaignScore === null

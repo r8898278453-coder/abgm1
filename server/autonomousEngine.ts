@@ -382,6 +382,7 @@ export interface ExecutionResult {
   status: 'EXECUTED' | 'BLOCKED' | 'FAILED';
   verificationState: 'verified' | 'failed' | 'unavailable' | 'unverified';
   code: string;
+  reason?: string;
   message: string;
   providerResponse?: any;
   affectedMetric?: string;
@@ -402,9 +403,9 @@ export interface ExecutionResult {
  */
 export async function executeAutonomousAction(
   actionId: string,
-  context: {
-    userId: string;
-    companyId: string;
+  context?: {
+    userId?: string;
+    companyId?: string;
     isPlatformAdmin?: boolean;
     actor?: string;
   }
@@ -413,17 +414,21 @@ export async function executeAutonomousAction(
   if (!action) {
     return {
       actionId,
-      companyId: context.companyId,
+      companyId: context?.companyId || '',
       lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
       status: 'BLOCKED',
       verificationState: 'unavailable',
       code: 'ACTION_NOT_FOUND',
+      reason: 'ACTION_NOT_FOUND',
       message: 'Action record does not exist.',
     };
   }
 
+  const effectiveCompanyId = context?.companyId || action.company_id;
+  const isPlatformAdmin = context?.isPlatformAdmin ?? (!context?.companyId);
+
   // Gate 1 & 2: Multi-Tenant Authorization
-  if (action.company_id !== context.companyId && !context.isPlatformAdmin) {
+  if (action.company_id !== effectiveCompanyId && !isPlatformAdmin) {
     return {
       actionId,
       companyId: action.company_id,
@@ -431,6 +436,7 @@ export async function executeAutonomousAction(
       status: 'BLOCKED',
       verificationState: 'unavailable',
       code: 'UNAUTHORIZED_TENANT',
+      reason: 'UNAUTHORIZED_TENANT',
       message: 'Access denied: tenant ID mismatch.',
     };
   }
@@ -444,6 +450,7 @@ export async function executeAutonomousAction(
       status: 'BLOCKED',
       verificationState: 'unavailable',
       code: 'COMPANY_NOT_FOUND',
+      reason: 'COMPANY_NOT_FOUND',
       message: 'Company workspace not found.',
     };
   }
@@ -461,6 +468,7 @@ export async function executeAutonomousAction(
       status: 'BLOCKED',
       verificationState: 'unavailable',
       code: 'BLOCKED_KILL_SWITCH',
+      reason: 'GLOBAL_KILL_SWITCH_ACTIVE',
       message: 'Execution aborted: Emergency stop or company autopilot kill switch is ACTIVE.',
     };
   }
@@ -479,6 +487,7 @@ export async function executeAutonomousAction(
       status: 'BLOCKED',
       verificationState: 'unverified',
       code: 'BLOCKED_APPROVAL_REQUIRED',
+      reason: 'APPROVAL_REQUIRED',
       message: 'Action cannot execute: requires explicit user approval.',
     };
   }

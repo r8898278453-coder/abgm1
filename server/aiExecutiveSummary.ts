@@ -18,6 +18,7 @@ export type EvidenceStatus =
   | 'UNAVAILABLE';
 
 export interface StructuredEvidenceItem {
+  evidenceId: string;
   metric: string;
   value: string | number | boolean | null;
   source: string;
@@ -65,6 +66,7 @@ export function buildStructuredEvidence(
 
   // 1. Google Business Profile & Connection
   evidence.push({
+    evidenceId: 'ev_google_business_connection',
     metric: 'Google Business Connection',
     value: isGoogleConnected ? 'Connected' : 'Disconnected',
     source: isGoogleConnected ? 'Google Business API' : 'Business Profile Configuration',
@@ -93,6 +95,7 @@ export function buildStructuredEvidence(
       : 'USER_ENTERED';
 
     evidence.push({
+      evidenceId: 'ev_reviews_count',
       metric: 'Google reviews count',
       value: totalReviews,
       source: isGoogleConnected ? 'Google Places Provider' : 'Reputation Database',
@@ -101,6 +104,7 @@ export function buildStructuredEvidence(
     });
 
     evidence.push({
+      evidenceId: 'ev_reviews_avg_rating',
       metric: 'Average customer rating',
       value: avgRating,
       source: isGoogleConnected ? 'Google Places Provider' : 'Reputation Database',
@@ -109,6 +113,7 @@ export function buildStructuredEvidence(
     });
 
     evidence.push({
+      evidenceId: 'ev_reviews_unanswered',
       metric: 'Unanswered reviews awaiting reply',
       value: unrepliedCount,
       source: 'Reputation Management Queue',
@@ -117,6 +122,7 @@ export function buildStructuredEvidence(
     });
 
     evidence.push({
+      evidenceId: 'ev_reviews_positive_sentiment',
       metric: 'Positive sentiment ratio',
       value: `${positiveSentimentPct}%`,
       source: 'Reputation Sentiment Analyzer',
@@ -125,6 +131,7 @@ export function buildStructuredEvidence(
     });
   } else {
     evidence.push({
+      evidenceId: 'ev_reviews_count',
       metric: 'Google reviews count',
       value: null,
       source: 'Google Places Provider',
@@ -133,6 +140,7 @@ export function buildStructuredEvidence(
       notes: 'No customer reviews synced or logged yet',
     });
     evidence.push({
+      evidenceId: 'ev_reviews_avg_rating',
       metric: 'Average customer rating',
       value: null,
       source: 'Google Places Provider',
@@ -152,6 +160,7 @@ export function buildStructuredEvidence(
     const leadStatus: EvidenceStatus = isDemo ? 'DEMO' : 'VERIFIED';
 
     evidence.push({
+      evidenceId: 'ev_leads_total',
       metric: 'Total CRM leads',
       value: totalLeads,
       source: 'MySQL CRM Leads Database',
@@ -160,6 +169,7 @@ export function buildStructuredEvidence(
     });
 
     evidence.push({
+      evidenceId: 'ev_leads_new_inquiries',
       metric: 'New uncontacted inquiries',
       value: newLeads,
       source: 'MySQL CRM Leads Database',
@@ -168,6 +178,7 @@ export function buildStructuredEvidence(
     });
 
     evidence.push({
+      evidenceId: 'ev_leads_won_clients',
       metric: 'Closed / Won clients',
       value: wonLeads,
       source: 'MySQL CRM Leads Database',
@@ -176,6 +187,7 @@ export function buildStructuredEvidence(
     });
   } else {
     evidence.push({
+      evidenceId: 'ev_leads_total',
       metric: 'Total CRM leads',
       value: null,
       source: 'MySQL CRM Leads Database',
@@ -194,6 +206,7 @@ export function buildStructuredEvidence(
   if (validRankPositions.length > 0) {
     const topRank = Math.min(...validRankPositions);
     evidence.push({
+      evidenceId: 'ev_seo_local_rank',
       metric: 'Local Map Pack rank',
       value: `#${topRank}`,
       source: 'Local SEO Geo-Radar Observations (MySQL)',
@@ -201,6 +214,7 @@ export function buildStructuredEvidence(
       status: isDemo ? 'DEMO' : 'VERIFIED',
     });
     evidence.push({
+      evidenceId: 'ev_seo_grid_nodes',
       metric: 'Geo-grid observation points',
       value: validRankPositions.length,
       source: 'Local SEO Geo-Radar Provider',
@@ -209,6 +223,7 @@ export function buildStructuredEvidence(
     });
   } else {
     evidence.push({
+      evidenceId: 'ev_seo_local_rank',
       metric: 'Local Map Pack rank',
       value: null,
       source: 'Local SEO Geo-Radar Provider',
@@ -225,6 +240,7 @@ export function buildStructuredEvidence(
     const scheduledPosts = posts.filter((p) => p.status === 'scheduled');
 
     evidence.push({
+      evidenceId: 'ev_content_published_posts',
       metric: 'Published social & Google posts',
       value: publishedPosts.length,
       source: 'Content Studio Database',
@@ -234,6 +250,7 @@ export function buildStructuredEvidence(
 
     if (scheduledPosts.length > 0) {
       evidence.push({
+        evidenceId: 'ev_content_scheduled_posts',
         metric: 'Scheduled posts awaiting dispatch',
         value: scheduledPosts.length,
         source: 'Content Studio Scheduler',
@@ -243,6 +260,7 @@ export function buildStructuredEvidence(
     }
   } else {
     evidence.push({
+      evidenceId: 'ev_content_published_posts',
       metric: 'Published social & Google posts',
       value: null,
       source: 'Content Studio Database',
@@ -256,6 +274,7 @@ export function buildStructuredEvidence(
   const growthScore = inputs.growthScore;
   if (growthScore && growthScore.overall !== null && growthScore.status !== 'UNAVAILABLE') {
     evidence.push({
+      evidenceId: 'ev_growth_composite_score',
       metric: 'Composite Growth Intelligence Score',
       value: `${growthScore.overall}/100`,
       source: 'Centralized Growth Intelligence Engine',
@@ -264,6 +283,7 @@ export function buildStructuredEvidence(
     });
   } else {
     evidence.push({
+      evidenceId: 'ev_growth_composite_score',
       metric: 'Composite Growth Intelligence Score',
       value: null,
       source: 'Centralized Growth Intelligence Engine',
@@ -276,6 +296,7 @@ export function buildStructuredEvidence(
   // 7. Website & Custom Domain
   if (inputs.customDomainVerified) {
     evidence.push({
+      evidenceId: 'ev_website_custom_domain',
       metric: 'Custom domain DNS verification',
       value: 'Verified',
       source: 'Node.js DNS Verification Resolver',
@@ -284,6 +305,7 @@ export function buildStructuredEvidence(
     });
   } else if (profile?.website) {
     evidence.push({
+      evidenceId: 'ev_website_url',
       metric: 'Business website URL',
       value: profile.website,
       source: 'Business Profile Configuration',
@@ -292,6 +314,7 @@ export function buildStructuredEvidence(
     });
   } else {
     evidence.push({
+      evidenceId: 'ev_website_custom_domain',
       metric: 'Custom domain DNS verification',
       value: null,
       source: 'Node.js DNS Verification Resolver',

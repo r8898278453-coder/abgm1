@@ -405,23 +405,30 @@ export function calculateRevenueAttribution(
     payingCustomerIdentifiers.add(customerKey);
 
     // Attribute payment to source
+    // Priority 1: Explicit direct relationship: lead -> opportunity -> deal -> payment
     let matchedSource: SupportedSource = 'Unknown';
 
-    // Check phone match against lead index
-    const cleanPhone = invoice.customer_phone?.replace(/[^0-9]/g, '');
-    const cleanEmail = invoice.customer_email?.toLowerCase().trim();
-
-    if (cleanPhone && leadSourceMap.has(cleanPhone)) {
-      matchedSource = leadSourceMap.get(cleanPhone)!;
-    } else if (cleanEmail && leadSourceMap.has(cleanEmail)) {
-      matchedSource = leadSourceMap.get(cleanEmail)!;
-    } else if (invoice.plan && invoice.plan.toLowerCase().includes('google')) {
-      matchedSource = 'Google';
-    } else if (invoice.payment_method && invoice.payment_method.toLowerCase().includes('whatsapp')) {
-      matchedSource = 'WhatsApp';
+    if (invoice.lead_id && leadSourceMap.has(invoice.lead_id)) {
+      matchedSource = leadSourceMap.get(invoice.lead_id)!;
+    } else if (invoice.deal_id && leadSourceMap.has(invoice.deal_id)) {
+      matchedSource = leadSourceMap.get(invoice.deal_id)!;
     } else {
-      // If payment cannot be deterministically matched to a source: strictly 'Unknown'
-      matchedSource = 'Unknown';
+      // Priority 2: Exact phone or email match against CRM lead index
+      const cleanPhone = invoice.customer_phone?.replace(/[^0-9]/g, '');
+      const cleanEmail = invoice.customer_email?.toLowerCase().trim();
+
+      if (cleanPhone && leadSourceMap.has(cleanPhone)) {
+        matchedSource = leadSourceMap.get(cleanPhone)!;
+      } else if (cleanEmail && leadSourceMap.has(cleanEmail)) {
+        matchedSource = leadSourceMap.get(cleanEmail)!;
+      } else if (invoice.plan && invoice.plan.toLowerCase().includes('google')) {
+        matchedSource = 'Google';
+      } else if (invoice.payment_method && invoice.payment_method.toLowerCase().includes('whatsapp')) {
+        matchedSource = 'WhatsApp';
+      } else {
+        // If payment cannot be deterministically matched to a source: strictly 'Unknown'
+        matchedSource = 'Unknown';
+      }
     }
 
     sourceBuckets[matchedSource].revenue += amount;

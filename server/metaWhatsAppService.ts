@@ -228,6 +228,17 @@ export function verifyWhatsAppWebhookSignature(options: {
   }
 }
 
+export function verifyMetaWebhookSignature(
+  rawBody: string | Buffer,
+  signature?: string,
+  appSecret?: string
+): boolean {
+  const res = verifyWhatsAppWebhookSignature({ rawBody, signature, appSecret });
+  return res.isValid;
+}
+
+export { isWebhookEventProcessed, markWebhookEventProcessed } from './billingService';
+
 /**
  * Validates Meta Webhook handshake (GET challenge request).
  */

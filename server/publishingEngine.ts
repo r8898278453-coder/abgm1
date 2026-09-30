@@ -6,6 +6,7 @@ import {
   updatePublishingRecord,
   getLatestPublishingRecord,
   isPostAlreadyPublished,
+  getPostById,
   updateContentPostStatus,
   getCompanyById,
   getDefaultCompanyId,
@@ -18,6 +19,8 @@ import {
   publishToInstagram,
   sendWhatsAppCloudMessage,
 } from './metaWhatsAppService';
+
+export { isPostAlreadyPublished };
 
 // In-flight publishing locks to prevent concurrent executions for the same post (Idempotency Mutex)
 const activePublishingLocks = new Set<string>();
@@ -38,6 +41,7 @@ export interface ProviderDispatchResult {
 export interface PublishingJobResult {
   postId: string;
   companyId: string;
+  status: 'PUBLISHED' | 'FAILED' | 'UNKNOWN' | 'SKIPPED_ALREADY_PUBLISHED' | 'IN_PROGRESS';
   overallStatus: 'PUBLISHED' | 'FAILED' | 'UNKNOWN' | 'SKIPPED_ALREADY_PUBLISHED' | 'IN_PROGRESS';
   finalPostStatus: DbContentPost['status'];
   platformResults: ProviderDispatchResult[];
@@ -376,9 +380,36 @@ async function dispatchPlatformWithRetry(
  * 4. Retries only for retryable errors.
  */
 export async function executePublishingJob(
-  post: DbContentPost,
+  postOrOptions: DbContentPost | { postId: string; companyId?: string; platform?: string; payload?: any; platforms?: string[] },
   options?: { force?: boolean; triggeredBy?: string }
 ): Promise<PublishingJobResult> {
+  let post: DbContentPost;
+  if ('postId' in postOrOptions && !('title' in postOrOptions)) {
+    const existing = await getPostById(postOrOptions.postId);
+    if (existing) {
+      post = {
+        ...existing,
+        platforms: postOrOptions.platform ? [postOrOptions.platform] : (postOrOptions.platforms || existing.platforms),
+        caption: postOrOptions.payload?.caption || existing.caption,
+        headline: postOrOptions.payload?.headline || existing.headline,
+      };
+    } else {
+      post = {
+        id: postOrOptions.postId,
+        company_id: postOrOptions.companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main',
+        title: 'Publishing Job',
+        type: 'general',
+        platforms: postOrOptions.platform ? [postOrOptions.platform] : (postOrOptions.platforms || ['facebook']),
+        channel: postOrOptions.platform || 'facebook',
+        caption: postOrOptions.payload?.caption || '',
+        headline: postOrOptions.payload?.headline || '',
+        status: 'scheduled',
+      };
+    }
+  } else {
+    post = postOrOptions as DbContentPost;
+  }
+
   const companyId = post.company_id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
   const idempotencyKey = `pub_${post.id}`;
 
@@ -387,6 +418,7 @@ export async function executePublishingJob(
     return {
       postId: post.id,
       companyId,
+      status: 'SKIPPED_ALREADY_PUBLISHED',
       overallStatus: 'SKIPPED_ALREADY_PUBLISHED',
       finalPostStatus: 'published',
       platformResults: [],
@@ -400,6 +432,7 @@ export async function executePublishingJob(
     return {
       postId: post.id,
       companyId,
+      status: 'IN_PROGRESS',
       overallStatus: 'IN_PROGRESS',
       finalPostStatus: post.status,
       platformResults: [],
@@ -471,6 +504,7 @@ export async function executePublishingJob(
     return {
       postId: post.id,
       companyId,
+      status: overallJobStatus,
       overallStatus: overallJobStatus,
       finalPostStatus: finalStatus,
       platformResults,

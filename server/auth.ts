@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import express from 'express';
-import { findUserById, DbUser } from './db';
+import { findUserById, DbUser, verifyPassword, hashPassword, PBKDF2_ITERATIONS } from './db';
+
+export { verifyPassword, hashPassword, PBKDF2_ITERATIONS };
 
 // Enterprise JWT / HMAC-SHA256 Security Configuration
 // Enforces strict secret requirement in production mode with fail-fast validation.

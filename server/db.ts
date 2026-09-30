@@ -148,6 +148,8 @@ export interface DbThemeHistory {
 export interface DbInvoice {
   id: string;
   company_id: string;
+  lead_id?: string;
+  deal_id?: string;
   date: string;
   plan: string;
   amount: number;
@@ -1574,6 +1576,9 @@ export async function findUserById(id: string): Promise<DbUser | null> {
   const memUser = inMemoryUsers.find((u) => u.id === id);
   return memUser ? { ...memUser, is_platform_admin: Boolean(memUser.is_platform_admin) } : null;
 }
+
+export const getUserByEmail = findUserByEmail;
+export const getUserById = findUserById;
 
 export async function createUser(data: {
   email: string;
@@ -3616,6 +3621,8 @@ export async function createInvoice(invoice: Partial<DbInvoice> & { company_id: 
   const newInvoice: DbInvoice = {
     id: invoiceId,
     company_id: invoice.company_id,
+    lead_id: invoice.lead_id,
+    deal_id: invoice.deal_id,
     date: dateFormatted,
     plan: invoice.plan || 'Growth Tier (Monthly)',
     amount: baseAmount,
@@ -4523,17 +4530,19 @@ export async function getLatestCompetitorObservations(companyId: string): Promis
 export async function getCompetitorHistoricalBaseline(
   companyId: string,
   competitorId: string
-): Promise<{ latest: DbCompetitorObservation | null; previous: DbCompetitorObservation | null }> {
+): Promise<{ latest: DbCompetitorObservation | null; current: DbCompetitorObservation | null; previous: DbCompetitorObservation | null }> {
   try {
     const history = await getCompetitorObservationHistory(companyId, competitorId, 5);
     if (history.length >= 2) {
       return {
         latest: history[0],
+        current: history[0],
         previous: history[1],
       };
     } else if (history.length === 1) {
       return {
         latest: history[0],
+        current: history[0],
         previous: null,
       };
     }
@@ -4543,6 +4552,7 @@ export async function getCompetitorHistoricalBaseline(
 
   return {
     latest: null,
+    current: null,
     previous: null,
   };
 }

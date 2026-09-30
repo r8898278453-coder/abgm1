@@ -96,6 +96,7 @@ export interface PillarScoreTelemetry {
   status: 'LIVE' | 'VERIFIED' | 'CALCULATED' | 'INCOMPLETE_DATA' | 'UNAVAILABLE' | 'USER_ENTERED';
   inputValues: Record<string, any>;
   formula: string;
+  source?: string;
   timestamp: string;
   notes?: string;
 }
