@@ -754,8 +754,8 @@ export const defaultSeedPosts: DbContentPost[] = [
     hashtags: ['#AaditechSolution', '#WebDevelopment', '#AppDeveloperMumbai', '#LocalSEO', '#BusinessGrowth'],
     image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
     status: 'scheduled',
-    scheduled_date: '2026-09-06',
-    scheduled_time: '2026-09-06 10:30:00',
+    scheduled_date: '2026-10-06',
+    scheduled_time: '2026-10-06 10:30:00',
     time_slot: '10:30 AM',
     reel_script: [
       { scene: '0-4s', visual: 'Business owner overwhelmed by messy paper registers and manual customer inquiries', audio: 'Still managing your business customer inquiries manually in 2026?' },
@@ -793,8 +793,8 @@ export const defaultSeedPosts: DbContentPost[] = [
     hashtags: ['#WebsiteAudit', '#SmallBusinessIndia', '#AaditechSolution', '#TechTips'],
     image_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
     status: 'scheduled',
-    scheduled_date: '2026-09-08',
-    scheduled_time: '2026-09-08 17:00:00',
+    scheduled_date: '2026-10-08',
+    scheduled_time: '2026-10-08 17:00:00',
     time_slot: '5:00 PM',
   },
 ];
