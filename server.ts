@@ -25,6 +25,7 @@ import {
   getUserCompanies,
   getCompanyById,
   createCompany,
+  findCompanyByPublicFormToken,
   getCompanyDataPayload,
   saveCompanyDataPayload,
   getDbStatus,
@@ -4557,7 +4558,88 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
-// Ingest new lead from Website Contact Form, Google 3-Pack Call, or Meta Ads Webhook (Protected with Rate Limiting, Zod Validation & Company Linking)
+// Public Lead Ingestion Endpoint (With Token Validation, Honeypot Anti-Spam & Rate Limiting)
+app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req, res) => {
+  try {
+    // 1. Honeypot check
+    if (req.body._hp || req.body.website_url_hp || req.body._gotcha) {
+      // Silently drop bot submission
+      res.status(200).json({ success: true, message: 'Inquiry received' });
+      return;
+    }
+
+    const { name, company, phone, email, service, budget, source, notes, form_token, formToken, publicFormToken, token } = req.body;
+    const providedToken = form_token || formToken || publicFormToken || token;
+
+    if (!name || !phone) {
+      res.status(400).json({ success: false, error: 'Name and phone number are required' });
+      return;
+    }
+
+    let targetCompany: DbCompany | null = null;
+
+    if (providedToken) {
+      targetCompany = await findCompanyByPublicFormToken(String(providedToken).trim());
+    }
+
+    const companyIdParam = req.body.company_id || req.body.companyId;
+    if (!targetCompany && companyIdParam) {
+      const directComp = await getCompanyById(String(companyIdParam).trim());
+      // If company found and token matches (or token is verified)
+      if (directComp && (!directComp.public_form_token || directComp.public_form_token === providedToken)) {
+        targetCompany = directComp;
+      }
+    }
+
+    if (!targetCompany) {
+      // If still not resolved, try default company if available
+      const defaultId = await getDefaultCompanyId();
+      if (defaultId) {
+        targetCompany = await getCompanyById(defaultId);
+      }
+    }
+
+    if (!targetCompany) {
+      res.status(400).json({ success: false, error: 'Valid company form token or company ID is required to submit inquiries.' });
+      return;
+    }
+
+    const intentAnalysis = calculateMessageIntent(notes || service || '', {
+      service,
+      budget,
+      phone,
+      email,
+    });
+
+    const compName = targetCompany.name || 'Our Team';
+    const compPhone = targetCompany.phone || '';
+
+    const newLead = await createLead({
+      company_id: targetCompany.id,
+      name: String(name).trim(),
+      company: company ? String(company).trim() : 'Direct Client',
+      phone: String(phone).trim(),
+      email: email ? String(email).trim() : '',
+      service: service ? String(service).trim() : 'Inquiry',
+      budget: budget ? String(budget).trim() : 'Custom Proposal',
+      stage: 'new',
+      intent_score: intentAnalysis.score ?? 50,
+      source: source ? String(source).trim() : `${targetCompany.name} Web Form`,
+      notes: notes ? String(notes).trim() : '',
+      ai_suggested_reply: `Namaste ${name}! Thank you for contacting ${compName}. We have received your inquiry for ${service || 'our services'}. Our team will connect with you shortly.`,
+    });
+
+    // Auto-dispatch Telegram alert
+    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!*\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score}%\n\n📱 *Source:* ${newLead.source}`;
+    sendTelegramPushAlert(alertMsg).catch(() => {});
+
+    res.status(201).json({ success: true, lead: newLead });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to submit lead' });
+  }
+});
+
+// Authenticated Lead Ingestion & Internal CRM Lead Management
 app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (req, res) => {
   try {
     const { name, company, phone, email, service, budget, source, notes, stage } = req.body;
@@ -4571,21 +4653,30 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
         if (targetCompanyId) {
           const userOwnsCompany = userCompanies.some((c) => c.id === targetCompanyId) || authUser.is_platform_admin;
           if (!userOwnsCompany) {
-            // Re-bind to user's first company to prevent cross-tenant leakage
             targetCompanyId = userCompanies[0].id;
           }
         } else {
           targetCompanyId = userCompanies[0].id;
         }
       }
+    } else {
+      // Unauthenticated caller must provide valid token or use public endpoint
+      const formToken = req.body.form_token || req.body.formToken || req.body.publicFormToken;
+      if (formToken) {
+        const comp = await findCompanyByPublicFormToken(String(formToken).trim());
+        if (comp) {
+          targetCompanyId = comp.id;
+        }
+      }
+      if (!targetCompanyId) {
+        targetCompanyId = (await getDefaultCompanyId()) || undefined;
+      }
     }
 
-    // 2. If unauthenticated public contact form or external webhook, resolve to specified or default company
-    if (!targetCompanyId) {
-      targetCompanyId = (await getDefaultCompanyId()) || undefined;
-    }
+    const targetComp = targetCompanyId ? await getCompanyById(targetCompanyId) : null;
+    const compName = targetComp?.name || company || 'Our Team';
 
-    const intentAnalysis = calculateMessageIntent(notes || service, {
+    const intentAnalysis = calculateMessageIntent(notes || service || '', {
       service,
       budget,
       phone,
@@ -4598,19 +4689,17 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
       company: company || 'Direct Client',
       phone,
       email: email || '',
-      service: service || 'IT & Digital Growth Services',
+      service: service || 'Digital Growth Inquiry',
       budget: budget || 'Custom Proposal',
       stage: stage || 'new',
       intent_score: intentAnalysis.score ?? 50,
-      source: source || 'bga.aaditechs.in Form',
+      source: source || `${compName} Lead Form`,
       notes: notes || '',
-      ai_suggested_reply: `Namaste ${name}! Aaditech Solution (bga.aaditechs.in) has received your inquiry for ${service || 'our tech solutions'}. Our senior consultant will connect with you on WhatsApp shortly.`,
+      ai_suggested_reply: `Namaste ${name}! Thank you for contacting ${compName}. We have received your inquiry for ${service || 'our services'}. Our team will connect with you shortly.`,
     });
 
-    // Auto-dispatch real Telegram alert to Owner's Phone if configured
-    const targetComp = newLead.company_id ? await getCompanyById(newLead.company_id) : null;
-    const targetCompName = targetComp?.name || newLead.company || 'Aaditech Client';
-    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!* (${newLead.source})\n\n🏢 *Target Business:* ${targetCompName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score}%\n\n📱 *Platform:* bga.aaditechs.in`;
+    // Auto-dispatch Telegram alert
+    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!* (${newLead.source})\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score}%\n\n📱 *Source:* ${newLead.source}`;
     sendTelegramPushAlert(alertMsg).catch(() => {});
 
     res.status(201).json({ success: true, lead: newLead });

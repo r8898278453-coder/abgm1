@@ -23,8 +23,9 @@ export interface DbCompany {
   website?: string;
   google_place_id?: string;
   autopilot_enabled: boolean;
-  score: number;
-  rank_position?: number;
+  score?: number | null;
+  rank_position?: number | null;
+  public_form_token?: string | null;
   created_at?: string;
 }
 
@@ -365,150 +366,19 @@ const inMemoryPublishingRecords: DbPublishingRecord[] = [];
 const inMemoryAutonomousRecommendations: DbAutonomousRecommendation[] = [];
 const inMemoryAutonomousActions: DbAutonomousAction[] = [];
 const inMemoryAutonomousAuditLogs: DbAutonomousAuditLog[] = [];
-
-const inMemoryInternalCampaigns: DbInternalCampaign[] = [
-  {
-    id: 'camp_1',
-    company_id: 'comp_aaditech_main',
-    name: 'Mumbai MMR Business Digitalization Drive',
-    objective: 'Generate qualified inquiries for custom websites & Android apps',
-    status: 'active',
-    start_date: '2026-08-20',
-    end_date: '2026-09-25',
-    planned_budget: 25000,
-    channels: ['Google Search', 'LinkedIn Sponsored', 'WhatsApp Broadcasts'],
-    external_campaign_id: null,
-    created_at: '2026-08-20T00:00:00.000Z',
-    updated_at: '2026-08-20T00:00:00.000Z',
-  },
-  {
-    id: 'camp_2',
-    company_id: 'comp_aaditech_main',
-    name: 'Google 3-Pack Local Dominance Accelerator',
-    objective: 'Attract doctors, retail owners & service providers for Local SEO',
-    status: 'active',
-    start_date: '2026-08-28',
-    end_date: '2026-09-30',
-    planned_budget: 16000,
-    channels: ['Google Business Profile', 'Meta Video Ads'],
-    external_campaign_id: null,
-    created_at: '2026-08-28T00:00:00.000Z',
-    updated_at: '2026-08-28T00:00:00.000Z',
-  },
-];
-
+const inMemoryInternalCampaigns: DbInternalCampaign[] = [];
 const inMemoryExternalAdCampaigns: DbExternalAdCampaign[] = [];
+const inMemoryCustomDomains: DbCustomDomain[] = [];
+const inMemoryWebsiteConfigs: DbWebsiteConfig[] = [];
+const inMemoryInvoices: DbInvoice[] = [];
+const inMemorySubscriptions: DbSubscription[] = [];
 
-const inMemoryCustomDomains: DbCustomDomain[] = [
-  {
-    id: 'dom_bga_aaditechs',
-    company_id: 'comp_aaditech_main',
-    domain: 'bga.aaditechs.in',
-    status: 'active',
-    ssl_status: 'active',
-    cname_target: 'cname.bga.aaditechs.in',
-    a_record_target: '77.37.54.108',
-    dns_txt_record: 'bga-site-verification=aaditech_main_prod_2026',
-    verified_at: '2026-09-01T00:00:00.000Z',
-    created_at: '2026-09-01T00:00:00.000Z',
-    updated_at: '2026-09-01T00:00:00.000Z',
-  },
-];
-
-const inMemoryWebsiteConfigs: DbWebsiteConfig[] = [
-  {
-    id: 'web_aaditech_main',
-    company_id: 'comp_aaditech_main',
-    subdomain: 'aaditech',
-    primary_color: '#4f46e5',
-    secondary_color: '#06b6d4',
-    tagline: 'Autonomous AI Growth Engine & Local SEO Authority',
-    hero_title: 'Aaditech Solution - Official Services Hub',
-    hero_subtitle: 'Trusted Professional Solutions serving clients across Thane, Mumbai MMR & Navi Mumbai with guaranteed satisfaction.',
-    meta_description: 'Official storefront and local SEO hub for Aaditech Solution Private Limited.',
-    keywords: 'local seo, it services, software development, thane, mumbai',
-    enable_whatsapp_cta: true,
-    enable_direct_call_cta: true,
-    enable_inquiry_form: true,
-    created_at: '2026-09-01T00:00:00.000Z',
-    updated_at: '2026-09-01T00:00:00.000Z',
-  },
-];
-
-const inMemoryInvoices: DbInvoice[] = [
-  {
-    id: 'INV-2026-0901',
-    company_id: 'comp_aaditech_main',
-    date: '2026-09-01',
-    plan: 'Growth Tier (Monthly)',
-    amount: 799.00,
-    gst_amount: 143.82,
-    total_amount: 942.82,
-    payment_method: 'UPI / Razorpay (r8898278453@okaxis)',
-    payment_id: 'pay_RzpGrowthSep26',
-    order_id: 'order_RzpGwt901',
-    customer_name: 'Aaditech Solution Private Limited',
-    customer_email: 'info@aaditechs.in',
-    customer_phone: '+91 22 4963 8603',
-    status: 'Paid',
-    hsn_code: '998314',
-    created_at: '2026-09-01T10:00:00.000Z',
-  },
-  {
-    id: 'INV-2026-0801',
-    company_id: 'comp_aaditech_main',
-    date: '2026-08-01',
-    plan: 'Growth Tier (Monthly)',
-    amount: 799.00,
-    gst_amount: 143.82,
-    total_amount: 942.82,
-    payment_method: 'UPI / Razorpay (r8898278453@okaxis)',
-    payment_id: 'pay_RzpGrowthAug26',
-    order_id: 'order_RzpGwt801',
-    customer_name: 'Aaditech Solution Private Limited',
-    customer_email: 'info@aaditechs.in',
-    customer_phone: '+91 22 4963 8603',
-    status: 'Paid',
-    hsn_code: '998314',
-    created_at: '2026-08-01T10:00:00.000Z',
-  },
-  {
-    id: 'INV-2026-0701',
-    company_id: 'comp_aaditech_main',
-    date: '2026-07-01',
-    plan: 'Starter Tier (Intro)',
-    amount: 499.00,
-    gst_amount: 89.82,
-    total_amount: 588.82,
-    payment_method: 'Net Banking (HDFC Bank)',
-    payment_id: 'pay_RzpStarterJul26',
-    order_id: 'order_RzpStr701',
-    customer_name: 'Aaditech Solution Private Limited',
-    customer_email: 'info@aaditechs.in',
-    customer_phone: '+91 22 4963 8603',
-    status: 'Paid',
-    hsn_code: '998314',
-    created_at: '2026-07-01T10:00:00.000Z',
-  },
-];
-
-const inMemorySubscriptions: DbSubscription[] = [
-  {
-    id: 'sub_aaditech_growth',
-    company_id: 'comp_aaditech_main',
-    plan_id: 'growth',
-    plan_name: 'Growth Tier',
-    status: 'active',
-    amount: 799.00,
-    billing_cycle: 'monthly',
-    current_period_start: '2026-09-01T00:00:00.000Z',
-    current_period_end: '2026-10-01T00:00:00.000Z',
-    created_at: '2026-07-01T10:00:00.000Z',
-    updated_at: '2026-09-01T10:00:00.000Z',
-  },
-];
+export function isProductionDatabaseMode(): boolean {
+  return process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+}
 
 export function handleDbError(context: string, err: any) {
+  const isProd = isProductionDatabaseMode();
   if (
     err?.code === 'ECONNREFUSED' ||
     err?.code === 'ETIMEDOUT' ||
@@ -527,11 +397,23 @@ export function handleDbError(context: string, err: any) {
       console.warn(`[Hostinger MySQL] Connection lost (${err?.message}). Running with resilient in-memory store.`);
       hasLoggedFailure = true;
     }
+    if (isProd) {
+      const prodErr: any = new Error(`DATABASE_UNAVAILABLE: Connection to database failed in production mode (${err?.message || context})`);
+      prodErr.code = 'DATABASE_UNAVAILABLE';
+      prodErr.status = 503;
+      throw prodErr;
+    }
     return;
   }
 
   if (isMySqlAvailable) {
     console.warn(`[${context}] MySQL error:`, err?.message);
+  }
+  if (isProd && err?.code && err.code !== 'ER_DUP_ENTRY') {
+    const prodErr: any = new Error(`DATABASE_OPERATION_FAILED: ${context} failed (${err?.message})`);
+    prodErr.code = err?.code || 'DATABASE_ERROR';
+    prodErr.status = 500;
+    throw prodErr;
   }
 }
 
@@ -644,163 +526,12 @@ function getInitialEnvAdmin(): DbUser[] {
 
 const inMemoryUsers: DbUser[] = getInitialEnvAdmin();
 
-const defaultSeedCompany: DbCompany = {
-  id: 'comp_aaditech_main',
-  user_id: 'usr_system_default',
-  name: 'Aaditech Solution',
-  legal_name: 'Aaditech Solution Private Limited',
-  category: 'IT Services, Software Development & Local SEO Growth Engine',
-  city: 'Thane - Mumbai MMR',
-  phone: '+91 22 4963 8603',
-  website: 'https://bga.aaditechs.in',
-  google_place_id: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
-  autopilot_enabled: true,
-  score: 82,
-  rank_position: 2,
-  created_at: new Date().toISOString(),
-};
-
-const inMemoryCompanies: DbCompany[] = [defaultSeedCompany];
+const inMemoryCompanies: DbCompany[] = [];
 const inMemoryCompanyData: Record<string, DbCompanyData> = {};
 const inMemoryLeads: DbLead[] = [];
 const inMemoryPasswordResetTokens: DbPasswordResetToken[] = [];
-
-export const defaultSeedReviews: DbReview[] = [
-  {
-    id: 'rev_1',
-    company_id: 'comp_aaditech_main',
-    author: 'Rajesh Singhania (Singhania Logistics)',
-    rating: 5,
-    date: '2026-09-03',
-    relative_time: 'Yesterday',
-    content: 'Aaditech Solution built our complete fleet tracking portal and dispatch software. Their team in Thane delivered within 4 weeks and provided seamless training. Super professional and responsive team!',
-    sentiment: 'positive',
-    topic: 'Custom Logistics Software & Fast Delivery',
-    is_operational_issue: false,
-    replied: false,
-    source: 'google',
-  },
-  {
-    id: 'rev_2',
-    company_id: 'comp_aaditech_main',
-    author: 'Dr. Neha Patwardhan (Patwardhan Dental Care)',
-    rating: 5,
-    date: '2026-09-02',
-    relative_time: '2 days ago',
-    content: 'They developed our clinic website and set up automated WhatsApp appointment booking. Within 3 weeks of their Local SEO work, our clinic is ranking #1 on Google Maps in our area. Huge boost in patient inquiries!',
-    sentiment: 'positive',
-    topic: 'Clinic Website, WhatsApp Booking & Local SEO',
-    is_operational_issue: false,
-    replied: false,
-    source: 'google',
-  },
-  {
-    id: 'rev_3',
-    company_id: 'comp_aaditech_main',
-    author: 'Kunal Gokhale (Apex Retailers)',
-    rating: 4,
-    date: '2026-09-01',
-    relative_time: '3 days ago',
-    content: 'Great experience with our e-commerce Android app development. App is fast and smooth. Took slightly longer for Google Play Store verification than expected, but Aaditech handled all compliance smoothly.',
-    sentiment: 'positive',
-    topic: 'Android App & Play Store Deployment',
-    is_operational_issue: false,
-    replied: false,
-    source: 'google',
-  },
-  {
-    id: 'rev_4',
-    company_id: 'comp_aaditech_main',
-    author: 'Sunil Nair (Nair Financial Consultancy)',
-    rating: 5,
-    date: '2026-08-30',
-    relative_time: '5 days ago',
-    content: 'Top-notch IT AMC and cloud server migration. Aaditech migrated our database to a secure cloud server with zero downtime. Reliable IT support in Mumbai MMR.',
-    sentiment: 'positive',
-    topic: 'Cloud Migration & IT Support',
-    is_operational_issue: false,
-    replied: true,
-    reply_text: 'Thank you Sunil ji! We are committed to keeping your financial data secure and your business infrastructure running at 99.9% uptime.',
-    reply_date: '2026-08-31',
-    source: 'google',
-  },
-  {
-    id: 'rev_5',
-    company_id: 'comp_aaditech_main',
-    author: 'Vikram Joshi (Joshi Engineering Works)',
-    rating: 3,
-    date: '2026-08-27',
-    relative_time: '8 days ago',
-    content: 'Website design is modern and clean. Minor delay during the initial revision phase, but final output is good.',
-    sentiment: 'neutral',
-    topic: 'Design Revisions & Timelines',
-    is_operational_issue: false,
-    replied: false,
-    source: 'google',
-  },
-];
-
-export const defaultSeedPosts: DbContentPost[] = [
-  {
-    id: 'post_1',
-    company_id: 'comp_aaditech_main',
-    title: 'Transform Your Business with Custom Web & Mobile App in 2026',
-    type: 'offer',
-    platforms: ['google', 'instagram', 'facebook', 'whatsapp'],
-    channel: 'google',
-    headline: '🚀 Upgrade Your Business with a High-Converting Website & Custom Android App!',
-    caption: 'Are outdated tools slowing down your business growth? 💻 At Aaditech Solution (aaditechs.in), we craft high-speed business websites, custom Android/iOS applications, and automated WhatsApp CRM solutions that convert visitors into loyal paying customers. Book your free IT consultation today!',
-    cta: 'Book Free Consultation on WhatsApp',
-    hashtags: ['#AaditechSolution', '#WebDevelopment', '#AppDeveloperMumbai', '#LocalSEO', '#BusinessGrowth'],
-    image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
-    status: 'scheduled',
-    scheduled_date: '2026-10-06',
-    scheduled_time: '2026-10-06 10:30:00',
-    time_slot: '10:30 AM',
-    reel_script: [
-      { scene: '0-4s', visual: 'Business owner overwhelmed by messy paper registers and manual customer inquiries', audio: 'Still managing your business customer inquiries manually in 2026?' },
-      { scene: '4-9s', visual: 'Smooth modern dashboard on laptop and sleek Android mobile app designed by Aaditech', audio: 'Automate your lead pipeline with a custom website and WhatsApp booking engine by Aaditech Solution.' },
-      { scene: '9-15s', visual: 'Happy business owner checking Google 3-Pack #1 ranking on smartphone', audio: 'Get your customized business technology stack today. Visit aaditechs.in or WhatsApp us!' },
-    ],
-  },
-  {
-    id: 'post_2',
-    company_id: 'comp_aaditech_main',
-    title: 'Google 3-Pack Dominance Case Study for Local Businesses',
-    type: 'service',
-    platforms: ['google', 'instagram', 'facebook'],
-    channel: 'google',
-    headline: '📈 How We Helped a Local Clinic Rank #1 on Google Maps in 21 Days',
-    caption: 'Discover how Aaditech Solution optimized Google Business Profile, fixed citation inconsistencies, and automated client review requests to generate 180+ monthly patient calls.',
-    cta: 'Read Full Case Study on aaditechs.in',
-    hashtags: ['#GoogleMapsRanking', '#LocalSEOThane', '#DigitalMarketingIndia', '#Aaditech'],
-    image_url: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80',
-    status: 'published',
-    scheduled_date: '2026-09-02',
-    scheduled_time: '2026-09-02 11:00:00',
-    time_slot: '11:00 AM',
-  },
-  {
-    id: 'post_3',
-    company_id: 'comp_aaditech_main',
-    title: '5 Costly Mistakes Indian Businesses Make with Outdated Websites',
-    type: 'educational',
-    platforms: ['google', 'instagram', 'facebook', 'whatsapp'],
-    channel: 'instagram',
-    headline: '⚠️ Is Your Business Website Losing 70% of Mobile Visitors?',
-    caption: 'Slow loading speeds, lack of WhatsApp direct-chat buttons, and unoptimized Google Maps locations cost Thane businesses thousands in lost sales every week. Learn how to fix them.',
-    cta: 'Get Free Website Audit Report',
-    hashtags: ['#WebsiteAudit', '#SmallBusinessIndia', '#AaditechSolution', '#TechTips'],
-    image_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
-    status: 'scheduled',
-    scheduled_date: '2026-10-08',
-    scheduled_time: '2026-10-08 17:00:00',
-    time_slot: '5:00 PM',
-  },
-];
-
-const inMemoryReviews: DbReview[] = [...defaultSeedReviews];
-const inMemoryContentPosts: DbContentPost[] = [...defaultSeedPosts];
+const inMemoryReviews: DbReview[] = [];
+const inMemoryContentPosts: DbContentPost[] = [];
 
 /**
  * Returns the primary/default company ID from MySQL or in-memory fallback.
@@ -968,21 +699,34 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           website VARCHAR(255),
           google_place_id VARCHAR(128),
           autopilot_enabled TINYINT(1) DEFAULT 1,
-          score INT DEFAULT 75,
-          rank_position INT DEFAULT 3,
+          score INT DEFAULT NULL,
+          rank_position INT DEFAULT NULL,
+          public_form_token VARCHAR(64) DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_comp_public_form_token (public_form_token),
           INDEX idx_user (user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
 
-      // Seed default flagship company if no companies exist yet
-      const [existingCompanies]: any = await connection.query('SELECT id FROM companies LIMIT 1');
-      if (!existingCompanies || existingCompanies.length === 0) {
-        await connection.query(`
-          INSERT INTO companies (id, user_id, name, legal_name, category, city, phone, website, google_place_id, autopilot_enabled, score, rank_position)
-          VALUES ('comp_aaditech_main', 'usr_system_default', 'Aaditech Solution', 'Aaditech Solution Private Limited', 'IT Services, Software Development & Local SEO Growth Engine', 'Thane - Mumbai MMR', '+91 22 4963 8603', 'https://bga.aaditechs.in', 'ChIJN1t_tDeuEmsRUsoyG83frY4', 1, 82, 2)
+      // Ensure public_form_token column exists if table was created in an earlier schema
+      try {
+        const [tokenCol]: any = await connection.query(`
+          SELECT COLUMN_NAME
+          FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'companies'
+            AND COLUMN_NAME = 'public_form_token'
         `);
-        console.log('[Hostinger MySQL] Initial flagship company provisioned: comp_aaditech_main');
+        if (!tokenCol || tokenCol.length === 0) {
+          console.log('[Hostinger MySQL] Self-healing schema: Adding missing public_form_token column to companies table...');
+          await connection.query(`
+            ALTER TABLE companies
+            ADD COLUMN public_form_token VARCHAR(64) DEFAULT NULL AFTER rank_position,
+            ADD UNIQUE KEY idx_comp_public_form_token (public_form_token)
+          `);
+        }
+      } catch (colErr: any) {
+        console.warn('[Hostinger MySQL] public_form_token column check notice:', colErr?.message);
       }
 
       // 3. Company Data (Isolated metrics, audits, competitors, etc.)
@@ -1325,27 +1069,6 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           UNIQUE KEY idx_company_webconfig (company_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
-
-      // Seed initial custom domains if empty
-      const [existingDomains]: any = await connection.query('SELECT id FROM custom_domains LIMIT 1');
-      if (!existingDomains || existingDomains.length === 0) {
-        await connection.query(`
-          INSERT INTO custom_domains (id, company_id, domain, status, ssl_status, cname_target, a_record_target, dns_txt_record, verified_at)
-          VALUES ('dom_bga_aaditechs', 'comp_aaditech_main', 'bga.aaditechs.in', 'active', 'active', 'cname.bga.aaditechs.in', '77.37.54.108', 'bga-site-verification=aaditech_main_prod_2026', NOW())
-        `);
-      }
-
-      // Seed initial invoices for flagship company if empty
-      const [existingInvoices]: any = await connection.query('SELECT id FROM invoices LIMIT 1');
-      if (!existingInvoices || existingInvoices.length === 0) {
-        await connection.query(`
-          INSERT INTO invoices (id, company_id, date, plan, amount, gst_amount, total_amount, payment_method, payment_id, order_id, customer_name, customer_email, customer_phone, status, hsn_code)
-          VALUES 
-          ('INV-2026-0901', 'comp_aaditech_main', '2026-09-01', 'Growth Tier (Monthly)', 799.00, 143.82, 942.82, 'UPI / Razorpay (r8898278453@okaxis)', 'pay_RzpGrowthSep26', 'order_RzpGwt901', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314'),
-          ('INV-2026-0801', 'comp_aaditech_main', '2026-08-01', 'Growth Tier (Monthly)', 799.00, 143.82, 942.82, 'UPI / Razorpay (r8898278453@okaxis)', 'pay_RzpGrowthAug26', 'order_RzpGwt801', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314'),
-          ('INV-2026-0701', 'comp_aaditech_main', '2026-07-01', 'Starter Tier (Intro)', 499.00, 89.82, 588.82, 'Net Banking (HDFC Bank)', 'pay_RzpStarterJul26', 'order_RzpStr701', 'Aaditech Solution Private Limited', 'info@aaditechs.in', '+91 22 4963 8603', 'Paid', '998314')
-        `);
-      }
 
       // 18. Rank Observations Table (Geocoded 3x3 Grid Historical Observations)
       await connection.query(`
@@ -1780,9 +1503,11 @@ export async function createCompany(data: {
   website?: string;
   google_place_id?: string;
   autopilot_enabled?: boolean | number;
-  score?: number;
-  rank_position?: number;
+  score?: number | null;
+  rank_position?: number | null;
+  public_form_token?: string;
 }): Promise<DbCompany> {
+  const publicFormToken = data.public_form_token || `pft_${crypto.randomUUID().replace(/-/g, '')}`;
   const newCompany: DbCompany = {
     id: data.id || `comp_${crypto.randomUUID().replace(/-/g, '')}`,
     user_id: data.user_id,
@@ -1794,8 +1519,9 @@ export async function createCompany(data: {
     website: data.website || '',
     google_place_id: data.google_place_id || '',
     autopilot_enabled: data.autopilot_enabled !== undefined ? Boolean(data.autopilot_enabled) : true,
-    score: data.score !== undefined ? data.score : 0,
-    rank_position: data.rank_position,
+    score: data.score !== undefined && data.score !== null ? data.score : 0,
+    rank_position: data.rank_position !== undefined ? data.rank_position : undefined,
+    public_form_token: publicFormToken,
     created_at: new Date().toISOString(),
   };
 
@@ -1803,8 +1529,8 @@ export async function createCompany(data: {
     const db = await getDbPool();
     if (db) {
       await db.query(
-        `INSERT INTO companies (id, user_id, name, legal_name, category, city, phone, website, google_place_id, autopilot_enabled, score, rank_position)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO companies (id, user_id, name, legal_name, category, city, phone, website, google_place_id, autopilot_enabled, score, rank_position, public_form_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newCompany.id,
           newCompany.user_id,
@@ -1818,6 +1544,7 @@ export async function createCompany(data: {
           newCompany.autopilot_enabled ? 1 : 0,
           newCompany.score,
           newCompany.rank_position !== undefined ? newCompany.rank_position : null,
+          newCompany.public_form_token,
         ]
       );
       return newCompany;
@@ -1828,6 +1555,22 @@ export async function createCompany(data: {
 
   inMemoryCompanies.push(newCompany);
   return newCompany;
+}
+
+export async function findCompanyByPublicFormToken(token: string): Promise<DbCompany | null> {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query('SELECT * FROM companies WHERE public_form_token = ? LIMIT 1', [token]);
+      if (rows && rows.length > 0) return rows[0] as DbCompany;
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('findCompanyByPublicFormToken', err);
+  }
+
+  return inMemoryCompanies.find((c) => c.public_form_token === token) || null;
 }
 
 export async function getCompanyDataPayload(companyId: string): Promise<DbCompanyData | null> {
@@ -1899,6 +1642,12 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
     resolvedCompanyId = (await getDefaultCompanyId()) || undefined;
   }
 
+  let companyName = 'Our Team';
+  if (resolvedCompanyId) {
+    const comp = await getCompanyById(resolvedCompanyId);
+    if (comp?.name) companyName = comp.name;
+  }
+
   const newLead: DbLead = {
     id: lead.id || `lead_${crypto.randomUUID().replace(/-/g, '')}`,
     company_id: resolvedCompanyId,
@@ -1906,15 +1655,15 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
     company: lead.company || 'Direct Client',
     phone: lead.phone,
     email: lead.email || '',
-    service: lead.service || 'Website / Software Inquiry',
+    service: lead.service || 'General Inquiry',
     budget: lead.budget || 'Custom Quote',
     stage: lead.stage || 'new',
-    intent_score: lead.intent_score || 85,
-    source: lead.source || 'bga.aaditechs.in',
+    intent_score: lead.intent_score !== undefined ? lead.intent_score : 50,
+    source: lead.source || 'Website Lead Form',
     notes: lead.notes || '',
     ai_suggested_reply:
       lead.ai_suggested_reply ||
-      `Namaste ${lead.name}! Aaditech Solution (bga.aaditechs.in) se message hai. Humne aapki requirement receive kar li hai. Team will contact you shortly!`,
+      `Hello ${lead.name}, thank you for contacting ${companyName}. We have received your inquiry regarding ${lead.service || 'our services'} and our team will get in touch with you shortly.`,
   };
 
   try {
@@ -2266,33 +2015,7 @@ export async function getCompanyReviews(companyId?: string): Promise<DbReview[]>
     if (db) {
       const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
       
-      // Auto-seed into MySQL if empty for the primary default company
-      const [countRows]: any = await db.query('SELECT COUNT(*) as count FROM reviews WHERE company_id = ?', [targetCompanyId]);
-      if ((!countRows || countRows[0]?.count === 0) && (targetCompanyId === 'comp_aaditech_main' || targetCompanyId.includes('aaditech'))) {
-        for (const seedRev of defaultSeedReviews) {
-          await db.query(
-            `INSERT IGNORE INTO reviews (id, company_id, author, rating, date, relative_time, content, sentiment, topic, is_operational_issue, replied, reply_text, reply_date, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              seedRev.id,
-              targetCompanyId,
-              seedRev.author,
-              seedRev.rating,
-              seedRev.date,
-              seedRev.relative_time || null,
-              seedRev.content,
-              seedRev.sentiment,
-              seedRev.topic || null,
-              seedRev.is_operational_issue ? 1 : 0,
-              seedRev.replied ? 1 : 0,
-              seedRev.reply_text || null,
-              seedRev.reply_date || null,
-              seedRev.source,
-            ]
-          );
-        }
-      }
-
+      // Query reviews from database
       const [rows]: any = await db.query('SELECT * FROM reviews WHERE company_id = ? ORDER BY date DESC, created_at DESC', [targetCompanyId]);
       return rows.map((r: any) => ({
         ...r,
@@ -2516,35 +2239,7 @@ export async function getCompanyPosts(companyId?: string): Promise<DbContentPost
     if (db) {
       const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
 
-      // Auto-seed into MySQL if empty for the primary default company
-      const [countRows]: any = await db.query('SELECT COUNT(*) as count FROM content_posts WHERE company_id = ?', [targetCompanyId]);
-      if ((!countRows || countRows[0]?.count === 0) && (targetCompanyId === 'comp_aaditech_main' || targetCompanyId.includes('aaditech'))) {
-        for (const seedPost of defaultSeedPosts) {
-          await db.query(
-            `INSERT IGNORE INTO content_posts (id, company_id, title, type, platforms, channel, headline, caption, cta, image_url, status, scheduled_date, scheduled_time, time_slot, hashtags, reel_script)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              seedPost.id,
-              targetCompanyId,
-              seedPost.title || null,
-              seedPost.type || 'offer',
-              JSON.stringify(seedPost.platforms || ['google']),
-              seedPost.channel || 'google',
-              seedPost.headline || null,
-              seedPost.caption,
-              seedPost.cta || null,
-              seedPost.image_url || null,
-              seedPost.status || 'scheduled',
-              seedPost.scheduled_date || null,
-              seedPost.scheduled_time || null,
-              seedPost.time_slot || null,
-              JSON.stringify(seedPost.hashtags || []),
-              seedPost.reel_script ? JSON.stringify(seedPost.reel_script) : null,
-            ]
-          );
-        }
-      }
-
+      // Query content posts from database
       const [rows]: any = await db.query('SELECT * FROM content_posts WHERE company_id = ? ORDER BY created_at DESC', [targetCompanyId]);
       return rows.map((r: any) => {
         let platforms: string[] = ['google'];

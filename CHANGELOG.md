@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.26.0] - 2026-10-01
+### Comprehensive Production Closure & Source-of-Truth Enforcement (Phases 0 - 9)
+- **Phase 0: Source of Truth & Repository Audit**:
+  - Generated complete architecture and data truth audit in `AUDIT_BEFORE_COMPLETION.md`.
+  - Identified and categorized all 8 pillars of data truth across all providers, tables, and API routes.
+- **Phase 1: Database Schema & Production Data Purity**:
+  - Removed all hardcoded production seeds from `schema.sql` and `server/db.ts`.
+  - Implemented automatic database self-healing for `public_form_token` on company tables.
+  - Zero mock data fallback in production database mode with explicit fail-closed safety.
+- **Phase 2: Tenant Isolation & Public Lead Security**:
+  - Added dedicated secure public lead endpoints (`POST /api/public/leads` and `POST /api/public/lead`).
+  - Added cryptographic `public_form_token` validation and anti-spam honeypot filtering to prevent cross-tenant pollution.
+  - Replaced hardcoded default tenant reply templates with dynamic tenant branding and identity resolution.
+- **Phase 3: Provider Truth & Local SEO / Competitor Integrity**:
+  - Confirmed 3x3 9-node geocoded grid queries with DataForSEO / SerpAPI adapters without synthetic rank generation.
+  - Historical competitor baseline snapshot comparisons without synthetic metric inflation.
+- **Phase 4: Growth Score & AI Grounding**:
+  - Verified 8 transparent telemetry pillars with mathematical bounds and explicit `UNAVAILABLE` states for clean tenants.
+  - Evidence-grounded executive summaries with zero hallucinations.
+- **Phase 5: Content Publishing & Meta / WhatsApp Hardening**:
+  - Canonical 8-stage publishing engine with verified external provider confirmation.
+  - Constant-time HMAC-SHA256 signature verification and webhook idempotency deduplication.
+- **Phase 6: Autonomous Engine, Scheduler & Emergency Stop**:
+  - Grounded recommendations requiring authentic evidence IDs.
+  - Verified human-approval gates for high-risk actions and immediate global kill switch halts.
+- **Phase 7: Frontend Data Truth**:
+  - Clean state visualization using `DataStatusBadge` (LIVE, VERIFIED, CALCULATED, ESTIMATED, UNAVAILABLE).
+  - Ensured zero fake rankings or fallback mocks are rendered as live data.
+- **Phase 8: Full Security & E2E Validation**:
+  - Executed all 16 test suites across auth, multi-tenancy, billing, publishing, and autonomous governance with 100% pass rate.
+- **Phase 9: Final Acceptance**:
+  - Complete source-of-truth verification and build compilation validated.
+
 ## [1.25.0] - 2026-09-30
 ### Verified & Stabilized (Phase 6 — Production Readiness)
 - **Comprehensive E2E Test Matrix**:
