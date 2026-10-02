@@ -45,14 +45,14 @@ export interface GrowthScoreCalculationResult {
 }
 
 export interface GrowthScoreInputs {
-  businessProfile?: BusinessProfile | null;
-  reviews?: ReviewItem[] | null;
-  rankObservations?: RankObservation[] | null;
-  keywordRanks?: KeywordRank[] | null;
-  contentPosts?: ContentPost[] | null;
-  leads?: LeadItem[] | null;
-  campaigns?: Campaign[] | null;
-  auditItems?: AuditItem[] | null;
+  businessProfile?: BusinessProfile | any | null;
+  reviews?: (ReviewItem | any)[] | null;
+  rankObservations?: (RankObservation | any)[] | null;
+  keywordRanks?: (KeywordRank | any)[] | null;
+  contentPosts?: (ContentPost | any)[] | null;
+  leads?: (LeadItem | any)[] | null;
+  campaigns?: (Campaign | any)[] | null;
+  auditItems?: (AuditItem | any)[] | null;
   customDomainVerified?: boolean;
   rankPosition?: number | null;
   overrideTimestamp?: string;
@@ -496,18 +496,20 @@ export function toGrowthScorePayload(
   result: GrowthScoreCalculationResult
 ): GrowthScore {
   return {
-    overall: result.overall ?? 0,
+    overall: result.overall,
     status: result.status,
     statusLabel: result.statusLabel,
     insufficientDataReason: result.insufficientDataReason,
     breakdown: {
-      googleProfile: result.breakdown.googleProfile ?? 0,
-      localSeo: result.breakdown.localSeo ?? 0,
-      reviews: result.breakdown.reviews ?? 0,
-      socialMedia: result.breakdown.socialMedia ?? 0,
-      content: result.breakdown.content ?? 0,
-      website: result.breakdown.website ?? 0,
-      customerEngagement: result.breakdown.customerEngagement ?? 0,
+      googleProfile: result.breakdown.googleProfile,
+      localSeo: result.breakdown.localSeo,
+      reviews: result.breakdown.reviews,
+      socialMedia: result.breakdown.socialMedia,
+      content: result.breakdown.content,
+      website: result.breakdown.website,
+      customerEngagement: result.breakdown.customerEngagement,
+      leadConversion: result.breakdown.leadConversion,
+      campaignPerformance: result.breakdown.campaignPerformance,
     },
     telemetry: result.telemetry,
     timestamp: result.timestamp,

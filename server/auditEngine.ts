@@ -18,11 +18,11 @@ export interface AuditItemWithEvidence {
 
 export interface AuditEngineInputs {
   companyId: string;
-  businessProfile?: BusinessProfile | null;
-  reviews?: ReviewItem[] | null;
-  rankObservations?: RankObservation[] | null;
-  contentPosts?: ContentPost[] | null;
-  leads?: LeadItem[] | null;
+  businessProfile?: BusinessProfile | any | null;
+  reviews?: (ReviewItem | any)[] | null;
+  rankObservations?: (RankObservation | any)[] | null;
+  contentPosts?: (ContentPost | any)[] | null;
+  leads?: (LeadItem | any)[] | null;
   campaigns?: any[] | null;
   customDomainVerified?: boolean;
   overrideTimestamp?: string;

@@ -1535,8 +1535,8 @@ export async function createCompany(data: {
     phone: data.phone || '',
     website: data.website || '',
     google_place_id: data.google_place_id || '',
-    autopilot_enabled: data.autopilot_enabled !== undefined ? Boolean(data.autopilot_enabled) : true,
-    score: data.score !== undefined && data.score !== null ? data.score : 0,
+    autopilot_enabled: data.autopilot_enabled !== undefined ? Boolean(data.autopilot_enabled) : false,
+    score: data.score !== undefined && data.score !== null ? data.score : null,
     rank_position: data.rank_position !== undefined ? data.rank_position : undefined,
     public_form_token: publicFormToken,
     created_at: new Date().toISOString(),
@@ -1567,7 +1567,7 @@ export async function createCompany(data: {
       return newCompany;
     }
   } catch (err: any) {
-    console.warn('[createCompany] MySQL error:', err?.message);
+    handleDbError('createCompany', err);
   }
 
   inMemoryCompanies.push(newCompany);
@@ -1601,7 +1601,7 @@ export async function getCompanyDataPayload(companyId: string): Promise<DbCompan
       return null;
     }
   } catch (err: any) {
-    console.warn('[getCompanyDataPayload] MySQL error:', err?.message);
+    handleDbError('getCompanyDataPayload', err);
   }
 
   return inMemoryCompanyData[companyId] || null;
@@ -1621,7 +1621,7 @@ export async function saveCompanyDataPayload(companyId: string, payload: any): P
       return true;
     }
   } catch (err: any) {
-    console.warn('[saveCompanyDataPayload] MySQL error:', err?.message);
+    handleDbError('saveCompanyDataPayload', err);
   }
 
   inMemoryCompanyData[companyId] = payload;
@@ -2701,13 +2701,13 @@ export async function isPostAlreadyPublished(postId: string, platform?: string):
 // ---------------- INTERNAL & EXTERNAL CAMPAIGNS (METRIC SEPARATION) ---------------- //
 
 export async function getInternalCampaigns(companyId?: string): Promise<DbInternalCampaign[]> {
+  if (!companyId) return [];
   try {
     const db = await getDbPool();
     if (db) {
-      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
       const [rows]: any = await db.query(
         'SELECT * FROM internal_campaigns WHERE company_id = ? ORDER BY created_at DESC',
-        [targetCompanyId]
+        [companyId]
       );
       if (Array.isArray(rows) && rows.length > 0) {
         return rows.map((r: any) => {
@@ -2737,11 +2737,10 @@ export async function getInternalCampaigns(companyId?: string): Promise<DbIntern
       }
     }
   } catch (err: any) {
-    console.warn('[getInternalCampaigns] MySQL select warning:', err?.message);
+    handleDbError('getInternalCampaigns', err);
   }
 
-  const targetCompanyId = companyId || 'comp_aaditech_main';
-  return inMemoryInternalCampaigns.filter((c) => c.company_id === targetCompanyId || !companyId);
+  return inMemoryInternalCampaigns.filter((c) => c.company_id === companyId);
 }
 
 export async function createInternalCampaign(
@@ -2888,13 +2887,13 @@ export async function deleteInternalCampaign(id: string, companyId?: string): Pr
 }
 
 export async function getExternalAdCampaigns(companyId?: string): Promise<DbExternalAdCampaign[]> {
+  if (!companyId) return [];
   try {
     const db = await getDbPool();
     if (db) {
-      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
       const [rows]: any = await db.query(
         'SELECT * FROM external_ad_campaigns WHERE company_id = ? ORDER BY fetched_at DESC, created_at DESC',
-        [targetCompanyId]
+        [companyId]
       );
       if (Array.isArray(rows) && rows.length > 0) {
         return rows.map((r: any) => ({
@@ -2921,11 +2920,10 @@ export async function getExternalAdCampaigns(companyId?: string): Promise<DbExte
       }
     }
   } catch (err: any) {
-    console.warn('[getExternalAdCampaigns] MySQL select warning:', err?.message);
+    handleDbError('getExternalAdCampaigns', err);
   }
 
-  const targetCompanyId = companyId || 'comp_aaditech_main';
-  return inMemoryExternalAdCampaigns.filter((c) => c.company_id === targetCompanyId || !companyId);
+  return inMemoryExternalAdCampaigns.filter((c) => c.company_id === companyId);
 }
 
 export async function upsertExternalAdCampaign(

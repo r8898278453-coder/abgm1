@@ -211,7 +211,7 @@ export const createReviewSchema = z.object({
     .max(3000),
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional().default('positive'),
   topic: z.string().trim().max(128).optional(),
-  source: z.enum(['google', 'facebook', 'justdial']).optional().default('google'),
+  source: z.enum(['google', 'facebook', 'justdial', 'manual']).optional().default('manual'),
   company_id: z.string().trim().max(64).optional(),
 });
 
@@ -255,7 +255,7 @@ export const createPostSchema = z.object({
   type: z.string().trim().max(64).optional().default('offer'),
   image_url: z.string().trim().max(1000).optional(),
   status: z
-    .enum(['draft', 'pending_approval', 'scheduled', 'published'])
+    .enum(['draft', 'pending_approval', 'scheduled'])
     .optional()
     .default('scheduled'),
   scheduled_time: z.string().trim().max(64).optional().default('Immediate'),

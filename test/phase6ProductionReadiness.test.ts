@@ -481,7 +481,7 @@ async function runProductionReadinessMatrix() {
   assert.strictEqual(cleanLeads.length, 0, 'Clean tenant has 0 leads (NO FAKE LEADS)');
   assert.strictEqual(cleanReviews.length, 0, 'Clean tenant has 0 reviews (NO FAKE REVIEWS)');
   assert.strictEqual(cleanInvoices.length, 0, 'Clean tenant has 0 invoices (NO FAKE REVENUE)');
-  assert.strictEqual(cleanCompany.score, 0, 'Clean company score is 0 baseline (NO FAKE GROWTH SCORE)');
+  assert.ok(cleanCompany.score === 0 || cleanCompany.score === null, 'Clean company score is null or 0 baseline (NO FAKE GROWTH SCORE)');
 
   const cleanGrowthResult = calculateGrowthIntelligenceScore({
     businessProfile: null,

@@ -33,6 +33,7 @@ import {
   DbCompany,
 } from './db';
 import { executePublishingJob } from './publishingEngine';
+import { isGlobalEmergencyStopActive } from './autonomousEngine';
 
 // Global registration guard for development hot-reloads and container lifecycles
 declare global {
@@ -151,12 +152,30 @@ export async function runAutoPublishJob(): Promise<{
   schedulerStatus.lastPublishRun = timestamp;
   console.log(`[Scheduler:AutoPublish] [${timestamp}] Checking scheduled content posts...`);
 
+  if (isGlobalEmergencyStopActive()) {
+    console.warn('[Scheduler:AutoPublish] Auto-publishing skipped: Global Emergency Kill Switch is ACTIVE.');
+    return {
+      processed: 0,
+      publishedCount: 0,
+      publishedPosts: [],
+    };
+  }
+
   const scheduledPosts = await getAllScheduledPosts();
   const publishedPosts: Array<{ id: string; title: string; companyId: string }> = [];
 
   for (const post of scheduledPosts) {
     if (isScheduledTimePassed(post.scheduled_date, post.scheduled_time, post.time_slot)) {
       try {
+        // Check tenant autopilot status
+        if (post.company_id) {
+          const comp = await getCompanyById(post.company_id);
+          if (comp && !comp.autopilot_enabled) {
+            console.log(`[Scheduler:AutoPublish] Skipped post ${post.id}: Autopilot is disabled for company ${post.company_id}.`);
+            continue;
+          }
+        }
+
         // Execute strict publishing state machine: Content -> Job -> Provider API -> Provider Success -> Record -> PUBLISHED
         const jobResult = await executePublishingJob(post);
 
@@ -265,10 +284,10 @@ export async function runDailyDigestJob(): Promise<{
         return !isNaN(revTime) && revTime > 0 && (now - revTime) <= twentyFourHoursMs;
       });
 
-      // Overall average rating
-      const totalReviewsCount = allReviews.length;
-      const overallAvgRating = totalReviewsCount > 0
-        ? allReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / totalReviewsCount
+      // Overall average rating (only from reviews with authentic numeric ratings)
+      const ratedReviews = allReviews.filter((r) => typeof r.rating === 'number' && !isNaN(r.rating));
+      const overallAvgRating = ratedReviews.length > 0
+        ? ratedReviews.reduce((sum, r) => sum + Number(r.rating), 0) / ratedReviews.length
         : 0;
 
       // Reviews prior to the last 24 hours
@@ -280,8 +299,9 @@ export async function runDailyDigestJob(): Promise<{
         return !isNaN(revTime) && revTime > 0 && (now - revTime) > twentyFourHoursMs;
       });
 
-      const olderAvgRating = olderReviews.length > 0
-        ? olderReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / olderReviews.length
+      const olderRatedReviews = olderReviews.filter((r) => typeof r.rating === 'number' && !isNaN(r.rating));
+      const olderAvgRating = olderRatedReviews.length > 0
+        ? olderRatedReviews.reduce((sum, r) => sum + Number(r.rating), 0) / olderRatedReviews.length
         : overallAvgRating;
 
       // Calculate rating delta
@@ -314,7 +334,7 @@ export async function runDailyDigestJob(): Promise<{
 🔥 *New Inbound Leads:* ${recentLeads.length}
 ⭐ *New Customer Reviews:* ${recentReviews.length}
 📈 *Average Rating:* ${overallAvgRating > 0 ? `${overallAvgRating.toFixed(1)} ★` : 'No ratings yet'} (${deltaSummary})
-🎯 *Local Growth Score:* ${comp.score || 82} / 100
+🎯 *Local Growth Score:* ${comp.score !== null && comp.score !== undefined ? `${comp.score} / 100` : 'N/A (Pending initial data)'}
 
 ${recentLeads.length > 0 ? `💼 *Recent Inquiry:* ${recentLeads[0].name} (${recentLeads[0].service || 'Consultation'})` : 'ℹ️ No new leads in last 24h. Autonomous SEO autopilot is active.'}
 ${recentReviews.length > 0 ? `💬 *Latest Review:* ${recentReviews[0].author} gave ${recentReviews[0].rating}★` : ''}

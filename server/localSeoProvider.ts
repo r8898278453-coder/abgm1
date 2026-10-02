@@ -190,6 +190,24 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
           let nodeRank: number | null = null;
           let matchedEvidence = '';
 
+          if (items.length === 0) {
+            observations.push({
+              id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+              companyId: context.companyId,
+              keyword: context.keyword,
+              latitude: coord.lat,
+              longitude: coord.lng,
+              gridIndex: coord.gridIndex,
+              gridLabel: coord.label,
+              timestamp: nowIso,
+              provider: this.providerId,
+              position: null,
+              status: 'FAILED',
+              sourceEvidence: `DataForSEO returned 0 local results at @${coord.lat},${coord.lng}`,
+            });
+            continue;
+          }
+
           const cleanBizName = context.businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
           items.forEach((item: any, idx: number) => {
@@ -201,7 +219,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
 
             if (isMatch && nodeRank === null) {
               nodeRank = idx + 1;
-              matchedEvidence = `DataForSEO SERP matched place_id ${item.place_id || 'title'}`;
+              matchedEvidence = `DataForSEO SERP matched position #${idx + 1} (${item.title || item.name})`;
             } else if (!isMatch && allCompetitors.size < 6) {
               const compName = item.title || item.name || 'Local Competitor';
               if (!allCompetitors.has(compName)) {
@@ -227,7 +245,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
             provider: this.providerId,
             position: nodeRank,
             status: 'LIVE',
-            sourceEvidence: matchedEvidence || `Scanned at ${coord.lat},${coord.lng} (Rank: ${nodeRank ?? 'Unranked'})`,
+            sourceEvidence: matchedEvidence || `DataForSEO observed 20 SERP listings; business not ranked in top 20 at @${coord.lat},${coord.lng}`,
           });
         } else {
           observations.push({
@@ -332,6 +350,24 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
           const localResults = data.local_results || [];
           let nodeRank: number | null = null;
           let matchedEvidence = '';
+
+          if (localResults.length === 0) {
+            observations.push({
+              id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+              companyId: context.companyId,
+              keyword: context.keyword,
+              latitude: coord.lat,
+              longitude: coord.lng,
+              gridIndex: coord.gridIndex,
+              gridLabel: coord.label,
+              timestamp: nowIso,
+              provider: this.providerId,
+              position: null,
+              status: 'FAILED',
+              sourceEvidence: `SerpApi returned 0 local results at @${coord.lat},${coord.lng}`,
+            });
+            continue;
+          }
 
           const cleanBizName = context.businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
 

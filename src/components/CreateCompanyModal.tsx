@@ -61,7 +61,7 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         google_place_id: googlePlaceId.trim() || undefined,
       });
 
-      // Generate localized fresh initial data for this specific company with centralized Growth Intelligence Score
+      // Clean initial profile data for this specific company
       const profileData: BusinessProfile = {
         id: `biz_${company.id}`,
         name: name.trim(),
@@ -72,23 +72,23 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         state: 'Maharashtra',
         country: 'India',
         phone: phone.trim() || '',
-        email: `contact@${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}.in`,
+        email: '',
         website: website.trim() || '',
         whatsapp: phone.trim() || '',
-        description: `${name.trim()} is a leading ${category} business in ${city.trim()}.`,
+        description: '',
         services: [category],
         products: [],
-        priceRange: '₹₹',
-        openingHours: 'Mon - Sat: 9:30 AM - 7:30 PM',
+        priceRange: '',
+        openingHours: '',
         serviceAreas: [city.trim()],
         brandKit: {
           logoUrl: '',
           primaryColor: '#4f46e5',
           secondaryColor: '#0f172a',
           fontFamily: 'Plus Jakarta Sans',
-          tagline: 'Delivering Quality and Excellence Everyday',
-          brandTone: 'Professional, Courteous & Prompt',
-          preferredLanguage: 'English & Hindi',
+          tagline: '',
+          brandTone: '',
+          preferredLanguage: 'English',
         },
         connectedAccounts: {
           googleBusiness: Boolean(googlePlaceId.trim()),
@@ -100,61 +100,38 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         },
       };
 
-      const calculatedScore = toGrowthScorePayload(
-        calculateGrowthIntelligenceScore({
-          businessProfile: profileData,
-          reviews: [],
-          rankObservations: [],
-          keywordRanks: [],
-          contentPosts: [],
-          leads: [],
-          campaigns: [],
-          auditItems: [],
-        })
-      );
-
       const initialPayload = {
-        growth_score: calculatedScore,
+        growth_score: {
+          overall: null,
+          status: 'UNAVAILABLE' as const,
+          statusLabel: 'GROWTH SCORE UNAVAILABLE',
+          insufficientDataReason: 'No verified marketing signals available. Connect Google Profile, run local SEO rank scans, or log customer reviews.',
+          breakdown: {
+            googleProfile: null,
+            localSeo: null,
+            reviews: null,
+            socialMedia: null,
+            content: null,
+            website: null,
+            customerEngagement: null,
+          },
+          telemetry: [],
+          timestamp: new Date().toISOString(),
+        },
         business: profileData,
-        audit_items: [
-          {
-            id: 'audit_1',
-            title: 'Verify Google Business Profile NAP Consistency',
-            category: 'local_seo',
-            status: 'action_required',
-            impact: 'high',
-            description: `Ensure Name, Address (${city}), and Phone match website metadata for optimal 3-Pack placement.`,
-            solution: 'Sync Google Business listing with schema.org JSON-LD tag on homepage.',
-          },
-          {
-            id: 'audit_2',
-            title: 'Enable WhatsApp 1-Click Instant Lead Capture',
-            category: 'conversion',
-            status: 'in_progress',
-            impact: 'critical',
-            description: 'Direct high-intent mobile visitors to an automated WhatsApp booking flow.',
-            solution: 'Integrate Aaditech smart QR and floating WhatsApp widget.',
-          },
-          {
-            id: 'audit_3',
-            title: 'Generate Local Area Review Request Link',
-            category: 'reputation',
-            status: 'action_required',
-            impact: 'high',
-            description: `Boost local trust in ${city} by collecting 5-star reviews from recent customers.`,
-            solution: 'Trigger automated SMS/WhatsApp review invite upon service completion.',
-          },
-        ],
+        audit_items: [],
         keywords: [],
         competitors: [],
         reviews: [],
         posts: [],
+        leads: [],
         campaigns: [],
         autonomous_actions: [],
       };
 
       await saveCompanyData(company.id, initialPayload);
       onCompanyCreated(company);
+      if (onClose) onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to create company profile.');
     } finally {

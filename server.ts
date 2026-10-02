@@ -29,7 +29,6 @@ import {
   getCompanyDataPayload,
   saveCompanyDataPayload,
   getDbStatus,
-  getDefaultCompanyId,
   getCompanyIntegrations,
   getCompanyIntegration,
   saveCompanyIntegration,
@@ -121,6 +120,7 @@ import {
   calculateGrowthIntelligenceScore,
   toGrowthScorePayload,
 } from './server/growthScoreEngine';
+import { generateEvidenceBasedAudit } from './server/auditEngine';
 import {
   buildStructuredEvidence,
   buildEvidenceGroundedPrompt,
@@ -849,12 +849,12 @@ app.get('/api/companies/:id/growth-score', async (req, res) => {
       getCompanyPosts(id).catch(() => []),
       getAllLeads(id).catch(() => []),
       getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id, 'default').catch(() => []),
+      getLatestKeywordObservations(id).catch(() => []),
     ]);
 
-    const activeReviews = dbReviews.length > 0 ? dbReviews : payload.reviews || [];
-    const activePosts = dbPosts.length > 0 ? dbPosts : payload.posts || [];
-    const activeLeads = dbLeads.length > 0 ? dbLeads : payload.leads || [];
+    const activeReviews = dbReviews;
+    const activePosts = dbPosts;
+    const activeLeads = dbLeads;
     const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
 
     const result = calculateGrowthIntelligenceScore({
@@ -951,12 +951,12 @@ app.post('/api/companies/:id/growth-score/recalculate', async (req, res) => {
       getCompanyPosts(id).catch(() => []),
       getAllLeads(id).catch(() => []),
       getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id, 'default').catch(() => []),
+      getLatestKeywordObservations(id).catch(() => []),
     ]);
 
-    const activeReviews = dbReviews.length > 0 ? dbReviews : payload.reviews || [];
-    const activePosts = dbPosts.length > 0 ? dbPosts : payload.posts || [];
-    const activeLeads = dbLeads.length > 0 ? dbLeads : payload.leads || [];
+    const activeReviews = dbReviews;
+    const activePosts = dbPosts;
+    const activeLeads = dbLeads;
     const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
 
     const result = calculateGrowthIntelligenceScore({
@@ -1021,13 +1021,13 @@ app.get('/api/companies/:id/ai/executive-summary', async (req, res) => {
       getCompanyPosts(id).catch(() => []),
       getAllLeads(id).catch(() => []),
       getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id, 'default').catch(() => []),
+      getLatestKeywordObservations(id).catch(() => []),
       getLatestCompetitorObservations(id).catch(() => []),
     ]);
 
-    const activeReviews = dbReviews.length > 0 ? dbReviews : payload.reviews || [];
-    const activePosts = dbPosts.length > 0 ? dbPosts : payload.posts || [];
-    const activeLeads = dbLeads.length > 0 ? dbLeads : payload.leads || [];
+    const activeReviews = dbReviews;
+    const activePosts = dbPosts;
+    const activeLeads = dbLeads;
     const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
 
     const calculatedGrowthScore = calculateGrowthIntelligenceScore({
@@ -2452,6 +2452,187 @@ app.delete('/api/companies/:id/competitors/:competitorId', async (req, res) => {
   }
 });
 
+// ---------------- EVIDENCE-BASED AUDIT ENGINE & ACTION REMEDIATION ---------------- //
+
+// GET /api/companies/:id/audit - Retrieve or evaluate evidence-based audit
+app.get('/api/companies/:id/audit', async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const { id } = req.params;
+    const company = await getCompanyById(id);
+    if (!company) {
+      res.status(404).json({ success: false, error: 'Company not found' });
+      return;
+    }
+
+    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const payload: any = (await getCompanyDataPayload(id)) || {};
+    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
+      getCompanyReviews(id).catch(() => []),
+      getCompanyPosts(id).catch(() => []),
+      getAllLeads(id).catch(() => []),
+      getCustomDomainsByCompany(id).catch(() => []),
+      getLatestKeywordObservations(id).catch(() => []),
+    ]);
+
+    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
+
+    const auditItems = generateEvidenceBasedAudit({
+      companyId: id,
+      businessProfile: payload.business,
+      reviews: dbReviews,
+      contentPosts: dbPosts,
+      leads: dbLeads,
+      rankObservations: latestObs as any,
+      campaigns: payload.campaigns || [],
+      customDomainVerified: isDomainVerified,
+    });
+
+    // Check resolution states stored in company payload
+    const resolvedIds = new Set((payload.audit_items || []).filter((a: any) => a.resolved).map((a: any) => a.id));
+    const mergedItems = auditItems.map((item) => ({
+      ...item,
+      resolved: resolvedIds.has(item.id) || item.resolved,
+    }));
+
+    res.json({
+      success: true,
+      companyId: id,
+      auditItems: mergedItems,
+      totalIssues: mergedItems.filter((i) => !i.resolved).length,
+      resolvedIssues: mergedItems.filter((i) => i.resolved).length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// POST /api/companies/:id/audit/scan - Run fresh evidence scan & persist to company workspace
+app.post('/api/companies/:id/audit/scan', async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const { id } = req.params;
+    const company = await getCompanyById(id);
+    if (!company) {
+      res.status(404).json({ success: false, error: 'Company not found' });
+      return;
+    }
+
+    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const payload: any = (await getCompanyDataPayload(id)) || {};
+    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
+      getCompanyReviews(id).catch(() => []),
+      getCompanyPosts(id).catch(() => []),
+      getAllLeads(id).catch(() => []),
+      getCustomDomainsByCompany(id).catch(() => []),
+      getLatestKeywordObservations(id).catch(() => []),
+    ]);
+
+    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
+
+    const auditItems = generateEvidenceBasedAudit({
+      companyId: id,
+      businessProfile: payload.business,
+      reviews: dbReviews,
+      contentPosts: dbPosts,
+      leads: dbLeads,
+      rankObservations: latestObs as any,
+      campaigns: payload.campaigns || [],
+      customDomainVerified: isDomainVerified,
+    });
+
+    // Merge previous manual resolutions
+    const resolvedIds = new Set((payload.audit_items || []).filter((a: any) => a.resolved).map((a: any) => a.id));
+    const mergedItems = auditItems.map((item) => ({
+      ...item,
+      resolved: resolvedIds.has(item.id) || item.resolved,
+    }));
+
+    payload.audit_items = mergedItems;
+    await saveCompanyDataPayload(id, payload);
+
+    res.json({
+      success: true,
+      companyId: id,
+      auditItems: mergedItems,
+      totalIssues: mergedItems.filter((i) => !i.resolved).length,
+      resolvedIssues: mergedItems.filter((i) => i.resolved).length,
+      message: `Fresh audit scan completed across all 6 evidence pillars. Found ${mergedItems.length} audited items.`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// POST /api/companies/:id/audit/:auditId/resolve - Mark audit issue resolved with audit trail
+app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const { id, auditId } = req.params;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const payload: any = (await getCompanyDataPayload(id)) || {};
+    if (!Array.isArray(payload.audit_items)) {
+      payload.audit_items = [];
+    }
+
+    const existingIndex = payload.audit_items.findIndex((a: any) => a.id === auditId);
+    if (existingIndex >= 0) {
+      payload.audit_items[existingIndex].resolved = true;
+      payload.audit_items[existingIndex].resolvedAt = new Date().toISOString();
+      payload.audit_items[existingIndex].resolvedBy = user.email || user.id;
+    } else {
+      payload.audit_items.push({
+        id: auditId,
+        resolved: true,
+        resolvedAt: new Date().toISOString(),
+        resolvedBy: user.email || user.id,
+      });
+    }
+
+    await saveCompanyDataPayload(id, payload);
+
+    res.json({
+      success: true,
+      message: `Audit issue ${auditId} marked as resolved.`,
+      auditId,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
 // ---------------- INTEGRATIONS MANAGEMENT & LIVE CREDENTIAL VERIFICATION ---------------- //
 
 function maskSecret(val: string): string {
@@ -3390,18 +3571,19 @@ app.post('/api/reviews', validateBody(createReviewSchema), async (req, res) => {
       return;
     }
 
+    const ratingNum = rating !== undefined && rating !== null ? Number(rating) : null;
     const review = await createReview({
       company_id: resolved.companyId,
       author,
-      rating: Number(rating) || 5,
+      rating: ratingNum !== null && !isNaN(ratingNum) ? Math.min(5, Math.max(1, ratingNum)) : (null as any),
       content,
       date: date || new Date().toISOString().split('T')[0],
       relative_time: relative_time || 'Just now',
-      sentiment: sentiment || (Number(rating) >= 4 ? 'positive' : Number(rating) === 3 ? 'neutral' : 'negative'),
+      sentiment: sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : 'neutral'),
       topic: topic || 'Customer Service',
       is_operational_issue: Boolean(is_operational_issue),
       replied: false,
-      source: source || 'google',
+      source: source || 'manual',
     });
 
     res.status(201).json({ success: true, review });
@@ -4379,9 +4561,18 @@ app.post('/api/ai/render-reel', aiRateLimiter, async (req, res) => {
       return;
     }
 
-    const targetCompanyId = (companyId && typeof companyId === 'string' && companyId.trim())
-      ? companyId.trim()
-      : (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
+    const targetCompanyId = resolved.companyId;
+
+    const authCheck = await verifyCompanyWorkspaceAccess(user, targetCompanyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
 
     const [company, companyData, assets] = await Promise.all([
       getCompanyById(targetCompanyId),
@@ -4389,9 +4580,8 @@ app.post('/api/ai/render-reel', aiRateLimiter, async (req, res) => {
       getCompanyAssets(targetCompanyId),
     ]);
 
-    // Ownership check: must own company or be platform admin
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Unauthorized to render videos for this business' });
+    if (!company) {
+      res.status(404).json({ success: false, error: 'Company not found' });
       return;
     }
 
@@ -5403,7 +5593,7 @@ app.post('/api/razorpay/verify-payment', validateBody(verifyRazorpayPaymentSchem
       }
     }
 
-    const effectiveCompanyId = targetCompanyId || getDefaultCompanyId();
+    const effectiveCompanyId = targetCompanyId || 'comp_aaditech_main';
     const creds = await resolveRazorpayCredentials(effectiveCompanyId);
 
     // 2. Separate test/simulation mode from production; never return success=true for simulated payment in production
@@ -5670,7 +5860,7 @@ app.post('/api/razorpay/webhook', async (req, res) => {
       const totalAmount = +(amountRupees + gstAmount).toFixed(2);
 
       const notes = payment.notes || {};
-      const companyId = notes.companyId || notes.company_id || getDefaultCompanyId();
+      const companyId = notes.companyId || notes.company_id || 'comp_aaditech_main';
       const leadId = notes.leadId || notes.lead_id;
       const planName = notes.planName || notes.plan_name || 'Growth Tier (Monthly)';
       const payerName = payment.contact_name || payment.name || notes.customerName || 'Aaditech Client';
@@ -5731,7 +5921,7 @@ app.post('/api/razorpay/webhook', async (req, res) => {
       // Map lifecycle states: trial, active, past_due, payment_failed, cancelled, expired (Requirement 11)
       const subEntity = payload?.subscription?.entity || payload?.payment?.entity || {};
       const notes = subEntity.notes || {};
-      const companyId = notes.companyId || notes.company_id || getDefaultCompanyId();
+      const companyId = notes.companyId || notes.company_id || 'comp_aaditech_main';
       const mappedState = mapRazorpayEventToSubscriptionState(event, subEntity.status);
 
       if (mappedState) {

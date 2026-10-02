@@ -9,7 +9,6 @@ import {
   getPostById,
   updateContentPostStatus,
   getCompanyById,
-  getDefaultCompanyId,
   getCompanyIntegration,
 } from './db';
 import {
@@ -394,9 +393,10 @@ export async function executePublishingJob(
         headline: postOrOptions.payload?.headline || existing.headline,
       };
     } else {
+      const resolvedCompId = postOrOptions.companyId || '';
       post = {
         id: postOrOptions.postId,
-        company_id: postOrOptions.companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main',
+        company_id: resolvedCompId,
         title: 'Publishing Job',
         type: 'general',
         platforms: postOrOptions.platform ? [postOrOptions.platform] : (postOrOptions.platforms || ['facebook']),
@@ -410,7 +410,20 @@ export async function executePublishingJob(
     post = postOrOptions as DbContentPost;
   }
 
-  const companyId = post.company_id || (await getDefaultCompanyId()) || 'comp_aaditech_main';
+  const companyId = post.company_id;
+  if (!companyId) {
+    return {
+      postId: post.id,
+      companyId: '',
+      status: 'FAILED',
+      overallStatus: 'FAILED',
+      finalPostStatus: 'failed',
+      platformResults: [],
+      message: 'Publishing job rejected: missing mandatory company_id tenant binding.',
+      executedAt: new Date().toISOString(),
+    };
+  }
+
   const idempotencyKey = `pub_${post.id}`;
 
   // 1. Check if post is already marked published

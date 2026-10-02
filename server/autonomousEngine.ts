@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   getCompanyById,
   getCompanyIntegrations,
@@ -26,18 +28,39 @@ import { getCompanyExternalAdCampaigns } from './adCampaignService';
 import { sendWhatsAppCloudMessage, resolveWhatsAppCredentials } from './metaWhatsAppService';
 import { executePublishingJob } from './publishingEngine';
 
-// Global emergency stop state
+// Global emergency stop state (Persisted to disk to survive server restarts)
+const EMERGENCY_STOP_FILE = path.join(process.cwd(), 'uploads', '.emergency_stop.json');
 let globalEmergencyStop = false;
+
+try {
+  if (fs.existsSync(EMERGENCY_STOP_FILE)) {
+    const raw = fs.readFileSync(EMERGENCY_STOP_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    globalEmergencyStop = Boolean(parsed?.globalEmergencyStop);
+  }
+} catch {}
 
 // Per-company action execution rate limiter (max 10 actions per minute per company)
 const companyActionTimestamps = new Map<string, number[]>();
 
 export function setGlobalEmergencyStop(stopped: boolean): boolean {
   globalEmergencyStop = stopped;
+  try {
+    const dir = path.dirname(EMERGENCY_STOP_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(EMERGENCY_STOP_FILE, JSON.stringify({ globalEmergencyStop: stopped, updatedAt: new Date().toISOString() }));
+  } catch {}
   return globalEmergencyStop;
 }
 
 export function isGlobalEmergencyStopActive(): boolean {
+  try {
+    if (fs.existsSync(EMERGENCY_STOP_FILE)) {
+      const raw = fs.readFileSync(EMERGENCY_STOP_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      globalEmergencyStop = Boolean(parsed?.globalEmergencyStop);
+    }
+  } catch {}
   return globalEmergencyStop;
 }
 
@@ -545,10 +568,12 @@ export async function executeAutonomousAction(
 
       // Record success
       const providerResp = {
-        provider: 'google_reviews_db',
+        provider: 'local_database_record',
         reviewId,
         repliedAt: nowIso,
         verified: true,
+        liveGoogleSync: false,
+        note: 'Review reply committed to CRM database. Live Google Business Profile sync requires verified GBP OAuth credentials.',
       };
 
       await updateAutonomousAction(actionId, {

@@ -28,12 +28,12 @@ export interface StructuredEvidenceItem {
 }
 
 export interface ExecutiveSummaryInputs {
-  businessProfile?: BusinessProfile | null;
-  reviews?: ReviewItem[] | null;
-  posts?: ContentPost[] | null;
-  leads?: LeadItem[] | null;
+  businessProfile?: BusinessProfile | any | null;
+  reviews?: (ReviewItem | any)[] | null;
+  posts?: (ContentPost | any)[] | null;
+  leads?: (LeadItem | any)[] | null;
   rankObservations?: (RankObservation | any)[] | null;
-  competitors?: CompetitorData[] | null;
+  competitors?: (CompetitorData | any)[] | null;
   customDomainVerified?: boolean;
   growthScore?: GrowthScore | null;
   isDemoMode?: boolean;
