@@ -105,23 +105,23 @@ export function generateStorefrontHtml(
   config?: DbWebsiteConfig | null,
   pageId = 'main'
 ): string {
-  const companyName = company.name || 'Aaditech Solution';
-  const category = company.category || 'IT Services & Software Solutions';
-  const city = company.city || 'Thane';
-  const phone = company.phone || '+91 22 4963 8603';
-  const cleanPhone = phone.replace(/[^0-9]/g, '') || '918898278453';
-  const website = company.website || 'https://bga.aaditechs.in';
+  const companyName = company.name || 'Business Excellence';
+  const category = company.category || 'Professional Services';
+  const city = company.city || 'Local Area';
+  const phone = company.phone || '';
+  const cleanPhone = phone.replace(/[^0-9]/g, '') || '910000000000';
+  const website = company.website || '';
   const primaryColor = config?.primary_color || '#4f46e5';
   const secondaryColor = config?.secondary_color || '#06b6d4';
-  const tagline = config?.tagline || 'Autonomous AI Growth Engine & Local SEO Authority';
+  const tagline = config?.tagline || `Official ${category} in ${city}`;
   const heroTitle = config?.hero_title || `${companyName} — Official ${category} Hub`;
   const heroSubtitle =
     config?.hero_subtitle ||
-    `Trusted professional solutions serving businesses across ${city} and surrounding MMR regions with guaranteed SLA and verified customer satisfaction.`;
+    `Professional solutions serving clients across ${city} with verified customer support.`;
   const metaDesc =
     config?.meta_description ||
-    `${companyName} is the premier provider of ${category} in ${city}. Contact us for direct WhatsApp consultations and quote estimates.`;
-  const keywords = config?.keywords || `${category}, ${city}, local services, business growth, top rated in ${city}`;
+    `${companyName} is a provider of ${category} in ${city}. Contact us for direct inquiries and consultations.`;
+  const keywords = config?.keywords || `${category}, ${city}, local services, business growth`;
 
   const schemaJson = JSON.stringify({
     '@context': 'https://schema.org',
@@ -130,34 +130,11 @@ export function generateStorefrontHtml(
     legalName: company.legal_name || companyName,
     url: website,
     telephone: phone,
-    priceRange: '₹₹',
-    image: 'https://bga.aaditechs.in/logo.png',
     description: metaDesc,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: '210, Anant Laxmi Chambers, B-Cabin, Dada Patil Marg',
       addressLocality: city,
-      addressRegion: 'Maharashtra',
-      postalCode: '400602',
       addressCountry: 'IN',
-    },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: '19.1860',
-      longitude: '72.9759',
-    },
-    openingHoursSpecification: [
-      {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-        opens: '10:00',
-        closes: '20:00',
-      },
-    ],
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '128',
     },
   });
 
@@ -346,17 +323,17 @@ export function generateStorefrontHtml(
           btn.innerHTML = 'Submitting...';
 
           const payload = {
-            companyId: '${company.id}',
+            publicFormToken: '${company.public_form_token || ''}',
             name: document.getElementById('leadName').value,
             phone: document.getElementById('leadPhone').value,
             email: document.getElementById('leadEmail').value,
             service: document.getElementById('leadService').value,
-            message: document.getElementById('leadMessage').value,
+            notes: document.getElementById('leadMessage').value,
             source: 'Website Storefront (${pageId})',
           };
 
           try {
-            const res = await fetch('/api/leads', {
+            const res = await fetch('/api/public/leads', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)

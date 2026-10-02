@@ -134,7 +134,7 @@ export interface ReviewItem {
   replied: boolean;
   replyText?: string;
   replyDate?: string;
-  source: 'google' | 'facebook' | 'justdial';
+  source: 'google' | 'facebook' | 'justdial' | 'manual';
 }
 
 export interface RankObservation {

@@ -4248,15 +4248,29 @@ app.post('/api/ai/render-creative', aiRateLimiter, async (req, res) => {
       contentType,
     } = req.body;
 
-    const targetCompanyId = (companyId && typeof companyId === 'string' && companyId.trim())
-      ? companyId.trim()
-      : (await getDefaultCompanyId()) || 'comp_aaditech_main';
+    const resolved = await resolveUserCompanyId(user, companyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
+    const targetCompanyId = resolved.companyId;
+
+    const authCheck = await verifyCompanyWorkspaceAccess(user, targetCompanyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
 
     const [company, companyData, assets] = await Promise.all([
       getCompanyById(targetCompanyId),
       getCompanyDataPayload(targetCompanyId),
       getCompanyAssets(targetCompanyId),
     ]);
+
+    if (!company) {
+      res.status(404).json({ success: false, error: 'Company not found' });
+      return;
+    }
 
     // Extract brandKit colors, name and logo with fallback hierarchy
     const brandKit = (companyData as any)?.brandKit || (companyData as any)?.business?.brandKit || (company as any)?.brandKit;
@@ -4295,7 +4309,7 @@ app.post('/api/ai/render-creative', aiRateLimiter, async (req, res) => {
       if (photoAsset) photoUrl = photoAsset.url;
     }
 
-    const businessName = req.body.companyName || company?.name || (companyData as any)?.business?.name || (companyData as any)?.name || 'Aaditech Solution';
+    const businessName = req.body.companyName || company.name || (companyData as any)?.business?.name || (companyData as any)?.name || 'Business Excellence';
 
     // Render high-res PNG Buffer via Satori + Resvg
     const pngBuffer = await renderTemplateToImage(chosenTemplateId, {
@@ -4558,7 +4572,7 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
-// Public Lead Ingestion Endpoint (With Token Validation, Honeypot Anti-Spam & Rate Limiting)
+// Public Lead Ingestion Endpoint (Strict Token Validation, Honeypot Anti-Spam & Rate Limiting)
 app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req, res) => {
   try {
     // 1. Honeypot check
@@ -4576,31 +4590,14 @@ app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req
       return;
     }
 
-    let targetCompany: DbCompany | null = null;
-
-    if (providedToken) {
-      targetCompany = await findCompanyByPublicFormToken(String(providedToken).trim());
+    if (!providedToken || typeof providedToken !== 'string' || !providedToken.trim()) {
+      res.status(400).json({ success: false, error: 'A valid publicFormToken is strictly required to submit inquiries through the public lead endpoint.' });
+      return;
     }
 
-    const companyIdParam = req.body.company_id || req.body.companyId;
-    if (!targetCompany && companyIdParam) {
-      const directComp = await getCompanyById(String(companyIdParam).trim());
-      // If company found and token matches (or token is verified)
-      if (directComp && (!directComp.public_form_token || directComp.public_form_token === providedToken)) {
-        targetCompany = directComp;
-      }
-    }
-
+    const targetCompany = await findCompanyByPublicFormToken(String(providedToken).trim());
     if (!targetCompany) {
-      // If still not resolved, try default company if available
-      const defaultId = await getDefaultCompanyId();
-      if (defaultId) {
-        targetCompany = await getCompanyById(defaultId);
-      }
-    }
-
-    if (!targetCompany) {
-      res.status(400).json({ success: false, error: 'Valid company form token or company ID is required to submit inquiries.' });
+      res.status(400).json({ success: false, error: 'Invalid or unrecognized publicFormToken.' });
       return;
     }
 
@@ -4612,7 +4609,6 @@ app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req
     });
 
     const compName = targetCompany.name || 'Our Team';
-    const compPhone = targetCompany.phone || '';
 
     const newLead = await createLead({
       company_id: targetCompany.id,
@@ -4623,14 +4619,14 @@ app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req
       service: service ? String(service).trim() : 'Inquiry',
       budget: budget ? String(budget).trim() : 'Custom Proposal',
       stage: 'new',
-      intent_score: intentAnalysis.score ?? 50,
+      intent_score: intentAnalysis.score ?? null,
       source: source ? String(source).trim() : `${targetCompany.name} Web Form`,
       notes: notes ? String(notes).trim() : '',
       ai_suggested_reply: `Namaste ${name}! Thank you for contacting ${compName}. We have received your inquiry for ${service || 'our services'}. Our team will connect with you shortly.`,
     });
 
     // Auto-dispatch Telegram alert
-    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!*\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score}%\n\n📱 *Source:* ${newLead.source}`;
+    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!*\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score !== null ? `${newLead.intent_score}%` : 'UNAVAILABLE'}\n\n📱 *Source:* ${newLead.source}`;
     sendTelegramPushAlert(alertMsg).catch(() => {});
 
     res.status(201).json({ success: true, lead: newLead });
@@ -4642,38 +4638,35 @@ app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req
 // Authenticated Lead Ingestion & Internal CRM Lead Management
 app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (req, res) => {
   try {
+    const authUser = await getAuthUserFromRequest(req);
+    if (!authUser) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required. For public inquiries, submit to POST /api/public/leads with a valid publicFormToken.',
+      });
+      return;
+    }
+
+    const userCompanies = await getUserCompanies(authUser.id);
+    if (!userCompanies || userCompanies.length === 0) {
+      res.status(403).json({ success: false, error: 'User does not have an active business workspace' });
+      return;
+    }
+
     const { name, company, phone, email, service, budget, source, notes, stage } = req.body;
     let targetCompanyId = (req.body.company_id || req.body.companyId || req.query.company_id || req.query.companyId) as string | undefined;
 
-    // 1. If caller is authenticated (e.g. from CRM dashboard), associate with user's verified company
-    const authUser = await getAuthUserFromRequest(req);
-    if (authUser) {
-      const userCompanies = await getUserCompanies(authUser.id);
-      if (userCompanies.length > 0) {
-        if (targetCompanyId) {
-          const userOwnsCompany = userCompanies.some((c) => c.id === targetCompanyId) || authUser.is_platform_admin;
-          if (!userOwnsCompany) {
-            targetCompanyId = userCompanies[0].id;
-          }
-        } else {
-          targetCompanyId = userCompanies[0].id;
-        }
+    if (targetCompanyId) {
+      const ownsCompany = userCompanies.some((c) => c.id === targetCompanyId) || authUser.is_platform_admin;
+      if (!ownsCompany) {
+        res.status(403).json({ success: false, error: 'Access denied to create leads for this business workspace' });
+        return;
       }
     } else {
-      // Unauthenticated caller must provide valid token or use public endpoint
-      const formToken = req.body.form_token || req.body.formToken || req.body.publicFormToken;
-      if (formToken) {
-        const comp = await findCompanyByPublicFormToken(String(formToken).trim());
-        if (comp) {
-          targetCompanyId = comp.id;
-        }
-      }
-      if (!targetCompanyId) {
-        targetCompanyId = (await getDefaultCompanyId()) || undefined;
-      }
+      targetCompanyId = userCompanies[0].id;
     }
 
-    const targetComp = targetCompanyId ? await getCompanyById(targetCompanyId) : null;
+    const targetComp = await getCompanyById(targetCompanyId);
     const compName = targetComp?.name || company || 'Our Team';
 
     const intentAnalysis = calculateMessageIntent(notes || service || '', {
@@ -4692,14 +4685,14 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
       service: service || 'Digital Growth Inquiry',
       budget: budget || 'Custom Proposal',
       stage: stage || 'new',
-      intent_score: intentAnalysis.score ?? 50,
+      intent_score: intentAnalysis.score ?? null,
       source: source || `${compName} Lead Form`,
       notes: notes || '',
       ai_suggested_reply: `Namaste ${name}! Thank you for contacting ${compName}. We have received your inquiry for ${service || 'our services'}. Our team will connect with you shortly.`,
     });
 
     // Auto-dispatch Telegram alert
-    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!* (${newLead.source})\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score}%\n\n📱 *Source:* ${newLead.source}`;
+    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!* (${newLead.source})\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score !== null ? `${newLead.intent_score}%` : 'UNAVAILABLE'}\n\n📱 *Source:* ${newLead.source}`;
     sendTelegramPushAlert(alertMsg).catch(() => {});
 
     res.status(201).json({ success: true, lead: newLead });
@@ -5078,6 +5071,9 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         phone: fromPhone,
       });
 
+      const matchedCompany = matchedCompanyId ? await getCompanyById(matchedCompanyId) : null;
+      const compName = matchedCompany?.name || 'Our Team';
+
       // Auto-ingest lead into database for the matched company tenant
       await createLead({
         company_id: matchedCompanyId,
@@ -5087,10 +5083,10 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         service: 'WhatsApp Direct Inquiry',
         budget: 'Pending Discussion',
         stage: 'new',
-        intent_score: intentAnalysis.score ?? 50,
+        intent_score: intentAnalysis.score ?? null,
         source: 'WhatsApp Cloud Inbound',
         notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
-        ai_suggested_reply: `Namaste ${contactName}! Aaditech Solution has received your message. A dedicated technical consultant will reply right here on WhatsApp within 15 minutes.`,
+        ai_suggested_reply: `Namaste ${contactName}! ${compName} has received your message. A dedicated consultant will reply right here on WhatsApp shortly.`,
       }).catch((e) => console.warn('Failed to save inbound WhatsApp lead:', e));
 
       // Mark webhook event processed
@@ -6609,14 +6605,11 @@ app.get('/api/companies/:id/website/preview-html', async (req, res) => {
   try {
     const companyId = req.params.id;
     const pageId = (req.query.page as string) || 'main';
-    const company = (await getCompanyById(companyId)) || {
-      id: companyId,
-      name: 'Aaditech Solution',
-      category: 'IT Services & Software Solutions',
-      city: 'Thane',
-      phone: '+91 22 4963 8603',
-      website: 'https://bga.aaditechs.in',
-    };
+    const company = await getCompanyById(companyId);
+    if (!company) {
+      res.status(404).send('<h1>Business Not Found</h1><p>The requested business workspace does not exist.</p>');
+      return;
+    }
     const config = await getWebsiteConfigByCompany(companyId);
     const html = generateStorefrontHtml(company as any, config, pageId);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -6631,14 +6624,11 @@ app.get('/storefront/:companyId', async (req, res) => {
   try {
     const companyId = req.params.companyId;
     const pageId = (req.query.page as string) || 'main';
-    const company = (await getCompanyById(companyId)) || {
-      id: companyId,
-      name: 'Aaditech Solution',
-      category: 'IT Services & Software Solutions',
-      city: 'Thane',
-      phone: '+91 22 4963 8603',
-      website: 'https://bga.aaditechs.in',
-    };
+    const company = await getCompanyById(companyId);
+    if (!company) {
+      res.status(404).send('<h1>Storefront Not Found</h1><p>The requested business storefront is unavailable or does not exist.</p>');
+      return;
+    }
     const config = await getWebsiteConfigByCompany(companyId);
     const html = generateStorefrontHtml(company as any, config, pageId);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

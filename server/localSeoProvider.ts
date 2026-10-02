@@ -80,18 +80,18 @@ const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
 /**
  * Resolves center coordinates for a business from its explicit location or city name
  */
-export function resolveCenterCoordinates(city?: string, customLat?: number, customLng?: number): { lat: number; lng: number } {
+export function resolveCenterCoordinates(city?: string, customLat?: number, customLng?: number): { lat: number; lng: number } | null {
   if (typeof customLat === 'number' && typeof customLng === 'number' && !isNaN(customLat) && !isNaN(customLng)) {
     return { lat: customLat, lng: customLng };
   }
   const cleanCity = (city || '').toLowerCase().trim();
+  if (!cleanCity) return null;
   for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
     if (cleanCity.includes(key)) {
       return coords;
     }
   }
-  // Default to Thane / Mumbai MMR center
-  return { lat: 19.2183, lng: 72.9781 };
+  return null;
 }
 
 /**
@@ -207,8 +207,8 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
               if (!allCompetitors.has(compName)) {
                 allCompetitors.set(compName, {
                   name: compName,
-                  rating: typeof item.rating?.value === 'number' ? item.rating.value : item.rating || 4.5,
-                  reviewsCount: item.rating?.votes_count || item.reviews_count || 15,
+                  rating: typeof item.rating?.value === 'number' ? item.rating.value : (typeof item.rating === 'number' ? item.rating : (null as any)),
+                  reviewsCount: typeof (item.rating?.votes_count ?? item.reviews_count) === 'number' ? (item.rating?.votes_count ?? item.reviews_count) : (null as any),
                   position: idx + 1,
                 });
               }
@@ -350,8 +350,8 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
               if (!allCompetitors.has(compName)) {
                 allCompetitors.set(compName, {
                   name: compName,
-                  rating: typeof item.rating === 'number' ? item.rating : 4.5,
-                  reviewsCount: typeof item.reviews === 'number' ? item.reviews : 20,
+                  rating: typeof item.rating === 'number' ? item.rating : (null as any),
+                  reviewsCount: typeof item.reviews === 'number' ? item.reviews : (null as any),
                   position: idx + 1,
                 });
               }

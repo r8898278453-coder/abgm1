@@ -73,7 +73,7 @@ export interface DbReview {
   replied: boolean;
   reply_text?: string;
   reply_date?: string;
-  source: 'google' | 'facebook' | 'justdial';
+  source: 'google' | 'facebook' | 'justdial' | 'manual';
   created_at?: string;
 }
 
@@ -550,7 +550,6 @@ export async function getDefaultCompanyId(): Promise<string | null> {
   return inMemoryCompanies[0]?.id || null;
 }
 
-// Initialize MySQL pool lazily & auto-create tables
 export async function getDbPool(): Promise<mysql.Pool | null> {
   if (pool && isMySqlAvailable) return pool;
 
@@ -561,12 +560,24 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
   const port = Number(process.env.DB_PORT) || 3306;
 
   if (!host || !database || !user) {
+    if (isProductionDatabaseMode()) {
+      const prodErr: any = new Error('DATABASE_UNAVAILABLE: MySQL connection parameters (DB_HOST, DB_NAME, DB_USER) are missing in production mode.');
+      prodErr.code = 'DATABASE_UNAVAILABLE';
+      prodErr.status = 503;
+      throw prodErr;
+    }
     return null;
   }
 
   // If connection recently failed, do not hammer unreachable host on every query
   const now = Date.now();
   if (!isMySqlAvailable && lastFailureTime > 0 && now - lastFailureTime < RETRY_COOLDOWN_MS) {
+    if (isProductionDatabaseMode()) {
+      const prodErr: any = new Error('DATABASE_UNAVAILABLE: MySQL database is currently unreachable in production mode.');
+      prodErr.code = 'DATABASE_UNAVAILABLE';
+      prodErr.status = 503;
+      throw prodErr;
+    }
     return null;
   }
 
@@ -617,6 +628,12 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
       pool = null;
       isMySqlAvailable = false;
       lastFailureTime = Date.now();
+      if (isProductionDatabaseMode()) {
+        const prodErr: any = new Error(`DATABASE_UNAVAILABLE: Could not connect to database in production mode (${err?.message})`);
+        prodErr.code = 'DATABASE_UNAVAILABLE';
+        prodErr.status = 503;
+        throw prodErr;
+      }
       return null;
     } finally {
       poolInitPromise = null;
@@ -698,7 +715,7 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           phone VARCHAR(64),
           website VARCHAR(255),
           google_place_id VARCHAR(128),
-          autopilot_enabled TINYINT(1) DEFAULT 1,
+          autopilot_enabled TINYINT(1) DEFAULT 0,
           score INT DEFAULT NULL,
           rank_position INT DEFAULT NULL,
           public_form_token VARCHAR(64) DEFAULT NULL,
@@ -750,8 +767,8 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           service VARCHAR(191),
           budget VARCHAR(64),
           stage VARCHAR(32) DEFAULT 'new',
-          intent_score INT DEFAULT 85,
-          source VARCHAR(64),
+          intent_score INT DEFAULT NULL,
+          source VARCHAR(64) DEFAULT 'website',
           notes TEXT,
           ai_suggested_reply TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -797,17 +814,17 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           id VARCHAR(64) PRIMARY KEY,
           company_id VARCHAR(64) DEFAULT NULL,
           author VARCHAR(255) NOT NULL,
-          rating INT DEFAULT 5,
+          rating INT DEFAULT NULL,
           date VARCHAR(64) NOT NULL,
           relative_time VARCHAR(64),
           content TEXT NOT NULL,
-          sentiment VARCHAR(32) DEFAULT 'positive',
+          sentiment VARCHAR(32) DEFAULT NULL,
           topic VARCHAR(128),
           is_operational_issue TINYINT(1) DEFAULT 0,
           replied TINYINT(1) DEFAULT 0,
           reply_text TEXT,
           reply_date VARCHAR(64),
-          source VARCHAR(32) DEFAULT 'google',
+          source VARCHAR(64) DEFAULT 'manual',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_company_review (company_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -826,7 +843,7 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           caption TEXT NOT NULL,
           cta VARCHAR(255) DEFAULT NULL,
           image_url TEXT,
-          status VARCHAR(32) DEFAULT 'scheduled',
+          status VARCHAR(32) DEFAULT 'draft',
           scheduled_date VARCHAR(64) DEFAULT NULL,
           scheduled_time VARCHAR(64) DEFAULT NULL,
           time_slot VARCHAR(64) DEFAULT NULL,
@@ -908,7 +925,7 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           id VARCHAR(64) PRIMARY KEY,
           company_id VARCHAR(64) NOT NULL,
           provider VARCHAR(64) NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'disconnected',
+          status VARCHAR(32) NOT NULL DEFAULT 'not_configured',
           credentials TEXT,
           config TEXT,
           last_tested_at VARCHAR(64),
@@ -1636,11 +1653,7 @@ export async function getAllLeads(companyId?: string): Promise<DbLead[]> {
 }
 
 export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Promise<DbLead> {
-  // Ensure every lead is strictly bound to a company (never unlinked or orphaned)
-  let resolvedCompanyId = lead.company_id;
-  if (!resolvedCompanyId) {
-    resolvedCompanyId = (await getDefaultCompanyId()) || undefined;
-  }
+  const resolvedCompanyId = lead.company_id || undefined;
 
   let companyName = 'Our Team';
   if (resolvedCompanyId) {
@@ -1658,7 +1671,7 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
     service: lead.service || 'General Inquiry',
     budget: lead.budget || 'Custom Quote',
     stage: lead.stage || 'new',
-    intent_score: lead.intent_score !== undefined ? lead.intent_score : 50,
+    intent_score: lead.intent_score !== undefined && lead.intent_score !== null ? lead.intent_score : null,
     source: lead.source || 'Website Lead Form',
     notes: lead.notes || '',
     ai_suggested_reply:
@@ -2010,26 +2023,23 @@ export async function saveGoogleProfileCache(
 // ---------------- REVIEWS MANAGEMENT (PER-TENANT MYSQL PERSISTENCE) ---------------- //
 
 export async function getCompanyReviews(companyId?: string): Promise<DbReview[]> {
+  if (!companyId) return [];
   try {
     const db = await getDbPool();
     if (db) {
-      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-      
-      // Query reviews from database
-      const [rows]: any = await db.query('SELECT * FROM reviews WHERE company_id = ? ORDER BY date DESC, created_at DESC', [targetCompanyId]);
+      const [rows]: any = await db.query('SELECT * FROM reviews WHERE company_id = ? ORDER BY date DESC, created_at DESC', [companyId]);
       return rows.map((r: any) => ({
         ...r,
-        rating: Number(r.rating) || 5,
+        rating: r.rating !== null && r.rating !== undefined ? Number(r.rating) : null,
         is_operational_issue: Boolean(r.is_operational_issue),
         replied: Boolean(r.replied),
       }));
     }
   } catch (err: any) {
-    console.warn('[getCompanyReviews] MySQL error, using fallback:', err?.message);
+    handleDbError('getCompanyReviews', err);
   }
 
-  const targetId = companyId || 'comp_aaditech_main';
-  return inMemoryReviews.filter((r) => r.company_id === targetId);
+  return inMemoryReviews.filter((r) => r.company_id === companyId);
 }
 
 export async function getReviewById(id: string): Promise<DbReview | null> {
@@ -2041,7 +2051,7 @@ export async function getReviewById(id: string): Promise<DbReview | null> {
         const r = rows[0];
         return {
           ...r,
-          rating: Number(r.rating) || 5,
+          rating: r.rating !== null && r.rating !== undefined ? Number(r.rating) : null,
           is_operational_issue: Boolean(r.is_operational_issue),
           replied: Boolean(r.replied),
         };
@@ -2049,7 +2059,7 @@ export async function getReviewById(id: string): Promise<DbReview | null> {
       return null;
     }
   } catch (err: any) {
-    console.warn('[getReviewById] MySQL error:', err?.message);
+    handleDbError('getReviewById', err);
   }
 
   return inMemoryReviews.find((r) => r.id === id) || null;
@@ -2065,7 +2075,7 @@ export async function getReviewCompanyId(reviewId: string): Promise<string | nul
       }
     }
   } catch (err: any) {
-    console.warn('[getReviewCompanyId] MySQL error:', err?.message);
+    handleDbError('getReviewCompanyId', err);
   }
 
   const inMem = inMemoryReviews.find((r) => r.id === reviewId);
@@ -2073,21 +2083,22 @@ export async function getReviewCompanyId(reviewId: string): Promise<string | nul
 }
 
 export async function createReview(review: Omit<DbReview, 'id'> & { id?: string }): Promise<DbReview> {
+  const ratingNum = review.rating !== undefined && review.rating !== null ? Number(review.rating) : null;
   const newReview: DbReview = {
     id: review.id || `rev_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
-    company_id: review.company_id || (await getDefaultCompanyId()) || 'comp_aaditech_main',
+    company_id: review.company_id,
     author: review.author,
-    rating: Number(review.rating) || 5,
+    rating: ratingNum !== null && !isNaN(ratingNum) ? ratingNum : (null as any),
     date: review.date || new Date().toISOString().split('T')[0],
     relative_time: review.relative_time || 'Recently',
     content: review.content,
-    sentiment: review.sentiment || (Number(review.rating) >= 4 ? 'positive' : Number(review.rating) === 3 ? 'neutral' : 'negative'),
+    sentiment: review.sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : undefined),
     topic: review.topic || 'General Feedback',
     is_operational_issue: Boolean(review.is_operational_issue),
     replied: Boolean(review.replied),
     reply_text: review.reply_text || undefined,
     reply_date: review.reply_date || undefined,
-    source: review.source || 'google',
+    source: review.source || 'manual',
     created_at: new Date().toISOString(),
   };
 
@@ -2099,13 +2110,13 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newReview.id,
-          newReview.company_id,
+          newReview.company_id || null,
           newReview.author,
           newReview.rating,
           newReview.date,
           newReview.relative_time || null,
           newReview.content,
-          newReview.sentiment,
+          newReview.sentiment || null,
           newReview.topic || null,
           newReview.is_operational_issue ? 1 : 0,
           newReview.replied ? 1 : 0,
@@ -2117,7 +2128,7 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
       return newReview;
     }
   } catch (err: any) {
-    console.warn('[createReview] MySQL error:', err?.message);
+    handleDbError('createReview', err);
   }
 
   inMemoryReviews.unshift(newReview);
@@ -2186,12 +2197,12 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
   for (const gr of googleReviews) {
     const author = gr.author_name || gr.author || 'Google User';
     const content = (gr.text || gr.content || '').trim();
-    if (!content && !gr.rating) continue;
+    if (!content && typeof gr.rating !== 'number') continue;
 
-    const rating = typeof gr.rating === 'number' ? gr.rating : 5;
-    const sentiment = rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative';
-    const date = gr.time ? new Date(gr.time * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-    const relativeTime = gr.relative_time_description || 'Recently';
+    const rating = typeof gr.rating === 'number' ? gr.rating : null;
+    const sentiment = typeof gr.rating === 'number' ? (gr.rating >= 4 ? 'positive' : gr.rating === 3 ? 'neutral' : 'negative') : null;
+    const date = gr.time ? new Date(gr.time * 1000).toISOString().split('T')[0] : null;
+    const relativeTime = gr.relative_time_description || null;
 
     try {
       const db = await getDbPool();
@@ -2211,12 +2222,12 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
               companyId,
               author,
               rating,
-              date,
+              date || new Date().toISOString().split('T')[0],
               relativeTime,
               content,
               sentiment,
               'Google Review',
-              rating <= 2 ? 1 : 0,
+              rating !== null && rating <= 2 ? 1 : 0,
               0,
               'google',
             ]
@@ -2234,13 +2245,12 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
 // ---------------- CONTENT POSTS MANAGEMENT (PER-TENANT MYSQL PERSISTENCE) ---------------- //
 
 export async function getCompanyPosts(companyId?: string): Promise<DbContentPost[]> {
+  if (!companyId) return [];
   try {
     const db = await getDbPool();
     if (db) {
-      const targetCompanyId = companyId || (await getDefaultCompanyId()) || 'comp_aaditech_main';
-
       // Query content posts from database
-      const [rows]: any = await db.query('SELECT * FROM content_posts WHERE company_id = ? ORDER BY created_at DESC', [targetCompanyId]);
+      const [rows]: any = await db.query('SELECT * FROM content_posts WHERE company_id = ? ORDER BY created_at DESC', [companyId]);
       return rows.map((r: any) => {
         let platforms: string[] = ['google'];
         if (r.platforms) {
@@ -2278,11 +2288,10 @@ export async function getCompanyPosts(companyId?: string): Promise<DbContentPost
       });
     }
   } catch (err: any) {
-    console.warn('[getCompanyPosts] MySQL error, using fallback:', err?.message);
+    handleDbError('getCompanyPosts', err);
   }
 
-  const targetId = companyId || 'comp_aaditech_main';
-  return inMemoryContentPosts.filter((p) => p.company_id === targetId);
+  return inMemoryContentPosts.filter((p) => p.company_id === companyId);
 }
 
 export async function getPostById(id: string): Promise<DbContentPost | null> {
@@ -2313,7 +2322,7 @@ export async function getPostById(id: string): Promise<DbContentPost | null> {
       return null;
     }
   } catch (err: any) {
-    console.warn('[getPostById] MySQL error:', err?.message);
+    handleDbError('getPostById', err);
   }
 
   return inMemoryContentPosts.find((p) => p.id === id) || null;
@@ -2329,7 +2338,7 @@ export async function getContentPostCompanyId(postId: string): Promise<string | 
       }
     }
   } catch (err: any) {
-    console.warn('[getContentPostCompanyId] MySQL error:', err?.message);
+    handleDbError('getContentPostCompanyId', err);
   }
 
   const inMem = inMemoryContentPosts.find((p) => p.id === postId);
@@ -2339,7 +2348,7 @@ export async function getContentPostCompanyId(postId: string): Promise<string | 
 export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?: string }): Promise<DbContentPost> {
   const newPost: DbContentPost = {
     id: post.id || `post_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
-    company_id: post.company_id || (await getDefaultCompanyId()) || 'comp_aaditech_main',
+    company_id: post.company_id,
     title: post.title || 'Untitled Post',
     type: post.type || 'offer',
     platforms: post.platforms && post.platforms.length > 0 ? post.platforms : ['google'],
@@ -2366,7 +2375,7 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newPost.id,
-          newPost.company_id,
+          newPost.company_id || null,
           newPost.title || null,
           newPost.type || 'offer',
           JSON.stringify(newPost.platforms || []),
@@ -2387,7 +2396,7 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
       return newPost;
     }
   } catch (err: any) {
-    console.warn('[createContentPost] MySQL error:', err?.message);
+    handleDbError('createContentPost', err);
   }
 
   inMemoryContentPosts.unshift(newPost);
@@ -3789,6 +3798,7 @@ export async function saveRankObservations(
 
   if (!rawList || rawList.length === 0) return;
 
+  const batchTimestamp = rawList[0]?.timestamp || new Date().toISOString();
   const observations: DbRankObservation[] = rawList.map((obs: any) => ({
     id: obs.id || `obs_${crypto.randomUUID().slice(0, 10)}`,
     company_id: obs.company_id || obs.companyId || companyIdFallback,
@@ -3797,7 +3807,7 @@ export async function saveRankObservations(
     longitude: Number(obs.longitude ?? obs.lng ?? 0),
     grid_index: Number(obs.grid_index ?? obs.gridIndex ?? 0),
     grid_label: obs.grid_label || obs.gridLabel || null,
-    timestamp: obs.timestamp || new Date().toISOString(),
+    timestamp: obs.timestamp || batchTimestamp,
     provider: obs.provider || 'dataforseo',
     position: typeof obs.position === 'number' ? obs.position : null,
     status: obs.status || 'LIVE',
@@ -3929,10 +3939,13 @@ export async function getLatestKeywordObservations(
     );
     if (matching.length === 0) return [];
 
-    const latestTime = matching[0].timestamp;
-    return matching
-      .filter((o) => o.timestamp === latestTime)
-      .sort((a, b) => a.grid_index - b.grid_index);
+    const gridMap = new Map<number, DbRankObservation>();
+    for (const obs of matching) {
+      if (!gridMap.has(obs.grid_index)) {
+        gridMap.set(obs.grid_index, obs);
+      }
+    }
+    return Array.from(gridMap.values()).sort((a, b) => a.grid_index - b.grid_index);
   }
 
   const map = new Map<string, DbRankObservation>();
