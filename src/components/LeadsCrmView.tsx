@@ -77,17 +77,17 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
 
   const handleSelectLead = (lead: LeadItem) => {
     setSelectedLead(lead);
-    setReplyDraft(lead.aiSuggestedReply);
+    setReplyDraft(lead.aiSuggestedReply || '');
     setGeneratedPaymentLink(null);
   };
 
   const handleSendWhatsApp = async (lead: LeadItem) => {
-    let cleanPhone = lead.phone.replace(/[^0-9]/g, '');
+    let cleanPhone = (lead.phone || '').replace(/[^0-9]/g, '');
     if (cleanPhone.length === 10) {
       cleanPhone = `91${cleanPhone}`;
     }
 
-    const messageText = replyDraft || lead.aiSuggestedReply;
+    const messageText = replyDraft || lead.aiSuggestedReply || '';
     setIsSendingWhatsApp(true);
 
     try {

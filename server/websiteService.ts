@@ -98,6 +98,32 @@ export async function verifyDomainDns(
 }
 
 /**
+ * Escapes special HTML characters to prevent XSS.
+ */
+export function escapeHtml(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Escapes attribute values to prevent attribute breakout and injection.
+ */
+export function escapeAttribute(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
  * Generates an SEO-optimized, schema-grounded standalone HTML page for the storefront.
  */
 export function generateStorefrontHtml(
@@ -105,52 +131,105 @@ export function generateStorefrontHtml(
   config?: DbWebsiteConfig | null,
   pageId = 'main'
 ): string {
-  const companyName = company.name || 'Business Excellence';
-  const category = company.category || 'Professional Services';
-  const city = company.city || 'Local Area';
-  const phone = company.phone || '';
-  const cleanPhone = phone.replace(/[^0-9]/g, '') || '910000000000';
-  const website = company.website || '';
-  const primaryColor = config?.primary_color || '#4f46e5';
-  const secondaryColor = config?.secondary_color || '#06b6d4';
-  const tagline = config?.tagline || `Official ${category} in ${city}`;
-  const heroTitle = config?.hero_title || `${companyName} — Official ${category} Hub`;
-  const heroSubtitle =
+  const rawCompanyName = company.name || 'Business Excellence';
+  const rawCategory = company.category || 'Professional Services';
+  const rawCity = company.city || '';
+  const rawPhone = company.phone || '';
+  const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+  const rawWebsite = company.website || '';
+  const rawAddress = (company as any).address || '';
+  const primaryColor = escapeAttribute(config?.primary_color || '#4f46e5');
+  const secondaryColor = escapeAttribute(config?.secondary_color || '#06b6d4');
+  
+  const companyName = escapeHtml(rawCompanyName);
+  const category = escapeHtml(rawCategory);
+  const city = escapeHtml(rawCity);
+  const phone = escapeHtml(rawPhone);
+  const website = escapeHtml(rawWebsite);
+  const address = escapeHtml(rawAddress);
+
+  const tagline = escapeHtml(config?.tagline || (rawCity ? `Official ${rawCategory} in ${rawCity}` : `Official ${rawCategory} Hub`));
+  const heroTitle = escapeHtml(config?.hero_title || `${rawCompanyName} — Official ${rawCategory} Hub`);
+  const heroSubtitle = escapeHtml(
     config?.hero_subtitle ||
-    `Professional solutions serving clients across ${city} with verified customer support.`;
-  const metaDesc =
+    (rawCity
+      ? `Professional solutions serving clients across ${rawCity} with verified customer support.`
+      : `Professional solutions with verified customer support.`)
+  );
+  const metaDesc = escapeAttribute(
     config?.meta_description ||
-    `${companyName} is a provider of ${category} in ${city}. Contact us for direct inquiries and consultations.`;
-  const keywords = config?.keywords || `${category}, ${city}, local services, business growth`;
+    (rawCity
+      ? `${rawCompanyName} is a provider of ${rawCategory} in ${rawCity}. Contact us for direct inquiries and consultations.`
+      : `${rawCompanyName} is a provider of ${rawCategory}. Contact us for direct inquiries and consultations.`)
+  );
+  const keywords = escapeAttribute(config?.keywords || (rawCity ? `${rawCategory}, ${rawCity}, local services, business growth` : `${rawCategory}, local services, business growth`));
 
   const schemaJson = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    name: companyName,
-    legalName: company.legal_name || companyName,
-    url: website,
-    telephone: phone,
-    description: metaDesc,
+    name: rawCompanyName,
+    legalName: company.legal_name || rawCompanyName,
+    url: rawWebsite,
+    telephone: rawPhone,
+    description: config?.meta_description || metaDesc,
     address: {
       '@type': 'PostalAddress',
-      addressLocality: city,
+      addressLocality: rawCity || undefined,
+      streetAddress: rawAddress || undefined,
       addressCountry: 'IN',
     },
-  });
+  }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+  const citySubtitle = rawCity ? ` in ${city}` : '';
+  const phoneCta = rawPhone
+    ? `<a href="tel:${escapeAttribute(rawPhone)}" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition border border-slate-200">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+          <span>${phone}</span>
+        </a>`
+    : '';
+
+  const whatsappCta = cleanPhone
+    ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Namaste ${rawCompanyName}! I am interested in your ${rawCategory}.`)}" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
+          <span>WhatsApp Chat</span>
+        </a>`
+    : '';
+
+  const heroWhatsAppButton = cleanPhone
+    ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${rawCompanyName}! I would like to check service availability${rawCity ? ` in ${rawCity}` : ''}.`)}" target="_blank" class="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md transition flex items-center gap-2">
+          <span>Chat on WhatsApp</span>
+        </a>`
+    : '';
+
+  const floatingWhatsApp = cleanPhone
+    ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${rawCompanyName}! I am browsing your website and have an inquiry.`)}" target="_blank" class="fixed bottom-6 right-6 z-50 bg-emerald-600 hover:bg-emerald-700 text-white p-3.5 rounded-full shadow-lg transition transform hover:scale-110 flex items-center justify-center border-2 border-white" title="Chat on WhatsApp">
+    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
+  </a>`
+    : '';
+
+  const locationSection = (rawAddress || rawCity || rawPhone)
+    ? `<div class="space-y-1">
+        <div class="font-bold text-white uppercase text-[11px] tracking-wider mb-2">Location & Contact</div>
+        ${rawAddress ? `<p class="text-[11px]">📍 ${address}${rawCity ? `, ${city}` : ''}</p>` : (rawCity ? `<p class="text-[11px]">📍 Serving ${city}</p>` : '')}
+        ${rawPhone ? `<p class="text-[11px]">📞 Phone: ${phone}</p>` : ''}
+      </div>`
+    : '';
+
+  const logoInitials = escapeHtml((rawCompanyName || 'BE').substring(0, 2).toUpperCase());
 
   return `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${heroTitle} | 4.9★ Rated in ${city}</title>
+  <title>${heroTitle}</title>
   <meta name="description" content="${metaDesc}">
   <meta name="keywords" content="${keywords}">
   <meta name="author" content="${companyName}">
   
   <!-- OpenGraph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="${website}">
+  <meta property="og:url" content="${escapeAttribute(rawWebsite)}">
   <meta property="og:title" content="${heroTitle}">
   <meta property="og:description" content="${metaDesc}">
   <meta property="og:site_name" content="${companyName}">
@@ -189,7 +268,7 @@ export function generateStorefrontHtml(
   <!-- Top Announcement Bar -->
   <div class="bg-slate-900 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2">
     <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-    <span>Verified Local Business Partner in <strong>${city}</strong> • Instant Consultations Available</span>
+    <span>${rawCity ? `Verified Local Business Partner in <strong>${city}</strong> • ` : ''}Direct Inquiries Available</span>
   </div>
 
   <!-- Header Navigation -->
@@ -197,7 +276,7 @@ export function generateStorefrontHtml(
     <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-brandPrimary text-white font-black text-lg flex items-center justify-center shadow-sm">
-          ${companyName.substring(0, 2).toUpperCase()}
+          ${logoInitials}
         </div>
         <div>
           <div class="font-extrabold text-base text-slate-900 leading-tight">${companyName}</div>
@@ -206,14 +285,8 @@ export function generateStorefrontHtml(
       </div>
 
       <div class="flex items-center gap-3">
-        <a href="tel:${phone}" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition border border-slate-200">
-          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-          <span>${phone}</span>
-        </a>
-        <a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Namaste ${companyName}! I am interested in your ${category}.`)}" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
-          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
-          <span>WhatsApp Chat</span>
-        </a>
+        ${phoneCta}
+        ${whatsappCta}
       </div>
     </div>
   </header>
@@ -222,7 +295,7 @@ export function generateStorefrontHtml(
   <section class="relative py-16 px-4 bg-gradient-to-b from-indigo-50/60 to-slate-50 border-b border-slate-200">
     <div class="max-w-4xl mx-auto text-center space-y-6">
       <div class="inline-flex items-center gap-1.5 bg-indigo-100/80 text-indigo-800 text-xs font-bold px-3.5 py-1.5 rounded-full border border-indigo-200">
-        <span>⭐ 4.9 / 5.0 Star Rated Local Authority in ${city}</span>
+        <span>Official Business Service Hub${citySubtitle}</span>
       </div>
       
       <h1 class="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
@@ -235,11 +308,9 @@ export function generateStorefrontHtml(
 
       <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
         <a href="#inquiry-section" class="px-6 py-3.5 bg-brandPrimary hover:opacity-90 text-white font-black text-sm rounded-2xl shadow-md transition transform hover:-translate-y-0.5">
-          Request Free Consultation
+          Request Consultation
         </a>
-        <a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${companyName}! I would like to check service availability in ${city}.`)}" target="_blank" class="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md transition flex items-center gap-2">
-          <span>Chat on WhatsApp</span>
-        </a>
+        ${heroWhatsAppButton}
       </div>
     </div>
   </section>
@@ -249,20 +320,20 @@ export function generateStorefrontHtml(
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
         <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">⚡</div>
-        <h3 class="font-black text-slate-900 text-base">Rapid Response & Turnaround</h3>
-        <p class="text-xs text-slate-600 leading-relaxed">Direct connection with local technical leads in ${city}. Fast quotes, clear deliverables, and no middlemen.</p>
+        <h3 class="font-black text-slate-900 text-base">Direct Communication</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">Connect directly with verified representatives${citySubtitle}. Clear deliverables and fast turnaround.</p>
       </div>
 
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
         <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">🛡️</div>
-        <h3 class="font-black text-slate-900 text-base">100% Guaranteed Satisfaction</h3>
-        <p class="text-xs text-slate-600 leading-relaxed">Proven track record with verified local business reviews and Section 31 GST compliant billing.</p>
+        <h3 class="font-black text-slate-900 text-base">Quality Standards</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">Dedicated professional service with documented requirements and transparent billing.</p>
       </div>
 
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
         <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">📍</div>
-        <h3 class="font-black text-slate-900 text-base">Localized MMR Domain Expertise</h3>
-        <p class="text-xs text-slate-600 leading-relaxed">Specialized execution optimized for ${city}, Mumbai, Navi Mumbai, and surrounding industrial belts.</p>
+        <h3 class="font-black text-slate-900 text-base">Local Service Commitment</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">Specialized execution tailored to client requirements and regional standards${citySubtitle}.</p>
       </div>
     </div>
   </section>
@@ -271,41 +342,36 @@ export function generateStorefrontHtml(
   <section id="inquiry-section" class="py-12 px-4 bg-white border-y border-slate-200">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="text-center space-y-2">
-        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Send an Instant Project Inquiry</h2>
-        <p class="text-xs sm:text-sm text-slate-500">Fill out this quick form. Our specialist team will reach out within 15 minutes.</p>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Send an Inquiry</h2>
+        <p class="text-xs sm:text-sm text-slate-500">Submit your requirements. Our team will review and respond promptly.</p>
       </div>
 
       <form id="leadForm" class="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200 space-y-4 shadow-sm">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Your Full Name *</label>
-            <input type="text" id="leadName" required placeholder="e.g. Rahul Sharma" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="leadName" required placeholder="Full Name" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number (WhatsApp) *</label>
-            <input type="tel" id="leadPhone" required placeholder="e.g. 9820123456" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="tel" id="leadPhone" required placeholder="Phone Number" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
-            <input type="email" id="leadEmail" placeholder="e.g. rahul@example.com" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="email" id="leadEmail" placeholder="Email Address" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Service Required</label>
-            <select id="leadService" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-              <option value="${category}">${category} (General)</option>
-              <option value="Local SEO & Google 3-Pack Growth">Local SEO & Google 3-Pack Growth</option>
-              <option value="Custom Web / Mobile Application">Custom Web / Mobile Application</option>
-              <option value="WhatsApp CRM & Lead Automation">WhatsApp CRM & Lead Automation</option>
-            </select>
+            <input type="text" id="leadService" placeholder="${category}" value="${category}" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Project Details / Message</label>
-          <textarea id="leadMessage" rows="3" placeholder="Tell us briefly about your timeline, budget, and requirements..." class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+          <textarea id="leadMessage" rows="3" placeholder="Describe your project or questions..." class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
         </div>
 
         <button type="submit" id="submitBtn" class="w-full py-3.5 bg-brandPrimary hover:opacity-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-md flex items-center justify-center gap-2">
@@ -323,13 +389,13 @@ export function generateStorefrontHtml(
           btn.innerHTML = 'Submitting...';
 
           const payload = {
-            publicFormToken: '${company.public_form_token || ''}',
+            publicFormToken: '${escapeAttribute(company.public_form_token || '')}',
             name: document.getElementById('leadName').value,
             phone: document.getElementById('leadPhone').value,
             email: document.getElementById('leadEmail').value,
             service: document.getElementById('leadService').value,
             notes: document.getElementById('leadMessage').value,
-            source: 'Website Storefront (${pageId})',
+            source: 'Website Storefront (${escapeAttribute(pageId)})',
           };
 
           try {
@@ -341,17 +407,17 @@ export function generateStorefrontHtml(
             const data = await res.json();
             if (data.success || res.ok) {
               feedback.className = 'text-xs text-center font-bold text-emerald-600 block p-3 bg-emerald-50 rounded-xl border border-emerald-200';
-              feedback.innerText = 'Thank you! Your inquiry has been submitted directly to our lead CRM. Our team will contact you shortly.';
+              feedback.innerText = 'Thank you! Your inquiry has been submitted successfully.';
               document.getElementById('leadForm').reset();
             } else {
               throw new Error(data.message || 'Failed to submit inquiry');
             }
           } catch (err) {
             feedback.className = 'text-xs text-center font-bold text-emerald-600 block p-3 bg-emerald-50 rounded-xl border border-emerald-200';
-            feedback.innerText = 'Thank you! Your inquiry has been recorded. You can also message us instantly on WhatsApp!';
+            feedback.innerText = 'Thank you! Your inquiry has been recorded.';
           } finally {
             btn.disabled = false;
-            btn.innerHTML = 'Submit Inquiry to ${companyName}';
+            btn.innerText = 'Submit Inquiry';
           }
         });
       </script>
@@ -363,29 +429,23 @@ export function generateStorefrontHtml(
     <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8">
       <div class="space-y-2">
         <div class="font-black text-white text-base">${companyName}</div>
-        <p class="text-[11px] leading-relaxed">${company.legal_name || companyName}</p>
-        <p class="text-[11px] text-slate-500">Official Local Storefront & Service Hub</p>
+        <p class="text-[11px] leading-relaxed">${escapeHtml(company.legal_name || rawCompanyName)}</p>
+        <p class="text-[11px] text-slate-500">Official Storefront & Service Hub</p>
       </div>
-      <div class="space-y-1">
-        <div class="font-bold text-white uppercase text-[11px] tracking-wider mb-2">Location & Hours</div>
-        <p class="text-[11px]">📍 210, Anant Laxmi Chambers, B-Cabin, Dada Patil Marg, ${city}</p>
-        <p class="text-[11px]">⏰ Mon - Sat: 10:00 AM - 8:00 PM</p>
-        <p class="text-[11px]">📞 Phone: ${phone}</p>
-      </div>
+      ${locationSection}
       <div class="space-y-2 text-right sm:text-right">
-        <div class="font-bold text-white uppercase text-[11px] tracking-wider mb-2">Quick WhatsApp</div>
+        ${cleanPhone ? `
+        <div class="font-bold text-white uppercase text-[11px] tracking-wider mb-2">Direct Contact</div>
         <a href="https://wa.me/${cleanPhone}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs">
           Open WhatsApp Direct
-        </a>
+        </a>` : ''}
         <p class="text-[10px] text-slate-600 mt-2">© ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
       </div>
     </div>
   </footer>
 
   <!-- Floating WhatsApp Action Button -->
-  <a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${companyName}! I am browsing your website and have an inquiry.`)}" target="_blank" class="fixed bottom-6 right-6 z-50 bg-emerald-600 hover:bg-emerald-700 text-white p-3.5 rounded-full shadow-lg transition transform hover:scale-110 flex items-center justify-center border-2 border-white" title="Chat on WhatsApp">
-    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
-  </a>
+  ${floatingWhatsApp}
 
 </body>
 </html>`;

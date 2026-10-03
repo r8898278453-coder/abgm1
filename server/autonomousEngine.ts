@@ -556,24 +556,64 @@ export async function executeAutonomousAction(
   // Gate 7: Provider Availability & Real Outbound Execution
   try {
     if (action.action_type === 'review_reply') {
-      const { reviewId, replyText } = action.payload || {};
+      const { reviewId, replyText, externalReviewId } = action.payload || {};
       if (!reviewId || !replyText) {
         throw new Error('Invalid review reply payload: reviewId and replyText are required');
       }
 
-      const updated = await updateReviewReply(reviewId, replyText);
+      let replyStatus: 'LOCAL_ONLY' | 'GOOGLE_PUBLISHED' | 'GOOGLE_VERIFIED' | 'FAILED' = 'LOCAL_ONLY';
+      let liveGoogleSync = false;
+      let googleError: string | null = null;
+
+      // Check if Google Business Profile OAuth API is configured for this tenant
+      const gmbIntegration = await getCompanyIntegration(action.company_id, 'google_gmb_oauth');
+      const oauthToken = gmbIntegration?.credentials?.oauthToken;
+      const accountId = gmbIntegration?.credentials?.accountId;
+      const locationId = gmbIntegration?.credentials?.locationId;
+
+      if (oauthToken && accountId && locationId && externalReviewId) {
+        try {
+          const gmbUrl = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(accountId)}/${encodeURIComponent(locationId)}/reviews/${encodeURIComponent(externalReviewId)}/reply`;
+          const gmbRes = await fetch(gmbUrl, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${oauthToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ comment: replyText }),
+            signal: AbortSignal.timeout(6000),
+          });
+          if (gmbRes.ok) {
+            replyStatus = 'GOOGLE_PUBLISHED';
+            liveGoogleSync = true;
+          } else {
+            const errData = await gmbRes.json().catch(() => ({}));
+            googleError = errData?.error?.message || `Google API returned HTTP ${gmbRes.status}`;
+            replyStatus = 'LOCAL_ONLY';
+          }
+        } catch (apiErr: any) {
+          googleError = apiErr?.message || 'Google API network timeout';
+          replyStatus = 'LOCAL_ONLY';
+        }
+      }
+
+      const updated = await updateReviewReply(reviewId, replyText, action.company_id, replyStatus);
       if (!updated) {
         throw new Error('Review record not found or reply update failed in database');
       }
 
-      // Record success
+      // Record success with genuine provider sync information
       const providerResp = {
-        provider: 'local_database_record',
+        provider: liveGoogleSync ? 'google_business_profile_oauth' : 'local_crm_database',
         reviewId,
         repliedAt: nowIso,
         verified: true,
-        liveGoogleSync: false,
-        note: 'Review reply committed to CRM database. Live Google Business Profile sync requires verified GBP OAuth credentials.',
+        replyStatus,
+        liveGoogleSync,
+        googleError,
+        note: liveGoogleSync
+          ? 'Review reply published directly to Google Business Profile via OAuth2 API.'
+          : 'Review reply committed to CRM database as LOCAL_ONLY (GBP OAuth not configured or unverified).',
       };
 
       await updateAutonomousAction(actionId, {

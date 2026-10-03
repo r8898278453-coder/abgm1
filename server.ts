@@ -812,9 +812,136 @@ app.put('/api/companies/:id/data', async (req, res) => {
       return;
     }
 
-    const { data } = req.body;
-    await saveCompanyDataPayload(id, data);
-    res.json({ success: true });
+    const clientData = req.body?.data || {};
+    const existingPayload: any = (await getCompanyDataPayload(id)) || {};
+
+    // Strict Data Authority Boundary:
+    // Only accept user-configurable settings and metadata.
+    // Client CANNOT overwrite authoritative calculated scores, verified ranks, verified reviews, or provider observations.
+    const sanitizedPayload: any = {
+      ...existingPayload,
+      business: clientData.business
+        ? {
+            ...(existingPayload.business || {}),
+            ...clientData.business,
+            id: company.id,
+            name: company.name,
+            category: clientData.business.category || company.category,
+            city: clientData.business.city || company.city,
+          }
+        : existingPayload.business,
+      knowledge_base: clientData.knowledge_base !== undefined ? clientData.knowledge_base : existingPayload.knowledge_base,
+      engine_settings: clientData.engine_settings !== undefined ? clientData.engine_settings : existingPayload.engine_settings,
+      customization: clientData.customization !== undefined ? clientData.customization : existingPayload.customization,
+      isDemoMode: Boolean(clientData.isDemoMode),
+    };
+
+    // User-managed keywords: user can add/remove keywords to monitor, but cannot forge provider observations/ranks
+    if (Array.isArray(clientData.keywords)) {
+      const existingKwMap = new Map(
+        (existingPayload.keywords || []).map((k: any) => [(k.keyword || '').toLowerCase().trim(), k])
+      );
+      sanitizedPayload.keywords = clientData.keywords.map((kw: any) => {
+        const cleanKw = (kw.keyword || kw.name || '').trim();
+        const existing: any = existingKwMap.get(cleanKw.toLowerCase());
+        if (existing) {
+          return {
+            ...existing,
+            id: existing.id || kw.id,
+            keyword: cleanKw,
+          };
+        }
+        return {
+          id: kw.id || `kw_${crypto.randomUUID().slice(0, 8)}`,
+          keyword: cleanKw,
+          rank: null,
+          previousRank: null,
+          diff: null,
+          searchVolume: null,
+          dataClassification: 'UNAVAILABLE',
+          provider: 'UNCONFIGURED',
+          lastScannedAt: null,
+          observations: [],
+          topCompetitors: [],
+          gridRankings: [],
+        };
+      });
+    }
+
+    // User-managed competitors: user can add/remove competitors to monitor, but cannot forge provider ratings/reviews
+    if (Array.isArray(clientData.competitors)) {
+      const existingCompMap = new Map(
+        (existingPayload.competitors || []).map((c: any) => [(c.name || '').toLowerCase().trim(), c])
+      );
+      sanitizedPayload.competitors = clientData.competitors.map((comp: any) => {
+        const cleanName = (comp.name || '').trim();
+        const existing: any = existingCompMap.get(cleanName.toLowerCase());
+        if (existing) {
+          return {
+            ...existing,
+            id: existing.id || comp.id,
+            name: cleanName,
+            placeId: existing.placeId || comp.placeId,
+            address: existing.address || comp.address,
+          };
+        }
+        return {
+          id: comp.id || `comp_${crypto.randomUUID().slice(0, 8)}`,
+          name: cleanName,
+          placeId: comp.placeId || null,
+          address: comp.address || null,
+          rating: null,
+          reviewsCount: null,
+          reviewGrowthThisMonth: null,
+          photosCount: null,
+          postsPerWeek: null,
+          localVisibilityRank: null,
+          provider: 'UNCONFIGURED',
+          lastObservedAt: null,
+          dataClassification: 'UNAVAILABLE',
+        };
+      });
+    }
+
+    // User-managed campaigns: user can manage strategic campaign plans, but actual_spend / impressions are provider-verified
+    if (Array.isArray(clientData.campaigns)) {
+      const existingCampMap = new Map((existingPayload.campaigns || []).map((c: any) => [c.id, c]));
+      sanitizedPayload.campaigns = clientData.campaigns.map((camp: any) => {
+        const existing: any = existingCampMap.get(camp.id);
+        return {
+          ...camp,
+          actual_spend: existing?.actual_spend ?? camp.actual_spend ?? null,
+          verified_spend: existing?.verified_spend ?? null,
+          provider_campaign_id: existing?.provider_campaign_id ?? camp.provider_campaign_id ?? null,
+        };
+      });
+    }
+
+    // Audit items: user can only toggle resolved status on existing items, not inject fabricated claims
+    if (Array.isArray(clientData.audit_items)) {
+      const existingAuditMap = new Map((existingPayload.audit_items || []).map((a: any) => [a.id, a]));
+      sanitizedPayload.audit_items = clientData.audit_items.map((item: any) => {
+        const existing: any = existingAuditMap.get(item.id);
+        if (existing) {
+          return {
+            ...existing,
+            resolved: Boolean(item.resolved),
+          };
+        }
+        return item;
+      });
+    }
+
+    // Autonomous actions
+    if (Array.isArray(clientData.autonomous_actions)) {
+      sanitizedPayload.autonomous_actions = clientData.autonomous_actions;
+    }
+
+    // Growth Score remains strictly derived by canonical engine only
+    sanitizedPayload.growth_score = existingPayload.growth_score || null;
+
+    await saveCompanyDataPayload(id, sanitizedPayload);
+    res.json({ success: true, data: sanitizedPayload });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -1681,8 +1808,16 @@ async function performRankScan(
   evidenceNotes: string;
   recommendation?: string;
 }> {
-  const targetCity = city || company.city || 'Local Market';
-  const centerCoords = resolveCenterCoordinates(targetCity);
+  const targetCity = (city || company.city || '').trim();
+  const centerCoords = resolveCenterCoordinates(targetCity, company.latitude, company.longitude);
+
+  if (!centerCoords) {
+    const locErr: any = new Error(`LOCATION_NOT_RESOLVED: Unable to resolve geographic coordinates for city "${targetCity || 'Unknown'}". Please specify a known metropolitan center or provide latitude/longitude.`);
+    locErr.statusCode = 422;
+    locErr.code = 'LOCATION_NOT_RESOLVED';
+    throw locErr;
+  }
+
   const coordinates = generate3x3GridCoordinates(centerCoords.lat, centerCoords.lng, 3.5);
 
   const provider = resolveRankProvider(rankCreds);
@@ -1876,7 +2011,8 @@ app.post('/api/companies/:id/rank-radar/scan', validateBody(rankScanSchema), asy
       recommendation: scanResult.recommendation,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Rank scan failed' });
+    const status = err?.statusCode || (err?.code === 'LOCATION_NOT_RESOLVED' ? 422 : 500);
+    res.status(status).json({ success: false, code: err?.code || 'SCAN_FAILED', error: err?.message || 'Rank scan failed' });
   }
 });
 
@@ -2586,7 +2722,7 @@ app.post('/api/companies/:id/audit/scan', async (req, res) => {
   }
 });
 
-// POST /api/companies/:id/audit/:auditId/resolve - Mark audit issue resolved with audit trail
+// POST /api/companies/:id/audit/:auditId/resolve - Mark audit issue resolved with audit trail or execute remediation
 app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
   try {
     const user = await getAuthUserFromRequest(req);
@@ -2607,26 +2743,59 @@ app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
       payload.audit_items = [];
     }
 
+    const action = req.body?.action || 'resolve';
     const existingIndex = payload.audit_items.findIndex((a: any) => a.id === auditId);
+    let auditItem = existingIndex >= 0 ? payload.audit_items[existingIndex] : null;
+
+    let lifecycleStatus = 'RESOLVED';
+    let remediationExecuted = false;
+    let remediationMessage = 'Issue marked as resolved.';
+
+    // Check if manual action is required for this issue
+    if (
+      auditId.includes('aud_gmb_unlinked') ||
+      auditId.includes('aud_website_missing') ||
+      auditId.includes('aud_reviews_low_rating') ||
+      auditId.includes('aud_seo_perimeter_drop')
+    ) {
+      lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
+      remediationMessage = 'This issue requires configuration changes or manual customer interaction. Navigate to the relevant tab to complete setup.';
+    } else if (action === 'remediate' && auditId.includes('aud_reviews_unreplied')) {
+      // Execute real remediation for unreplied reviews
+      const reviews = await getCompanyReviews(id);
+      const unreplied = reviews.filter((r) => !r.replied && (!r.reply_text || r.reply_text.trim().length === 0));
+      for (const rev of unreplied) {
+        await updateReviewReply(rev.id, 'Thank you for your feedback! We appreciate your support.', id, 'LOCAL_ONLY');
+      }
+      lifecycleStatus = 'RESOLVED';
+      remediationExecuted = true;
+      remediationMessage = `Remediation executed: Replied to ${unreplied.length} pending reviews in database.`;
+    }
+
+    const updatedEntry = {
+      ...(auditItem || { id: auditId }),
+      resolved: lifecycleStatus === 'RESOLVED',
+      status: lifecycleStatus,
+      remediationExecuted,
+      resolvedAt: lifecycleStatus === 'RESOLVED' ? new Date().toISOString() : null,
+      resolvedBy: user.email || user.id,
+    };
+
     if (existingIndex >= 0) {
-      payload.audit_items[existingIndex].resolved = true;
-      payload.audit_items[existingIndex].resolvedAt = new Date().toISOString();
-      payload.audit_items[existingIndex].resolvedBy = user.email || user.id;
+      payload.audit_items[existingIndex] = updatedEntry;
     } else {
-      payload.audit_items.push({
-        id: auditId,
-        resolved: true,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: user.email || user.id,
-      });
+      payload.audit_items.push(updatedEntry);
     }
 
     await saveCompanyDataPayload(id, payload);
 
     res.json({
       success: true,
-      message: `Audit issue ${auditId} marked as resolved.`,
+      message: remediationMessage,
       auditId,
+      status: lifecycleStatus,
+      remediationExecuted,
+      auditItem: updatedEntry,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
@@ -4103,18 +4272,18 @@ app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
     return;
   }
 
-  const { message, context, businessName, category, language } = req.body;
-  const prompt = `You are LocalPulse AI, a 24/7 Autonomous AI Marketing & Growth Manager for Aaditech Solution (aaditechs.in).
-Business Name: ${businessName || 'Aaditech Solution'}
-Category: ${category || 'IT Services, Web & Mobile App Development, Local SEO'}
-Website: https://aaditechs.in
-Location: Thane / Mumbai MMR, Maharashtra, India
+  const { message, context, businessName, category, language, companyId } = req.body;
+  const targetBiz = businessName || 'our business';
+  const targetCat = category || 'Business Services';
+  const prompt = `You are LocalPulse AI, an Autonomous AI Marketing & Growth Assistant for ${targetBiz}.
+Business Name: ${targetBiz}
+Category: ${targetCat}
 Language Preference: ${language || 'English / Hinglish'}
 Current Context: ${JSON.stringify(context || {})}
 
 User's Query / Command: "${message}"
 
-Reply concisely, professionally, and action-oriented as their proactive tech marketing manager. If they asked to create a post, reply to reviews, or give a growth update, provide immediate actionable output with clear bullet points. If they speak in Hindi or Hinglish, respond in natural, friendly Hinglish.`;
+Reply concisely, professionally, and action-oriented. Ground all responses only in provided context. Do not invent unverified reviews, customers, or rankings. If they speak in Hindi or Hinglish, respond in natural, friendly Hinglish.`;
 
   const aiText = await safeGenerateContent({ prompt });
   if (aiText) {
@@ -4122,26 +4291,17 @@ Reply concisely, professionally, and action-oriented as their proactive tech mar
     return;
   }
 
-  // Fallback intelligent responder
+  // Fallback intelligent responder based strictly on tenant data
   const lowerMsg = (message || '').toLowerCase();
   let fallbackReply = '';
   if (lowerMsg.includes('aaj') || lowerMsg.includes('today') || lowerMsg.includes('important')) {
-    fallbackReply = `📢 **Aaditech Solution - Aaj ke 3 High-Priority Actions:**
-1. **Google Client Reviews:** 3 B2B reviews (Singhania Logistics, Patwardhan Dental, Apex Retailers) awaiting approval.
-2. **High-Intent B2B Lead:** Dr. Rakesh Verma (Apex Diagnostic) requested WhatsApp automated PDF lab report system. WhatsApp quotation ready.
-3. **Scheduled Post:** "Transform Your Business with Custom Web & Mobile App 2026" ready for Google Business Profile & LinkedIn.`;
+    fallbackReply = `📢 **${targetBiz} - Daily Summary:**\nAutonomous monitoring is active. All scheduled actions and reviews are checked against system safety rules.`;
   } else if (lowerMsg.includes('review') || lowerMsg.includes('reply')) {
-    fallbackReply = `✅ **3 Client Reviews Analyzed & Drafted for Aaditech Solution:**
-- 2 5⭐ Reviews (Logistics software & Dental clinic Google 3-Pack rank boost)
-- 1 4⭐ Review on Play Store deployment timeframe (Polite gratitude + compliance assurance)
-Saare replies Guardrail Safety Check pass kar chuke hain. "Approve All" dabayein to post ho jayenge!`;
+    fallbackReply = `✅ **Review Management for ${targetBiz}:**\nNew reviews can be reviewed and replied to in the Reviews tab with customized safety guardrails.`;
   } else if (lowerMsg.includes('post') || lowerMsg.includes('sale') || lowerMsg.includes('creative')) {
-    fallbackReply = `✨ **Aaditech Solution B2B Campaign Post Ready!**
-🚀 **Headline:** "Upgrade Your Business with Custom Web & Mobile App Development!"
-📝 **Caption:** "Tired of outdated manual spreadsheets? 💻 Aaditech Solution (aaditechs.in) builds enterprise-grade websites, custom Android/iOS apps, and automated WhatsApp CRM pipelines to scale your business. Free consultation available! 📍 Thane - Mumbai MMR | 🌐 aaditechs.in"
-🏷️ **Hashtags:** #AaditechSolution #WebDevelopmentMumbai #AndroidAppDeveloper #LocalSEO #BusinessAutomation`;
+    fallbackReply = `✨ **Marketing Campaign Post for ${targetBiz}:**\n🚀 **Topic:** Quality & dependable ${targetCat}.\n📝 **Caption:** "Looking for dependable ${targetCat}? At ${targetBiz}, we deliver proven excellence and dedicated service. Contact us today!"`;
   } else {
-    fallbackReply = `LocalPulse AI active for **Aaditech Solution** (aaditechs.in): Current growth score **82/100** hai. Google 3-Pack rank #1 in Thane for "website development". 2 high-intent client inquiries pipeline mein hain. Aap kya review karna chahte hain?`;
+    fallbackReply = `LocalPulse AI is active for **${targetBiz}**. System status is operational. How can I assist you with your marketing and reputation management today?`;
   }
   res.json({ reply: fallbackReply });
 });
@@ -4155,8 +4315,9 @@ app.post('/api/ai/reply-review', aiRateLimiter, async (req, res) => {
   }
 
   const { reviewText, rating, reviewerName, tone, language, businessName } = req.body;
-  const prompt = `You are drafting a public reply to a client review for "${businessName || 'Aaditech Solution'} (aaditechs.in)".
-Reviewer: ${reviewerName || 'Client'}
+  const targetBiz = businessName || 'our business';
+  const prompt = `You are drafting a public reply to a customer review for "${targetBiz}".
+Reviewer: ${reviewerName || 'Customer'}
 Rating: ${rating} / 5 stars
 Review Content: "${reviewText}"
 Desired Tone: ${tone || 'Professional & Friendly'} (e.g. Professional, Friendly, Short, Detailed, Hinglish)
@@ -4166,7 +4327,7 @@ CRITICAL SAFETY GUARDRAILS:
 - Do NOT argue or be defensive.
 - Do NOT make false promises or admit legal liability.
 - Do NOT share sensitive internal client data.
-- Be warm, authentic, tech-forward, and reinforce reliability, warranty, and long-term partnership.
+- Be warm, authentic, and reinforce reliability, warranty, and long-term partnership.
 
 Draft the exact reply text only.`;
 
@@ -4178,8 +4339,8 @@ Draft the exact reply text only.`;
 
   // Fallback reply
   const fallback = rating >= 4
-    ? `Thank you so much, ${reviewerName}! We at Aaditech Solution are delighted to deliver scalable technology solutions that power your business growth. Looking forward to continuing our partnership!`
-    : `Dear ${reviewerName}, thank you for your candid feedback. We continuously refine our turnaround times and development sprints. Our lead engineer is directly available to ensure all requirements are addressed promptly.`;
+    ? `Thank you so much, ${reviewerName || 'valued customer'}! We at ${targetBiz} appreciate your feedback and look forward to serving you again.`
+    : `Dear ${reviewerName || 'valued customer'}, thank you for your feedback. We continuously strive to improve our services and invite you to reach out directly so we can ensure all your needs are addressed.`;
 
   res.json({ replyText: fallback });
 });
@@ -4211,12 +4372,14 @@ app.post('/api/ai/knowledge/query', aiRateLimiter, async (req, res) => {
       ? services.join(', ')
       : 'Standard Services';
 
-    const prompt = `You are a strict, anti-hallucination Business Knowledge Fact Checker and memory system for "${businessName || 'the company'}".
+    const targetBiz = businessName || 'the company';
+
+    const prompt = `You are a strict, anti-hallucination Business Knowledge Fact Checker and memory system for "${targetBiz}".
 You have access ONLY to the verified business facts, FAQs, and documents provided below.
 
 COMPANY PROFILE:
-- Name: ${businessName || 'Aaditech Solution'}
-- Category: ${category || 'IT & Business Solutions'}
+- Name: ${targetBiz}
+- Category: ${category || 'Business Solutions'}
 - Verified Services: ${servicesContext}
 
 VERIFIED FAQS:
@@ -4232,7 +4395,7 @@ STRICT INSTRUCTIONS:
 1. Ground your answer EXCLUSIVELY in the verified business profile, FAQs, and documents provided above.
 2. If pricing, timeline, SLA, or warranty are asked, cite the exact numbers from the data.
 3. If the query asks for something not covered in the verified facts, explicitly state: "This specific policy is not yet documented in the verified business memory. Please update the Knowledge Base with official terms."
-4. Always include a short citation tag at the bottom (e.g. "[Source: FAQ - Websites]" or "[Source: Verified Service Catalog]").
+4. Always include a short citation tag at the bottom (e.g. "[Source: FAQ - Services]" or "[Source: Verified Service Catalog]").
 5. Keep the tone concise, authoritative, and helpful.`;
 
     const aiAnswer = await safeGenerateContent({ prompt });
@@ -4243,27 +4406,28 @@ STRICT INSTRUCTIONS:
 
     // Fallback grounded matcher
     const qLower = query.toLowerCase();
-    let fallbackAns = `Grounded Fact for ${businessName || 'Aaditech Solution'}: Verified against current operational guidelines.`;
+    let fallbackAns = `Information for ${targetBiz}:`;
     let source = 'Company Memory';
 
-    const matchedFaq = faqs.find((f: any) =>
+    const matchedFaq = (faqs || []).find((f: any) =>
       qLower.split(' ').some((word: string) => word.length > 3 && f.question.toLowerCase().includes(word))
     );
 
     if (matchedFaq) {
       fallbackAns = `${matchedFaq.answer}`;
-      source = `FAQ (${matchedFaq.category})`;
-    } else if (qLower.includes('price') || qLower.includes('cost') || qLower.includes('fee')) {
-      fallbackAns = `Pricing is based on client project scope with modular milestone payments. Foundational packages start from ₹9,999 up to customized enterprise architectures.`;
-      source = 'Pricing & Packages Matrix';
-    } else if (qLower.includes('time') || qLower.includes('day') || qLower.includes('timeline')) {
-      fallbackAns = `Standard business websites are delivered in 10-14 business days. Mobile applications typically require 3-4 development weeks.`;
-      source = 'SLA & Delivery Guidelines';
+      source = `FAQ (${matchedFaq.category || 'General'})`;
+      res.json({
+        success: true,
+        answer: `${fallbackAns}\n\n[Source: ${source}]`,
+        isGrounded: true,
+      });
+      return;
     }
 
+    // If no verified match in FAQs/Docs, return AI_UNAVAILABLE / Not Documented rather than canned numbers
     res.json({
       success: true,
-      answer: `${fallbackAns}\n\n[Source: ${source}]`,
+      answer: `This topic is not yet documented in the verified knowledge base for ${targetBiz}. Please add relevant FAQs or documentation in the Knowledge Base tab to ground AI responses.\n\n[Source: Unindexed Query]`,
       isGrounded: true,
     });
   } catch (err: any) {

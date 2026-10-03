@@ -47,63 +47,18 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
   onSelectCompany,
   onOpenCreateCompany,
 }) => {
-  const [activeTab, setActiveTab] = useState<'branches' | 'whitelabel' | 'reports'>('branches');
-  const [customDomain, setCustomDomain] = useState('portal.aaditech.agency');
-  const [agencyName, setAgencyName] = useState(business?.name || 'Aaditech Solution');
+  const [activeTab, setActiveTab] = useState<'branches' | 'whitelabel'>('branches');
+  const [customDomain, setCustomDomain] = useState('portal.myagency.in');
+  const [agencyName, setAgencyName] = useState(business?.name || 'Agency Portal');
   const [whitelabelSaved, setWhitelabelSaved] = useState(false);
 
   // Modal State for adding Branch / Client
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('Aaditech Solution (Thane West Hub)');
-  const [newBranchLocation, setNewBranchLocation] = useState('Naupada, Thane West');
-  const [newBranchCategory, setNewBranchCategory] = useState('Laptop & IT Solutions');
+  const [newBranchName, setNewBranchName] = useState('');
+  const [newBranchLocation, setNewBranchLocation] = useState('');
+  const [newBranchCategory, setNewBranchCategory] = useState('');
 
-  const [branches, setBranches] = useState<ClientBranch[]>([
-    {
-      id: 'br-1',
-      name: 'Apex Tech Solutions (Sector 17 Flagship)',
-      location: 'Vashi, Navi Mumbai',
-      category: 'Computer & Laptop Repair',
-      growthScore: 84,
-      unansweredReviews: 0,
-      monthlyLeads: 142,
-      rankStatus: '#2 in 3-Pack',
-      status: 'active',
-    },
-    {
-      id: 'br-2',
-      name: 'Apex Tech Care (Nerul West Branch)',
-      location: 'Nerul, Navi Mumbai',
-      category: 'Laptop & Screen Care',
-      growthScore: 71,
-      unansweredReviews: 4,
-      monthlyLeads: 88,
-      rankStatus: '#6 in 3-Pack',
-      status: 'warning',
-    },
-    {
-      id: 'br-3',
-      name: 'Apex Mac Lab (Pune Kothrud)',
-      location: 'Kothrud, Pune',
-      category: 'Apple Mac & Logic Board Lab',
-      growthScore: 89,
-      unansweredReviews: 1,
-      monthlyLeads: 195,
-      rankStatus: '#1 in 3-Pack',
-      status: 'active',
-    },
-    {
-      id: 'br-4',
-      name: 'Apex Express Diagnostics (South Mumbai)',
-      location: 'Fort, Mumbai',
-      category: 'Corporate IT & Laptop Diagnostics',
-      growthScore: 77,
-      unansweredReviews: 2,
-      monthlyLeads: 110,
-      rankStatus: '#3 in 3-Pack',
-      status: 'active',
-    },
-  ]);
+  const [branches, setBranches] = useState<ClientBranch[]>([]);
 
   const handleAddBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,19 +66,24 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
 
     const newBranch: ClientBranch = {
       id: `br-${Date.now()}`,
-      name: newBranchName,
-      location: newBranchLocation,
-      category: newBranchCategory,
-      growthScore: 86,
+      name: newBranchName.trim(),
+      location: newBranchLocation.trim() || 'Local Area',
+      category: newBranchCategory.trim() || 'Services',
+      growthScore: 0,
       unansweredReviews: 0,
-      monthlyLeads: 94,
-      rankStatus: '#2 in 3-Pack',
+      monthlyLeads: 0,
+      rankStatus: 'Unranked',
       status: 'active',
     };
 
     setBranches((prev) => [newBranch, ...prev]);
     setIsAddBranchOpen(false);
+    setNewBranchName('');
+    setNewBranchLocation('');
+    setNewBranchCategory('');
   };
+
+  const totalBranchesCount = companies.length + branches.length;
 
   return (
     <div className="space-y-6 pb-12">
@@ -135,7 +95,7 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
             Agency & Multi-Branch Command Center
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Centralized governance for 4 multi-city branches, agency white-label portals, and cross-location growth analytics.
+            Centralized governance for client workspaces, agency white-label portals, and cross-location growth analytics.
           </p>
         </div>
 
@@ -147,7 +107,7 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
               activeTab === 'branches' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Multi-Location Hub (4)
+            Workspaces ({totalBranchesCount})
           </button>
           <button
             onClick={() => setActiveTab('whitelabel')}
@@ -163,29 +123,29 @@ export const AgencyView: React.FC<AgencyViewProps> = ({
       {/* Aggregate Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">Total Active Branches</div>
-          <div className="text-2xl font-black text-slate-900 mt-1">4 Locations</div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> Navi Mumbai, Mumbai, Pune
+          <div className="text-xs font-medium text-slate-500">Total Workspaces</div>
+          <div className="text-2xl font-black text-slate-900 mt-1">{totalBranchesCount}</div>
+          <div className="text-[11px] text-slate-500 font-semibold mt-1">
+            {companies.length} Database Tenants
           </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">Aggregate Monthly Leads</div>
-          <div className="text-2xl font-black text-slate-900 mt-1">535 Inquiries</div>
-          <div className="text-[11px] text-indigo-600 font-semibold mt-1">+28% vs last month</div>
+          <div className="text-xs font-medium text-slate-500">Active Session</div>
+          <div className="text-xl font-bold text-slate-900 mt-1 truncate">{business.name || 'Workspace'}</div>
+          <div className="text-[11px] text-indigo-600 font-semibold mt-1 truncate">{business.city || 'Local Area'}</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">Average Network Growth Score</div>
-          <div className="text-2xl font-black text-slate-900 mt-1">80.2 / 100</div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-1">3/4 in Google Top 3</div>
+          <div className="text-xs font-medium text-slate-500">Isolation Mode</div>
+          <div className="text-2xl font-black text-emerald-600 mt-1">STRICT</div>
+          <div className="text-[11px] text-emerald-700 font-semibold mt-1">Tenant-Scoped DB</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-xs font-medium text-slate-500">Pending Actions Required</div>
-          <div className="text-2xl font-black text-amber-600 mt-1">7 Tasks</div>
-          <div className="text-[11px] text-amber-700 font-semibold mt-1">Nerul Branch needs attention</div>
+          <div className="text-xs font-medium text-slate-500">White-Label Status</div>
+          <div className="text-2xl font-black text-indigo-600 mt-1">ACTIVE</div>
+          <div className="text-[11px] text-indigo-700 font-semibold mt-1">Custom Branding</div>
         </div>
       </div>
 

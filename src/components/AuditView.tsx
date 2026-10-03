@@ -24,6 +24,8 @@ interface AuditViewProps {
   onFixItem?: (id: string) => void;
   onNavigate?: (tab: any) => void;
   business?: BusinessProfile;
+  companyId?: string;
+  onRescanAudit?: (newItems: AuditItem[]) => void;
 }
 
 export const AuditView: React.FC<AuditViewProps> = ({
@@ -32,17 +34,36 @@ export const AuditView: React.FC<AuditViewProps> = ({
   onResolveItem,
   onFixItem,
   onNavigate = (_tab: any) => {},
+  companyId,
+  onRescanAudit,
 }) => {
   const resolveItem = onResolveItem || onFixItem || (() => {});
   const [filter, setFilter] = useState<'all' | 'critical' | 'important' | 'recommended' | 'resolved'>('all');
   const [isScanning, setIsScanning] = useState(false);
   const [showTelemetryModal, setShowTelemetryModal] = useState(false);
 
-  const handleRescan = () => {
+  const handleRescan = async () => {
     setIsScanning(true);
-    setTimeout(() => {
+    try {
+      if (companyId) {
+        const token = localStorage.getItem('abga_auth_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/companies/${companyId}/audit/scan`, {
+          method: 'POST',
+          headers,
+        });
+        const data = await res.json();
+        if (data.success && data.auditItems) {
+          onRescanAudit?.(data.auditItems);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to run audit scan on backend:', err);
+    } finally {
       setIsScanning(false);
-    }, 1200);
+    }
   };
 
   const safeAuditItems = auditItems || [];

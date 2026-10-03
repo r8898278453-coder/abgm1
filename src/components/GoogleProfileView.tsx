@@ -143,11 +143,16 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
   const handleAiOptimizeDesc = () => {
     setIsOptimizingDesc(true);
     setTimeout(() => {
+      const loc = business.city || business.address || 'the local area';
+      const cat = business.category ? business.category.toLowerCase() : 'professional services';
+      const servicesText = business.services && business.services.length > 0
+        ? ` Services include ${business.services.slice(0, 3).join(', ')}.`
+        : '';
       setDescription(
-        `Top-rated certified ${business.category.toLowerCase()} laboratory in ${business.address || 'the city'}. Specializing in certified precision solutions, emergency restoration, genuine OEM parts replacement, and local enterprise services with full written warranty.`
+        `${business.name || 'Business'} is a dedicated provider of ${cat} serving clients in ${loc}.${servicesText} Contact us for professional consultations, verified support, and fast turnaround.`
       );
       setIsOptimizingDesc(false);
-    }, 800);
+    }, 500);
   };
 
   const handleSave = () => {

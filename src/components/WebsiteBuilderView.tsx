@@ -45,7 +45,7 @@ interface WebsiteBuilderViewProps {
 }
 
 export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business }) => {
-  const companyId = business.id || 'comp_aaditech_main';
+  const companyId = business.id;
   const [activeTab, setActiveTab] = useState<'preview' | 'domains' | 'seo_branding' | 'export'>('preview');
   const [activePageId, setActivePageId] = useState('main');
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -71,16 +71,20 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   // Form State for Config
   const [primaryColor, setPrimaryColor] = useState(business.brandKit?.primaryColor || '#4f46e5');
   const [secondaryColor, setSecondaryColor] = useState(business.brandKit?.secondaryColor || '#06b6d4');
-  const [tagline, setTagline] = useState(business.brandKit?.tagline || 'Autonomous AI Growth Engine & Local SEO Authority');
-  const [heroTitle, setHeroTitle] = useState(`${business.name} — Official ${business.category || 'Services'} Hub`);
+  const [tagline, setTagline] = useState(business.brandKit?.tagline || `Official ${business.category || 'Business'} Storefront`);
+  const [heroTitle, setHeroTitle] = useState(`${business.name || 'Business'} — Official ${business.category || 'Services'} Hub`);
   const [heroSubtitle, setHeroSubtitle] = useState(
-    `Trusted professional solutions serving clients across ${business.city || 'Thane'} and surrounding MMR regions with guaranteed satisfaction.`
+    business.city
+      ? `Professional solutions serving clients across ${business.city} with verified customer support.`
+      : `Professional solutions with verified customer support.`
   );
   const [metaDesc, setMetaDesc] = useState(
-    `${business.name} is the premier provider of ${business.category || 'services'} in ${business.city || 'Thane'}. Contact us for WhatsApp consultations and quote estimates.`
+    business.city
+      ? `${business.name || 'Business'} is a provider of ${business.category || 'services'} in ${business.city}. Contact us for direct consultations and quote estimates.`
+      : `${business.name || 'Business'} is a provider of ${business.category || 'services'}. Contact us for direct consultations and quote estimates.`
   );
   const [keywords, setKeywords] = useState(
-    `${business.category || 'services'}, ${business.city || 'Thane'}, local services, business growth, top rated`
+    `${business.category || 'services'}, ${business.city || 'local'}, local services, business growth`
   );
   const [googleAnalyticsId, setGoogleAnalyticsId] = useState('');
   const [enableWhatsAppCta, setEnableWhatsAppCta] = useState(true);
@@ -224,9 +228,9 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
     .join('')
     .toUpperCase();
 
-  const cleanPhone = (business.whatsapp || business.phone || '918898278453').replace(/[^0-9]/g, '');
-  const primaryArea = business.city || 'Thane';
-  const secondaryArea = business.serviceAreas?.[0] || 'Mumbai MMR';
+  const cleanPhone = (business.whatsapp || business.phone || '').replace(/[^0-9]/g, '');
+  const primaryArea = business.city || '';
+  const secondaryArea = business.serviceAreas?.[0] || '';
 
   const pages = [
     {
@@ -239,16 +243,16 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
     {
       id: 'local-seo',
       path: `/local-seo`,
-      label: `${primaryArea} Hub`,
-      title: `Top Rated ${business.category || 'Solutions'} in ${primaryArea} & ${secondaryArea}`,
-      heroSub: `Dedicated localized services for ${primaryArea} businesses. Quick turnaround, on-demand consultation, and verified local expertise.`,
+      label: primaryArea ? `${primaryArea} Hub` : 'Regional Hub',
+      title: `${business.name || 'Business'} — Localized ${business.category || 'Solutions'}${primaryArea ? ` in ${primaryArea}` : ''}`,
+      heroSub: `Dedicated localized services${primaryArea ? ` for ${primaryArea} clients` : ''}. Clear deliverables, direct consultation, and professional execution.`,
     },
     {
       id: 'whatsapp-consult',
       path: `/instant-inquiry`,
       label: 'Instant Consultation',
-      title: `Connect Directly with ${business.name} Specialists`,
-      heroSub: `Skip the queue. Connect via WhatsApp or direct call to receive tailored quotes, project estimates, and expert guidance.`,
+      title: `Connect Directly with ${business.name || 'Our Team'}`,
+      heroSub: `Connect via WhatsApp or direct phone inquiry to receive tailored quotes, project estimates, and verified support.`,
     },
   ];
 
@@ -455,8 +459,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                 {/* Hero Section */}
                 <div className="text-center space-y-3 py-4">
                   <div className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs font-bold px-3.5 py-1 rounded-full border border-indigo-100 shadow-2xs">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    4.9★ Rated Local Partner in {primaryArea}
+                    Official Service Hub{primaryArea ? ` in ${primaryArea}` : ''}
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
                     {currentPage.title}
@@ -465,7 +468,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                     {currentPage.heroSub}
                   </p>
                   <div className="flex items-center justify-center gap-3 pt-2">
-                    {enableWhatsAppCta && (
+                    {enableWhatsAppCta && cleanPhone && (
                       <a
                         href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
                           `Namaste ${business.name}! I would like to inquire about your ${business.category || 'services'}.`
@@ -477,12 +480,12 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                         <Send className="w-3.5 h-3.5" /> WhatsApp Consultation
                       </a>
                     )}
-                    {enableDirectCallCta && (
+                    {enableDirectCallCta && business.phone && (
                       <a
                         href={`tel:${business.phone}`}
                         className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition flex items-center gap-1.5"
                       >
-                        <Phone className="w-3 h-3 text-slate-600" /> {business.phone || 'Call Us'}
+                        <Phone className="w-3 h-3 text-slate-600" /> {business.phone}
                       </a>
                     )}
                   </div>
@@ -504,7 +507,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                           <div className="text-xs font-bold text-slate-900">{srv}</div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed">
-                          Professional delivery with guaranteed SLA, dedicated support, and verified quality standards.
+                          Professional delivery with dedicated support and documented requirements.
                         </p>
                       </div>
                     ))}
@@ -512,15 +515,21 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                 </div>
 
                 {/* Storefront Location & Hours Bar */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
-                  <div className="flex items-center gap-2 text-slate-700 font-medium">
-                    <MapPin className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                    <span>{business.address}, {business.city}, {business.state}</span>
+                {(business.address || business.city || business.openingHours) && (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+                    {(business.address || business.city) && (
+                      <div className="flex items-center gap-2 text-slate-700 font-medium">
+                        <MapPin className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                        <span>{[business.address, business.city, business.state].filter(Boolean).join(', ')}</span>
+                      </div>
+                    )}
+                    {business.openingHours && (
+                      <div className="text-slate-500 font-medium flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" /> {business.openingHours}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-slate-500 font-medium flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {business.openingHours || 'Mon-Sat: 10:00 AM - 8:00 PM'}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

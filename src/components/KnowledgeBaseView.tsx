@@ -108,8 +108,8 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   onUpdateDocuments,
   onUpdateFaqs,
 }) => {
-  const [localDocs, setLocalDocs] = useState<DocumentItem[]>(propDocs || DEFAULT_DOCUMENTS);
-  const [localFaqs, setLocalFaqs] = useState<FaqItem[]>(propFaqs || DEFAULT_FAQS);
+  const [localDocs, setLocalDocs] = useState<DocumentItem[]>(propDocs || []);
+  const [localFaqs, setLocalFaqs] = useState<FaqItem[]>(propFaqs || []);
 
   const documents = propDocs || localDocs;
   const faqs = propFaqs || localFaqs;

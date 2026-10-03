@@ -78,12 +78,12 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
         <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl mt-1 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-xs">
-              AS
+              {(business.name || 'AS').substring(0, 2).toUpperCase()}
             </div>
             <div>
-              <div className="font-bold text-xs truncate max-w-[170px]">{business.name}</div>
+              <div className="font-bold text-xs truncate max-w-[170px]">{business.name || 'Business'}</div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5 text-indigo-400" /> Thane - Mumbai MMR
+                <MapPin className="w-2.5 h-2.5 text-indigo-400" /> {business.city || 'Local Area'}
               </div>
             </div>
           </div>
@@ -111,8 +111,8 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
-                  <div>Google Maps Rank: <strong className="text-slate-900">#1 in Thane</strong></div>
-                  <div>Monthly Views: <strong className="text-slate-900">24,850</strong></div>
+                  <div>Google Maps Rank: <strong className="text-slate-900">{business.rank_position ? `#${business.rank_position}` : 'Unranked'}</strong></div>
+                  <div>Inbound Leads: <strong className="text-slate-900">{leads.length}</strong></div>
                 </div>
               </div>
 
@@ -123,7 +123,7 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
                     <div>
                       <div className="font-bold text-xs text-amber-900">{unansweredReviews.length} Unreplied Client Reviews</div>
-                      <div className="text-[10px] text-amber-700">AI tech drafts ready for 1-tap approval</div>
+                      <div className="text-[10px] text-amber-700">AI drafts ready for 1-tap approval</div>
                     </div>
                     <button
                       onClick={() => setMobileTab('reviews')}
@@ -138,7 +138,7 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between">
                     <div>
                       <div className="font-bold text-xs text-rose-900">{criticalAudit.length} Critical Growth Fixes</div>
-                      <div className="text-[10px] text-rose-700">Missing Android app & cloud tags</div>
+                      <div className="text-[10px] text-rose-700">Checklist items requiring action</div>
                     </div>
                     <button
                       onClick={() => setMobileTab('growth')}
@@ -156,7 +156,11 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                   <Sparkles className="w-3.5 h-3.5" /> AI Growth Intelligence
                 </div>
                 <p className="text-[11px] text-indigo-100 leading-snug">
-                  "Competitor Digitron gained 18 reviews. Releasing your post-project WhatsApp review trigger will secure your #1 Google 3-Pack rank."
+                  {unansweredReviews.length > 0
+                    ? `You have ${unansweredReviews.length} unanswered reviews. Prompt responses reinforce customer trust.`
+                    : leads.length > 0
+                    ? `CRM has recorded ${leads.length} leads. Regular follow-ups maintain high conversion velocity.`
+                    : `Telemetry active. Real-time insights will appear as your connected integrations sync.`}
                 </p>
               </div>
             </>

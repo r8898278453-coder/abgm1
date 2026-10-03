@@ -59,21 +59,56 @@ export interface DbCompanyData {
   updated_at?: string;
 }
 
+export type UniversalProviderStatus =
+  | 'NOT_CONFIGURED'
+  | 'CONFIGURED'
+  | 'CONNECTING'
+  | 'CONNECTED'
+  | 'VERIFIED'
+  | 'STALE'
+  | 'NOT_FOUND'
+  | 'FAILED'
+  | 'UNAVAILABLE';
+
+export function normalizeProviderStatus(
+  status?: string | null,
+  hasCredentials = false,
+  _lastTested?: string | null,
+  error?: string | null
+): UniversalProviderStatus {
+  if (!hasCredentials) return 'NOT_CONFIGURED';
+  if (error) return 'FAILED';
+  const clean = (status || '').toUpperCase().trim();
+  if (clean === 'CONNECTED' || clean === 'ACTIVE') return 'CONNECTED';
+  if (clean === 'VERIFIED') return 'VERIFIED';
+  if (clean === 'CONNECTING' || clean === 'TESTING') return 'CONNECTING';
+  if (clean === 'STALE') return 'STALE';
+  if (clean === 'NOT_FOUND') return 'NOT_FOUND';
+  if (clean === 'FAILED' || clean === 'ERROR') return 'FAILED';
+  if (clean === 'UNAVAILABLE') return 'UNAVAILABLE';
+  if (clean === 'CONFIGURED' || clean === 'SAVED') return 'CONFIGURED';
+  return hasCredentials ? 'CONFIGURED' : 'NOT_CONFIGURED';
+}
+
 export interface DbReview {
   id: string;
   company_id: string;
   author: string;
-  rating: number;
-  date: string;
-  relative_time?: string;
+  rating: number | null;
+  date: string | null;
+  relative_time?: string | null;
   content: string;
-  sentiment: 'positive' | 'neutral' | 'negative';
-  topic?: string;
+  sentiment?: 'positive' | 'neutral' | 'negative' | null;
+  topic?: string | null;
   is_operational_issue?: boolean;
   replied: boolean;
-  reply_text?: string;
-  reply_date?: string;
-  source: 'google' | 'facebook' | 'justdial' | 'manual';
+  reply_text?: string | null;
+  reply_date?: string | null;
+  reply_status?: 'LOCAL_ONLY' | 'GOOGLE_PUBLISHED' | 'GOOGLE_VERIFIED' | 'FAILED' | null;
+  external_review_id?: string | null;
+  retrieved_at?: string | null;
+  source: 'google' | 'facebook' | 'justdial' | 'manual' | 'google_verified' | 'facebook_verified' | 'other_provider_verified' | 'user_entered' | 'unknown' | string;
+  provenance_status?: 'USER_ENTERED' | 'GOOGLE_VERIFIED' | 'FACEBOOK_VERIFIED' | 'OTHER_PROVIDER_VERIFIED' | 'UNKNOWN';
   created_at?: string;
 }
 
@@ -249,7 +284,7 @@ export interface DbCompetitorObservation {
   rank_position: number | null;
   provider: string;
   timestamp: string;
-  status: 'LIVE' | 'VERIFIED' | 'USER_ENTERED' | 'UNAVAILABLE';
+  status: 'LIVE' | 'VERIFIED' | 'USER_ENTERED' | 'UNAVAILABLE' | 'ESTIMATED';
   raw_payload?: string | null;
 }
 
@@ -2088,17 +2123,18 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
     id: review.id || `rev_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
     company_id: review.company_id,
     author: review.author,
-    rating: ratingNum !== null && !isNaN(ratingNum) ? ratingNum : (null as any),
-    date: review.date || new Date().toISOString().split('T')[0],
-    relative_time: review.relative_time || 'Recently',
+    rating: ratingNum !== null && !isNaN(ratingNum) ? ratingNum : null,
+    date: review.date !== undefined ? review.date : null,
+    relative_time: review.relative_time || null,
     content: review.content,
-    sentiment: review.sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : undefined),
+    sentiment: review.sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : null),
     topic: review.topic || 'General Feedback',
     is_operational_issue: Boolean(review.is_operational_issue),
     replied: Boolean(review.replied),
     reply_text: review.reply_text || undefined,
     reply_date: review.reply_date || undefined,
-    source: review.source || 'manual',
+    source: review.source || 'user_entered',
+    provenance_status: (review as any).provenance_status || (review.source === 'google' ? 'GOOGLE_VERIFIED' : review.source === 'facebook' ? 'FACEBOOK_VERIFIED' : 'USER_ENTERED'),
     created_at: new Date().toISOString(),
   };
 
@@ -2135,20 +2171,25 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
   return newReview;
 }
 
-export async function updateReviewReply(reviewId: string, replyText: string, companyId?: string): Promise<boolean> {
+export async function updateReviewReply(
+  reviewId: string,
+  replyText: string,
+  companyId?: string,
+  replyStatus: 'LOCAL_ONLY' | 'GOOGLE_PUBLISHED' | 'GOOGLE_VERIFIED' | 'FAILED' = 'LOCAL_ONLY'
+): Promise<boolean> {
   const replyDate = new Date().toISOString().split('T')[0];
   try {
     const db = await getDbPool();
     if (db) {
       if (companyId) {
         await db.query(
-          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ? WHERE id = ? AND company_id = ?',
-          [replyText, replyDate, reviewId, companyId]
+          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ?, reply_status = ? WHERE id = ? AND company_id = ?',
+          [replyText, replyDate, replyStatus, reviewId, companyId]
         );
       } else {
         await db.query(
-          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ? WHERE id = ?',
-          [replyText, replyDate, reviewId]
+          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ?, reply_status = ? WHERE id = ?',
+          [replyText, replyDate, replyStatus, reviewId]
         );
       }
       return true;
@@ -2162,6 +2203,7 @@ export async function updateReviewReply(reviewId: string, replyText: string, com
     existing.replied = true;
     existing.reply_text = replyText;
     existing.reply_date = replyDate;
+    existing.reply_status = replyStatus;
     return true;
   }
   return false;
@@ -2193,6 +2235,7 @@ export async function deleteReview(reviewId: string, companyId?: string): Promis
 export async function syncGoogleReviewsToDatabase(companyId: string, googleReviews: any[]): Promise<number> {
   if (!Array.isArray(googleReviews) || googleReviews.length === 0) return 0;
   let insertedCount = 0;
+  const retrievedAt = new Date().toISOString();
 
   for (const gr of googleReviews) {
     const author = gr.author_name || gr.author || 'Google User';
@@ -2203,6 +2246,7 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
     const sentiment = typeof gr.rating === 'number' ? (gr.rating >= 4 ? 'positive' : gr.rating === 3 ? 'neutral' : 'negative') : null;
     const date = gr.time ? new Date(gr.time * 1000).toISOString().split('T')[0] : null;
     const relativeTime = gr.relative_time_description || null;
+    const externalReviewId = gr.review_id || gr.name || (gr.time ? `gmb_${author}_${gr.time}` : null);
 
     try {
       const db = await getDbPool();
@@ -2222,7 +2266,7 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
               companyId,
               author,
               rating,
-              date || new Date().toISOString().split('T')[0],
+              date,
               relativeTime,
               content,
               sentiment,
@@ -2237,6 +2281,29 @@ export async function syncGoogleReviewsToDatabase(companyId: string, googleRevie
       }
     } catch (err: any) {
       console.warn('[syncGoogleReviewsToDatabase] error:', err?.message);
+    }
+
+    const memExisting = inMemoryReviews.find((r) => r.company_id === companyId && r.author === author && r.content === content);
+    if (!memExisting) {
+      inMemoryReviews.unshift({
+        id: `rev_gmb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`,
+        company_id: companyId,
+        author,
+        rating,
+        date,
+        relative_time: relativeTime,
+        content,
+        sentiment,
+        topic: 'Google Review',
+        is_operational_issue: rating !== null && rating <= 2,
+        replied: false,
+        source: 'google',
+        provenance_status: 'GOOGLE_VERIFIED',
+        external_review_id: externalReviewId,
+        retrieved_at: retrievedAt,
+        reply_status: null,
+      });
+      insertedCount++;
     }
   }
   return insertedCount;

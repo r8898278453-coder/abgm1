@@ -414,10 +414,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-[11px] text-slate-500">Local map views</p>
           </div>
 
-          {/* Customer Calls */}
+          {/* Inbound Leads */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs hover:shadow-sm transition flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-              <span className="font-semibold">Phone Calls</span>
+              <span className="font-semibold">Inbound Leads</span>
               <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
                 {totalLeads > 0 ? 'CRM Tracked' : 'Active'}
               </span>

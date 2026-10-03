@@ -1,5 +1,13 @@
-import crypto from 'crypto';
 import { BusinessProfile, ReviewItem, ContentPost, LeadItem, RankObservation } from '../src/types';
+
+export type AuditItemLifecycleStatus =
+  | 'OPEN'
+  | 'FIX_REQUESTED'
+  | 'REMEDIATION_EXECUTED'
+  | 'REVERIFYING'
+  | 'RESOLVED'
+  | 'MANUAL_ACTION_REQUIRED'
+  | 'FAILED';
 
 export interface AuditItemWithEvidence {
   id: string;
@@ -14,6 +22,15 @@ export interface AuditItemWithEvidence {
   impact: string;
   actionText: string;
   resolved: boolean;
+  status: AuditItemLifecycleStatus;
+  remediationType?: 'automated' | 'manual';
+  benchmark?: {
+    claim: string;
+    source: string;
+    date: string;
+    population: string;
+    methodology: string;
+  };
 }
 
 export interface AuditEngineInputs {
@@ -33,6 +50,7 @@ export interface AuditEngineInputs {
  * Evaluates real marketing and operating evidence to produce verified audit issues.
  * STRICT ANTI-FABRICATION RULE:
  * If an area has no recorded data, do NOT generate unbacked factual claims.
+ * All benchmark claims must contain authentic methodological provenance.
  */
 export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItemWithEvidence[] {
   const timestamp = inputs.overrideTimestamp || new Date().toISOString();
@@ -40,7 +58,6 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
 
   const profile = inputs.businessProfile;
   const isGoogleConnected = Boolean(profile?.connectedAccounts?.googleBusiness);
-  const hasPlaceId = Boolean(profile?.address || profile?.connectedAccounts?.googleBusiness);
 
   // 1. Google Profile Presence & Verification
   if (!isGoogleConnected) {
@@ -57,6 +74,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
       impact: 'Missing direct Google Maps synchronization and automated reputation sync.',
       actionText: 'Connect Google Places in Integrations',
       resolved: false,
+      status: 'MANUAL_ACTION_REQUIRED',
+      remediationType: 'manual',
     });
   } else {
     auditItems.push({
@@ -72,6 +91,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
       impact: 'Enables continuous synchronization of reviews and Google Maps place details.',
       actionText: 'View Google Profile',
       resolved: true,
+      status: 'RESOLVED',
+      remediationType: 'manual',
     });
   }
 
@@ -95,6 +116,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         impact: 'Unanswered reviews reduce conversion rates and customer satisfaction scores.',
         actionText: 'Reply to Reviews',
         resolved: false,
+        status: 'OPEN',
+        remediationType: 'automated',
       });
     }
 
@@ -112,6 +135,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         impact: 'Lower ratings directly impact local search click-through rate.',
         actionText: 'Manage Critical Reviews',
         resolved: false,
+        status: 'MANUAL_ACTION_REQUIRED',
+        remediationType: 'manual',
       });
     }
   }
@@ -137,9 +162,11 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         source: 'Local SEO Geo-Radar Observations',
         timestamp,
         recommendation: 'Optimize primary Google category, local citation consistency, and local review keyword velocity.',
-        impact: 'Businesses outside the top 3 lose over 70% of local organic customer inquiries.',
+        impact: 'Lower map pack rankings reduce local visibility and direct consumer calls.',
         actionText: 'Optimize Local SEO',
         resolved: false,
+        status: 'OPEN',
+        remediationType: 'automated',
       });
     }
 
@@ -157,6 +184,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         impact: 'Limits discovery for high-intent nearby customers in outer transit corridors.',
         actionText: 'View Geo-Grid Map',
         resolved: false,
+        status: 'MANUAL_ACTION_REQUIRED',
+        remediationType: 'manual',
       });
     }
   }
@@ -178,9 +207,11 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         source: 'Content Studio Scheduler',
         timestamp,
         recommendation: 'Schedule at least 2 promotional or educational posts per week to maintain Google & social activity.',
-        impact: 'Consistent publishing increases profile interaction rates by up to 35%.',
+        impact: 'Consistent weekly publishing provides active engagement signals to local search algorithms.',
         actionText: 'Schedule Posts',
         resolved: false,
+        status: 'OPEN',
+        remediationType: 'automated',
       });
     }
   }
@@ -199,10 +230,12 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         evidence: `${newLeads.length} leads in stage 'new' in CRM pipeline`,
         source: 'MySQL CRM Leads Database',
         timestamp,
-        recommendation: 'Reach out to new leads via WhatsApp or Phone Call within 15 minutes of inquiry to maximize close rate.',
-        impact: 'Fast lead response increases conversion probability by 7x.',
+        recommendation: 'Reach out to new leads via WhatsApp or Phone Call promptly to maximize close rate.',
+        impact: 'Prompt lead follow-up significantly improves inquiry qualification and close probability.',
         actionText: 'Open Leads CRM',
         resolved: false,
+        status: 'OPEN',
+        remediationType: 'automated',
       });
     }
   }
@@ -218,10 +251,12 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
       evidence: 'No verified custom domain or website URL registered',
       source: 'Custom Domain & SSL Gateway',
       timestamp,
-      recommendation: 'Connect your custom domain (e.g. bga.aaditechs.in) with automated SSL edge caching.',
+      recommendation: 'Connect a custom domain with automated SSL edge caching in Custom Domains.',
       impact: 'Dedicated websites provide higher conversion authority for digital campaigns.',
       actionText: 'Configure Custom Domain',
       resolved: false,
+      status: 'MANUAL_ACTION_REQUIRED',
+      remediationType: 'manual',
     });
   }
 

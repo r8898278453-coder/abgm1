@@ -1,3 +1,14 @@
+export type UniversalProviderStatus =
+  | 'NOT_CONFIGURED'
+  | 'CONFIGURED'
+  | 'CONNECTING'
+  | 'CONNECTED'
+  | 'VERIFIED'
+  | 'STALE'
+  | 'NOT_FOUND'
+  | 'FAILED'
+  | 'UNAVAILABLE';
+
 export type UserRole = 
   | 'platform_admin'
   | 'owner' 
@@ -124,17 +135,21 @@ export interface GrowthScore {
 export interface ReviewItem {
   id: string;
   author: string;
-  rating: number;
-  date: string;
-  relativeTime: string;
+  rating: number | null;
+  date: string | null;
+  relativeTime?: string | null;
   content: string;
-  sentiment: 'positive' | 'neutral' | 'negative';
-  topic: string;
+  sentiment?: 'positive' | 'neutral' | 'negative' | null;
+  topic?: string | null;
   isOperationalIssue?: boolean;
   replied: boolean;
-  replyText?: string;
-  replyDate?: string;
-  source: 'google' | 'facebook' | 'justdial' | 'manual';
+  replyText?: string | null;
+  replyDate?: string | null;
+  replyStatus?: 'LOCAL_ONLY' | 'GOOGLE_PUBLISHED' | 'GOOGLE_VERIFIED' | 'FAILED' | null;
+  externalReviewId?: string | null;
+  retrievedAt?: string | null;
+  source: 'google' | 'facebook' | 'justdial' | 'manual' | 'google_verified' | 'facebook_verified' | 'other_provider_verified' | 'user_entered' | 'unknown' | string;
+  provenanceStatus?: 'USER_ENTERED' | 'GOOGLE_VERIFIED' | 'FACEBOOK_VERIFIED' | 'OTHER_PROVIDER_VERIFIED' | 'UNKNOWN';
 }
 
 export interface RankObservation {
@@ -322,14 +337,15 @@ export interface Campaign {
 export interface LeadItem {
   id: string;
   name: string;
-  phone: string;
+  phone?: string | null;
+  email?: string | null;
   source: string;
-  stage: 'new' | 'contacted' | 'qualified' | 'opportunity' | 'quotation' | 'won' | 'lost';
-  serviceRequested: string;
-  intentScore: number;
-  date: string;
-  notes: string;
-  aiSuggestedReply: string;
+  stage: 'new' | 'contacted' | 'qualified' | 'opportunity' | 'quotation' | 'proposal' | 'won' | 'lost';
+  serviceRequested?: string | null;
+  intentScore: number | null;
+  date: string | null;
+  notes?: string | null;
+  aiSuggestedReply?: string | null;
 }
 
 export type SupportedAttributionSource =

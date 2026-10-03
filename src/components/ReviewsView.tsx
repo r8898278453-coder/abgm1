@@ -97,7 +97,8 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const reviewLink = `https://g.page/r/${business.id}/review`;
+  const reviewLink = (business as any).google_review_url || 
+    ((business as any).googlePlaceId ? `https://search.google.com/local/writereview?placeid=${(business as any).googlePlaceId}` : null);
 
   const handleGenerateReply = async (review: ReviewItem) => {
     setGeneratingForId(review.id);
@@ -431,25 +432,31 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 {/* Direct Link */}
                 <div className="space-y-1.5 text-xs">
                   <label className="text-slate-600 font-bold uppercase tracking-wider text-[11px]">Direct Google Review Shortlink</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={reviewLink}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-mono text-[11px]"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard?.writeText(reviewLink);
-                        setCopiedLink(true);
-                        setTimeout(() => setCopiedLink(false), 2000);
-                      }}
-                      className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5 font-bold shadow-2xs"
-                    >
-                      {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
+                  {reviewLink ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={reviewLink}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-mono text-[11px]"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard?.writeText(reviewLink);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5 font-bold shadow-2xs"
+                      >
+                        {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800">
+                      Google Review shortlink is available after connecting Google Places ID in Integrations.
+                    </div>
+                  )}
                 </div>
 
                 {/* WhatsApp Request Template */}
@@ -459,7 +466,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">High Conversion</span>
                   </div>
                   <p className="text-slate-600 italic bg-white p-3 rounded-xl border border-slate-200 text-[11px] leading-relaxed shadow-2xs">
-                    "Hi [Customer Name]! 😊 Thank you for visiting Apex Tech Care today for your laptop service. Your satisfaction is our #1 priority. If you have 20 seconds, please share your experience on Google Maps here: {reviewLink} - Team Apex Tech"
+                    "Hi [Customer Name]! 😊 Thank you for choosing {business.name || 'our business'}. Your satisfaction is our priority. If you have 20 seconds, please share your experience on Google Maps{reviewLink ? ` here: ${reviewLink}` : ''} — Team {business.name || 'our business'}"
                   </p>
                 </div>
               </div>
@@ -707,8 +714,8 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                   ★
                 </div>
                 <div>
-                  <h4 className="font-black text-base text-slate-900 leading-tight">{business.name}</h4>
-                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Premier Laptop & IT Solutions</p>
+                  <h4 className="font-black text-base text-slate-900 leading-tight">{business.name || 'Business'}</h4>
+                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{business.category || 'Professional Services'}</p>
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center">
@@ -731,7 +738,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 </div>
 
                 <div className="text-[10px] text-slate-400 font-semibold">
-                  Loved our fast service? Help our Navi Mumbai team with a 5★ review!
+                  Thank you for your business! Please share your feedback on Google Maps.
                 </div>
               </div>
             </div>

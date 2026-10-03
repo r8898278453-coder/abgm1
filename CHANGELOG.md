@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.28.0] - 2026-10-02
+### Phase 3 — Provider Integrations & Verified Telemetry (COMPLETED)
+- **Universal Provider State Model (9 Canonical States)**:
+  - Standardized all providers onto `UniversalProviderStatus`: `NOT_CONFIGURED`, `CONFIGURED`, `CONNECTING`, `CONNECTED`, `VERIFIED`, `STALE`, `NOT_FOUND`, `FAILED`, `UNAVAILABLE`.
+  - Added `normalizeProviderStatus` utility to eliminate inconsistent status strings across services.
+- **Google Business Profile & OAuth Truth**:
+  - Unconfigured/unauthenticated GBP integrations return `LIVE_PROVIDER_UNVERIFIED` or `NOT_CONFIGURED` rather than fabricating `VERIFIED`.
+  - Place ID presence alone is strictly decoupled from provider verification; live status requires authentic provider HTTP handshake.
+- **Google Reviews & Reply Provenance**:
+  - Preserved record-level review provenance (`USER_ENTERED`, `GOOGLE_VERIFIED`, `FACEBOOK_VERIFIED`, `OTHER_PROVIDER_VERIFIED`, `UNKNOWN`), nullable rating (no fake 5★), and nullable review dates (no fake today dates).
+  - Explicit review reply state machine: replies default to `LOCAL_ONLY` and only transition to `GOOGLE_PUBLISHED` upon confirmed Google API PUT success.
+- **Local SEO & Location Resolution Safety**:
+  - Fixed city coordinate resolver to return `null` for unknown locations instead of guessing or substituting other cities.
+  - Returns clean HTTP `422 LOCATION_NOT_RESOLVED` on unresolvable locations without throwing null pointer exceptions.
+  - Handled provider HTTP failure, API errors, empty responses, unranked businesses (position = null, status = LIVE), and timeouts cleanly.
+- **Competitor Radar Identity Confidence**:
+  - Implemented `calculateIdentityConfidence` scoring (0.0 to 1.0) based on exact place ID, clean name equality, and substring matching.
+  - Stored `candidate`, `identityConfidence`, `source`, and `retrieved_at`. Unverified search candidates (< 0.70 confidence) are strictly marked `dataClassification: 'UNAVAILABLE'` (or `ESTIMATED`), preventing identity pollution in authoritative competitor analytics.
+- **Automated Verification**:
+  - Created and executed `test/phase3ProviderTruth.test.ts` integrated into `npm test` with 100% pass rate across 18 test suites.
+
+
+## [1.27.0] - 2026-10-02
+### Phase 1 — Data Truth & Client Authority Enforcement (COMPLETED)
+- **Strict Client Data Authority on Generic Mutation Routes**:
+  - Rewrote `PUT /api/companies/:id/data` in `server.ts` to enforce a strict boundary preventing clients from overwriting authoritative fields (`growth_score`, `verified_ranks`, `rank_observations`, `google_reviews`, `ad_spend`, `provider_telemetry`, `ai_evidence`, etc.).
+  - Safely merges only user-configurable presentation properties (`profile`, `settings`, `custom_branding`, `campaign_plans`) while preserving server-verified metrics and evidence.
+- **Unified Growth Score & Multi-Dependency Promise.all Mapping**:
+  - Re-verified variable mapping across `getCompanyReviews()`, `getCompanyPosts()`, `getAllLeads()`, `getCustomDomainsByCompany()`, and `getLatestKeywordObservations()`.
+  - Enforced consistent mathematical bounds and explicit `UNAVAILABLE` classification for newly provisioned or unverified tenants without synthetic default values.
+- **Review Provenance & Honest Null Semantics**:
+  - Updated `DbReview` and `ReviewItem` types to allow nullable `rating`, `date`, `sentiment`, and `relative_time`.
+  - Updated `createReview` and `syncGoogleReviewsToDatabase` in `server/db.ts` to preserve null dates and null ratings without fallback to current date or 5-star ratings.
+  - Enforced record-level review provenance (`USER_ENTERED`, `GOOGLE_VERIFIED`, `FACEBOOK_VERIFIED`, `OTHER_PROVIDER_VERIFIED`, `UNKNOWN`).
+- **Revenue Attribution & Provider Payment Integrity**:
+  - Strengthened `isProviderVerifiedPayment` to strictly verify real provider payment records (`razorpay`, `stripe`, `bank_transfer`) with real transaction IDs and exclude manual or simulated invoices from verified ROI.
+- **Automated Verification**:
+  - Created and added `test/dataTruthAndAuthority.test.ts` to `npm test` verifying 14 key data truth requirements across the system with 100% pass rate.
+
+
 ## [1.26.0] - 2026-10-01
 ### Comprehensive Production Closure & Source-of-Truth Enforcement (Phases 0 - 9)
 - **Phase 0: Source of Truth & Repository Audit**:

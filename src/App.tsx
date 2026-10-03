@@ -94,7 +94,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [viewMode, setViewMode] = useState<ViewMode>('web');
-  const [isAutopilotOn, setIsAutopilotOn] = useState<boolean>(true);
+  const [isAutopilotOn, setIsAutopilotOn] = useState<boolean>(false);
   const [isEmergencyPaused, setIsEmergencyPaused] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(3);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
@@ -171,18 +171,18 @@ export default function App() {
         } else {
           setActiveCompanyId(null);
           setIsLoadingCompanyData(false);
-          // When no companies exist yet, provide sample demo data in preview mode
-          setBusiness(initialBusiness);
-          setGrowthScore(initialGrowthScore);
-          setAuditItems(initialAuditItems);
-          setReviews(initialReviews);
-          setKeywords(initialKeywords);
-          setCompetitors(initialCompetitors);
-          setContentPosts(initialPosts);
-          setCampaigns(initialCampaigns);
-          setLeads(initialLeads);
-          setActions(initialAutonomousActions);
-          setIsLiveMode(false);
+          // When no companies exist yet, initialize with a clean slate in live mode and prompt company creation
+          setBusiness(freshBlankBusiness);
+          setGrowthScore(freshBlankGrowthScore);
+          setAuditItems([]);
+          setReviews([]);
+          setKeywords([]);
+          setCompetitors([]);
+          setContentPosts([]);
+          setCampaigns([]);
+          setLeads([]);
+          setActions([]);
+          setIsLiveMode(true);
         }
       })
       .catch((err) => {
@@ -541,7 +541,7 @@ export default function App() {
   };
 
   const handleQuickApproveReviews = () => {
-    const defaultReply = 'Thank you for choosing Apex Tech Care! We appreciate your trust in our repair lab.';
+    const defaultReply = `Thank you for choosing ${business.name || 'our business'}! We appreciate your support and feedback.`;
     const unreplied = reviews.filter((r) => !r.replied);
     setReviews((prev) =>
       prev.map((r) =>
@@ -1072,7 +1072,7 @@ export default function App() {
               {renderedTab === 'integrations' && (
                 <IntegrationsView
                   business={business}
-                  companyId={activeCompanyId || 'comp_aaditech_main'}
+                  companyId={activeCompanyId || undefined}
                   onUpdateBusiness={setBusiness}
                 />
               )}

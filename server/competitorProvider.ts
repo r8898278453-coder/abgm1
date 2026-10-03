@@ -13,8 +13,12 @@ export interface NormalizedCompetitorObservation {
   postsPerWeek: number | null;
   rankPosition: number | null;
   provider: string;
+  source: string;
+  candidate: boolean;
+  identityConfidence: number; // 0.0 to 1.0
+  retrieved_at: string;
   timestamp: string;
-  dataClassification: 'LIVE' | 'VERIFIED' | 'USER_ENTERED' | 'UNAVAILABLE';
+  dataClassification: 'LIVE' | 'VERIFIED' | 'USER_ENTERED' | 'UNAVAILABLE' | 'ESTIMATED';
   rawPayload?: any;
 }
 
@@ -37,6 +41,40 @@ export interface ICompetitorProvider {
   ): Promise<NormalizedCompetitorObservation>;
 }
 
+/**
+ * Calculates identity confidence score (0.0 to 1.0) between target competitor and provider candidate
+ */
+export function calculateIdentityConfidence(
+  targetName: string,
+  candidateName: string,
+  targetPlaceId?: string | null,
+  candidatePlaceId?: string | null
+): { confidence: number; verified: boolean; isCandidateOnly: boolean } {
+  if (targetPlaceId && candidatePlaceId && targetPlaceId.trim() === candidatePlaceId.trim()) {
+    return { confidence: 1.0, verified: true, isCandidateOnly: false };
+  }
+
+  const cleanTarget = targetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanCand = candidateName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  if (!cleanTarget || !cleanCand) {
+    return { confidence: 0.0, verified: false, isCandidateOnly: true };
+  }
+
+  if (cleanTarget === cleanCand) {
+    return { confidence: 0.95, verified: true, isCandidateOnly: false };
+  }
+
+  if (
+    (cleanTarget.length >= 4 && cleanCand.includes(cleanTarget)) ||
+    (cleanCand.length >= 4 && cleanTarget.includes(cleanCand))
+  ) {
+    return { confidence: 0.75, verified: true, isCandidateOnly: false };
+  }
+
+  return { confidence: 0.35, verified: false, isCandidateOnly: true };
+}
+
 export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
   readonly providerName = 'google_places';
 
@@ -52,10 +90,12 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
     }
 
     const timestamp = new Date().toISOString();
+    const retrieved_at = timestamp;
     const obsId = `cobs_${crypto.randomUUID().replace(/-/g, '')}`;
 
     try {
       let resolvedPlaceId = context.placeId;
+      let matchedCandidateName = context.name;
 
       // If placeId not provided, search for competitor place by name & city
       if (!resolvedPlaceId) {
@@ -70,6 +110,7 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
         const searchData = await searchRes.json();
         if (searchData.status === 'OK' && searchData.candidates && searchData.candidates.length > 0) {
           resolvedPlaceId = searchData.candidates[0].place_id;
+          matchedCandidateName = searchData.candidates[0].name || context.name;
         }
       }
 
@@ -87,6 +128,10 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
           postsPerWeek: null,
           rankPosition: null,
           provider: this.providerName,
+          source: 'google_places_api',
+          candidate: true,
+          identityConfidence: 0.0,
+          retrieved_at,
           timestamp,
           dataClassification: 'UNAVAILABLE',
         };
@@ -102,11 +147,14 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
 
       if (detailsData.status === 'OK' && detailsData.result) {
         const res = detailsData.result;
+        const candName = res.name || matchedCandidateName || context.name;
+        const identity = calculateIdentityConfidence(context.name, candName, context.placeId, resolvedPlaceId);
+
         return {
           id: obsId,
           companyId: context.companyId,
           competitorId: context.competitorId,
-          name: res.name || context.name,
+          name: candName,
           placeId: resolvedPlaceId,
           address: res.formatted_address || null,
           rating: typeof res.rating === 'number' ? Number(res.rating.toFixed(1)) : null,
@@ -115,8 +163,12 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
           postsPerWeek: null, // Google Places API does not provide post frequency, strictly null
           rankPosition: null, // SERP position is separate from Places API, strictly null
           provider: this.providerName,
+          source: 'google_places_details',
+          candidate: identity.isCandidateOnly,
+          identityConfidence: identity.confidence,
+          retrieved_at,
           timestamp,
-          dataClassification: 'LIVE',
+          dataClassification: identity.verified ? 'LIVE' : 'UNAVAILABLE',
           rawPayload: res,
         };
       }
@@ -137,6 +189,10 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
       postsPerWeek: null,
       rankPosition: null,
       provider: this.providerName,
+      source: 'google_places_api',
+      candidate: true,
+      identityConfidence: 0.0,
+      retrieved_at,
       timestamp,
       dataClassification: 'UNAVAILABLE',
     };
@@ -154,6 +210,7 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
   ): Promise<NormalizedCompetitorObservation> {
     const key = (this.apiKey || credentials?.apiKey || '').trim();
     const timestamp = new Date().toISOString();
+    const retrieved_at = timestamp;
     const obsId = `cobs_${crypto.randomUUID().replace(/-/g, '')}`;
 
     if (!key) {
@@ -166,7 +223,6 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
       url.searchParams.set('api_key', key);
 
       // Strict Rule: If tracked keyword is specified, measure competitor rank on that keyword at specific coordinates.
-      // If keyword is NOT specified, query place directly and rankPosition is strictly NULL.
       if (context.keyword) {
         url.searchParams.set('q', context.keyword);
         if (typeof context.latitude === 'number' && typeof context.longitude === 'number') {
@@ -180,25 +236,29 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
       const data = await res.json();
 
       if (data.local_results && data.local_results.length > 0) {
-        const cleanCompName = context.name.toLowerCase().replace(/[^a-z0-9]/g, '');
         let targetItem = data.local_results[0];
         let observedRank: number | null = null;
+        let highestConfidence = 0.0;
 
-        if (context.keyword) {
-          // Find competitor in the keyword search results
-          data.local_results.forEach((item: any, idx: number) => {
-            const itemClean = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const isMatch =
-              (context.placeId && item.place_id === context.placeId) ||
-              (cleanCompName.length > 3 && itemClean.includes(cleanCompName)) ||
-              (itemClean.length > 3 && cleanCompName.includes(itemClean));
-
-            if (isMatch && observedRank === null) {
+        // Find competitor in search results with identity confidence scoring
+        data.local_results.forEach((item: any, idx: number) => {
+          const itemTitle = item.title || '';
+          const conf = calculateIdentityConfidence(context.name, itemTitle, context.placeId, item.place_id);
+          if (conf.confidence > highestConfidence) {
+            highestConfidence = conf.confidence;
+            targetItem = item;
+            if (context.keyword && conf.verified) {
               observedRank = idx + 1;
-              targetItem = item;
             }
-          });
-        }
+          }
+        });
+
+        const identity = calculateIdentityConfidence(
+          context.name,
+          targetItem.title || '',
+          context.placeId,
+          targetItem.place_id
+        );
 
         return {
           id: obsId,
@@ -211,10 +271,14 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
           reviewsCount: typeof targetItem.reviews === 'number' ? targetItem.reviews : null,
           photosCount: typeof targetItem.photos_count === 'number' ? targetItem.photos_count : null,
           postsPerWeek: null, // Never fabricate
-          rankPosition: observedRank, // Only set if verified in keyword SERP, else null
+          rankPosition: observedRank,
           provider: this.providerName,
+          source: 'serpapi_google_maps',
+          candidate: identity.isCandidateOnly,
+          identityConfidence: identity.confidence,
+          retrieved_at,
           timestamp,
-          dataClassification: 'LIVE',
+          dataClassification: identity.verified ? 'LIVE' : 'UNAVAILABLE',
           rawPayload: targetItem,
         };
       }
@@ -235,6 +299,10 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
       postsPerWeek: null,
       rankPosition: null,
       provider: this.providerName,
+      source: 'serpapi_google_maps',
+      candidate: true,
+      identityConfidence: 0.0,
+      retrieved_at,
       timestamp,
       dataClassification: 'UNAVAILABLE',
     };
@@ -245,6 +313,7 @@ export class UnconfiguredCompetitorProvider implements ICompetitorProvider {
   readonly providerName = 'unconfigured';
 
   async fetchCompetitorObservation(context: CompetitorFetchContext): Promise<NormalizedCompetitorObservation> {
+    const timestamp = new Date().toISOString();
     return {
       id: `cobs_${crypto.randomUUID().replace(/-/g, '')}`,
       companyId: context.companyId,
@@ -258,7 +327,11 @@ export class UnconfiguredCompetitorProvider implements ICompetitorProvider {
       postsPerWeek: null,
       rankPosition: null,
       provider: 'none',
-      timestamp: new Date().toISOString(),
+      source: 'unconfigured',
+      candidate: true,
+      identityConfidence: 0.0,
+      retrieved_at: timestamp,
+      timestamp,
       dataClassification: 'UNAVAILABLE',
     };
   }
