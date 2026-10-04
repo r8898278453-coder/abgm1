@@ -13,7 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { BusinessProfile, GrowthScore, AuditItem, ReviewItem, ContentPost, LeadItem } from '../types';
-import { initialGrowthScore } from '../data/initialData';
+import { freshBlankGrowthScore } from '../data/initialData';
 import { DataStatusBadge } from './DataStatusBadge';
 
 interface DashboardViewProps {
@@ -32,7 +32,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   business,
-  growthScore = initialGrowthScore,
+  growthScore = freshBlankGrowthScore,
   auditItems = [],
   reviews = [],
   posts = [],

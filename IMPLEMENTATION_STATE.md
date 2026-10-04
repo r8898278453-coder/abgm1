@@ -1,23 +1,25 @@
 # Implementation State
 
-## Current Phase: Phase 9 — Final Acceptance & Source-of-Truth Closure (COMPLETED)
+## Current Phase: Phase 10 — Final Targeted Production Closure (COMPLETED)
 - **Completed in this Phase**:
-  - **1. Source-of-Truth Audit & Documentation**:
-    - Created `AUDIT_BEFORE_COMPLETION.md` documenting all tables, providers, API routes, data truth classifications, and telemetry contracts.
-    - Updated `CHANGELOG.md`, `GAP_REGISTER.md`, `CODEBASE_MAP.md`, and `IMPLEMENTATION_STATE.md`.
-  - **2. Database Purity & Zero Seed Pollution**:
-    - Removed all hardcoded production seeds from `schema.sql` and `server/db.ts`.
-    - Added automatic self-healing for `public_form_token` on company tables.
-    - Added fail-closed database mode for production environments with zero silent mock fallbacks.
-  - **3. Tenant Security & Lead Isolation**:
-    - Added dedicated `/api/public/leads` and `/api/public/lead` routes with token validation and anti-spam honeypot guards.
-    - Ensured zero cross-tenant lead injection and removed hardcoded tenant names in default replies.
-  - **4. Complete 16-Suite Test Verification**:
-    - Ran and validated all 16 test suites in `npm test` with 100% pass rate.
-    - Full end-to-end user journey validated with authentic zero-data baseline for clean tenants.
-  - **5. Production Build & Compilation**:
-    - `compile_applet` (`vite build` + `esbuild`) succeeded.
+  - **1. Database Fail-Closed Enforcement (P0)**:
+    - Added `assertNotProductionFallback` across all repository functions (`server/db.ts`).
+    - In production mode, database connection or query failures throw `DATABASE_UNAVAILABLE` (HTTP 503) instead of silently continuing to in-memory mock returns.
+  - **2. Elimination of Default Tenant Fallbacks (P0)**:
+    - Removed all remaining `comp_aaditech_main` and default company fallbacks from `IntegrationsView`, `BillingAdminView`, `ContentStudioView`, and `metaWhatsAppService`.
+    - Inbound WhatsApp webhook mapping returns `null` (UNMAPPED_PROVIDER) if no tenant integration matches.
+  - **3. Provider Credential Isolation & Encryption (P0/P1)**:
+    - Tenant operations strictly require verified tenant integrations; zero fallback to global platform environment variables for tenant actions.
+    - Authenticated AES-256-GCM encryption at rest (`encryptCredential`, `decryptCredential`) with mandatory `CREDENTIAL_ENCRYPTION_KEY` in production mode.
+  - **4. Backend-Driven Audit Remediation (P0)**:
+    - Fixed `AuditView.tsx` to execute backend remediation via `POST /api/companies/:id/audit/:auditId/resolve` across lifecycle states (`OPEN → FIX_REQUESTED → REMEDIATION_EXECUTED / MANUAL_ACTION_REQUIRED → RESOLVED`).
+  - **5. Demo Data Isolation (P0)**:
+    - Clean tenants default to `freshBlankGrowthScore` (`overall: null`, `status: 'UNAVAILABLE'`) and empty state without silent fallback to demo fixtures.
+    - Removed hardcoded Aaditech document fixtures from `KnowledgeBaseView.tsx`.
+  - **6. Complete 20-Suite Test Verification**:
+    - Created `test/phase7FinalClosure.test.ts` and validated all 20 test suites in `npm test` with 100% pass rate.
     - `npm run lint` (`tsc --noEmit`) succeeded with 0 errors.
+    - `compile_applet` (`vite build` + `esbuild`) succeeded.
 
 ## Previous Phase: Phase 6 — Production Readiness (COMPLETED)
 - **Completed in this Phase**:

@@ -56,49 +56,25 @@ export const BillingAdminView: React.FC<BillingAdminViewProps> = ({ business }) 
 
   // Load live invoices and subscription
   const loadBillingData = async () => {
-    const targetCompanyId = business.id || 'comp_aaditech_main';
+    const targetCompanyId = business.id || '';
+    if (!targetCompanyId) {
+      setInvoices([]);
+      setSubscription(null);
+      return;
+    }
     setIsLoadingInvoices(true);
     try {
       const [invs, sub] = await Promise.all([
         fetchCompanyInvoicesApi(targetCompanyId),
         fetchCompanySubscriptionApi(targetCompanyId),
       ]);
-      if (invs && invs.length > 0) {
-        setInvoices(invs);
-      } else {
-        // Fallback default ledger
-        setInvoices([
-          {
-            id: 'INV-2026-0901',
-            company_id: targetCompanyId,
-            date: '2026-09-01',
-            plan: 'Growth Tier (Monthly)',
-            amount: 799.0,
-            gst_amount: 143.82,
-            total_amount: 942.82,
-            payment_method: 'UPI (r8898278453@okaxis)',
-            status: 'Paid',
-            hsn_code: '998314',
-          },
-          {
-            id: 'INV-2026-0801',
-            company_id: targetCompanyId,
-            date: '2026-08-01',
-            plan: 'Growth Tier (Monthly)',
-            amount: 799.0,
-            gst_amount: 143.82,
-            total_amount: 942.82,
-            payment_method: 'UPI (r8898278453@okaxis)',
-            status: 'Paid',
-            hsn_code: '998314',
-          },
-        ]);
-      }
+      setInvoices(invs || []);
       if (sub) {
         setSubscription(sub);
       }
     } catch (err) {
       console.warn('Failed loading billing data:', err);
+      setInvoices([]);
     } finally {
       setIsLoadingInvoices(false);
     }

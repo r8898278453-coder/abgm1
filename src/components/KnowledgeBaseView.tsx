@@ -47,59 +47,8 @@ interface KnowledgeBaseViewProps {
   onUpdateFaqs?: (faqs: FaqItem[]) => void;
 }
 
-const DEFAULT_DOCUMENTS: DocumentItem[] = [
-  {
-    id: 'doc_1',
-    name: 'Aaditech_IT_Services_Catalog_2026.pdf',
-    category: 'Service Catalog',
-    size: '2.4 MB',
-    uploadedAt: '02 Sep 2026',
-    status: 'indexed',
-    chunksCount: 48,
-    textContent: 'Custom responsive web development, native Android app engineering, Google 3-Pack Local SEO, and WhatsApp CRM automations for SME businesses across India.',
-  },
-  {
-    id: 'doc_2',
-    name: 'Mobile_App_Web_Dev_Pricing_Matrix.pdf',
-    category: 'Pricing & Packages',
-    size: '1.1 MB',
-    uploadedAt: '28 Aug 2026',
-    status: 'indexed',
-    chunksCount: 22,
-    textContent: 'Foundational business websites start from ₹9,999. Custom portal architecture with payment gateway & WhatsApp integration: ₹34,999. Dedicated cross-platform mobile apps: ₹49,000 to ₹1,49,000.',
-  },
-  {
-    id: 'doc_3',
-    name: 'AMC_SLA_Uptime_Warranty_Policy.docx',
-    category: 'Policy / SLA',
-    size: '640 KB',
-    uploadedAt: '24 Aug 2026',
-    status: 'indexed',
-    chunksCount: 16,
-    textContent: 'Standard web development delivery timeline: 10-14 business days. Mobile applications: 3-4 development sprints. 90-day post-launch bug warranty and 99.9% uptime cloud hosting SLA.',
-  },
-];
-
-const DEFAULT_FAQS: FaqItem[] = [
-  {
-    id: 'faq_1',
-    question: 'What is the standard delivery timeline for custom business websites?',
-    answer: 'Standard responsive business websites are delivered within 10 to 14 working days, including staging preview and SSL configuration.',
-    category: 'Websites',
-  },
-  {
-    id: 'faq_2',
-    question: 'Does Aaditech Solution assist with Google Play Store compliance for Android apps?',
-    answer: 'Yes, full Google Play Console setup, signed release bundle generation, privacy policy hosting, and 14-day closed testing compliance are included.',
-    category: 'Mobile Apps',
-  },
-  {
-    id: 'faq_3',
-    question: 'What is included in the Google 3-Pack Local SEO package?',
-    answer: 'Google Business Profile audit, weekly geo-tagged updates, localized service attributes, review response automation, and citation consistency across Thane & Mumbai MMR.',
-    category: 'SEO',
-  },
-];
+const DEFAULT_DOCUMENTS: DocumentItem[] = [];
+const DEFAULT_FAQS: FaqItem[] = [];
 
 export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   business,

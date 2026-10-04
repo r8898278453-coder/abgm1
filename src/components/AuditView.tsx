@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { GrowthScore, AuditItem, BusinessProfile } from '../types';
-import { initialGrowthScore } from '../data/initialData';
+import { freshBlankGrowthScore } from '../data/initialData';
 import { DataStatusBadge } from './DataStatusBadge';
 
 interface AuditViewProps {
@@ -29,7 +29,7 @@ interface AuditViewProps {
 }
 
 export const AuditView: React.FC<AuditViewProps> = ({
-  growthScore = initialGrowthScore,
+  growthScore = freshBlankGrowthScore,
   auditItems = [],
   onResolveItem,
   onFixItem,
@@ -40,7 +40,40 @@ export const AuditView: React.FC<AuditViewProps> = ({
   const resolveItem = onResolveItem || onFixItem || (() => {});
   const [filter, setFilter] = useState<'all' | 'critical' | 'important' | 'recommended' | 'resolved'>('all');
   const [isScanning, setIsScanning] = useState(false);
+  const [fixingItemId, setFixingItemId] = useState<string | null>(null);
   const [showTelemetryModal, setShowTelemetryModal] = useState(false);
+
+  const handleFix = async (item: AuditItem) => {
+    setFixingItemId(item.id);
+    try {
+      if (companyId) {
+        const token = localStorage.getItem('abga_auth_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/companies/${companyId}/audit/${item.id}/resolve`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ action: item.category }),
+        });
+        const data = await res.json();
+        if (data.success && data.status === 'RESOLVED') {
+          resolveItem(item.id);
+        }
+      } else {
+        resolveItem(item.id);
+      }
+
+      if (item.category === 'reviews') onNavigate('reviews');
+      else if (item.category === 'content') onNavigate('content');
+      else if (item.category === 'seo') onNavigate('seo');
+      else if (item.category === 'google') onNavigate('google');
+    } catch (err) {
+      console.error('Failed to resolve audit item:', err);
+    } finally {
+      setFixingItemId(null);
+    }
+  };
 
   const handleRescan = async () => {
     setIsScanning(true);
@@ -414,17 +447,16 @@ export const AuditView: React.FC<AuditViewProps> = ({
                   </span>
                 ) : (
                   <button
-                    onClick={() => {
-                      resolveItem(item.id);
-                      if (item.category === 'reviews') onNavigate('reviews');
-                      else if (item.category === 'content') onNavigate('content');
-                      else if (item.category === 'seo') onNavigate('seo');
-                      else if (item.category === 'google') onNavigate('google');
-                    }}
-                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs"
+                    onClick={() => handleFix(item)}
+                    disabled={fixingItemId === item.id}
+                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs disabled:opacity-50"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{item.actionText}</span>
+                    {fixingItemId === item.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    <span>{fixingItemId === item.id ? 'Fixing...' : item.actionText}</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 )}

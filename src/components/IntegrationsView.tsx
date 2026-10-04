@@ -64,7 +64,7 @@ interface IntegrationsViewProps {
 }
 
 export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
-  companyId = 'comp_aaditech_main',
+  companyId,
 }) => {
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);

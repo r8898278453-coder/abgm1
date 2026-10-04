@@ -16,7 +16,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { BusinessProfile, GrowthScore, AuditItem, ReviewItem, ContentPost, LeadItem } from '../types';
-import { initialGrowthScore } from '../data/initialData';
+import { freshBlankGrowthScore } from '../data/initialData';
 
 interface MobileAppViewProps {
   business: BusinessProfile;
@@ -32,7 +32,7 @@ interface MobileAppViewProps {
 
 export const MobileAppView: React.FC<MobileAppViewProps> = ({
   business,
-  growthScore = initialGrowthScore,
+  growthScore = freshBlankGrowthScore,
   auditItems = [],
   reviews = [],
   posts = [],

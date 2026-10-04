@@ -111,7 +111,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   const [postFilter, setPostFilter] = useState<'all' | 'scheduled' | 'published'>('all');
 
   // Brand Media Asset Management State
-  const effectiveCompanyId = companyId || business.id || 'comp_aaditech_main';
+  const effectiveCompanyId = companyId || business.id || '';
   const defaultStockFallback = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80';
   const [assets, setAssets] = useState<CompanyAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);

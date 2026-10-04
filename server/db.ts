@@ -412,6 +412,15 @@ export function isProductionDatabaseMode(): boolean {
   return process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
 }
 
+export function assertNotProductionFallback(operation: string): void {
+  if (isProductionDatabaseMode()) {
+    const prodErr: any = new Error(`DATABASE_UNAVAILABLE: Database is unreachable in production mode for operation: ${operation}. In-memory fallback is strictly disabled.`);
+    prodErr.code = 'DATABASE_UNAVAILABLE';
+    prodErr.status = 503;
+    throw prodErr;
+  }
+}
+
 export function handleDbError(context: string, err: any) {
   const isProd = isProductionDatabaseMode();
   if (
@@ -419,6 +428,7 @@ export function handleDbError(context: string, err: any) {
     err?.code === 'ETIMEDOUT' ||
     err?.code === 'ENOTFOUND' ||
     err?.code === 'PROTOCOL_CONNECTION_LOST' ||
+    err?.code === 'DATABASE_UNAVAILABLE' ||
     (typeof err?.message === 'string' && err.message.includes('ECONNREFUSED'))
   ) {
     const wasAvailable = isMySqlAvailable;
@@ -467,8 +477,18 @@ const PBKDF2_KEYLEN = 64;
 const PBKDF2_DIGEST = 'sha512';
 
 // Authenticated Encryption at Rest for Provider Credentials (AES-256-GCM with key-rotation versioning)
-const CRED_ENC_SECRET = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.JWT_SECRET || 'localpulse_default_sec_enc_key_32b_aes256gcm';
-const CRED_ENC_KEY = crypto.createHash('sha256').update(CRED_ENC_SECRET).digest();
+function getCredentialEncryptionSecret(): string {
+  const secret = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.AUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    if (isProductionDatabaseMode()) {
+      throw new Error('FATAL_SECURITY_ERROR: CREDENTIAL_ENCRYPTION_KEY or AUTH_SECRET is strictly mandatory in production mode.');
+    }
+    return 'localpulse_default_sec_enc_key_32b_aes256gcm';
+  }
+  return secret;
+}
+
+const CRED_ENC_KEY = crypto.createHash('sha256').update(getCredentialEncryptionSecret()).digest();
 
 export function encryptCredential(plainText: string): string {
   if (!plainText || typeof plainText !== 'string') return '';
@@ -1447,9 +1467,10 @@ export async function createUser(data: {
       return newUser;
     }
   } catch (err: any) {
-    console.warn('[createUser] MySQL error:', err?.message);
+    handleDbError('createUser', err);
   }
 
+  assertNotProductionFallback('createUser');
   inMemoryUsers.push(newUser);
   return newUser;
 }
@@ -1460,17 +1481,20 @@ export async function updateUserPassword(userId: string, newPlainPassword: strin
     const db = await getDbPool();
     if (db) {
       await db.query('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?', [hash, salt, userId]);
+      return true;
     }
   } catch (err: any) {
-    console.warn('[updateUserPassword] MySQL error:', err?.message);
+    handleDbError('updateUserPassword', err);
   }
 
+  assertNotProductionFallback('updateUserPassword');
   const memUser = inMemoryUsers.find((u) => u.id === userId);
   if (memUser) {
     memUser.password_hash = hash;
     memUser.salt = salt;
+    return true;
   }
-  return true;
+  return false;
 }
 
 export async function createPasswordResetToken(
@@ -1490,11 +1514,13 @@ export async function createPasswordResetToken(
         'INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
         [id, userId, tokenHash, mysqlExpiresAt]
       );
+      return id;
     }
   } catch (err: any) {
-    console.warn('[createPasswordResetToken] MySQL error:', err?.message);
+    handleDbError('createPasswordResetToken', err);
   }
 
+  assertNotProductionFallback('createPasswordResetToken');
   inMemoryPasswordResetTokens.push({
     id,
     user_id: userId,
@@ -1529,9 +1555,10 @@ export async function findPasswordResetToken(tokenHash: string): Promise<DbPassw
       return null;
     }
   } catch (err: any) {
-    console.warn('[findPasswordResetToken] MySQL error:', err?.message);
+    handleDbError('findPasswordResetToken', err);
   }
 
+  assertNotProductionFallback('findPasswordResetToken');
   const mem = inMemoryPasswordResetTokens.find((t) => t.token_hash === tokenHash);
   return mem ? { ...mem } : null;
 }
@@ -1548,10 +1575,13 @@ export async function markPasswordResetTokenUsed(tokenId: string, userId: string
         'UPDATE password_reset_tokens SET used_at = ? WHERE id = ? OR (user_id = ? AND used_at IS NULL)',
         [mysqlNow, tokenId, userId]
       );
+      return;
     }
   } catch (err: any) {
-    console.warn('[markPasswordResetTokenUsed] MySQL error:', err?.message);
+    handleDbError('markPasswordResetTokenUsed', err);
   }
+
+  assertNotProductionFallback('markPasswordResetTokenUsed');
 
   for (const t of inMemoryPasswordResetTokens) {
     if (t.id === tokenId || (t.user_id === userId && !t.used_at)) {
@@ -1738,9 +1768,10 @@ export async function getAllLeads(companyId?: string): Promise<DbLead[]> {
       return rows as DbLead[];
     }
   } catch (err: any) {
-    console.warn('[getAllLeads] MySQL error, fallback to memory:', err?.message);
+    handleDbError('getAllLeads', err);
   }
 
+  assertNotProductionFallback('getAllLeads');
   if (companyId) {
     // Strict isolation: only return leads explicitly linked to this company
     return inMemoryLeads.filter((l) => l.company_id === companyId);
@@ -1800,8 +1831,6 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
       return newLead;
     }
   } catch (err: any) {
-    console.error('[createLead] MySQL query error:', err?.message);
-
     // Self-healing schema repair: if imported from a legacy schema without company_id column
     if (err?.code === 'ER_BAD_FIELD_ERROR' || String(err?.message || '').includes('company_id')) {
       try {
@@ -1832,11 +1861,13 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
           return newLead;
         }
       } catch (repairErr: any) {
-        console.error('[createLead] Schema repair and retry failed:', repairErr?.message);
+        handleDbError('createLead:repair', repairErr);
       }
     }
+    handleDbError('createLead', err);
   }
 
+  assertNotProductionFallback('createLead');
   inMemoryLeads.unshift(newLead);
   return newLead;
 }
@@ -1850,9 +1881,10 @@ export async function getLeadById(id: string): Promise<DbLead | null> {
       return null;
     }
   } catch (err: any) {
-    console.warn('[getLeadById] MySQL error:', err?.message);
+    handleDbError('getLeadById', err);
   }
 
+  assertNotProductionFallback('getLeadById');
   return inMemoryLeads.find((l) => l.id === id) || null;
 }
 
@@ -1864,9 +1896,10 @@ export async function updateLeadStatus(id: string, stage: DbLead['stage']): Prom
       return true;
     }
   } catch (err: any) {
-    console.warn('[updateLeadStatus] MySQL error:', err?.message);
+    handleDbError('updateLeadStatus', err);
   }
 
+  assertNotProductionFallback('updateLeadStatus');
   const existing = inMemoryLeads.find((l) => l.id === id);
   if (existing) {
     existing.stage = stage;
@@ -2097,8 +2130,9 @@ export async function getGoogleProfileCache(companyId: string): Promise<DbGoogle
       return null;
     }
   } catch (err: any) {
-    console.warn('[getGoogleProfileCache] MySQL error:', err?.message);
+    handleDbError('getGoogleProfileCache', err);
   }
+  assertNotProductionFallback('getGoogleProfileCache');
   return inMemoryGoogleProfileCache.get(companyId) || null;
 }
 
@@ -2121,10 +2155,12 @@ export async function saveGoogleProfileCache(
            cached_at = NOW()`,
         [companyId, placeId, jsonPayload]
       );
+      return true;
     }
   } catch (err: any) {
-    console.warn('[saveGoogleProfileCache] MySQL error:', err?.message);
+    handleDbError('saveGoogleProfileCache', err);
   }
+  assertNotProductionFallback('saveGoogleProfileCache');
   inMemoryGoogleProfileCache.set(companyId, {
     company_id: companyId,
     place_id: placeId,
@@ -2153,6 +2189,7 @@ export async function getCompanyReviews(companyId?: string): Promise<DbReview[]>
     handleDbError('getCompanyReviews', err);
   }
 
+  assertNotProductionFallback('getCompanyReviews');
   return inMemoryReviews.filter((r) => r.company_id === companyId);
 }
 
@@ -2176,6 +2213,7 @@ export async function getReviewById(id: string): Promise<DbReview | null> {
     handleDbError('getReviewById', err);
   }
 
+  assertNotProductionFallback('getReviewById');
   return inMemoryReviews.find((r) => r.id === id) || null;
 }
 
@@ -2192,6 +2230,7 @@ export async function getReviewCompanyId(reviewId: string): Promise<string | nul
     handleDbError('getReviewCompanyId', err);
   }
 
+  assertNotProductionFallback('getReviewCompanyId');
   const inMem = inMemoryReviews.find((r) => r.id === reviewId);
   return inMem ? inMem.company_id : null;
 }
@@ -2246,6 +2285,7 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
     handleDbError('createReview', err);
   }
 
+  assertNotProductionFallback('createReview');
   inMemoryReviews.unshift(newReview);
   return newReview;
 }
@@ -2274,9 +2314,10 @@ export async function updateReviewReply(
       return true;
     }
   } catch (err: any) {
-    console.warn('[updateReviewReply] MySQL error:', err?.message);
+    handleDbError('updateReviewReply', err);
   }
 
+  assertNotProductionFallback('updateReviewReply');
   const existing = inMemoryReviews.find((r) => r.id === reviewId && (!companyId || r.company_id === companyId));
   if (existing) {
     existing.replied = true;
@@ -2300,9 +2341,10 @@ export async function deleteReview(reviewId: string, companyId?: string): Promis
       return true;
     }
   } catch (err: any) {
-    console.warn('[deleteReview] MySQL error:', err?.message);
+    handleDbError('deleteReview', err);
   }
 
+  assertNotProductionFallback('deleteReview');
   const idx = inMemoryReviews.findIndex((r) => r.id === reviewId && (!companyId || r.company_id === companyId));
   if (idx >= 0) {
     inMemoryReviews.splice(idx, 1);
@@ -2612,12 +2654,13 @@ export async function updateContentPostStatus(postId: string, status: DbContentP
       } else {
         await db.query('UPDATE content_posts SET status = ? WHERE id = ?', [status, postId]);
       }
-      dbSuccess = true;
+      return true;
     }
   } catch (err: any) {
-    console.warn('[updateContentPostStatus] MySQL error:', err?.message);
+    handleDbError('updateContentPostStatus', err);
   }
 
+  assertNotProductionFallback('updateContentPostStatus');
   const existing = inMemoryContentPosts.find((p) => p.id === postId && (!companyId || p.company_id === companyId));
   if (existing) {
     existing.status = status;
@@ -2638,9 +2681,10 @@ export async function deleteContentPost(postId: string, companyId?: string): Pro
       return true;
     }
   } catch (err: any) {
-    console.warn('[deleteContentPost] MySQL error:', err?.message);
+    handleDbError('deleteContentPost', err);
   }
 
+  assertNotProductionFallback('deleteContentPost');
   const idx = inMemoryContentPosts.findIndex((p) => p.id === postId && (!companyId || p.company_id === companyId));
   if (idx >= 0) {
     inMemoryContentPosts.splice(idx, 1);
@@ -2698,11 +2742,13 @@ export async function createPublishingRecord(
         record.created_at,
         record.updated_at,
       ]);
+      return record;
     }
   } catch (err: any) {
-    console.warn('[createPublishingRecord] MySQL insert warning:', err?.message);
+    handleDbError('createPublishingRecord', err);
   }
 
+  assertNotProductionFallback('createPublishingRecord');
   inMemoryPublishingRecords.unshift(record);
   return record;
 }
@@ -2712,7 +2758,6 @@ export async function updatePublishingRecord(
   updates: Partial<DbPublishingRecord>
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  let dbSuccess = false;
 
   try {
     const db = await getDbPool();
@@ -2747,19 +2792,20 @@ export async function updatePublishingRecord(
 
       setValues.push(id);
       await db.query(`UPDATE publishing_records SET ${setClauses.join(', ')} WHERE id = ?`, setValues);
-      dbSuccess = true;
+      return true;
     }
   } catch (err: any) {
-    console.warn('[updatePublishingRecord] MySQL update warning:', err?.message);
+    handleDbError('updatePublishingRecord', err);
   }
 
+  assertNotProductionFallback('updatePublishingRecord');
   const inMem = inMemoryPublishingRecords.find((r) => r.id === id);
   if (inMem) {
     Object.assign(inMem, updates, { updated_at: now });
     return true;
   }
 
-  return dbSuccess;
+  return false;
 }
 
 export async function getPublishingRecordsByPostId(postId: string): Promise<DbPublishingRecord[]> {
@@ -2770,7 +2816,7 @@ export async function getPublishingRecordsByPostId(postId: string): Promise<DbPu
         'SELECT * FROM publishing_records WHERE post_id = ? ORDER BY created_at DESC',
         [postId]
       );
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         return rows.map((r: any) => ({
           ...r,
           published_at: r.published_at ? new Date(r.published_at).toISOString() : null,
@@ -2780,9 +2826,10 @@ export async function getPublishingRecordsByPostId(postId: string): Promise<DbPu
       }
     }
   } catch (err: any) {
-    console.warn('[getPublishingRecordsByPostId] MySQL select warning:', err?.message);
+    handleDbError('getPublishingRecordsByPostId', err);
   }
 
+  assertNotProductionFallback('getPublishingRecordsByPostId');
   return inMemoryPublishingRecords.filter((r) => r.post_id === postId);
 }
 
@@ -2810,15 +2857,17 @@ export async function getLatestPublishingRecord(
           updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
         };
       }
+      return null;
     }
   } catch (err: any) {
-    console.warn('[getLatestPublishingRecord] MySQL select warning:', err?.message);
+    handleDbError('getLatestPublishingRecord', err);
   }
 
-  const found = inMemoryPublishingRecords.filter(
+  assertNotProductionFallback('getLatestPublishingRecord');
+  const filtered = inMemoryPublishingRecords.filter(
     (r) => r.post_id === postId && (!platform || r.platform === platform)
   );
-  return found.length > 0 ? found[0] : null;
+  return filtered[0] || null;
 }
 
 export async function isPostAlreadyPublished(postId: string, platform?: string): Promise<boolean> {
@@ -3146,11 +3195,13 @@ export async function upsertExternalAdCampaign(
           record.updated_at,
         ]
       );
+      return record;
     }
   } catch (err: any) {
-    console.warn('[upsertExternalAdCampaign] MySQL upsert warning:', err?.message);
+    handleDbError('upsertExternalAdCampaign', err);
   }
 
+  assertNotProductionFallback('upsertExternalAdCampaign');
   const existingIdx = inMemoryExternalAdCampaigns.findIndex(
     (c) => c.company_id === record.company_id && c.provider === record.provider && c.external_campaign_id === record.external_campaign_id
   );
@@ -3191,9 +3242,10 @@ export async function createCompanyAsset(
       return asset;
     }
   } catch (err: any) {
-    console.warn('[createCompanyAsset] MySQL error:', err?.message);
+    handleDbError('createCompanyAsset', err);
   }
 
+  assertNotProductionFallback('createCompanyAsset');
   inMemoryCompanyAssets.push(asset);
   return asset;
 }
@@ -3209,9 +3261,10 @@ export async function getCompanyAssets(companyId: string): Promise<DbCompanyAsse
       return rows || [];
     }
   } catch (err: any) {
-    console.warn('[getCompanyAssets] MySQL error:', err?.message);
+    handleDbError('getCompanyAssets', err);
   }
 
+  assertNotProductionFallback('getCompanyAssets');
   return inMemoryCompanyAssets.filter((a) => a.company_id === companyId);
 }
 
@@ -3227,9 +3280,10 @@ export async function getCompanyAssetById(assetId: string): Promise<DbCompanyAss
       return null;
     }
   } catch (err: any) {
-    console.warn('[getCompanyAssetById] MySQL error:', err?.message);
+    handleDbError('getCompanyAssetById', err);
   }
 
+  assertNotProductionFallback('getCompanyAssetById');
   const found = inMemoryCompanyAssets.find((a) => a.id === assetId);
   return found || null;
 }
@@ -3240,12 +3294,13 @@ export async function deleteCompanyAsset(assetId: string): Promise<boolean> {
     const db = await getDbPool();
     if (db) {
       const [res]: any = await db.query('DELETE FROM company_assets WHERE id = ?', [assetId]);
-      deleted = res?.affectedRows > 0;
+      return res?.affectedRows > 0;
     }
   } catch (err: any) {
-    console.warn('[deleteCompanyAsset] MySQL error:', err?.message);
+    handleDbError('deleteCompanyAsset', err);
   }
 
+  assertNotProductionFallback('deleteCompanyAsset');
   const idx = inMemoryCompanyAssets.findIndex((a) => a.id === assetId);
   if (idx !== -1) {
     inMemoryCompanyAssets.splice(idx, 1);
