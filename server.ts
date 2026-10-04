@@ -93,6 +93,12 @@ import {
   getDbPool,
 } from './server/db';
 import {
+  verifySchema,
+  runMigrations,
+  seedSystemSettings,
+  initializeAdminUser,
+} from './server/migrator';
+import {
   runAutonomousCycle,
   executeAutonomousAction,
   setGlobalEmergencyStop,
@@ -7011,6 +7017,43 @@ app.get('/storefront/:companyId', async (req, res) => {
   }
 });
 
+// Production Health Endpoint (/api/health)
+app.get('/api/health', async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+  const dbStatus = getDbStatus();
+  let schemaReport: any = null;
+
+  try {
+    const pool = await getDbPool();
+    if (pool) {
+      schemaReport = await verifySchema(pool);
+    }
+  } catch (err: any) {
+    schemaReport = { error: err?.message, status: 'UNAVAILABLE' };
+  }
+
+  if (isProd && (!dbStatus.connected || schemaReport?.status === 'UNAVAILABLE' || schemaReport?.status === 'DATABASE_SCHEMA_OUTDATED')) {
+    res.status(503).json({
+      status: 'error',
+      database: dbStatus.connected ? 'connected' : 'unavailable',
+      migrations: schemaReport?.status || 'unknown',
+      version: '1.29.0',
+      timestamp: new Date().toISOString(),
+      error: schemaReport?.error || 'Database unavailable or schema outdated in production',
+    });
+    return;
+  }
+
+  res.json({
+    status: 'ok',
+    database: dbStatus.connected ? 'connected' : 'in-memory-development',
+    migrations: schemaReport ? (schemaReport.status === 'READY' ? 'current' : schemaReport.status) : 'development-mode',
+    schemaVersion: schemaReport?.schemaVersion ?? 0,
+    version: '1.29.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // System Deployment & Environment Health Check
 app.get('/api/system/status', (req, res) => {
   const dbStatus = getDbStatus();
@@ -7037,6 +7080,42 @@ process.on('uncaughtException', (err) => {
 
 async function startServer() {
   try {
+    const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+
+    // Auto-initialize / migrate database if MySQL connection parameters are configured
+    try {
+      const pool = await getDbPool();
+      if (pool) {
+        console.log('[Hostinger MySQL] Verifying database schema & running pending migrations...');
+        const migResult = await runMigrations(pool);
+        if (migResult.appliedCount > 0) {
+          console.log(`[Hostinger MySQL] Applied ${migResult.appliedCount} new migrations.`);
+        }
+        await seedSystemSettings(pool);
+        await initializeAdminUser(pool);
+        const report = await verifySchema(pool);
+        if (report.status === 'READY') {
+          console.log(`[Hostinger MySQL] Schema verified & ready (Version: ${report.schemaVersion}, Tables: PASS).`);
+        } else {
+          console.warn(`[Hostinger MySQL] Schema verification status: ${report.status}`);
+          if (isProd && report.status === 'DATABASE_SCHEMA_OUTDATED') {
+            console.error('FATAL: Database schema outdated in production. Please run "npm run db:migrate".');
+            process.exit(1);
+          }
+        }
+      } else if (isProd) {
+        console.error('FATAL: MySQL database is required in production mode. Refusing startup.');
+        process.exit(1);
+      }
+    } catch (dbBootErr: any) {
+      if (isProd) {
+        console.error('FATAL PRODUCTION DATABASE ERROR:', dbBootErr?.message);
+        process.exit(1);
+      } else {
+        console.warn('[Server] Non-production database boot warning (running with in-memory store):', dbBootErr?.message);
+      }
+    }
+
     let viteInstance: any = null;
 
     if (process.env.NODE_ENV !== 'production') {

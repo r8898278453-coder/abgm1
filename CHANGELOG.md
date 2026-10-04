@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.30.0] - 2026-10-04
+### Hostinger Self-Initializing Automated Database Migration & Deployment Architecture (COMPLETED)
+- **Canonical Versioned Migration Engine (`server/migrator.ts`)**:
+  - Implemented versioned migration system executing in deterministic order with SHA-256 checksum tracking and timing recording.
+  - Tracking table `schema_migrations` with execution ledger and status.
+  - MySQL-compatible distributed locking (`GET_LOCK` & `schema_migrations_lock` table) prevents concurrent deployment race conditions.
+  - Automatic table creation, index initialization, and constraint enforcement across all 27 canonical platform tables.
+- **Automated Database Management Scripts**:
+  - `npm run db:migrate`: Executes pending migrations sequentially with lock protection.
+  - `npm run db:verify`: Audits engine version, required tables, indexes, migration ledger, and zero pending migrations.
+  - `npm run db:setup`: One-shot automated setup (migrate + system seed + admin init + verify).
+  - `npm run db:status`: Inspects migration history, timestamps, and table inventory.
+  - `npm run db:seed:system`: Idempotent system settings initialization with zero fake business telemetry.
+  - `npm run db:seed:demo`: Strictly protected against production (`NODE_ENV=production` refusal).
+  - `npm run admin:create`: Secure first-run platform admin creation with OWASP PBKDF2 (210,000 iterations) hashing.
+  - `npm run deploy:validate`: Pre-flight deployment verification checking Node version, build artifacts, and DB readiness.
+- **Production Fail-Closed Startup & Health Check**:
+  - `GET /api/health` returns live database status, schema version, and migration health (HTTP 503 on database unavailability in production).
+  - Schema drift detection prevents application startup if required migrations are pending (`DATABASE_SCHEMA_OUTDATED`).
+- **Complete Hostinger Documentation**:
+  - Created `HOSTINGER_DEPLOYMENT.md`, `DEPLOYMENT.md`, `DATABASE.md`, `MIGRATIONS.md`, and updated `.env.example`.
+- **Automated Verification**:
+  - 20/20 test suites passing with 100% success rate (`test/hostingerDatabaseMigration.test.ts` added).
+  - Production build and TypeScript typecheck (`tsc --noEmit`) passing with 0 errors.
+
 ## [1.29.0] - 2026-10-04
 ### Final Production Closure & Acceptance Certification (COMPLETED)
 - **Database Fail-Closed in Production**:

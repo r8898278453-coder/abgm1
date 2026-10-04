@@ -1,109 +1,158 @@
-# 🚀 Hostinger Deployment Blueprint for `bga.aaditechs.in`
+# Hostinger Production Git Deployment Guide
 
-A complete step-by-step guide to deploying **Aaditech BGA** on **Hostinger Business Web Hosting** with MySQL, LiteSpeed Web Server, and Node.js.
-
----
-
-### 1. Subdomain Setup in Hostinger
-1. Login to **Hostinger hPanel** (hpanel.hostinger.com).
-2. Go to **Websites** ➔ Click **Manage** on `aaditechs.in`.
-3. In the left sidebar, click **Domains** ➔ **Subdomains**.
-4. Enter:
-   * **Subdomain Name:** `bga`
-   * **Custom folder for subdomain:** Check this box and keep `/public_html/bga` or `/domains/bga.aaditechs.in`.
-5. Click **Create**.
-6. (Optional) Go to **Security** ➔ **SSL** and issue free Let's Encrypt SSL for `bga.aaditechs.in`.
+This guide documents the exact, verified procedure for deploying the **Aaditech BGA / LocalPulse** application on **Hostinger Git Deployment** with **Hostinger MySQL/MariaDB**.
 
 ---
 
-### 2. Create MySQL Database in Hostinger
-1. In hPanel, navigate to **Databases** ➔ **Management**.
-2. Under **Create a New MySQL Database and User**:
-   * **Database Name:** e.g., `u123456789_bga_db`
-   * **Username:** e.g., `u123456789_bga_user`
-   * **Password:** Set a strong password (save this safely).
-3. Click **Create**.
-4. In the database list, click **Enter phpMyAdmin**.
-5. Click on your database name on the left ➔ Click **Import** tab on the top menu.
-6. Click **Choose File** ➔ Select the `schema.sql` file from this project ➔ Click **Go / Import**.
-   * *This provisions all 8 production multi-tenant tables with strict company isolation:*
-     - `users` (PBKDF2 salted password authentication & RBAC roles)
-     - `companies` (multi-tenant accounts, Google Place IDs, autopilot configurations)
-     - `company_profiles_data` (isolated metrics, audits, competitors JSON payloads)
-     - `leads` (tenant-isolated CRM leads with indexed `company_id`)
-     - `reviews` (reputation reviews with indexed `company_id`)
-     - `content_posts` (social post queue with indexed `company_id`)
-     - `autonomous_actions` (AI action logs with indexed `company_id`)
-     - `business_profile` (public business NAP details)
-   * *Note: The Node.js server (`server/db.ts`) also includes built-in proactive self-healing migrations. If you previously imported an older schema, the system will automatically run `ALTER TABLE` to append any missing `company_id` columns and indexes without downtime or data loss.*
+## Architecture Overview
+
+```
+                  Developer Git Repository
+                             ↓ (git push origin main)
+              Hostinger hPanel Git Deployment
+                             ↓
+              1. npm ci (Clean Dependency Install)
+                             ↓
+              2. npm run build (Vite + Node Server Bundle)
+                             ↓
+              3. npm run db:migrate (Auto Schema Migration)
+                             ↓
+              4. npm run db:verify (Schema Integrity Check)
+                             ↓
+              5. Node.js Application Startup (dist/server.cjs)
+                             ↓
+              Health Check (/api/health) -> PASS
+```
 
 ---
 
-### 3. Deploy Application via Git or File Manager
+## Step-by-Step Hostinger Deployment Procedure
 
-#### Option A: Automatic Git Deployment (Recommended)
-1. Push your repository to **GitHub**.
-2. In Hostinger hPanel, go to **Advanced** ➔ **Git**.
-3. Under **Create a New Repository**:
-   * **Repository:** Your GitHub repository URL (e.g., `https://github.com/your-username/aaditech-bga.git`).
-   * **Branch:** `main`
-   * **Directory:** `/domains/bga.aaditechs.in` (or your subdomain directory).
-4. Click **Create**.
-5. Enable **Auto Deployment Webhook** so future `git push` will auto-update the site!
+### Step 1: Create MySQL Database in Hostinger hPanel
 
-#### Option B: Build & Upload Zip
-1. On your local machine / workspace:
-   ```bash
-   npm install
-   npm run build
-   ```
-2. Compress the project (or `dist/` + `server/` + `package.json` + `dist/server.cjs` + `.htaccess`).
-3. Upload and extract into the subdomain directory via **File Manager**.
+1. Log in to your **Hostinger hPanel**.
+2. Navigate to **Databases** → **MySQL Databases**.
+3. Create a new MySQL database:
+   - **Database Name**: e.g., `u123456789_bga_prod`
+   - **Username**: e.g., `u123456789_bga_admin`
+   - **Password**: Create a strong 16+ character password (e.g., `YourSecureMySQLPass2026!`)
+4. Note your **Database Name**, **Username**, **Password**, and **Database Host** (usually `localhost` or `127.0.0.1` on Hostinger shared hosting).
+
+> **Note**: You do **NOT** need to open phpMyAdmin or manually import SQL files. The application self-initializes all 27 tables, indexes, and constraints automatically via versioned migrations upon deployment.
 
 ---
 
-### 4. Configure Node.js Web App in Hostinger
-1. In hPanel, search or click **Node.js** under the **Advanced** section.
+### Step 2: Configure Node.js Application in Hostinger
+
+1. In Hostinger hPanel, go to **Advanced** → **Node.js**.
 2. Click **Create Application**:
-   * **Node.js Version:** `20.x` or `22.x`
-   * **Application Mode:** `Production`
-   * **Application Root:** `/domains/bga.aaditechs.in` (or folder path where code was deployed)
-   * **Application Startup File:** `dist/server.cjs`
-3. In the **Environment Variables** section, add the following:
-   ```env
-   NODE_ENV=production
-   PORT=3000
-   APP_URL=https://bga.aaditechs.in
-   GEMINI_API_KEY=your_gemini_api_key_here
-   DB_HOST=localhost
-   DB_PORT=3306
-   DB_NAME=u123456789_bga_db
-   DB_USER=u123456789_bga_user
-   DB_PASSWORD=your_mysql_password_here
-   TELEGRAM_BOT_TOKEN=optional_telegram_bot_token
-   TELEGRAM_CHAT_ID=optional_telegram_chat_id
-   ```
-4. Open the SSH terminal or npm button in hPanel and run:
-   ```bash
-   npm install --omit=dev
-   npm run build
-   ```
-5. Click **Restart Application**.
+   - **Node.js version**: `20.x` or `22.x` (Recommended: `22.x`)
+   - **Application mode**: `Production`
+   - **Application root**: `public_html` (or your chosen repository directory)
+   - **Application startup file**: `dist/server.cjs`
+3. Click **Create**.
 
 ---
 
-### 5. Verify the Deployment
-* Visit **https://bga.aaditechs.in** in your browser.
-* Test health check: **https://bga.aaditechs.in/api/system/status**
-  * Should return:
-    ```json
-    {
-      "app": "Aaditech BGA",
-      "subdomain": "bga.aaditechs.in",
-      "environment": "production",
-      "mysqlConfigured": true,
-      "geminiConfigured": true
-    }
-    ```
-* Open **Unified Lead CRM** ➔ Click **Record Inbound Lead** to test adding a real lead.
-* Click **Send via WhatsApp API** ➔ Opens WhatsApp Web/Mobile with tailored pitch instantly!
+### Step 3: Configure Environment Variables
+
+In your Hostinger Node.js configuration (or via `.env` file in application root):
+
+```env
+# Database Credentials
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=u123456789_bga_prod
+DB_USER=u123456789_bga_admin
+DB_PASSWORD=YourSecureMySQLPass2026!
+
+# Application Environment
+NODE_ENV=production
+IS_PRODUCTION=true
+PORT=3000
+APP_URL=https://bga.aaditechs.in
+TRUST_PROXY_HOPS=1
+
+# Security & Encryption Secrets
+AUTH_SECRET=your_32_character_cryptographic_jwt_secret_key_here
+CREDENTIAL_ENCRYPTION_KEY=your_32_character_aes256gcm_key_here
+
+# First-Run Platform Administrator (Optional Auto-Provisioning)
+INITIAL_ADMIN_EMAIL=admin@aaditechs.in
+INITIAL_ADMIN_PASSWORD=YourAdminSecurePassword2026!
+INITIAL_ADMIN_NAME="System Administrator"
+
+# AI Engine
+GEMINI_API_KEY=your_gemini_api_key
+
+# Transactional Email (Hostinger SMTP)
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=security@aaditechs.in
+SMTP_PASS=your_mailbox_password
+SMTP_FROM=security@aaditechs.in
+SMTP_SECURE=true
+```
+
+---
+
+### Step 4: Connect Git Repository & Set Deployment Hooks
+
+1. In Hostinger hPanel, go to **Advanced** → **Git**.
+2. Connect your Git repository (GitHub / GitLab / Bitbucket).
+3. Set the target branch to `main`.
+4. Configure the **Build & Deployment Script** (or run via SSH / Hostinger Terminal):
+
+```bash
+# 1. Install production dependencies
+npm ci
+
+# 2. Build frontend and backend bundle
+npm run build
+
+# 3. Execute automatic schema migrations with distributed lock
+npm run db:migrate
+
+# 4. Seed required system configuration (zero fake business telemetry)
+npm run db:seed:system
+
+# 5. Verify database integrity
+npm run db:verify
+
+# 6. Pre-flight deployment check
+npm run deploy:validate
+```
+
+---
+
+### Step 5: Start Application & Verify Health
+
+1. In Hostinger Node.js manager, click **Restart** (or `npm start`).
+2. Visit the health check endpoint:
+   ```
+   GET https://bga.aaditechs.in/api/health
+   ```
+3. Expected JSON response:
+   ```json
+   {
+     "status": "ok",
+     "database": "connected",
+     "migrations": "current",
+     "schemaVersion": 5,
+     "version": "1.29.0",
+     "timestamp": "2026-10-04T12:00:00.000Z"
+   }
+   ```
+
+---
+
+## Troubleshooting & Verification Commands
+
+| Command | Purpose |
+|---|---|
+| `npm run db:migrate` | Runs all pending versioned migrations with distributed locking |
+| `npm run db:verify` | Audits connection, all 27 tables, indexes, and schema version |
+| `npm run db:status` | Shows migration history, timestamps, and table list |
+| `npm run db:setup` | Complete one-shot setup (migrate + system seed + admin init + verify) |
+| `npm run admin:create` | Creates or updates platform admin without editing database directly |
+| `npm run deploy:validate` | Pre-flight validation of Node version, build artifacts, and DB |
