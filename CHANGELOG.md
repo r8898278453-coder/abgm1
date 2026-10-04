@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.29.0] - 2026-10-04
+### Final Production Closure & Acceptance Certification (COMPLETED)
+- **Database Fail-Closed in Production**:
+  - `server/db.ts` throws explicit `DATABASE_UNAVAILABLE` (HTTP 503) upon connection/query failures in production mode instead of silently masking errors with in-memory fallbacks.
+- **Provider Credential Authenticated Encryption at Rest**:
+  - Implemented AES-256-GCM authenticated encryption with random IV and auth tags (`encryptCredential`, `decryptCredential`) for all sensitive tokens, keys, passwords, and secrets.
+- **Zero Default Tenant Execution**:
+  - Fully removed all non-Razorpay production dependencies on default company fallback or first company selection; strict multi-tenant resolution across WhatsApp, Autonomous, Content, and Integrations.
+- **Audit Remediation State Machine**:
+  - Closed frontend mock resolution; integrated backend-driven remediation lifecycle (`OPEN → FIX_REQUESTED → REMEDIATION_EXECUTED / MANUAL_ACTION_REQUIRED → RESOLVED`).
+- **Autonomous UI & Backend Synchronization**:
+  - Autopilot and Emergency Kill-Switch controls strictly synchronized with backend `/api/autonomous/status` and `/api/autonomous/kill-switch` with error rollback.
+- **AI Tenant Context Truthfulness**:
+  - Server-side tenant DB context injected into AI queries; removed all hardcoded Aaditech / demo company fallbacks; truthful `AI_UNAVAILABLE` on missing evidence.
+- **Automated Verification**:
+  - 19/19 test suites passing with 100% success rate in `npm test`.
+  - Production build and TypeScript typecheck (`tsc --noEmit`) passing with 0 errors.
+
 ## [1.28.0] - 2026-10-02
 ### Phase 3 — Provider Integrations & Verified Telemetry (COMPLETED)
 - **Universal Provider State Model (9 Canonical States)**:

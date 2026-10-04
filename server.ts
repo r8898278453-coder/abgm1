@@ -903,39 +903,48 @@ app.put('/api/companies/:id/data', async (req, res) => {
       });
     }
 
-    // User-managed campaigns: user can manage strategic campaign plans, but actual_spend / impressions are provider-verified
+    // User-managed campaigns: user can manage strategic campaign plans, but actual_spend / impressions / provider IDs are strictly server/provider-verified
     if (Array.isArray(clientData.campaigns)) {
       const existingCampMap = new Map((existingPayload.campaigns || []).map((c: any) => [c.id, c]));
       sanitizedPayload.campaigns = clientData.campaigns.map((camp: any) => {
         const existing: any = existingCampMap.get(camp.id);
         return {
-          ...camp,
-          actual_spend: existing?.actual_spend ?? camp.actual_spend ?? null,
+          id: camp.id || `camp_${crypto.randomUUID().slice(0, 8)}`,
+          name: (camp.name || 'Campaign').trim(),
+          type: camp.type || 'offer',
+          status: camp.status || 'draft',
+          channels: Array.isArray(camp.channels) ? camp.channels : ['google'],
+          target_audience: camp.target_audience || '',
+          start_date: camp.start_date || null,
+          end_date: camp.end_date || null,
+          budget: typeof camp.budget === 'number' ? camp.budget : null,
+          actual_spend: existing?.actual_spend ?? null,
           verified_spend: existing?.verified_spend ?? null,
-          provider_campaign_id: existing?.provider_campaign_id ?? camp.provider_campaign_id ?? null,
+          provider_campaign_id: existing?.provider_campaign_id ?? null,
+          impressions: existing?.impressions ?? null,
+          clicks: existing?.clicks ?? null,
+          leads_generated: existing?.leads_generated ?? null,
         };
       });
     }
 
-    // Audit items: user can only toggle resolved status on existing items, not inject fabricated claims
+    // Audit items: user can only toggle resolved status on EXISTING server-evaluated items; client cannot invent or inject unknown audit findings
     if (Array.isArray(clientData.audit_items)) {
-      const existingAuditMap = new Map((existingPayload.audit_items || []).map((a: any) => [a.id, a]));
-      sanitizedPayload.audit_items = clientData.audit_items.map((item: any) => {
-        const existing: any = existingAuditMap.get(item.id);
-        if (existing) {
+      const clientAuditMap = new Map(clientData.audit_items.map((a: any) => [a.id, a]));
+      sanitizedPayload.audit_items = (existingPayload.audit_items || []).map((existing: any) => {
+        const clientItem: any = clientAuditMap.get(existing.id);
+        if (clientItem) {
           return {
             ...existing,
-            resolved: Boolean(item.resolved),
+            resolved: Boolean(clientItem.resolved),
           };
         }
-        return item;
+        return existing;
       });
     }
 
-    // Autonomous actions
-    if (Array.isArray(clientData.autonomous_actions)) {
-      sanitizedPayload.autonomous_actions = clientData.autonomous_actions;
-    }
+    // Autonomous actions: client must NOT inject autonomous action history; strictly server-authoritative
+    sanitizedPayload.autonomous_actions = existingPayload.autonomous_actions || [];
 
     // Growth Score remains strictly derived by canonical engine only
     sanitizedPayload.growth_score = existingPayload.growth_score || null;
@@ -4273,8 +4282,18 @@ app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
   }
 
   const { message, context, businessName, category, language, companyId } = req.body;
-  const targetBiz = businessName || 'our business';
-  const targetCat = category || 'Business Services';
+  const resolved = await resolveUserCompanyId(user, companyId);
+  let targetBiz = businessName || 'our business';
+  let targetCat = category || 'Business Services';
+
+  if (resolved.companyId) {
+    const comp = await getCompanyById(resolved.companyId);
+    if (comp) {
+      targetBiz = comp.name;
+      targetCat = comp.category;
+    }
+  }
+
   const prompt = `You are LocalPulse AI, an Autonomous AI Marketing & Growth Assistant for ${targetBiz}.
 Business Name: ${targetBiz}
 Category: ${targetCat}

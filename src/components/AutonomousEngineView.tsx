@@ -61,13 +61,15 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
   onApproveAction,
   approvalSettings: propSettings,
   onUpdateApprovalSettings,
-  companyId = 'comp_aaditech_main',
+  companyId,
 }) => {
   const [localSettings, setLocalSettings] = useState<ApprovalRules>(propSettings || DEFAULT_SETTINGS);
   const [actions, setActions] = useState<AutonomousAction[]>(initialActions);
   const [recommendations, setRecommendations] = useState<AutonomousRecommendation[]>([]);
   const [auditLogs, setAuditLogs] = useState<AutonomousAuditLog[]>([]);
   const [isRunningCycle, setIsRunningCycle] = useState(false);
+  const [isTogglingAutopilot, setIsTogglingAutopilot] = useState(false);
+  const [isTogglingEmergency, setIsTogglingEmergency] = useState(false);
   const [activeTab, setActiveTab] = useState<'actions' | 'recommendations' | 'audit'>('actions');
   const [statusNotice, setStatusNotice] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -79,15 +81,17 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const [actionsRes, recsRes, logsRes] = await Promise.all([
-        fetch(`/api/autonomous/actions?companyId=${companyId}`, { headers }),
-        fetch(`/api/autonomous/recommendations?companyId=${companyId}`, { headers }),
-        fetch(`/api/autonomous/audit-logs?companyId=${companyId}`, { headers }),
+      const compParam = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const [actionsRes, recsRes, logsRes, statusRes] = await Promise.all([
+        fetch(`/api/autonomous/actions${compParam}`, { headers }),
+        fetch(`/api/autonomous/recommendations${compParam}`, { headers }),
+        fetch(`/api/autonomous/audit-logs${compParam}`, { headers }),
+        fetch(`/api/autonomous/status${compParam}`, { headers }),
       ]);
 
       if (actionsRes.ok) {
         const data = await actionsRes.json();
-        if (data.actions && data.actions.length > 0) {
+        if (data.actions) {
           setActions(data.actions);
         }
       }
@@ -103,6 +107,15 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
           setAuditLogs(data.logs);
         }
       }
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (typeof statusData.autopilotEnabled === 'boolean') {
+          setIsAutopilotOn(statusData.autopilotEnabled);
+        }
+        if (typeof statusData.globalEmergencyStop === 'boolean') {
+          setIsEmergencyPaused(statusData.globalEmergencyStop);
+        }
+      }
     } catch {
       // Keep existing state on error
     }
@@ -111,6 +124,88 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
   useEffect(() => {
     fetchAutonomousData();
   }, [companyId]);
+
+  const handleToggleAutopilot = async () => {
+    setIsTogglingAutopilot(true);
+    const targetState = !isAutopilotOn;
+    try {
+      const token = localStorage.getItem('abga_auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/autonomous/kill-switch', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          companyId,
+          autopilotEnabled: targetState,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsAutopilotOn(targetState);
+        setStatusNotice({
+          type: 'success',
+          message: `Autopilot ${targetState ? 'activated' : 'paused'} successfully on authoritative backend.`,
+        });
+      } else {
+        setStatusNotice({
+          type: 'error',
+          message: data.error || 'Failed to update Autopilot setting on backend.',
+        });
+      }
+    } catch (err: any) {
+      setStatusNotice({
+        type: 'error',
+        message: err?.message || 'Network error updating Autopilot state.',
+      });
+    } finally {
+      setIsTogglingAutopilot(false);
+      setTimeout(() => setStatusNotice(null), 5000);
+    }
+  };
+
+  const handleToggleEmergencyStop = async () => {
+    setIsTogglingEmergency(true);
+    const targetState = !isEmergencyPaused;
+    try {
+      const token = localStorage.getItem('abga_auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/autonomous/kill-switch', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          companyId,
+          emergencyStop: targetState,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsEmergencyPaused(targetState);
+        setStatusNotice({
+          type: targetState ? 'error' : 'success',
+          message: targetState
+            ? 'EMERGENCY KILL SWITCH ENGAGED on authoritative backend.'
+            : 'Emergency Stop disengaged. Autonomous executions resumed.',
+        });
+      } else {
+        setStatusNotice({
+          type: 'error',
+          message: data.error || 'Failed to toggle Emergency Stop on backend.',
+        });
+      }
+    } catch (err: any) {
+      setStatusNotice({
+        type: 'error',
+        message: err?.message || 'Network error updating Emergency Stop.',
+      });
+    } finally {
+      setIsTogglingEmergency(false);
+      setTimeout(() => setStatusNotice(null), 5000);
+    }
+  };
 
   const toggleSetting = (key: keyof ApprovalRules) => {
     const updated: ApprovalRules = {
@@ -245,7 +340,8 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
           </button>
 
           <button
-            onClick={() => setIsAutopilotOn(!isAutopilotOn)}
+            onClick={handleToggleAutopilot}
+            disabled={isTogglingAutopilot}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border shadow-xs ${
               isAutopilotOn
                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
@@ -257,7 +353,8 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
           </button>
 
           <button
-            onClick={() => setIsEmergencyPaused(!isEmergencyPaused)}
+            onClick={handleToggleEmergencyStop}
+            disabled={isTogglingEmergency}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border shadow-xs ${
               isEmergencyPaused
                 ? 'bg-rose-600 text-white border-rose-600'

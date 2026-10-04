@@ -466,6 +466,67 @@ const LEGACY_PBKDF2_ITERATIONS = 1000;
 const PBKDF2_KEYLEN = 64;
 const PBKDF2_DIGEST = 'sha512';
 
+// Authenticated Encryption at Rest for Provider Credentials (AES-256-GCM with key-rotation versioning)
+const CRED_ENC_SECRET = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.JWT_SECRET || 'localpulse_default_sec_enc_key_32b_aes256gcm';
+const CRED_ENC_KEY = crypto.createHash('sha256').update(CRED_ENC_SECRET).digest();
+
+export function encryptCredential(plainText: string): string {
+  if (!plainText || typeof plainText !== 'string') return '';
+  if (plainText.startsWith('enc:v1:')) return plainText; // already encrypted
+  const iv = crypto.randomBytes(12); // 12-byte IV for GCM
+  const cipher = crypto.createCipheriv('aes-256-gcm', CRED_ENC_KEY, iv);
+  let encrypted = cipher.update(plainText, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag().toString('hex');
+  return `enc:v1:${iv.toString('hex')}:${tag}:${encrypted}`;
+}
+
+export function decryptCredential(cipherText: string): string {
+  if (!cipherText || typeof cipherText !== 'string') return '';
+  if (!cipherText.startsWith('enc:v1:')) return cipherText; // unencrypted legacy plaintext
+  try {
+    const parts = cipherText.split(':');
+    if (parts.length !== 5) return cipherText;
+    const [, , ivHex, tagHex, encryptedHex] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const tag = Buffer.from(tagHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', CRED_ENC_KEY, iv);
+    decipher.setAuthTag(tag);
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (err) {
+    console.warn('[decryptCredential] Decryption failed:', err);
+    return '';
+  }
+}
+
+export function encryptCredentialsObject(creds: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [k, v] of Object.entries(creds)) {
+    const lower = k.toLowerCase();
+    const isSensitive = lower.includes('token') || lower.includes('secret') || lower.includes('key') || lower.includes('password') || lower.includes('auth');
+    if (isSensitive && typeof v === 'string' && v.trim() && !v.includes('••••')) {
+      result[k] = encryptCredential(v.trim());
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
+export function decryptCredentialsObject(creds: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [k, v] of Object.entries(creds)) {
+    if (typeof v === 'string' && v.startsWith('enc:v1:')) {
+      result[k] = decryptCredential(v);
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
 function safeTimingCompare(a: string, b: string): boolean {
   try {
     const bufA = Buffer.from(a, 'hex');
@@ -1854,17 +1915,23 @@ export async function getCompanyIntegrations(companyId: string): Promise<DbInteg
         'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE company_id = ?',
         [companyId]
       );
-      return rows.map((r: any) => ({
-        ...r,
-        credentials: r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {},
-        config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
-      }));
+      return rows.map((r: any) => {
+        const parsedCreds = r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {};
+        return {
+          ...r,
+          credentials: decryptCredentialsObject(parsedCreds),
+          config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
+        };
+      });
     }
   } catch (err: any) {
-    console.warn('[getCompanyIntegrations] MySQL error:', err?.message);
+    handleDbError('getCompanyIntegrations', err);
   }
 
-  return inMemoryIntegrations.filter((i) => i.company_id === companyId);
+  return inMemoryIntegrations.filter((i) => i.company_id === companyId).map((i) => ({
+    ...i,
+    credentials: decryptCredentialsObject(i.credentials || {}),
+  }));
 }
 
 export async function getCompanyIntegration(companyId: string, provider: string): Promise<DbIntegration | null> {
@@ -1877,19 +1944,21 @@ export async function getCompanyIntegration(companyId: string, provider: string)
       );
       if (rows && rows.length > 0) {
         const r = rows[0];
+        const parsedCreds = r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {};
         return {
           ...r,
-          credentials: r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {},
+          credentials: decryptCredentialsObject(parsedCreds),
           config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
         };
       }
       return null;
     }
   } catch (err: any) {
-    console.warn('[getCompanyIntegration] MySQL error:', err?.message);
+    handleDbError('getCompanyIntegration', err);
   }
 
-  return inMemoryIntegrations.find((i) => i.company_id === companyId && i.provider === provider) || null;
+  const mem = inMemoryIntegrations.find((i) => i.company_id === companyId && i.provider === provider);
+  return mem ? { ...mem, credentials: decryptCredentialsObject(mem.credentials || {}) } : null;
 }
 
 export async function getCompanyIntegrationsByProvider(provider: string): Promise<DbIntegration[]> {
@@ -1901,18 +1970,24 @@ export async function getCompanyIntegrationsByProvider(provider: string): Promis
         [provider]
       );
       if (rows && Array.isArray(rows)) {
-        return rows.map((r: any) => ({
-          ...r,
-          credentials: r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {},
-          config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
-        }));
+        return rows.map((r: any) => {
+          const parsedCreds = r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {};
+          return {
+            ...r,
+            credentials: decryptCredentialsObject(parsedCreds),
+            config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : {},
+          };
+        });
       }
     }
   } catch (err: any) {
-    console.warn('[getCompanyIntegrationsByProvider] MySQL error:', err?.message);
+    handleDbError('getCompanyIntegrationsByProvider', err);
   }
 
-  return inMemoryIntegrations.filter((i) => i.provider === provider);
+  return inMemoryIntegrations.filter((i) => i.provider === provider).map((i) => ({
+    ...i,
+    credentials: decryptCredentialsObject(i.credentials || {}),
+  }));
 }
 
 export async function saveCompanyIntegration(
@@ -1927,7 +2002,8 @@ export async function saveCompanyIntegration(
   }
 ): Promise<DbIntegration> {
   const id = `int_${crypto.randomUUID().replace(/-/g, '')}`;
-  const credsJson = JSON.stringify(data.credentials || {});
+  const encryptedCreds = encryptCredentialsObject(data.credentials || {});
+  const credsJson = JSON.stringify(encryptedCreds);
   const configJson = JSON.stringify(data.config || {});
   const now = new Date().toISOString();
 
@@ -1947,7 +2023,7 @@ export async function saveCompanyIntegration(
       );
     }
   } catch (err: any) {
-    console.warn('[saveCompanyIntegration] MySQL error:', err?.message);
+    handleDbError('saveCompanyIntegration', err);
   }
 
   const existingIdx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);
@@ -1956,7 +2032,7 @@ export async function saveCompanyIntegration(
     company_id: companyId,
     provider,
     status: data.status,
-    credentials: data.credentials || {},
+    credentials: encryptedCreds,
     config: data.config || {},
     last_tested_at: data.last_tested_at || now,
     last_error: data.last_error || null,
@@ -1969,7 +2045,10 @@ export async function saveCompanyIntegration(
     inMemoryIntegrations.push(record);
   }
 
-  return record;
+  return {
+    ...record,
+    credentials: decryptCredentialsObject(record.credentials || {}),
+  };
 }
 
 export async function deleteCompanyIntegration(companyId: string, provider: string): Promise<boolean> {
@@ -1980,7 +2059,7 @@ export async function deleteCompanyIntegration(companyId: string, provider: stri
       return true;
     }
   } catch (err: any) {
-    console.warn('[deleteCompanyIntegration] MySQL error:', err?.message);
+    handleDbError('deleteCompanyIntegration', err);
   }
 
   const idx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);

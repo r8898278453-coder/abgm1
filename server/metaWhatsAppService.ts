@@ -65,65 +65,104 @@ export interface InstagramPublishOptions {
 }
 
 /**
- * Resolves WhatsApp Cloud API credentials for a specific company or falls back to system env.
+ * Resolves WhatsApp Cloud API credentials strictly for a specific company tenant.
+ * Does NOT leak server environment variables to unintegrated tenants.
  */
 export async function resolveWhatsAppCredentials(companyId?: string): Promise<WhatsAppCredentials> {
-  let phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-  let accessToken = process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || '';
-  let wabaId = process.env.WHATSAPP_WABA_ID || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '';
-  let appSecret = process.env.WHATSAPP_APP_SECRET || process.env.META_APP_SECRET || '';
-  let webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET || process.env.WHATSAPP_VERIFY_TOKEN || '';
-
   if (companyId) {
     try {
       const integration = await getCompanyIntegration(companyId, 'whatsapp_cloud');
-      if (integration && integration.credentials) {
-        if (integration.credentials.phoneNumberId) phoneNumberId = String(integration.credentials.phoneNumberId);
-        if (integration.credentials.accessToken) accessToken = String(integration.credentials.accessToken);
-        if (integration.credentials.wabaId) wabaId = String(integration.credentials.wabaId);
-        if (integration.credentials.appSecret) appSecret = String(integration.credentials.appSecret);
-        if (integration.credentials.webhookSecret) webhookSecret = String(integration.credentials.webhookSecret);
+      if (integration && integration.credentials && (integration.status === 'connected' || integration.status === 'verified' || integration.status === 'saved')) {
+        const phoneNumberId = String(integration.credentials.phoneNumberId || '').trim();
+        const accessToken = String(integration.credentials.accessToken || '').trim();
+        const wabaId = String(integration.credentials.wabaId || '').trim();
+        const appSecret = String(integration.credentials.appSecret || '').trim();
+        const webhookSecret = String(integration.credentials.webhookSecret || '').trim();
+
+        return {
+          phoneNumberId,
+          accessToken,
+          wabaId,
+          appSecret,
+          webhookSecret,
+          configured: Boolean(phoneNumberId && accessToken),
+        };
       }
     } catch {}
+
+    // Strict tenant isolation: Tenant without integration gets NOT_CONFIGURED
+    return {
+      phoneNumberId: '',
+      accessToken: '',
+      wabaId: '',
+      appSecret: '',
+      webhookSecret: '',
+      configured: false,
+    };
   }
 
+  // System/Platform Level Operations ONLY (when companyId is explicitly undefined)
+  const envPhoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
+  const envAccessToken = (process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || '').trim();
+  const envWabaId = (process.env.WHATSAPP_WABA_ID || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '').trim();
+  const envAppSecret = (process.env.WHATSAPP_APP_SECRET || process.env.META_APP_SECRET || '').trim();
+  const envWebhookSecret = (process.env.WHATSAPP_WEBHOOK_SECRET || process.env.WHATSAPP_VERIFY_TOKEN || '').trim();
+
   return {
-    phoneNumberId: phoneNumberId.trim(),
-    accessToken: accessToken.trim(),
-    wabaId: wabaId.trim(),
-    appSecret: appSecret.trim(),
-    webhookSecret: webhookSecret.trim(),
-    configured: Boolean(phoneNumberId.trim() && accessToken.trim()),
+    phoneNumberId: envPhoneId,
+    accessToken: envAccessToken,
+    wabaId: envWabaId,
+    appSecret: envAppSecret,
+    webhookSecret: envWebhookSecret,
+    configured: Boolean(envPhoneId && envAccessToken),
   };
 }
 
 /**
- * Resolves Meta Social (Facebook Page & Instagram Business) credentials for a company or falls back to system env.
+ * Resolves Meta Social (Facebook Page & Instagram Business) credentials strictly for a company.
+ * Does NOT leak server environment variables to unintegrated tenants.
  */
 export async function resolveMetaSocialCredentials(companyId?: string): Promise<MetaSocialCredentials> {
-  let accessToken = process.env.META_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN || '';
-  let pageId = process.env.META_PAGE_ID || process.env.FACEBOOK_PAGE_ID || '';
-  let instagramId = process.env.META_INSTAGRAM_ID || process.env.INSTAGRAM_ACCOUNT_ID || '';
-  let appSecret = process.env.META_APP_SECRET || '';
-
   if (companyId) {
     try {
       const integration = await getCompanyIntegration(companyId, 'meta_social');
-      if (integration && integration.credentials) {
-        if (integration.credentials.accessToken) accessToken = String(integration.credentials.accessToken);
-        if (integration.credentials.pageId) pageId = String(integration.credentials.pageId);
-        if (integration.credentials.instagramId) instagramId = String(integration.credentials.instagramId);
-        if (integration.credentials.appSecret) appSecret = String(integration.credentials.appSecret);
+      if (integration && integration.credentials && (integration.status === 'connected' || integration.status === 'verified' || integration.status === 'saved')) {
+        const accessToken = String(integration.credentials.accessToken || '').trim();
+        const pageId = String(integration.credentials.pageId || '').trim();
+        const instagramId = String(integration.credentials.instagramId || '').trim();
+        const appSecret = String(integration.credentials.appSecret || '').trim();
+
+        return {
+          accessToken,
+          pageId,
+          instagramId,
+          appSecret,
+          configured: Boolean(accessToken && (pageId || instagramId)),
+        };
       }
     } catch {}
+
+    return {
+      accessToken: '',
+      pageId: '',
+      instagramId: '',
+      appSecret: '',
+      configured: false,
+    };
   }
 
+  // System/Platform Level Operations ONLY
+  const envAccessToken = (process.env.META_ACCESS_TOKEN || process.env.FACEBOOK_ACCESS_TOKEN || '').trim();
+  const envPageId = (process.env.META_PAGE_ID || process.env.FACEBOOK_PAGE_ID || '').trim();
+  const envInstagramId = (process.env.META_INSTAGRAM_ID || process.env.INSTAGRAM_ACCOUNT_ID || '').trim();
+  const envAppSecret = (process.env.META_APP_SECRET || '').trim();
+
   return {
-    accessToken: accessToken.trim(),
-    pageId: pageId.trim(),
-    instagramId: instagramId.trim(),
-    appSecret: appSecret.trim(),
-    configured: Boolean(accessToken.trim() && (pageId.trim() || instagramId.trim())),
+    accessToken: envAccessToken,
+    pageId: envPageId,
+    instagramId: envInstagramId,
+    appSecret: envAppSecret,
+    configured: Boolean(envAccessToken && (envPageId || envInstagramId)),
   };
 }
 
@@ -132,8 +171,7 @@ export async function resolveMetaSocialCredentials(companyId?: string): Promise<
  * strictly to the owning company tenant.
  *
  * CRITICAL MULTI-TENANT RULE:
- * Never routes to a generic/default company if the provider identifiers do not belong to it.
- * Returns null if no registered tenant owns the provider identifier.
+ * Never routes to a generic/default company. Returns null if unmapped.
  */
 export async function findCompanyByWhatsAppIdentifier(identifiers: {
   phoneNumberId?: string;
@@ -146,8 +184,6 @@ export async function findCompanyByWhatsAppIdentifier(identifiers: {
   }
 
   try {
-    // 1. Search all company integrations for 'whatsapp_cloud' provider
-    // Check registered company integrations in database or in-memory store
     const { getCompanyIntegrationsByProvider } = await import('./db');
     if (typeof getCompanyIntegrationsByProvider === 'function') {
       const integrations = await getCompanyIntegrationsByProvider('whatsapp_cloud');
@@ -166,19 +202,7 @@ export async function findCompanyByWhatsAppIdentifier(identifiers: {
     console.warn('[findCompanyByWhatsAppIdentifier] Error querying company integrations:', err);
   }
 
-  // 2. Check if the identifiers match server environment variables (single-tenant fallback)
-  const envPhoneId = (process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
-  const envWabaId = (process.env.WHATSAPP_WABA_ID || '').trim();
-
-  if (
-    (phoneNumberId && envPhoneId && phoneNumberId.trim() === envPhoneId) ||
-    (wabaId && envWabaId && wabaId.trim() === envWabaId)
-  ) {
-    const defaultCompId = await getDefaultCompanyId();
-    return defaultCompId || null;
-  }
-
-  // 3. Strict rule: If not matched, do NOT dump into default company
+  // Strict rule: If not matched to any registered tenant integration, return null (UNMAPPED_PROVIDER)
   return null;
 }
 
