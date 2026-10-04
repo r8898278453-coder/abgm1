@@ -706,7 +706,10 @@ export async function runMigrations(dbPool: mysql.Pool): Promise<{
       const expectedChecksum = computeMigrationChecksum(migration);
 
       if (appliedMap.has(migration.name)) {
-        // Already executed migration — skip
+        const storedChecksum = appliedMap.get(migration.name);
+        if (storedChecksum && storedChecksum !== expectedChecksum) {
+          throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${migration.name} has stored checksum '${storedChecksum}' but current definition checksum is '${expectedChecksum}'. Execution halted (FAIL CLOSED).`);
+        }
         continue;
       }
 
@@ -776,10 +779,41 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         };
       }
 
-      // 3. Check applied migrations count
-      const [appliedRows]: any = await conn.query('SELECT migration_name FROM schema_migrations WHERE success = 1');
-      const appliedNames = new Set((appliedRows || []).map((r: any) => r.migration_name));
-      const pendingCount = MIGRATIONS.filter((m) => !appliedNames.has(m.name)).length;
+      // 3. Check applied migrations count and checksums
+      const [appliedRows]: any = await conn.query('SELECT migration_name, checksum FROM schema_migrations WHERE success = 1');
+      const appliedMap = new Map<string, string>();
+      for (const r of (appliedRows || [])) {
+        appliedMap.set(r.migration_name, r.checksum);
+      }
+      const pendingCount = MIGRATIONS.filter((m) => !appliedMap.has(m.name)).length;
+
+      // Verify checksum integrity
+      let checksumMismatch: string | null = null;
+      for (const m of MIGRATIONS) {
+        if (appliedMap.has(m.name)) {
+          const stored = appliedMap.get(m.name);
+          const computed = computeMigrationChecksum(m);
+          if (stored && stored !== computed) {
+            checksumMismatch = `Checksum mismatch on ${m.name} (stored: ${stored}, current: ${computed})`;
+            break;
+          }
+        }
+      }
+
+      if (checksumMismatch) {
+        return {
+          connection: 'PASS',
+          engine: engineVersion,
+          migrationTable: 'PASS',
+          appliedMigrations: appliedMap.size,
+          pendingMigrations: pendingCount,
+          requiredTables: 'FAIL',
+          requiredIndexes: 'FAIL',
+          schemaVersion: appliedMap.size,
+          status: 'DATABASE_SCHEMA_OUTDATED',
+          error: `MIGRATION_CHECKSUM_MISMATCH: ${checksumMismatch}`,
+        };
+      }
 
       // 4. Check all canonical tables exist
       const [existingTables]: any = await conn.query(`
@@ -797,11 +831,11 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         connection: 'PASS',
         engine: engineVersion,
         migrationTable: 'PASS',
-        appliedMigrations: appliedNames.size,
+        appliedMigrations: appliedMap.size,
         pendingMigrations: pendingCount,
         requiredTables: isTablesPass ? 'PASS' : 'FAIL',
         requiredIndexes: 'PASS',
-        schemaVersion: appliedNames.size,
+        schemaVersion: appliedMap.size,
         status,
         missingTables: missingTables.length > 0 ? missingTables : undefined,
       };
