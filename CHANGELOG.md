@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.0] - 2026-10-05
+### Source Truth, Repository Fail-Closed & Canonical Checksum Enforcement (COMPLETED)
+- **Universal Fail-Closed Across All 28 Repository Entities (`server/db.ts`)**:
+  - Enforced fail-closed behavior across all CRUD repository operations in production mode.
+  - Connection failures throw `DATABASE_UNAVAILABLE` (HTTP 503); query execution failures throw `DATABASE_OPERATION_FAILED` (HTTP 500); zero fallback to in-memory arrays.
+- **Strict Tenant Provider Credential Isolation (`server/localSeoProvider.ts`, `server/competitorProvider.ts`)**:
+  - Eliminated fallback to platform environment variables (`DATAFORSEO_LOGIN`, `SERPAPI_API_KEY`, `GOOGLE_MAPS_API_KEY`) for tenant-scoped operations. Missing tenant integrations strictly return `NOT_CONFIGURED` / `UNAVAILABLE`.
+- **Manual Review Provenance Truth (`src/App.tsx`, `src/services/authService.ts`, `server/db.ts`)**:
+  - Manual and user-entered reviews strictly preserve `rating: null` (never fabricated as 5★) and `date: null` (never fabricated as today). Provenance is marked `USER_ENTERED`.
+- **Audit Remediation State Machine Enforcement**:
+  - `LOCAL_ONLY` replies cannot transition audit items to `RESOLVED`. Only confirmed `PROVIDER_VERIFIED` transitions items to `RESOLVED`.
+- **Migration Checksum Comparison (`server/migrator.ts`)**:
+  - `verifySchema()` and `runMigrations()` compare stored SHA-256 migration checksums against current computed checksums, failing closed on `MIGRATION_CHECKSUM_MISMATCH`.
+- **Verification**:
+  - Added `test/phase8SourceTruthAndFailClosed.test.ts`.
+  - 22/22 test suites passing (100% pass rate).
+  - TypeScript compilation (`npm run lint` / `tsc --noEmit`) and production applet build (`compile_applet`) passing cleanly.
+
 ## [1.30.0] - 2026-10-04
 ### Hostinger Self-Initializing Automated Database Migration & Deployment Architecture (COMPLETED)
 - **Canonical Versioned Migration Engine (`server/migrator.ts`)**:

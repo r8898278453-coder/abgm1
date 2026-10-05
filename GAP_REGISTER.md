@@ -29,3 +29,7 @@
 | GAP-CRED-ENC | Provider Credential Encryption | Authenticated AES-256-GCM encryption at rest with IV and auth tag for all sensitive credentials | REAL | E5 (Verified) | P0 | Final Production Closure |
 | GAP-AUDIT-REMEDIATION | Audit Remediation Lifecycle | Backend-driven remediation state machine (OPEN -> FIX_REQUESTED -> REMEDIATION_EXECUTED / MANUAL_ACTION_REQUIRED -> RESOLVED) | REAL | E5 (Verified) | P0 | Final Production Closure |
 | GAP-AUTONOMOUS-SYNC | Autonomous UI/Backend Sync | Real backend-authoritative status polling and kill-switch activation with error reversion | REAL | E5 (Verified) | P0 | Final Production Closure |
+| GAP-PHASE8-FAIL-CLOSED | Complete Repository Fail-Closed | All 28 CRUD repository functions throw DATABASE_UNAVAILABLE/DATABASE_OPERATION_FAILED in production | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-CRED-ISOL | Tenant Provider Isolation | Zero fallback to global env credentials for Local SEO & Competitor radar scans | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-REVIEW-TRUTH | Manual Review Provenance | Null rating & null date preserved without fake 5★ or today substitutions; USER_ENTERED provenance | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-SCHEMA-INTEG | Checksum & Constraint Verification | SHA-256 migration checksum comparison against schema_migrations; 28 canonical table & index checks | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |

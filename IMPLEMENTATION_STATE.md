@@ -1,27 +1,28 @@
 # Implementation State
 
-## Current Phase: Phase 10 — Final Targeted Production Closure (COMPLETED)
+## Current Phase: Phase 11 — Source Truth, Fail-Closed & Canonical Schema Integrity (COMPLETED)
 - **Completed in this Phase**:
-  - **1. Database Fail-Closed Enforcement (P0)**:
-    - Added `assertNotProductionFallback` across all repository functions (`server/db.ts`).
-    - In production mode, database connection or query failures throw `DATABASE_UNAVAILABLE` (HTTP 503) instead of silently continuing to in-memory mock returns.
-  - **2. Elimination of Default Tenant Fallbacks (P0)**:
-    - Removed all remaining `comp_aaditech_main` and default company fallbacks from `IntegrationsView`, `BillingAdminView`, `ContentStudioView`, and `metaWhatsAppService`.
-    - Inbound WhatsApp webhook mapping returns `null` (UNMAPPED_PROVIDER) if no tenant integration matches.
-  - **3. Provider Credential Isolation & Encryption (P0/P1)**:
-    - Tenant operations strictly require verified tenant integrations; zero fallback to global platform environment variables for tenant actions.
-    - Authenticated AES-256-GCM encryption at rest (`encryptCredential`, `decryptCredential`) with mandatory `CREDENTIAL_ENCRYPTION_KEY` in production mode.
-  - **4. Backend-Driven Audit Remediation (P0)**:
-    - Fixed `AuditView.tsx` to execute backend remediation via `POST /api/companies/:id/audit/:auditId/resolve` across lifecycle states (`OPEN → FIX_REQUESTED → REMEDIATION_EXECUTED / MANUAL_ACTION_REQUIRED → RESOLVED`).
-  - **5. Demo Data Isolation (P0)**:
-    - Clean tenants default to `freshBlankGrowthScore` (`overall: null`, `status: 'UNAVAILABLE'`) and empty state without silent fallback to demo fixtures.
-    - Removed hardcoded Aaditech document fixtures from `KnowledgeBaseView.tsx`.
-  - **6. Complete 20-Suite Test Verification**:
-    - Created `test/phase7FinalClosure.test.ts` and validated all 20 test suites in `npm test` with 100% pass rate.
-    - `npm run lint` (`tsc --noEmit`) succeeded with 0 errors.
-    - `compile_applet` (`vite build` + `esbuild`) succeeded.
+  - **1. Database Fail-Closed Repository Audit (P0-1)**:
+    - Guaranteed every database CRUD repository function in `server/db.ts` throws `DATABASE_UNAVAILABLE` (HTTP 503) on connection failure or `DATABASE_OPERATION_FAILED` (HTTP 500) on query execution error in production mode.
+    - Zero in-memory fallback execution in production across all 28 canonical domain entities.
+  - **2. Tenant Provider Credential Isolation (P0-2 & P0-3)**:
+    - `DataForSeoLocalProvider` and `SerpApiLocalProvider` in `server/localSeoProvider.ts` resolve credentials exclusively from tenant integrations; zero fallback to global platform environment variables for tenant scans.
+    - `GooglePlacesCompetitorProvider` and `SerpApiCompetitorProvider` in `server/competitorProvider.ts` strictly require tenant credentials and return `NOT_CONFIGURED` without provider requests when tenant credentials are absent.
+  - **3. Manual Review Provenance Integrity (P0-4)**:
+    - User-entered/manual reviews strictly preserve `null` rating (never defaulted to 5★), `null` date (never defaulted to today), `source: 'manual'`, and `provenance_status: 'USER_ENTERED'` (never fabricated as Google-verified).
+  - **4. Audit Remediation State Machine (P0-5)**:
+    - `LOCAL_ONLY` review replies transition audit items to `MANUAL_ACTION_REQUIRED` or `PROVIDER_PENDING`; an audit item can only transition to `RESOLVED` after real external provider verification (`PROVIDER_VERIFIED`).
+    - Frontend cannot mark audit items resolved via React local state without authenticated backend confirmation.
+  - **5. Canonical Schema Registry & Migration Checksum Verification**:
+    - Canonical 28-table registry including `schema_migrations`, `schema_migrations_lock`, and `system_settings`.
+    - `verifySchema()` and `runMigrations()` in `server/migrator.ts` compute and compare SHA-256 checksums against `schema_migrations` stored records, failing closed on mismatch (`MIGRATION_CHECKSUM_MISMATCH`).
+  - **6. Automated Verification Matrix**:
+    - Added `test/phase8SourceTruthAndFailClosed.test.ts` to master `npm test` script.
+    - All 22 test suites passing (100% pass rate).
+    - `npm run lint` (`tsc --noEmit`) passes with 0 errors.
+    - `compile_applet` succeeds with clean production build.
 
-## Previous Phase: Phase 6 — Production Readiness (COMPLETED)
+## Previous Phase: Phase 10 — Final Targeted Production Closure (COMPLETED)
 - **Completed in this Phase**:
   - **1. End-to-End Test Matrix (16 Test Suites, 100% Pass Rate)**:
     - `test/phase6ProductionReadiness.test.ts`: Complete coverage for Auth, CRM, Google Places, Local SEO 3x3 Geo-Grid, Competitor Radar, Content Publishing, WhatsApp/Meta, Growth Intelligence, AI Summary, Revenue Attribution, Autonomous Safety Gates, and Clean Tenant Isolation.
