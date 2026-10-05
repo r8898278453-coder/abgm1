@@ -8,7 +8,7 @@ export { verifyPassword, hashPassword, PBKDF2_ITERATIONS };
 // Enforces strict secret requirement in production mode with fail-fast validation.
 export function resolveAuthSecret(): string {
   const envSecret = process.env.AUTH_SECRET || process.env.JWT_SECRET;
-  const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+  const isProd = process.env.NODE_ENV === 'production' || (process.env.IS_PRODUCTION === 'true' && process.env.NODE_ENV !== 'development');
 
   if (isProd) {
     if (!envSecret || envSecret.trim().length < 16) {

@@ -289,6 +289,8 @@ async function runAllTests() {
   // Test 7: Fail-Closed Protection in Production Database Mode
   await runTest('Fail-closed database behavior (assertNotProductionFallback)', async () => {
     // Verify when in production mode, asserting non-production fallback throws DATABASE_UNAVAILABLE / 503
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
     process.env.IS_PRODUCTION = 'true';
     try {
       assert.equal(isProductionDatabaseMode(), true, 'Production mode detected');
@@ -304,6 +306,7 @@ async function runAllTests() {
         'Must throw explicit 503 DATABASE_UNAVAILABLE error in production'
       );
     } finally {
+      process.env.NODE_ENV = origEnv;
       delete process.env.IS_PRODUCTION;
     }
   });

@@ -409,7 +409,7 @@ const inMemoryInvoices: DbInvoice[] = [];
 const inMemorySubscriptions: DbSubscription[] = [];
 
 export function isProductionDatabaseMode(): boolean {
-  return process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+  return process.env.NODE_ENV === 'production';
 }
 
 export function assertNotProductionFallback(operation: string): void {

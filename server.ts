@@ -230,8 +230,9 @@ const app = express();
 const trustProxyHops = process.env.TRUST_PROXY_HOPS ? parseInt(process.env.TRUST_PROXY_HOPS, 10) : 1;
 app.set('trust proxy', trustProxyHops);
 
-// Server Port: Defaults to 3000 for local development & Cloud Run sandbox reverse proxy
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// Server Port: Dev server must run on port 3000 (AI Studio Nginx reverse proxy routes to 3000).
+// In standalone production, use process.env.PORT if specified.
+const PORT = process.env.NODE_ENV === 'production' && process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Enterprise Security & Monitoring Middlewares
 app.use(securityHeadersMiddleware);
@@ -242,7 +243,7 @@ app.use(requestAuditLogger);
 try {
   getAuthSecret();
 } catch (secErr: any) {
-  if (process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true') {
+  if (process.env.NODE_ENV === 'production') {
     console.error('FATAL PRODUCTION SECURITY ERROR:', secErr?.message);
     process.exit(1);
   }
@@ -7109,7 +7110,7 @@ process.on('uncaughtException', (err) => {
 
 async function startServer() {
   try {
-    const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
+    const isProductionDeployment = process.env.NODE_ENV === 'production';
 
     // Auto-initialize / migrate database if MySQL connection parameters are configured
     try {
@@ -7127,17 +7128,17 @@ async function startServer() {
           console.log(`[Hostinger MySQL] Schema verified & ready (Version: ${report.schemaVersion}, Tables: PASS).`);
         } else {
           console.warn(`[Hostinger MySQL] Schema verification status: ${report.status}`);
-          if (isProd && report.status === 'DATABASE_SCHEMA_OUTDATED') {
+          if (isProductionDeployment && report.status === 'DATABASE_SCHEMA_OUTDATED') {
             console.error('FATAL: Database schema outdated in production. Please run "npm run db:migrate".');
             process.exit(1);
           }
         }
-      } else if (isProd) {
+      } else if (isProductionDeployment) {
         console.error('FATAL: MySQL database is required in production mode. Refusing startup.');
         process.exit(1);
       }
     } catch (dbBootErr: any) {
-      if (isProd) {
+      if (isProductionDeployment) {
         console.error('FATAL PRODUCTION DATABASE ERROR:', dbBootErr?.message);
         process.exit(1);
       } else {

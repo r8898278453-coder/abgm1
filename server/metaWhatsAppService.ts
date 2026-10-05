@@ -217,7 +217,7 @@ export function verifyWhatsAppWebhookSignature(options: {
   isProduction?: boolean;
 }): { isValid: boolean; error?: string } {
   const { rawBody, signature, appSecret } = options;
-  const isProd = options.isProduction ?? (process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true');
+  const isProd = options.isProduction ?? (process.env.NODE_ENV === 'production' || (process.env.IS_PRODUCTION === 'true' && process.env.NODE_ENV !== 'development'));
 
   if (!appSecret) {
     if (isProd) {
