@@ -175,9 +175,9 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
       content: newContent.trim(),
       topic: newTopic.trim() || 'Customer Experience',
       isOperationalIssue: newIsOperationalIssue,
-      source: newSource,
+      source: newSource || 'manual',
       relativeTime: 'Just now',
-      date: new Date().toISOString().split('T')[0],
+      date: null as any,
       sentiment: newRating >= 4 ? 'positive' : newRating === 3 ? 'neutral' : 'negative',
       replied: false,
     };

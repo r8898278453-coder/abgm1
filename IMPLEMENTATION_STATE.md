@@ -1,28 +1,21 @@
 # Implementation State
 
-## Current Phase: Phase 11 — Source Truth, Fail-Closed & Canonical Schema Integrity (COMPLETED)
+## Current Phase: Phase 12 — Final Production Closure & Review Date Provenance (COMPLETED)
 - **Completed in this Phase**:
   - **1. Database Fail-Closed Repository Audit (P0-1)**:
-    - Guaranteed every database CRUD repository function in `server/db.ts` throws `DATABASE_UNAVAILABLE` (HTTP 503) on connection failure or `DATABASE_OPERATION_FAILED` (HTTP 500) on query execution error in production mode.
-    - Zero in-memory fallback execution in production across all 28 canonical domain entities.
-  - **2. Tenant Provider Credential Isolation (P0-2 & P0-3)**:
-    - `DataForSeoLocalProvider` and `SerpApiLocalProvider` in `server/localSeoProvider.ts` resolve credentials exclusively from tenant integrations; zero fallback to global platform environment variables for tenant scans.
-    - `GooglePlacesCompetitorProvider` and `SerpApiCompetitorProvider` in `server/competitorProvider.ts` strictly require tenant credentials and return `NOT_CONFIGURED` without provider requests when tenant credentials are absent.
-  - **3. Manual Review Provenance Integrity (P0-4)**:
-    - User-entered/manual reviews strictly preserve `null` rating (never defaulted to 5★), `null` date (never defaulted to today), `source: 'manual'`, and `provenance_status: 'USER_ENTERED'` (never fabricated as Google-verified).
-  - **4. Audit Remediation State Machine (P0-5)**:
-    - `LOCAL_ONLY` review replies transition audit items to `MANUAL_ACTION_REQUIRED` or `PROVIDER_PENDING`; an audit item can only transition to `RESOLVED` after real external provider verification (`PROVIDER_VERIFIED`).
-    - Frontend cannot mark audit items resolved via React local state without authenticated backend confirmation.
-  - **5. Canonical Schema Registry & Migration Checksum Verification**:
-    - Canonical 28-table registry including `schema_migrations`, `schema_migrations_lock`, and `system_settings`.
-    - `verifySchema()` and `runMigrations()` in `server/migrator.ts` compute and compare SHA-256 checksums against `schema_migrations` stored records, failing closed on mismatch (`MIGRATION_CHECKSUM_MISMATCH`).
-  - **6. Automated Verification Matrix**:
-    - Added `test/phase8SourceTruthAndFailClosed.test.ts` to master `npm test` script.
-    - All 22 test suites passing (100% pass rate).
-    - `npm run lint` (`tsc --noEmit`) passes with 0 errors.
-    - `compile_applet` succeeds with clean production build.
+    - Audited every CRUD database repository operation across all 28 entities in `server/db.ts`.
+    - Real database failure throws `DATABASE_UNAVAILABLE` (HTTP 503) or `DATABASE_OPERATION_FAILED` (HTTP 500); zero in-memory fallback returns in production mode.
+  - **2. Manual Review Date & Rating Provenance Truth (P0-2)**:
+    - Removed automatic defaulting of review date to today in `src/components/ReviewsView.tsx`.
+    - Missing rating $\to$ `null`, missing date $\to$ `null`, missing source $\to$ `user_entered` / `manual`, and provenance strictly resolves to `USER_ENTERED`.
+    - Added automated regression tests in `test/phase8SourceTruthAndFailClosed.test.ts`.
+  - **3. Full Suite Validation**:
+    - `npm test`: **22/22 Test Suites Passing (100% Pass Rate)**.
+    - `npm run lint`: **0 errors**.
+    - `npm run build`: **Build succeeded** (Vite + esbuild CJS bundle).
+    - `npm run db:status`: Environment secrets configured (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`); sandbox network connection reported `BLOCKED BY ENVIRONMENT` (local socket unavailable in sandbox container).
 
-## Previous Phase: Phase 10 — Final Targeted Production Closure (COMPLETED)
+## Previous Phase: Phase 11 — Source Truth, Fail-Closed & Canonical Schema Integrity (COMPLETED)
 - **Completed in this Phase**:
   - **1. End-to-End Test Matrix (16 Test Suites, 100% Pass Rate)**:
     - `test/phase6ProductionReadiness.test.ts`: Complete coverage for Auth, CRM, Google Places, Local SEO 3x3 Geo-Grid, Competitor Radar, Content Publishing, WhatsApp/Meta, Growth Intelligence, AI Summary, Revenue Attribution, Autonomous Safety Gates, and Clean Tenant Isolation.

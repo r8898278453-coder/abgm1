@@ -261,6 +261,41 @@ async function main() {
     assert.notStrictEqual(review.provenance_status, 'GOOGLE_VERIFIED', 'Manual review must NEVER be GOOGLE_VERIFIED');
   });
 
+  await runTest('Missing review rating, date, and source never default to 5, today, or google', async () => {
+    const emptyFieldsReview = {
+      company_id: 'comp_test_2',
+      author: 'Unknown Guest',
+      rating: undefined as any,
+      date: undefined as any,
+      content: 'Unrated feedback entry',
+      replied: false,
+    };
+
+    const created = await createReview(emptyFieldsReview as any);
+    assert.strictEqual(created.rating, null, 'Undefined rating must resolve to null');
+    assert.strictEqual(created.date, null, 'Undefined date must resolve to null');
+    assert.notStrictEqual(created.source, 'google', 'Missing source must NEVER default to google');
+    assert.strictEqual(created.provenance_status, 'USER_ENTERED', 'Missing source must be USER_ENTERED provenance');
+  });
+
+  await runTest('Provider-sourced reviews accurately preserve provider date, rating, and verified provenance', async () => {
+    const googleReview = {
+      company_id: 'comp_test_3',
+      author: 'Google Maps User',
+      rating: 4,
+      date: '2026-04-10',
+      content: 'Great experience verified from Places API',
+      source: 'google',
+      replied: true,
+    };
+
+    const created = await createReview(googleReview);
+    assert.strictEqual(created.rating, 4, 'Provider rating must be preserved');
+    assert.strictEqual(created.date, '2026-04-10', 'Provider date must be preserved');
+    assert.strictEqual(created.source, 'google', 'Provider source must be google');
+    assert.strictEqual(created.provenance_status, 'GOOGLE_VERIFIED', 'Provider provenance must be GOOGLE_VERIFIED');
+  });
+
   // =========================================================================
   // 5. P0-5: Audit Remediation Truth
   // =========================================================================
