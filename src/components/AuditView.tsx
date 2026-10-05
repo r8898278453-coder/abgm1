@@ -60,8 +60,6 @@ export const AuditView: React.FC<AuditViewProps> = ({
         if (data.success && data.status === 'RESOLVED') {
           resolveItem(item.id);
         }
-      } else {
-        resolveItem(item.id);
       }
 
       if (item.category === 'reviews') onNavigate('reviews');

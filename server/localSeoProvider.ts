@@ -144,17 +144,17 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
   readonly providerName = 'DataForSEO Local SERP API';
 
   isConfigured(credentials?: Record<string, any>): boolean {
-    const login = credentials?.login || process.env.DATAFORSEO_LOGIN;
-    const password = credentials?.password || process.env.DATAFORSEO_PASSWORD;
-    return Boolean(login && password);
+    const login = credentials?.login;
+    const password = credentials?.password;
+    return Boolean(login && password && String(login).trim().length > 0 && String(password).trim().length > 0);
   }
 
   async scanRankGrid(context: RankScanContext, credentials?: Record<string, any>): Promise<RankScanResult> {
-    const login = credentials?.login || process.env.DATAFORSEO_LOGIN;
-    const password = credentials?.password || process.env.DATAFORSEO_PASSWORD;
+    const login = credentials?.login;
+    const password = credentials?.password;
 
     if (!login || !password) {
-      throw new Error('DataForSEO API login and password not configured');
+      throw new Error('DataForSEO API login and password not configured for tenant');
     }
 
     const authHeader = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
@@ -322,14 +322,14 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
   readonly providerName = 'SerpApi Google Maps SERP';
 
   isConfigured(credentials?: Record<string, any>): boolean {
-    const apiKey = credentials?.apiKey || credentials?.api_key || process.env.SERPAPI_API_KEY;
-    return Boolean(apiKey && apiKey.trim().length > 5);
+    const apiKey = credentials?.apiKey || credentials?.api_key;
+    return Boolean(apiKey && String(apiKey).trim().length > 5);
   }
 
   async scanRankGrid(context: RankScanContext, credentials?: Record<string, any>): Promise<RankScanResult> {
-    const apiKey = credentials?.apiKey || credentials?.api_key || process.env.SERPAPI_API_KEY;
+    const apiKey = credentials?.apiKey || credentials?.api_key;
     if (!apiKey) {
-      throw new Error('SerpApi API Key not configured');
+      throw new Error('SerpApi API Key not configured for tenant');
     }
 
     const nowIso = new Date().toISOString();
@@ -342,7 +342,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
         serpUrl.searchParams.set('engine', 'google_maps');
         serpUrl.searchParams.set('q', context.keyword);
         serpUrl.searchParams.set('ll', `@${coord.lat},${coord.lng},14z`);
-        serpUrl.searchParams.set('api_key', apiKey.trim());
+        serpUrl.searchParams.set('api_key', String(apiKey).trim());
 
         const res = await fetch(serpUrl.toString(), { signal: AbortSignal.timeout(10000) });
         if (res.ok) {

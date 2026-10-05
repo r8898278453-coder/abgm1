@@ -591,9 +591,9 @@ export default function App() {
     }
 
     const tempId = `rev_${Date.now()}`;
-    const rating = review.rating || 5;
+    const rating = typeof review.rating === 'number' ? review.rating : (review.rating !== undefined && review.rating !== null ? Number(review.rating) : (null as any));
     const sentiment: 'positive' | 'neutral' | 'negative' =
-      review.sentiment || (rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative');
+      review.sentiment || (typeof rating === 'number' ? (rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative') : 'neutral');
     const fullReview: ReviewItem = {
       id: tempId,
       author: review.author || 'Anonymous Customer',
@@ -601,11 +601,11 @@ export default function App() {
       sentiment,
       content: review.content || '',
       relativeTime: review.relativeTime || 'Just now',
-      date: review.date || new Date().toISOString().split('T')[0],
+      date: review.date || (null as any),
       replied: false,
       isOperationalIssue: !!review.isOperationalIssue,
       topic: review.topic || 'Customer Feedback',
-      source: review.source || 'google',
+      source: review.source || 'manual',
     };
     setReviews((prev) => [fullReview, ...prev]);
     try {

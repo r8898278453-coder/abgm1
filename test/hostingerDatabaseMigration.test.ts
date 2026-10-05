@@ -2,6 +2,8 @@ import { strict as assert } from 'assert';
 import {
   MIGRATIONS,
   CANONICAL_REQUIRED_TABLES,
+  CANONICAL_EXPECTED_INDEXES,
+  CANONICAL_EXPECTED_CONSTRAINTS,
   ensureMigrationInfrastructure,
   acquireMigrationLock,
   releaseMigrationLock,
@@ -105,6 +107,28 @@ class MockMySqlConnection {
       }
       const tableRows = Array.from(this.tables).map((t) => ({ TABLE_NAME: t }));
       return [tableRows, []];
+    }
+
+    // INFORMATION_SCHEMA.STATISTICS
+    if (cleanSql.includes('INFORMATION_SCHEMA.STATISTICS')) {
+      const idxRows: any[] = [];
+      for (const [tbl, idxs] of Object.entries(CANONICAL_EXPECTED_INDEXES)) {
+        for (const idx of idxs) {
+          idxRows.push({ TABLE_NAME: tbl, INDEX_NAME: idx });
+        }
+      }
+      return [idxRows, []];
+    }
+
+    // INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+    if (cleanSql.includes('INFORMATION_SCHEMA.TABLE_CONSTRAINTS')) {
+      const cRows: any[] = [];
+      for (const [tbl, cs] of Object.entries(CANONICAL_EXPECTED_CONSTRAINTS)) {
+        for (const c of cs) {
+          cRows.push({ TABLE_NAME: tbl, CONSTRAINT_NAME: c });
+        }
+      }
+      return [cRows, []];
     }
 
     // System Settings INSERT ON DUPLICATE KEY UPDATE

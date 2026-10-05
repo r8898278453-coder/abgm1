@@ -223,18 +223,18 @@ export async function fetchCompanyReviews(companyId?: string): Promise<ReviewIte
     if (res.success && Array.isArray(res.reviews)) {
       return res.reviews.map((r) => ({
         id: r.id,
-        author: r.author,
-        rating: Number(r.rating) || 5,
-        date: r.date || 'Recent',
-        relativeTime: r.relative_time || 'Recently',
-        content: r.content,
-        sentiment: r.sentiment || (r.rating >= 4 ? 'positive' : r.rating === 3 ? 'neutral' : 'negative'),
+        author: r.author || 'Anonymous Customer',
+        rating: typeof r.rating === 'number' ? r.rating : (r.rating !== null && r.rating !== undefined ? Number(r.rating) : (null as any)),
+        date: r.date || null,
+        relativeTime: r.relative_time || (r.date ? undefined : 'Recently'),
+        content: r.content || '',
+        sentiment: r.sentiment || (typeof r.rating === 'number' ? (r.rating >= 4 ? 'positive' : r.rating === 3 ? 'neutral' : 'negative') : 'neutral'),
         topic: r.topic || 'General',
         isOperationalIssue: Boolean(r.is_operational_issue),
         replied: Boolean(r.replied),
         replyText: r.reply_text || undefined,
         replyDate: r.reply_date || undefined,
-        source: r.source || 'google',
+        source: r.source || 'manual',
       }));
     }
     return [];
@@ -251,32 +251,32 @@ export async function createReviewApi(review: Partial<ReviewItem> & { companyId?
       body: JSON.stringify({
         companyId: review.companyId,
         author: review.author,
-        rating: review.rating,
+        rating: typeof review.rating === 'number' ? review.rating : (review.rating ? Number(review.rating) : null),
         content: review.content,
-        date: review.date,
+        date: review.date || null,
         relative_time: review.relativeTime,
         sentiment: review.sentiment,
         topic: review.topic,
         is_operational_issue: review.isOperationalIssue,
-        source: review.source || 'google',
+        source: review.source || 'manual',
       }),
     });
     if (res.success && res.review) {
       const r = res.review;
       return {
         id: r.id,
-        author: r.author,
-        rating: Number(r.rating) || 5,
-        date: r.date,
+        author: r.author || 'Anonymous Customer',
+        rating: typeof r.rating === 'number' ? r.rating : (r.rating !== null && r.rating !== undefined ? Number(r.rating) : (null as any)),
+        date: r.date || null,
         relativeTime: r.relative_time || 'Just now',
-        content: r.content,
-        sentiment: r.sentiment,
-        topic: r.topic,
+        content: r.content || '',
+        sentiment: r.sentiment || 'neutral',
+        topic: r.topic || 'General',
         isOperationalIssue: Boolean(r.is_operational_issue),
         replied: Boolean(r.replied),
         replyText: r.reply_text,
         replyDate: r.reply_date,
-        source: r.source,
+        source: r.source || 'manual',
       };
     }
     return null;

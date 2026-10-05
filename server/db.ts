@@ -421,44 +421,41 @@ export function assertNotProductionFallback(operation: string): void {
   }
 }
 
-export function handleDbError(context: string, err: any) {
+export function handleDbError(context: string, err: any): never | void {
   const isProd = isProductionDatabaseMode();
-  if (
-    err?.code === 'ECONNREFUSED' ||
-    err?.code === 'ETIMEDOUT' ||
-    err?.code === 'ENOTFOUND' ||
-    err?.code === 'PROTOCOL_CONNECTION_LOST' ||
-    err?.code === 'DATABASE_UNAVAILABLE' ||
-    (typeof err?.message === 'string' && err.message.includes('ECONNREFUSED'))
-  ) {
-    const wasAvailable = isMySqlAvailable;
-    isMySqlAvailable = false;
-    if (pool) {
-      pool.end().catch(() => {});
-      pool = null;
-    }
-    lastFailureTime = Date.now();
-    if (wasAvailable && !hasLoggedFailure) {
-      console.warn(`[Hostinger MySQL] Connection lost (${err?.message}). Running with resilient in-memory store.`);
-      hasLoggedFailure = true;
-    }
-    if (isProd) {
+  if (isProd) {
+    const errMsg = String(err?.message || '');
+    const isConnErr =
+      err?.code === 'ECONNREFUSED' ||
+      err?.code === 'ETIMEDOUT' ||
+      err?.code === 'ENOTFOUND' ||
+      err?.code === 'PROTOCOL_CONNECTION_LOST' ||
+      err?.code === 'DATABASE_UNAVAILABLE' ||
+      errMsg.includes('ECONNREFUSED') ||
+      errMsg.includes('DATABASE_UNAVAILABLE') ||
+      errMsg.includes('connect ECONNREFUSED');
+
+    if (isConnErr) {
+      isMySqlAvailable = false;
+      if (pool) {
+        pool.end().catch(() => {});
+        pool = null;
+      }
+      lastFailureTime = Date.now();
       const prodErr: any = new Error(`DATABASE_UNAVAILABLE: Connection to database failed in production mode (${err?.message || context})`);
       prodErr.code = 'DATABASE_UNAVAILABLE';
       prodErr.status = 503;
       throw prodErr;
     }
-    return;
+
+    const prodErr: any = new Error(`DATABASE_OPERATION_FAILED: ${context} failed (${err?.message || 'Database operation error'})`);
+    prodErr.code = err?.code || 'DATABASE_OPERATION_FAILED';
+    prodErr.status = 500;
+    throw prodErr;
   }
 
   if (isMySqlAvailable) {
     console.warn(`[${context}] MySQL error:`, err?.message);
-  }
-  if (isProd && err?.code && err.code !== 'ER_DUP_ENTRY') {
-    const prodErr: any = new Error(`DATABASE_OPERATION_FAILED: ${context} failed (${err?.message})`);
-    prodErr.code = err?.code || 'DATABASE_ERROR';
-    prodErr.status = 500;
-    throw prodErr;
   }
 }
 
@@ -1407,6 +1404,7 @@ export async function findUserByEmail(email: string): Promise<DbUser | null> {
     handleDbError('findUserByEmail', err);
   }
 
+  assertNotProductionFallback('findUserByEmail');
   const memUser = inMemoryUsers.find((u) => u.email.toLowerCase() === cleanEmail);
   return memUser ? { ...memUser, is_platform_admin: Boolean(memUser.is_platform_admin) } : null;
 }
@@ -1429,6 +1427,7 @@ export async function findUserById(id: string): Promise<DbUser | null> {
     handleDbError('findUserById', err);
   }
 
+  assertNotProductionFallback('findUserById');
   const memUser = inMemoryUsers.find((u) => u.id === id);
   return memUser ? { ...memUser, is_platform_admin: Boolean(memUser.is_platform_admin) } : null;
 }
@@ -1603,6 +1602,7 @@ export async function getAllCompanies(): Promise<DbCompany[]> {
     handleDbError('getAllCompanies', err);
   }
 
+  assertNotProductionFallback('getAllCompanies');
   return inMemoryCompanies;
 }
 
@@ -1617,6 +1617,7 @@ export async function getUserCompanies(userId: string): Promise<DbCompany[]> {
     handleDbError('getUserCompanies', err);
   }
 
+  assertNotProductionFallback('getUserCompanies');
   return inMemoryCompanies.filter((c) => c.user_id === userId);
 }
 
@@ -1632,6 +1633,7 @@ export async function getCompanyById(companyId: string): Promise<DbCompany | nul
     handleDbError('getCompanyById', err);
   }
 
+  assertNotProductionFallback('getCompanyById');
   return inMemoryCompanies.find((c) => c.id === companyId) || null;
 }
 
@@ -1696,6 +1698,7 @@ export async function createCompany(data: {
     handleDbError('createCompany', err);
   }
 
+  assertNotProductionFallback('createCompany');
   inMemoryCompanies.push(newCompany);
   return newCompany;
 }
@@ -1713,6 +1716,7 @@ export async function findCompanyByPublicFormToken(token: string): Promise<DbCom
     handleDbError('findCompanyByPublicFormToken', err);
   }
 
+  assertNotProductionFallback('findCompanyByPublicFormToken');
   return inMemoryCompanies.find((c) => c.public_form_token === token) || null;
 }
 
@@ -1730,6 +1734,7 @@ export async function getCompanyDataPayload(companyId: string): Promise<DbCompan
     handleDbError('getCompanyDataPayload', err);
   }
 
+  assertNotProductionFallback('getCompanyDataPayload');
   return inMemoryCompanyData[companyId] || null;
 }
 
@@ -1750,6 +1755,7 @@ export async function saveCompanyDataPayload(companyId: string, payload: any): P
     handleDbError('saveCompanyDataPayload', err);
   }
 
+  assertNotProductionFallback('saveCompanyDataPayload');
   inMemoryCompanyData[companyId] = payload;
   return true;
 }
@@ -1961,6 +1967,7 @@ export async function getCompanyIntegrations(companyId: string): Promise<DbInteg
     handleDbError('getCompanyIntegrations', err);
   }
 
+  assertNotProductionFallback('getCompanyIntegrations');
   return inMemoryIntegrations.filter((i) => i.company_id === companyId).map((i) => ({
     ...i,
     credentials: decryptCredentialsObject(i.credentials || {}),
@@ -1990,6 +1997,7 @@ export async function getCompanyIntegration(companyId: string, provider: string)
     handleDbError('getCompanyIntegration', err);
   }
 
+  assertNotProductionFallback('getCompanyIntegration');
   const mem = inMemoryIntegrations.find((i) => i.company_id === companyId && i.provider === provider);
   return mem ? { ...mem, credentials: decryptCredentialsObject(mem.credentials || {}) } : null;
 }
@@ -2017,6 +2025,7 @@ export async function getCompanyIntegrationsByProvider(provider: string): Promis
     handleDbError('getCompanyIntegrationsByProvider', err);
   }
 
+  assertNotProductionFallback('getCompanyIntegrationsByProvider');
   return inMemoryIntegrations.filter((i) => i.provider === provider).map((i) => ({
     ...i,
     credentials: decryptCredentialsObject(i.credentials || {}),
@@ -2059,6 +2068,7 @@ export async function saveCompanyIntegration(
     handleDbError('saveCompanyIntegration', err);
   }
 
+  assertNotProductionFallback('saveCompanyIntegration');
   const existingIdx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);
   const record: DbIntegration = {
     id: existingIdx >= 0 ? inMemoryIntegrations[existingIdx].id : id,
@@ -2095,6 +2105,7 @@ export async function deleteCompanyIntegration(companyId: string, provider: stri
     handleDbError('deleteCompanyIntegration', err);
   }
 
+  assertNotProductionFallback('deleteCompanyIntegration');
   const idx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);
   if (idx >= 0) {
     inMemoryIntegrations.splice(idx, 1);
@@ -2479,8 +2490,11 @@ export async function getCompanyPosts(companyId?: string): Promise<DbContentPost
     handleDbError('getCompanyPosts', err);
   }
 
+  assertNotProductionFallback('getCompanyPosts');
   return inMemoryContentPosts.filter((p) => p.company_id === companyId);
 }
+
+export const getContentPosts = getCompanyPosts;
 
 export async function getPostById(id: string): Promise<DbContentPost | null> {
   try {
@@ -2513,6 +2527,7 @@ export async function getPostById(id: string): Promise<DbContentPost | null> {
     handleDbError('getPostById', err);
   }
 
+  assertNotProductionFallback('getPostById');
   return inMemoryContentPosts.find((p) => p.id === id) || null;
 }
 
@@ -2529,6 +2544,7 @@ export async function getContentPostCompanyId(postId: string): Promise<string | 
     handleDbError('getContentPostCompanyId', err);
   }
 
+  assertNotProductionFallback('getContentPostCompanyId');
   const inMem = inMemoryContentPosts.find((p) => p.id === postId);
   return inMem ? inMem.company_id : null;
 }
@@ -3617,6 +3633,7 @@ export async function getSubscriptionByCompany(companyId: string): Promise<DbSub
     handleDbError('getSubscriptionByCompany', err);
   }
 
+  assertNotProductionFallback('getSubscriptionByCompany');
   const found = inMemorySubscriptions.find((sub) => sub.company_id === companyId);
   return found || null;
 }
@@ -3691,6 +3708,7 @@ export async function upsertSubscription(
     handleDbError('upsertSubscription', err);
   }
 
+  assertNotProductionFallback('upsertSubscription');
   const existingIdx = inMemorySubscriptions.findIndex((s) => s.company_id === updatedSub.company_id);
   if (existingIdx >= 0) {
     inMemorySubscriptions[existingIdx] = updatedSub;
@@ -3724,6 +3742,7 @@ export async function getCustomDomainsByCompany(companyId: string): Promise<DbCu
     handleDbError('getCustomDomainsByCompany', err);
   }
 
+  assertNotProductionFallback('getCustomDomainsByCompany');
   return inMemoryCustomDomains.filter((d) => d.company_id === companyId);
 }
 
@@ -3749,6 +3768,7 @@ export async function getCustomDomainById(domainId: string): Promise<DbCustomDom
     handleDbError('getCustomDomainById', err);
   }
 
+  assertNotProductionFallback('getCustomDomainById');
   return inMemoryCustomDomains.find((d) => d.id === domainId) || null;
 }
 
@@ -3798,14 +3818,16 @@ export async function createCustomDomain(
           newDomain.cname_target,
           newDomain.a_record_target,
           newDomain.dns_txt_record,
-          newDomain.verified_at ? new Date(newDomain.verified_at) : null,
+          newDomain.verified_at,
         ]
       );
+      return newDomain;
     }
   } catch (err: any) {
     handleDbError('createCustomDomain', err);
   }
 
+  assertNotProductionFallback('createCustomDomain');
   const existingIdx = inMemoryCustomDomains.findIndex((d) => d.id === newDomain.id || (d.company_id === newDomain.company_id && d.domain === newDomain.domain));
   if (existingIdx >= 0) {
     inMemoryCustomDomains[existingIdx] = newDomain;
@@ -3815,6 +3837,12 @@ export async function createCustomDomain(
 
   return newDomain;
 }
+
+export const getCompanyLeads = getAllLeads;
+export const getInvoices = getInvoicesByCompany;
+export const getSubscription = getSubscriptionByCompany;
+export const getCustomDomain = getCustomDomainsByCompany;
+export const getCustomDomains = getCustomDomainsByCompany;
 
 export async function updateCustomDomainStatus(
   domainId: string,

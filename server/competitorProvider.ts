@@ -341,20 +341,13 @@ export function resolveCompetitorProvider(
   placesCreds?: any,
   serpCreds?: any
 ): ICompetitorProvider {
-  const placesApiKey = (
-    placesCreds?.apiKey ||
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_PLACES_API_KEY ||
-    process.env.VITE_GOOGLE_MAPS_API_KEY ||
-    ''
-  ).trim();
-
-  if (placesApiKey) {
+  const placesApiKey = (placesCreds?.apiKey || placesCreds?.api_key || '').trim();
+  if (placesApiKey && placesApiKey.length > 5) {
     return new GooglePlacesCompetitorProvider(placesApiKey);
   }
 
-  const serpApiKey = (serpCreds?.apiKey || process.env.SERPAPI_API_KEY || '').trim();
-  if (serpApiKey) {
+  const serpApiKey = (serpCreds?.apiKey || serpCreds?.api_key || '').trim();
+  if (serpApiKey && serpApiKey.length > 5) {
     return new SerpApiCompetitorProvider(serpApiKey);
   }
 

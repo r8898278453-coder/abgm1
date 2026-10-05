@@ -31,12 +31,15 @@ export interface VerificationResult {
   status: 'READY' | 'MIGRATION_REQUIRED' | 'DATABASE_SCHEMA_OUTDATED' | 'UNAVAILABLE';
   missingTables?: string[];
   missingColumns?: string[];
+  missingIndexes?: string[];
+  missingConstraints?: string[];
   error?: string;
 }
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
   'schema_migrations',
+  'schema_migrations_lock',
   'users',
   'password_reset_tokens',
   'companies',
@@ -64,6 +67,47 @@ export const CANONICAL_REQUIRED_TABLES = [
   'autonomous_audit_logs',
   'system_settings',
 ];
+
+// Canonical List of Expected Critical Table Indexes
+export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  users: ['PRIMARY', 'idx_user_email', 'idx_user_role'],
+  password_reset_tokens: ['PRIMARY', 'idx_prt_token_hash', 'idx_prt_user_id'],
+  companies: ['PRIMARY', 'idx_company_user', 'idx_company_city'],
+  leads: ['PRIMARY', 'idx_leads_company', 'idx_leads_stage'],
+  reviews: ['PRIMARY', 'idx_rev_company', 'idx_rev_rating', 'idx_rev_source'],
+  content_posts: ['PRIMARY', 'idx_cp_company', 'idx_cp_status'],
+  autonomous_actions: ['PRIMARY', 'idx_aa_company', 'idx_aa_approval', 'idx_aa_execution'],
+  company_integrations: ['PRIMARY', 'idx_company_provider', 'idx_comp_integ'],
+  google_profile_cache: ['PRIMARY', 'idx_gpc_comp'],
+  company_assets: ['PRIMARY', 'idx_company_assets_comp'],
+  content_theme_history: ['PRIMARY', 'idx_cth_company_used'],
+  invoices: ['PRIMARY', 'idx_invoices_company', 'idx_invoices_payment'],
+  subscriptions: ['PRIMARY', 'idx_company_sub'],
+  custom_domains: ['PRIMARY', 'idx_custom_domains_domain', 'idx_custom_domains_company'],
+  rank_observations: ['PRIMARY', 'idx_ro_comp_kw', 'idx_ro_timestamp'],
+  competitor_observations: ['PRIMARY', 'idx_co_comp_competitor', 'idx_co_timestamp'],
+  publishing_records: ['PRIMARY', 'idx_pub_post_plat', 'idx_pub_company', 'idx_pub_idempotency', 'idx_pub_status'],
+  internal_campaigns: ['PRIMARY', 'idx_int_camp_company'],
+  external_ad_campaigns: ['PRIMARY', 'idx_ext_camp_prov_id', 'idx_ext_camp_company'],
+  autonomous_recommendations: ['PRIMARY', 'idx_ar_company', 'idx_ar_status'],
+  autonomous_audit_logs: ['PRIMARY', 'idx_aal_company', 'idx_aal_timestamp'],
+  schema_migrations: ['PRIMARY', 'migration_name'],
+  schema_migrations_lock: ['PRIMARY'],
+  system_settings: ['PRIMARY'],
+};
+
+// Canonical List of Expected Critical Table Constraints
+export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  users: ['PRIMARY', 'email'],
+  companies: ['PRIMARY', 'public_form_token'],
+  company_integrations: ['PRIMARY', 'idx_company_provider'],
+  external_ad_campaigns: ['PRIMARY', 'idx_ext_camp_prov_id'],
+  custom_domains: ['PRIMARY', 'domain'],
+  subscriptions: ['PRIMARY', 'idx_company_sub'],
+  schema_migrations: ['PRIMARY', 'migration_name'],
+  schema_migrations_lock: ['PRIMARY'],
+  system_settings: ['PRIMARY'],
+};
 
 // Definition of Canonical Versioned Migrations
 export const MIGRATIONS: MigrationDefinition[] = [
@@ -824,8 +868,63 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
       const existingTableSet = new Set((existingTables || []).map((r: any) => r.TABLE_NAME));
       const missingTables = CANONICAL_REQUIRED_TABLES.filter((t) => !existingTableSet.has(t));
 
+      // 5. Check all canonical indexes exist
+      const [existingIndexes]: any = await conn.query(`
+        SELECT TABLE_NAME, INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+      `);
+      const existingIndexMap = new Map<string, Set<string>>();
+      for (const idx of (existingIndexes || [])) {
+        if (!existingIndexMap.has(idx.TABLE_NAME)) {
+          existingIndexMap.set(idx.TABLE_NAME, new Set());
+        }
+        existingIndexMap.get(idx.TABLE_NAME)!.add(idx.INDEX_NAME);
+      }
+
+      const missingIndexes: string[] = [];
+      for (const [tbl, expectedIdxs] of Object.entries(CANONICAL_EXPECTED_INDEXES)) {
+        if (existingTableSet.has(tbl)) {
+          const liveIdxs = existingIndexMap.get(tbl) || new Set();
+          for (const expIdx of expectedIdxs) {
+            if (!liveIdxs.has(expIdx)) {
+              missingIndexes.push(`${tbl}.${expIdx}`);
+            }
+          }
+        }
+      }
+
+      // 6. Check all canonical constraints exist
+      const [existingConstraints]: any = await conn.query(`
+        SELECT TABLE_NAME, CONSTRAINT_NAME
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+        WHERE TABLE_SCHEMA = DATABASE()
+      `);
+      const existingConstraintMap = new Map<string, Set<string>>();
+      for (const c of (existingConstraints || [])) {
+        if (!existingConstraintMap.has(c.TABLE_NAME)) {
+          existingConstraintMap.set(c.TABLE_NAME, new Set());
+        }
+        existingConstraintMap.get(c.TABLE_NAME)!.add(c.CONSTRAINT_NAME);
+      }
+
+      const missingConstraints: string[] = [];
+      for (const [tbl, expectedConsts] of Object.entries(CANONICAL_EXPECTED_CONSTRAINTS)) {
+        if (existingTableSet.has(tbl)) {
+          const liveConsts = existingConstraintMap.get(tbl) || new Set();
+          for (const expConst of expectedConsts) {
+            if (!liveConsts.has(expConst)) {
+              missingConstraints.push(`${tbl}.${expConst}`);
+            }
+          }
+        }
+      }
+
       const isTablesPass = missingTables.length === 0;
-      const status = pendingCount > 0 ? 'DATABASE_SCHEMA_OUTDATED' : (isTablesPass ? 'READY' : 'MIGRATION_REQUIRED');
+      const isIndexesPass = missingIndexes.length === 0;
+      const isConstraintsPass = missingConstraints.length === 0;
+      const isSchemaPass = isTablesPass && isIndexesPass && isConstraintsPass;
+      const status = pendingCount > 0 ? 'DATABASE_SCHEMA_OUTDATED' : (isSchemaPass ? 'READY' : 'MIGRATION_REQUIRED');
 
       return {
         connection: 'PASS',
@@ -834,10 +933,12 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         appliedMigrations: appliedMap.size,
         pendingMigrations: pendingCount,
         requiredTables: isTablesPass ? 'PASS' : 'FAIL',
-        requiredIndexes: 'PASS',
+        requiredIndexes: isIndexesPass ? 'PASS' : 'FAIL',
         schemaVersion: appliedMap.size,
         status,
         missingTables: missingTables.length > 0 ? missingTables : undefined,
+        missingIndexes: missingIndexes.length > 0 ? missingIndexes : undefined,
+        missingConstraints: missingConstraints.length > 0 ? missingConstraints : undefined,
       };
     } finally {
       conn.release();

@@ -123,7 +123,25 @@ async function main() {
     console.log(`Missing Canonical Tables (${missingTables.length}): ${missingTables.length > 0 ? missingTables.join(', ') : 'None (All Present)'}`);
     console.log(`Extra / Custom Tables (${extraTables.length}): ${extraTables.length > 0 ? extraTables.join(', ') : 'None'}\n`);
 
-    // 7. Safety Assessment
+    // 7. Index & Constraint Audit via INFORMATION_SCHEMA
+    console.log('--- Indexes & Constraints Audit ---');
+    const [indexRows]: any = await connection.query(`
+      SELECT TABLE_NAME, INDEX_NAME, COLUMN_NAME, NON_UNIQUE
+      FROM INFORMATION_SCHEMA.STATISTICS
+      WHERE TABLE_SCHEMA = ?
+      ORDER BY TABLE_NAME, INDEX_NAME
+    `, [currentDb]);
+    console.log(`Total Physical Indexes in DB: ${(indexRows || []).length}`);
+
+    const [constraintRows]: any = await connection.query(`
+      SELECT TABLE_NAME, CONSTRAINT_NAME, CONSTRAINT_TYPE
+      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+      WHERE TABLE_SCHEMA = ?
+      ORDER BY TABLE_NAME, CONSTRAINT_NAME
+    `, [currentDb]);
+    console.log(`Total Constraints in DB: ${(constraintRows || []).length}\n`);
+
+    // 8. Safety Assessment
     console.log('--- Migration Safety Evaluation ---');
     if (existingTables.length === 0) {
       console.log('Status: FRESH_DATABASE');

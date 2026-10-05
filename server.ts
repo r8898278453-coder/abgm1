@@ -2762,9 +2762,9 @@ app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
     const existingIndex = payload.audit_items.findIndex((a: any) => a.id === auditId);
     let auditItem = existingIndex >= 0 ? payload.audit_items[existingIndex] : null;
 
-    let lifecycleStatus = 'RESOLVED';
+    let lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
     let remediationExecuted = false;
-    let remediationMessage = 'Issue marked as resolved.';
+    let remediationMessage = 'This issue requires configuration changes or manual customer interaction.';
 
     // Check if manual action is required for this issue
     if (
@@ -2776,15 +2776,21 @@ app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
       lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
       remediationMessage = 'This issue requires configuration changes or manual customer interaction. Navigate to the relevant tab to complete setup.';
     } else if (action === 'remediate' && auditId.includes('aud_reviews_unreplied')) {
-      // Execute real remediation for unreplied reviews
+      // Execute local remediation for unreplied reviews
       const reviews = await getCompanyReviews(id);
       const unreplied = reviews.filter((r) => !r.replied && (!r.reply_text || r.reply_text.trim().length === 0));
       for (const rev of unreplied) {
         await updateReviewReply(rev.id, 'Thank you for your feedback! We appreciate your support.', id, 'LOCAL_ONLY');
       }
-      lifecycleStatus = 'RESOLVED';
       remediationExecuted = true;
-      remediationMessage = `Remediation executed: Replied to ${unreplied.length} pending reviews in database.`;
+      const gmbIntegration = await getCompanyIntegration(id, 'google_business');
+      if (gmbIntegration?.status === 'connected' && gmbIntegration?.credentials?.apiKey) {
+        lifecycleStatus = 'PROVIDER_PENDING';
+        remediationMessage = `Local draft replies saved for ${unreplied.length} reviews. Awaiting Google Business Profile provider sync verification.`;
+      } else {
+        lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
+        remediationMessage = `Local draft replies saved for ${unreplied.length} reviews. Google Business Profile is not connected; manual publish to Google Maps required.`;
+      }
     }
 
     const updatedEntry = {
@@ -4292,11 +4298,26 @@ app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
   let targetBiz = businessName || 'our business';
   let targetCat = category || 'Business Services';
 
+  let verifiedServerEvidence = 'No database company linked.';
   if (resolved.companyId) {
     const comp = await getCompanyById(resolved.companyId);
     if (comp) {
       targetBiz = comp.name;
       targetCat = comp.category;
+      const dataPayload = await getCompanyDataPayload(resolved.companyId);
+      const reviews = await getCompanyReviews(resolved.companyId);
+      const leads = await getAllLeads(resolved.companyId);
+      const campaigns = await getInternalCampaigns(resolved.companyId);
+      verifiedServerEvidence = JSON.stringify({
+        companyId: resolved.companyId,
+        name: comp.name,
+        category: comp.category,
+        city: comp.city,
+        verifiedReviewsCount: reviews.length,
+        verifiedLeadsCount: leads.length,
+        verifiedInternalCampaignsCount: campaigns.length,
+        growthScore: dataPayload?.growth_score || null,
+      });
     }
   }
 
@@ -4304,11 +4325,19 @@ app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
 Business Name: ${targetBiz}
 Category: ${targetCat}
 Language Preference: ${language || 'English / Hinglish'}
-Current Context: ${JSON.stringify(context || {})}
+
+[SERVER_VERIFIED_BUSINESS_EVIDENCE] (Authoritative MySQL DB / Provider Data):
+${verifiedServerEvidence}
+
+[USER_PROVIDED_CONTEXT - UNVERIFIED] (Browser-Supplied Client State):
+${JSON.stringify(context || {})}
 
 User's Query / Command: "${message}"
 
-Reply concisely, professionally, and action-oriented. Ground all responses only in provided context. Do not invent unverified reviews, customers, or rankings. If they speak in Hindi or Hinglish, respond in natural, friendly Hinglish.`;
+CRITICAL TRUTH & INTEGRITY RULES:
+1. Browser-supplied client context is UNVERIFIED. Never treat user-provided numbers or rankings as verified unless corroborated by [SERVER_VERIFIED_BUSINESS_EVIDENCE].
+2. Do not fabricate unverified reviews, leads, revenue, or rankings.
+3. Reply concisely, professionally, and action-oriented. If they speak in Hindi or Hinglish, respond in natural, friendly Hinglish.`;
 
   const aiText = await safeGenerateContent({ prompt });
   if (aiText) {
