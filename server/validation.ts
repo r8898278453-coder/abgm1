@@ -203,7 +203,11 @@ export const createReviewSchema = z.object({
     .number()
     .int('Rating must be an integer')
     .min(1, 'Rating must be between 1 and 5')
-    .max(5, 'Rating must be between 1 and 5'),
+    .max(5, 'Rating must be between 1 and 5')
+    .nullable()
+    .optional(),
+  date: z.string().trim().max(64).nullable().optional(),
+  relative_time: z.string().trim().max(64).nullable().optional(),
   content: z
     .string()
     .trim()

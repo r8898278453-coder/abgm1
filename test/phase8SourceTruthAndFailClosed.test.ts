@@ -3,6 +3,9 @@ import {
   isProductionDatabaseMode,
   assertNotProductionFallback,
   handleDbError,
+  findUserByEmail,
+  findUserById,
+  createUser,
   getAllCompanies,
   getUserCompanies,
   getCompanyById,
@@ -14,11 +17,40 @@ import {
   createReview,
   getAllLeads,
   createLead,
+  getLeadById,
   getContentPosts,
+  createContentPost,
+  getAllScheduledPosts,
+  getInternalCampaigns,
+  createInternalCampaign,
+  getExternalAdCampaigns,
+  createPublishingRecord,
+  getPublishingRecordsByPostId,
+  isPostAlreadyPublished,
   getCompanyIntegrations,
+  getCompanyIntegration,
+  getCompanyAssets,
+  createCompanyAsset,
+  getWebsiteConfigByCompany,
+  upsertWebsiteConfig,
+  getCustomDomain,
+  saveRankObservations,
+  getLatestKeywordObservations,
+  getKeywordObservationHistory,
+  calculateHistoricalTrend,
+  saveCompetitorObservation,
+  getCompetitorObservationHistory,
+  getLatestCompetitorObservations,
+  getCompetitorHistoricalBaseline,
+  createAutonomousRecommendation,
+  getAutonomousRecommendationsByCompany,
+  createAutonomousAction,
+  getAutonomousActionsByCompany,
+  getAutonomousActionById,
+  recordAutonomousAuditLog,
+  getAutonomousAuditLogsByCompany,
   getInvoices,
   getSubscription,
-  getCustomDomain,
 } from '../server/db';
 import {
   DataForSeoLocalProvider,
@@ -120,29 +152,78 @@ async function main() {
     }
   });
 
-  await runTest('CRUD repository operations fail closed in production when DB is offline', async () => {
+  await runTest('CRUD repository operations fail closed in production across all 16 domains when DB is offline', async () => {
     const originalEnv = process.env.NODE_ENV;
     try {
       process.env.NODE_ENV = 'production';
 
-      // Test representative CRUD across all critical domains
+      // Test representative CRUD across all 16 domains required by spec
       const ops = [
+        // 1. Companies
         { name: 'getAllCompanies', fn: () => getAllCompanies() },
         { name: 'getUserCompanies', fn: () => getUserCompanies('usr_123') },
         { name: 'getCompanyById', fn: () => getCompanyById('comp_123') },
         { name: 'createCompany', fn: () => createCompany({ user_id: 'usr_1', name: 'Test', category: 'Tech', city: 'Thane' }) },
         { name: 'findCompanyByPublicFormToken', fn: () => findCompanyByPublicFormToken('pft_123') },
+        // 2. Users
+        { name: 'findUserByEmail', fn: () => findUserByEmail('test@example.com') },
+        { name: 'findUserById', fn: () => findUserById('usr_123') },
+        { name: 'createUser', fn: () => createUser({ email: 'new@example.com', password: 'Password123!', full_name: 'New User' }) },
+        // 3. Company Data
         { name: 'getCompanyDataPayload', fn: () => getCompanyDataPayload('comp_123') },
         { name: 'saveCompanyDataPayload', fn: () => saveCompanyDataPayload('comp_123', {}) },
-        { name: 'getCompanyReviews', fn: () => getCompanyReviews('comp_123') },
-        { name: 'createReview', fn: () => createReview({ company_id: 'comp_1', author: 'User', rating: 5, date: '2026-10-01', content: 'Good', source: 'manual', replied: false }) },
+        // 4. Leads
         { name: 'getAllLeads', fn: () => getAllLeads('comp_123') },
         { name: 'createLead', fn: () => createLead({ name: 'Lead 1', phone: '9999999999', service: 'Test', stage: 'new', intent_score: 50, source: 'manual' }) },
+        { name: 'getLeadById', fn: () => getLeadById('lead_123') },
+        // 5. Reviews
+        { name: 'getCompanyReviews', fn: () => getCompanyReviews('comp_123') },
+        { name: 'createReview', fn: () => createReview({ company_id: 'comp_1', author: 'User', rating: 5, date: '2026-10-01', content: 'Good', source: 'manual', replied: false }) },
+        // 6. Content
         { name: 'getContentPosts', fn: () => getContentPosts('comp_123') },
+        { name: 'createContentPost', fn: () => createContentPost({ company_id: 'comp_1', channel: 'google', caption: 'Post caption', status: 'scheduled' }) },
+        { name: 'getAllScheduledPosts', fn: () => getAllScheduledPosts() },
+        // 7. Campaigns (Internal & External)
+        { name: 'getInternalCampaigns', fn: () => getInternalCampaigns('comp_123') },
+        { name: 'createInternalCampaign', fn: () => createInternalCampaign({ company_id: 'comp_1', name: 'Spring Promo', objective: 'Sales', status: 'active', start_date: '2026-04-01', end_date: '2026-04-30', planned_budget: 10000, channels: ['meta'] }) },
+        { name: 'getExternalAdCampaigns', fn: () => getExternalAdCampaigns('comp_123') },
+        // 8. Publishing
+        { name: 'createPublishingRecord', fn: () => createPublishingRecord({ post_id: 'post_1', company_id: 'comp_1', platform: 'meta', status: 'RETRYING', idempotency_key: 'idemp_1' } as any) },
+        { name: 'getPublishingRecordsByPostId', fn: () => getPublishingRecordsByPostId('post_1') },
+        { name: 'isPostAlreadyPublished', fn: () => isPostAlreadyPublished('post_1') },
+        // 9. Integrations
         { name: 'getCompanyIntegrations', fn: () => getCompanyIntegrations('comp_123') },
+        { name: 'getCompanyIntegration', fn: () => getCompanyIntegration('comp_123', 'google_business') },
+        // 10. Assets
+        { name: 'getCompanyAssets', fn: () => getCompanyAssets('comp_123') },
+        { name: 'createCompanyAsset', fn: () => createCompanyAsset('comp_123', 'logo', 'https://example.com/logo.png') },
+        // 11. Website Configuration
+        { name: 'getWebsiteConfigByCompany', fn: () => getWebsiteConfigByCompany('comp_123') },
+        { name: 'upsertWebsiteConfig', fn: () => upsertWebsiteConfig({ company_id: 'comp_123' }) },
+        { name: 'getCustomDomain', fn: () => getCustomDomain('comp_123') },
+        // 12. SEO / Rank Telemetry
+        { name: 'saveRankObservations', fn: () => saveRankObservations('comp_123', 'dentist', [{ grid_index: 0, position: 1 }]) },
+        { name: 'getLatestKeywordObservations', fn: () => getLatestKeywordObservations('comp_123', 'dentist') },
+        { name: 'getKeywordObservationHistory', fn: () => getKeywordObservationHistory('comp_123', 'dentist') },
+        { name: 'calculateHistoricalTrend', fn: () => calculateHistoricalTrend('comp_123', 'dentist', 3) },
+        // 13. Competitor Telemetry
+        { name: 'saveCompetitorObservation', fn: () => saveCompetitorObservation({ id: 'obs_c1', company_id: 'comp_123', competitor_id: 'comp_c1', name: 'Competitor', provider: 'serpapi', status: 'LIVE', timestamp: new Date().toISOString(), rating: null, reviews_count: null, photos_count: null, posts_per_week: null, rank_position: null }) },
+        { name: 'getCompetitorObservationHistory', fn: () => getCompetitorObservationHistory('comp_123', 'comp_c1') },
+        { name: 'getLatestCompetitorObservations', fn: () => getLatestCompetitorObservations('comp_123') },
+        { name: 'getCompetitorHistoricalBaseline', fn: () => getCompetitorHistoricalBaseline('comp_123', 'comp_c1') },
+        // 14. Autonomous Recommendations
+        { name: 'createAutonomousRecommendation', fn: () => createAutonomousRecommendation({ company_id: 'comp_123', observation: 'Rank dropped', source: 'rank_tracker', recommended_action: 'Post update', action_type: 'generate_post', affected_metric: 'seo' } as any) },
+        { name: 'getAutonomousRecommendationsByCompany', fn: () => getAutonomousRecommendationsByCompany('comp_123') },
+        // 15. Autonomous Actions
+        { name: 'createAutonomousAction', fn: () => createAutonomousAction({ company_id: 'comp_123', action_type: 'generate_post' } as any) },
+        { name: 'getAutonomousActionsByCompany', fn: () => getAutonomousActionsByCompany('comp_123') },
+        { name: 'getAutonomousActionById', fn: () => getAutonomousActionById('act_123') },
+        // 16. Audit Logs
+        { name: 'recordAutonomousAuditLog', fn: () => recordAutonomousAuditLog({ company_id: 'comp_123', actor: 'system', event_type: 'action_approved' }) },
+        { name: 'getAutonomousAuditLogsByCompany', fn: () => getAutonomousAuditLogsByCompany('comp_123') },
+        // Invoices & Subscriptions
         { name: 'getInvoices', fn: () => getInvoices('comp_123') },
         { name: 'getSubscription', fn: () => getSubscription('comp_123') },
-        { name: 'getCustomDomain', fn: () => getCustomDomain('comp_123') },
       ];
 
       for (const op of ops) {
@@ -151,7 +232,7 @@ async function main() {
           await op.fn();
         } catch (err: any) {
           threw = true;
-          assert(err.code === 'DATABASE_UNAVAILABLE' || err.code === 'DATABASE_OPERATION_FAILED');
+          assert(err.code === 'DATABASE_UNAVAILABLE' || err.code === 'DATABASE_OPERATION_FAILED', `Expected DATABASE_UNAVAILABLE or DATABASE_OPERATION_FAILED, got: ${err.code}`);
         }
         assert.strictEqual(threw, true, `${op.name} must throw in production when DB is offline`);
       }
@@ -261,12 +342,13 @@ async function main() {
     assert.notStrictEqual(review.provenance_status, 'GOOGLE_VERIFIED', 'Manual review must NEVER be GOOGLE_VERIFIED');
   });
 
-  await runTest('Missing review rating, date, and source never default to 5, today, or google', async () => {
+  await runTest('Missing review rating, date, relative_time, and source never default to 5, today, Just now, or google', async () => {
     const emptyFieldsReview = {
       company_id: 'comp_test_2',
       author: 'Unknown Guest',
       rating: undefined as any,
       date: undefined as any,
+      relative_time: undefined as any,
       content: 'Unrated feedback entry',
       replied: false,
     };
@@ -274,6 +356,8 @@ async function main() {
     const created = await createReview(emptyFieldsReview as any);
     assert.strictEqual(created.rating, null, 'Undefined rating must resolve to null');
     assert.strictEqual(created.date, null, 'Undefined date must resolve to null');
+    assert.strictEqual(created.relative_time, null, 'Undefined relative_time must resolve to null');
+    assert.strictEqual(created.source, 'manual', 'Missing source must default to manual');
     assert.notStrictEqual(created.source, 'google', 'Missing source must NEVER default to google');
     assert.strictEqual(created.provenance_status, 'USER_ENTERED', 'Missing source must be USER_ENTERED provenance');
   });
@@ -294,6 +378,21 @@ async function main() {
     assert.strictEqual(created.date, '2026-04-10', 'Provider date must be preserved');
     assert.strictEqual(created.source, 'google', 'Provider source must be google');
     assert.strictEqual(created.provenance_status, 'GOOGLE_VERIFIED', 'Provider provenance must be GOOGLE_VERIFIED');
+  });
+
+  await runTest('Tenant Google Profile operations strictly require tenant credentials with no global key leakage', async () => {
+    // Set global environment keys
+    process.env.GOOGLE_MAPS_API_KEY = 'global_maps_key_leak_test';
+    process.env.GOOGLE_PLACES_API_KEY = 'global_places_key_leak_test';
+    process.env.VITE_GOOGLE_MAPS_API_KEY = 'global_vite_key_leak_test';
+
+    // Query tenant with no google_business integration
+    const integration = await getCompanyIntegration('comp_unconfigured_tenant', 'google_business');
+    const placeId = (integration?.credentials?.placeId || '').trim();
+    const apiKey = (integration?.credentials?.apiKey || '').trim();
+
+    assert.strictEqual(placeId, '', 'Unconfigured tenant must have empty placeId');
+    assert.strictEqual(apiKey, '', 'Unconfigured tenant must have empty apiKey regardless of global env keys');
   });
 
   // =========================================================================

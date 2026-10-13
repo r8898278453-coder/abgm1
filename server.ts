@@ -1524,24 +1524,16 @@ app.get('/api/companies/:id/google-profile', async (req, res) => {
 
     const integration = await getCompanyIntegration(id, 'google_business');
     const placeId = (integration?.credentials?.placeId || '').trim();
-    let apiKey = (integration?.credentials?.apiKey || '').trim();
-
-    if (!apiKey) {
-      apiKey = (
-        process.env.GOOGLE_MAPS_API_KEY ||
-        process.env.GOOGLE_PLACES_API_KEY ||
-        process.env.VITE_GOOGLE_MAPS_API_KEY ||
-        ''
-      ).trim();
-    }
+    const apiKey = (integration?.credentials?.apiKey || '').trim();
 
     if (!placeId || !apiKey) {
       res.json({
         success: true,
         configured: false,
+        status: 'PROVIDER_NOT_CONFIGURED',
         hasPlaceId: Boolean(placeId),
         hasApiKey: Boolean(apiKey),
-        message: 'Google Places API integration not configured. Provide Place ID and API key in Integrations tab.',
+        message: 'Google Places API integration not configured for this tenant. Provide Place ID and API key in Integrations tab.',
       });
       return;
     }
@@ -1704,22 +1696,14 @@ app.post('/api/companies/:id/google-profile/sync', async (req, res) => {
 
     const integration = await getCompanyIntegration(id, 'google_business');
     const placeId = (integration?.credentials?.placeId || '').trim();
-    let apiKey = (integration?.credentials?.apiKey || '').trim();
-
-    if (!apiKey) {
-      apiKey = (
-        process.env.GOOGLE_MAPS_API_KEY ||
-        process.env.GOOGLE_PLACES_API_KEY ||
-        process.env.VITE_GOOGLE_MAPS_API_KEY ||
-        ''
-      ).trim();
-    }
+    const apiKey = (integration?.credentials?.apiKey || '').trim();
 
     if (!placeId || !apiKey) {
       res.status(400).json({
         success: false,
         configured: false,
-        error: 'Google Places credentials not configured. Please add Place ID and API Key in Integrations.',
+        status: 'PROVIDER_NOT_CONFIGURED',
+        error: 'Google Places credentials not configured for this tenant. Please add Place ID and API Key in Integrations.',
       });
       return;
     }
@@ -3768,8 +3752,8 @@ app.post('/api/reviews', validateBody(createReviewSchema), async (req, res) => {
       author,
       rating: ratingNum !== null && !isNaN(ratingNum) ? Math.min(5, Math.max(1, ratingNum)) : (null as any),
       content,
-      date: date || new Date().toISOString().split('T')[0],
-      relative_time: relative_time || 'Just now',
+      date: date || null,
+      relative_time: relative_time || null,
       sentiment: sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : 'neutral'),
       topic: topic || 'Customer Service',
       is_operational_issue: Boolean(is_operational_issue),

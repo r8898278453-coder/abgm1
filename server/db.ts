@@ -409,7 +409,7 @@ const inMemoryInvoices: DbInvoice[] = [];
 const inMemorySubscriptions: DbSubscription[] = [];
 
 export function isProductionDatabaseMode(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === 'production' || (process.env.IS_PRODUCTION === 'true' && process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test');
 }
 
 export function assertNotProductionFallback(operation: string): void {
@@ -660,6 +660,7 @@ export async function getDefaultCompanyId(): Promise<string | null> {
   } catch (err: any) {
     handleDbError('getDefaultCompanyId', err);
   }
+  assertNotProductionFallback('getDefaultCompanyId');
   return inMemoryCompanies[0]?.id || null;
 }
 
@@ -2253,7 +2254,7 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
     company_id: review.company_id,
     author: review.author,
     rating: ratingNum !== null && !isNaN(ratingNum) ? ratingNum : null,
-    date: review.date !== undefined ? review.date : null,
+    date: review.date !== undefined && review.date !== null ? review.date : null,
     relative_time: review.relative_time || null,
     content: review.content,
     sentiment: review.sentiment || (ratingNum !== null ? (ratingNum >= 4 ? 'positive' : ratingNum === 3 ? 'neutral' : 'negative') : null),
@@ -2262,7 +2263,7 @@ export async function createReview(review: Omit<DbReview, 'id'> & { id?: string 
     replied: Boolean(review.replied),
     reply_text: review.reply_text || undefined,
     reply_date: review.reply_date || undefined,
-    source: review.source || 'user_entered',
+    source: review.source || 'manual',
     provenance_status: (review as any).provenance_status || (review.source === 'google' ? 'GOOGLE_VERIFIED' : review.source === 'facebook' ? 'FACEBOOK_VERIFIED' : 'USER_ENTERED'),
     created_at: new Date().toISOString(),
   };
@@ -2603,6 +2604,7 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
     handleDbError('createContentPost', err);
   }
 
+  assertNotProductionFallback('createContentPost');
   inMemoryContentPosts.unshift(newPost);
   return newPost;
 }
@@ -2657,6 +2659,7 @@ export async function getAllScheduledPosts(): Promise<DbContentPost[]> {
     handleDbError('getAllScheduledPosts', err);
   }
 
+  assertNotProductionFallback('getAllScheduledPosts');
   return inMemoryContentPosts.filter((p) => p.status === 'scheduled');
 }
 
@@ -2902,8 +2905,11 @@ export async function isPostAlreadyPublished(postId: string, platform?: string):
         return true;
       }
     }
-  } catch {}
+  } catch (err: any) {
+    handleDbError('isPostAlreadyPublished', err);
+  }
 
+  assertNotProductionFallback('isPostAlreadyPublished');
   return inMemoryPublishingRecords.some(
     (r) => r.post_id === postId && r.status === 'PUBLISHED' && (!platform || r.platform === platform)
   );
@@ -2951,6 +2957,7 @@ export async function getInternalCampaigns(companyId?: string): Promise<DbIntern
     handleDbError('getInternalCampaigns', err);
   }
 
+  assertNotProductionFallback('getInternalCampaigns');
   return inMemoryInternalCampaigns.filter((c) => c.company_id === companyId);
 }
 
@@ -2997,9 +3004,10 @@ export async function createInternalCampaign(
       );
     }
   } catch (err: any) {
-    console.warn('[createInternalCampaign] MySQL insert error:', err?.message);
+    handleDbError('createInternalCampaign', err);
   }
 
+  assertNotProductionFallback('createInternalCampaign');
   inMemoryInternalCampaigns.unshift(campaign);
   return campaign;
 }
@@ -3062,9 +3070,10 @@ export async function updateInternalCampaign(
       dbSuccess = true;
     }
   } catch (err: any) {
-    console.warn('[updateInternalCampaign] MySQL update error:', err?.message);
+    handleDbError('updateInternalCampaign', err);
   }
 
+  assertNotProductionFallback('updateInternalCampaign');
   const existing = inMemoryInternalCampaigns.find((c) => c.id === id && (!companyId || c.company_id === companyId));
   if (existing) {
     Object.assign(existing, updates, { updated_at: now });
@@ -3086,9 +3095,10 @@ export async function deleteInternalCampaign(id: string, companyId?: string): Pr
       dbSuccess = true;
     }
   } catch (err: any) {
-    console.warn('[deleteInternalCampaign] MySQL delete error:', err?.message);
+    handleDbError('deleteInternalCampaign', err);
   }
 
+  assertNotProductionFallback('deleteInternalCampaign');
   const idx = inMemoryInternalCampaigns.findIndex((c) => c.id === id && (!companyId || c.company_id === companyId));
   if (idx >= 0) {
     inMemoryInternalCampaigns.splice(idx, 1);
@@ -3134,6 +3144,7 @@ export async function getExternalAdCampaigns(companyId?: string): Promise<DbExte
     handleDbError('getExternalAdCampaigns', err);
   }
 
+  assertNotProductionFallback('getExternalAdCampaigns');
   return inMemoryExternalAdCampaigns.filter((c) => c.company_id === companyId);
 }
 
@@ -3347,6 +3358,7 @@ export async function recordThemeUsage(
     handleDbError('recordThemeUsage', err);
   }
 
+  assertNotProductionFallback('recordThemeUsage');
   inMemoryThemeHistory.unshift({
     id,
     company_id: companyId,
@@ -3384,6 +3396,7 @@ export async function getRecentThemeHistory(
     handleDbError('getRecentThemeHistory', err);
   }
 
+  assertNotProductionFallback('getRecentThemeHistory');
   return inMemoryThemeHistory
     .filter((h) => h.company_id === companyId)
     .slice(0, limit)
@@ -3418,6 +3431,7 @@ export async function getInvoicesByCompany(companyId: string): Promise<DbInvoice
     handleDbError('getInvoicesByCompany', err);
   }
 
+  assertNotProductionFallback('getInvoicesByCompany');
   return inMemoryInvoices
     .filter((inv) => inv.company_id === companyId)
     .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
@@ -3446,6 +3460,7 @@ export async function getInvoiceById(invoiceId: string): Promise<DbInvoice | nul
     handleDbError('getInvoiceById', err);
   }
 
+  assertNotProductionFallback('getInvoiceById');
   const found = inMemoryInvoices.find((inv) => inv.id === invoiceId);
   return found || null;
 }
@@ -3475,6 +3490,7 @@ export async function getInvoiceByPaymentId(paymentId: string, companyId?: strin
     handleDbError('getInvoiceByPaymentId', err);
   }
 
+  assertNotProductionFallback('getInvoiceByPaymentId');
   const found = inMemoryInvoices.find(
     (inv) => inv.payment_id === paymentId && (!companyId || inv.company_id === companyId)
   );
@@ -3506,6 +3522,7 @@ export async function getInvoiceByOrderId(orderId: string, companyId?: string): 
     handleDbError('getInvoiceByOrderId', err);
   }
 
+  assertNotProductionFallback('getInvoiceByOrderId');
   const found = inMemoryInvoices.find(
     (inv) => inv.order_id === orderId && (!companyId || inv.company_id === companyId)
   );
@@ -3598,6 +3615,7 @@ export async function createInvoice(invoice: Partial<DbInvoice> & { company_id: 
     handleDbError('createInvoice', err);
   }
 
+  assertNotProductionFallback('createInvoice');
   // Update in-memory store
   const existingIdx = inMemoryInvoices.findIndex((inv) => inv.id === newInvoice.id);
   if (existingIdx >= 0) {
@@ -3862,6 +3880,7 @@ export async function updateCustomDomainStatus(
     handleDbError('updateCustomDomainStatus', err);
   }
 
+  assertNotProductionFallback('updateCustomDomainStatus');
   const found = inMemoryCustomDomains.find((d) => d.id === domainId);
   if (found) {
     found.status = status;
@@ -3883,6 +3902,7 @@ export async function deleteCustomDomain(domainId: string): Promise<boolean> {
     handleDbError('deleteCustomDomain', err);
   }
 
+  assertNotProductionFallback('deleteCustomDomain');
   const idx = inMemoryCustomDomains.findIndex((d) => d.id === domainId);
   if (idx >= 0) {
     inMemoryCustomDomains.splice(idx, 1);
@@ -3915,6 +3935,7 @@ export async function getWebsiteConfigByCompany(companyId: string): Promise<DbWe
     handleDbError('getWebsiteConfigByCompany', err);
   }
 
+  assertNotProductionFallback('getWebsiteConfigByCompany');
   return inMemoryWebsiteConfigs.find((c) => c.company_id === companyId) || null;
 }
 
@@ -3994,6 +4015,7 @@ export async function upsertWebsiteConfig(
     handleDbError('upsertWebsiteConfig', err);
   }
 
+  assertNotProductionFallback('upsertWebsiteConfig');
   const existingIdx = inMemoryWebsiteConfigs.findIndex((c) => c.company_id === updatedConfig.company_id);
   if (existingIdx >= 0) {
     inMemoryWebsiteConfigs[existingIdx] = updatedConfig;
@@ -4074,6 +4096,7 @@ export async function saveRankObservations(
     handleDbError('saveRankObservations', err);
   }
 
+  assertNotProductionFallback('saveRankObservations');
   // Always keep in-memory backup
   for (const obs of observations) {
     inMemoryRankObservations.unshift(obs);
@@ -4159,6 +4182,7 @@ export async function getLatestKeywordObservations(
     handleDbError('getLatestKeywordObservations', err);
   }
 
+  assertNotProductionFallback('getLatestKeywordObservations');
   // In-memory fallback
   if (keyword) {
     const matching = inMemoryRankObservations.filter(
@@ -4223,6 +4247,7 @@ export async function getKeywordObservationHistory(
     handleDbError('getKeywordObservationHistory', err);
   }
 
+  assertNotProductionFallback('getKeywordObservationHistory');
   return inMemoryRankObservations
     .filter((o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase())
     .slice(0, limit);
@@ -4271,6 +4296,7 @@ export async function calculateHistoricalTrend(
     handleDbError('calculateHistoricalTrend', err);
   }
 
+  assertNotProductionFallback('calculateHistoricalTrend');
   // In-memory fallback
   const matching = inMemoryRankObservations.filter(
     (o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase()
@@ -4305,14 +4331,6 @@ export async function calculateHistoricalTrend(
 // ---------------- COMPETITOR OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
 
 export async function saveCompetitorObservation(obs: DbCompetitorObservation): Promise<void> {
-  // In-memory update
-  const existingIdx = inMemoryCompetitorObservations.findIndex((o) => o.id === obs.id);
-  if (existingIdx >= 0) {
-    inMemoryCompetitorObservations[existingIdx] = { ...obs };
-  } else {
-    inMemoryCompetitorObservations.unshift({ ...obs });
-  }
-
   try {
     const db = await getDbPool();
     if (db) {
@@ -4350,9 +4368,19 @@ export async function saveCompetitorObservation(obs: DbCompetitorObservation): P
           obs.raw_payload || null,
         ]
       );
+      return;
     }
   } catch (err: any) {
     handleDbError('saveCompetitorObservation', err);
+  }
+
+  assertNotProductionFallback('saveCompetitorObservation');
+  // In-memory update
+  const existingIdx = inMemoryCompetitorObservations.findIndex((o) => o.id === obs.id);
+  if (existingIdx >= 0) {
+    inMemoryCompetitorObservations[existingIdx] = { ...obs };
+  } else {
+    inMemoryCompetitorObservations.unshift({ ...obs });
   }
 }
 
@@ -4403,6 +4431,7 @@ export async function getCompetitorObservationHistory(
     handleDbError('getCompetitorObservationHistory', err);
   }
 
+  assertNotProductionFallback('getCompetitorObservationHistory');
   // In-memory fallback
   return inMemoryCompetitorObservations
     .filter((o) => o.company_id === companyId && o.competitor_id === competitorId)
@@ -4450,6 +4479,7 @@ export async function getLatestCompetitorObservations(companyId: string): Promis
     handleDbError('getLatestCompetitorObservations', err);
   }
 
+  assertNotProductionFallback('getLatestCompetitorObservations');
   // In-memory fallback
   const map = new Map<string, DbCompetitorObservation>();
   const matching = inMemoryCompetitorObservations
@@ -4485,6 +4515,7 @@ export async function getCompetitorHistoricalBaseline(
     handleDbError('getCompetitorHistoricalBaseline', err);
   }
 
+  assertNotProductionFallback('getCompetitorHistoricalBaseline');
   return {
     latest: null,
     current: null,
@@ -4547,6 +4578,7 @@ export async function createAutonomousRecommendation(
     handleDbError('createAutonomousRecommendation', err);
   }
 
+  assertNotProductionFallback('createAutonomousRecommendation');
   inMemoryAutonomousRecommendations.unshift(fullRec);
   return fullRec;
 }
@@ -4586,6 +4618,7 @@ export async function getAutonomousRecommendationsByCompany(
     handleDbError('getAutonomousRecommendationsByCompany', err);
   }
 
+  assertNotProductionFallback('getAutonomousRecommendationsByCompany');
   return inMemoryAutonomousRecommendations
     .filter((r) => r.company_id === companyId)
     .slice(0, limit);
@@ -4604,6 +4637,7 @@ export async function updateAutonomousRecommendationStatus(
     handleDbError('updateAutonomousRecommendationStatus', err);
   }
 
+  assertNotProductionFallback('updateAutonomousRecommendationStatus');
   const inMem = inMemoryAutonomousRecommendations.find((r) => r.id === id);
   if (inMem) {
     inMem.status = status;
@@ -4661,6 +4695,7 @@ export async function createAutonomousAction(
     handleDbError('createAutonomousAction', err);
   }
 
+  assertNotProductionFallback('createAutonomousAction');
   inMemoryAutonomousActions.unshift(fullAction);
   return fullAction;
 }
@@ -4698,6 +4733,7 @@ export async function getAutonomousActionsByCompany(
     handleDbError('getAutonomousActionsByCompany', err);
   }
 
+  assertNotProductionFallback('getAutonomousActionsByCompany');
   return inMemoryAutonomousActions
     .filter((a) => a.company_id === companyId)
     .slice(0, limit);
@@ -4731,6 +4767,7 @@ export async function getAutonomousActionById(id: string): Promise<DbAutonomousA
     handleDbError('getAutonomousActionById', err);
   }
 
+  assertNotProductionFallback('getAutonomousActionById');
   return inMemoryAutonomousActions.find((a) => a.id === id) || null;
 }
 
@@ -4778,6 +4815,7 @@ export async function updateAutonomousAction(
     handleDbError('updateAutonomousAction', err);
   }
 
+  assertNotProductionFallback('updateAutonomousAction');
   const inMem = inMemoryAutonomousActions.find((a) => a.id === id);
   if (inMem) {
     Object.assign(inMem, updates);
@@ -4822,6 +4860,7 @@ export async function recordAutonomousAuditLog(
     handleDbError('recordAutonomousAuditLog', err);
   }
 
+  assertNotProductionFallback('recordAutonomousAuditLog');
   inMemoryAutonomousAuditLogs.unshift(fullLog);
   return fullLog;
 }
@@ -4853,6 +4892,7 @@ export async function getAutonomousAuditLogsByCompany(
     handleDbError('getAutonomousAuditLogsByCompany', err);
   }
 
+  assertNotProductionFallback('getAutonomousAuditLogsByCompany');
   return inMemoryAutonomousAuditLogs
     .filter((l) => l.company_id === companyId)
     .slice(0, limit);
