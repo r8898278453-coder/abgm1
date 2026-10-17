@@ -274,8 +274,8 @@ app.use('/uploads', express.static(UPLOADS_BASE_DIR));
 // Multer storage engine for per-company asset directories
 const assetStorage = multer.diskStorage({
   destination: (req, _file, cb) => {
-    const rawCompId = req.params.id || 'general';
-    const safeCompId = rawCompId.replace(/[^a-zA-Z0-9_-]/g, '');
+    const rawCompId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id || 'general');
+    const safeCompId = String(rawCompId).replace(/[^a-zA-Z0-9_-]/g, '');
     const targetDir = path.join(UPLOADS_BASE_DIR, safeCompId);
     try {
       if (!fs.existsSync(targetDir)) {
@@ -312,7 +312,7 @@ const uploadSingleAsset = multer({
 
 function runAssetUpload(req: express.Request, res: express.Response): Promise<void> {
   return new Promise((resolve, reject) => {
-    uploadSingleAsset(req, res, (err: any) => {
+    (uploadSingleAsset as any)(req, res, (err: any) => {
       if (err) {
         if (err.code === 'LIMIT_FILE_SIZE') {
           res.status(400).json({ success: false, error: 'File size exceeds 5MB limit. Please upload an image under 5MB.' });
