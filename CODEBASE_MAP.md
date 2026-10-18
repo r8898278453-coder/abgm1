@@ -17,6 +17,7 @@
   - Memory fallback cache if MySQL is not configured or offline.
 - **Scheduler & Automation**:
   - Background autonomous daemon (`server/scheduler.ts`) handling post publishing, review auto-responses, competitor analysis, and Telegram alerts.
+  - MySQL-backed durable job queue service (`server/jobQueueService.ts`) with atomic lease locking, attempts tracking, dead-letter retry states, and Hostinger hPanel cron wake triggers (`POST /api/scheduler/tick`).
 
 ## Canonical Capability Implementation Map
 - **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `CalendarView.tsx`, `ContentStudioView.tsx`.
@@ -71,6 +72,9 @@
   - `POST /api/ai/render-creative`
   - `POST /api/ai/render-reel`
   - `GET /api/ai/render-reel/:jobId`
+- **Scheduler & Queue Automation**:
+  - `POST /api/scheduler/tick` (Hostinger external cron ping & queue processor)
+  - `POST /api/cron/tick` (Cron trigger alias)
 - **Integrations & Messaging**:
   - `GET /api/integrations`
   - `POST /api/integrations`

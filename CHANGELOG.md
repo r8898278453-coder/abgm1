@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.32.0] - 2026-10-17
+### Hostinger Shared-Safe Scaling Adaptation: Durable Job Queue & Campaign Binding (COMPLETED)
+- **MySQL-Backed Durable Job Queue (`server/db.ts`, `server/jobQueueService.ts`)**:
+  - Implemented persistent `job_queue` schema with multi-tenant isolation, state machine (`QUEUED`, `RUNNING`, `SUCCEEDED`, `RETRY_WAIT`, `FAILED`, `CANCELLED`), lease locking, retry counters, and dead-letter handling.
+  - Idempotency key deduplication on job enqueue.
+  - Real task class execution for `publishing`, `seo_scan`, `competitor_scan`, `ai_summary`, and `lead_nurture`.
+  - Global emergency kill switch safety gate blocks queue processing immediately when kill switch is tripped.
+- **Universal Scheduler & Hostinger Shared Hosting Cron Ping (`server.ts`, `server/scheduler.ts`)**:
+  - Added secure HTTP endpoints `POST /api/scheduler/tick` and `POST /api/cron/tick` with `x-cron-secret` / admin authorization.
+  - Allows Hostinger hPanel cron to ping the app and execute pending background queues even when shared hosting puts idle Node processes to sleep.
+- **Canonical Campaign-to-Post Execution Binding (`server/db.ts`, `src/components/CampaignsView.tsx`)**:
+  - Bound `campaign_id` directly to `content_posts` with database indexing.
+  - Visual summary of bound content posts rendered under internal campaign cards.
+- **Hostinger Shared-Safe Creative Strategy**:
+  - Relies on ultra-fast Satori-rendered dynamic brand posters, banners, and carousels without heavy server-side Chromium dependencies.
+  - Provides structured AI Reel Script & Storyboard generation without OOM risk.
+- **Verification**:
+  - Created `test/phase1DurableQueueAndCampaigns.test.ts`.
+  - 23/23 test suites passing (100% pass rate).
+  - TypeScript compilation and Vite build verified.
+
 ## [1.31.0] - 2026-10-05
 ### Source Truth, Repository Fail-Closed & Canonical Checksum Enforcement (COMPLETED)
 - **Universal Fail-Closed Across All 28 Repository Entities (`server/db.ts`)**:

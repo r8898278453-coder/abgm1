@@ -33,3 +33,6 @@
 | GAP-PHASE8-CRED-ISOL | Tenant Provider Isolation | Zero fallback to global env credentials for Local SEO & Competitor radar scans | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
 | GAP-PHASE8-REVIEW-TRUTH | Manual Review Provenance | Null rating & null date preserved without fake 5★ or today substitutions; USER_ENTERED provenance | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
 | GAP-PHASE8-SCHEMA-INTEG | Checksum & Constraint Verification | SHA-256 migration checksum comparison against schema_migrations; 28 canonical table & index checks | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-P1-QUEUE | Durable Job Queue & Hostinger Cron | MySQL-backed persistent job queue with atomic lease locking, attempts tracking, dead-letter retry states, and external /api/scheduler/tick webhook ping | REAL | E5 (Verified) | P0 | Scaling Adaptation |
+| GAP-P1-CAMP-BIND | Campaign Execution Binding | Direct relational campaign_id binding on content_posts with multi-tenant isolation, indexed retrieval, and UI pipeline display | REAL | E5 (Verified) | P0 | Scaling Adaptation |
+

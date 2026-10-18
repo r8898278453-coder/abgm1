@@ -90,8 +90,14 @@ import {
   updateAutonomousAction,
   getAutonomousAuditLogsByCompany,
   recordAutonomousAuditLog,
+  getCompanyPostsByCampaignId,
+  enqueueJob,
+  getJobsByCompany,
+  getPendingJobsCount,
   getDbPool,
 } from './server/db';
+import { runSchedulerTick } from './server/scheduler';
+import { tickJobQueue } from './server/jobQueueService';
 import {
   verifySchema,
   runMigrations,
@@ -3901,6 +3907,7 @@ app.post(['/api/content-posts', '/api/posts'], validateBody(createPostSchema), a
 
     const newPost = await createContentPost({
       company_id: resolved.companyId,
+      campaign_id: req.body.campaign_id || req.body.campaignId || null,
       title: title || 'New Campaign Post',
       type: type || 'offer',
       platforms: Array.isArray(platforms) ? platforms : ['google'],
@@ -4265,6 +4272,38 @@ app.post('/api/campaigns/internal/:id/link-external', async (req, res) => {
     );
 
     res.json({ success, message: 'External campaign link updated' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// 8. Get content posts bound to an internal campaign
+app.get(['/api/companies/:id/campaigns/:campaignId/posts', '/api/campaigns/internal/:campaignId/posts'], async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const { id, campaignId } = req.params;
+    const targetCampaignId = campaignId || id;
+    const requestedCompanyId = req.params.id && req.params.campaignId ? req.params.id : (req.query.companyId || req.query.company_id) as string;
+
+    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
+    if (!resolved.companyId) {
+      res.status(resolved.status).json({ success: false, error: resolved.error });
+      return;
+    }
+
+    const posts = await getCompanyPostsByCampaignId(resolved.companyId, targetCampaignId);
+    res.json({
+      success: true,
+      companyId: resolved.companyId,
+      campaignId: targetCampaignId,
+      count: posts.length,
+      posts,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -7082,6 +7121,112 @@ app.get('/api/system/status', (req, res) => {
     geminiConfigured: !!process.env.GEMINI_API_KEY,
     timestamp: new Date().toISOString(),
   });
+});
+
+// ---------------- HOSTINGER SHARED-SAFE UNIVERSAL SCHEDULER & DURABLE JOB QUEUE ---------------- //
+
+// Universal Scheduler & Durable Queue Tick (External Webhook Ping / Hostinger hPanel Cron)
+app.post(['/api/scheduler/tick', '/api/cron/tick'], async (req, res) => {
+  try {
+    const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
+    const expectedSecret = process.env.CRON_SECRET || process.env.AUTH_SECRET;
+
+    // In production, require either valid secret header OR authenticated platform_admin
+    if (isProductionEnvironment()) {
+      const user = await getAuthUserFromRequest(req);
+      const isAuthorizedSecret = expectedSecret && cronSecret === expectedSecret;
+      const isAuthorizedAdmin = user && user.is_platform_admin;
+
+      if (!isAuthorizedSecret && !isAuthorizedAdmin) {
+        res.status(403).json({ success: false, error: 'Unauthorized: Valid CRON_SECRET or platform_admin authorization required' });
+        return;
+      }
+    }
+
+    const result = await runSchedulerTick();
+    res.json({
+      success: true,
+      status: 'ok',
+      result,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// GET /api/companies/:id/jobs - Durable Job Queue Status & History
+app.get('/api/companies/:id/jobs', async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const [jobs, pendingCounts] = await Promise.all([
+      getJobsByCompany(companyId, limit),
+      getPendingJobsCount(companyId),
+    ]);
+
+    res.json({
+      success: true,
+      companyId,
+      pendingCounts,
+      count: jobs.length,
+      jobs,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// POST /api/companies/:id/jobs - Enqueue Background Job
+app.post('/api/companies/:id/jobs', async (req, res) => {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
+    }
+
+    const companyId = req.params.id;
+    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
+    if (!authCheck.authorized) {
+      res.status(authCheck.status).json({ success: false, error: authCheck.error });
+      return;
+    }
+
+    const { job_type, jobType, payload, idempotency_key, idempotencyKey, scheduled_for, scheduledFor } = req.body;
+    const effectiveType = job_type || jobType;
+
+    if (!effectiveType) {
+      res.status(400).json({ success: false, error: 'job_type is required' });
+      return;
+    }
+
+    const job = await enqueueJob({
+      company_id: companyId,
+      job_type: effectiveType,
+      payload: payload || {},
+      idempotency_key: idempotency_key || idempotencyKey || undefined,
+      scheduled_for: scheduled_for || scheduledFor || undefined,
+    });
+
+    res.status(201).json({
+      success: true,
+      job,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
 });
 
 // Global process exception handlers to prevent unexpected process exit

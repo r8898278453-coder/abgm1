@@ -115,6 +115,7 @@ export interface DbReview {
 export interface DbContentPost {
   id: string;
   company_id: string;
+  campaign_id?: string | null;
   title?: string;
   type?: string;
   platforms?: string[];
@@ -386,6 +387,26 @@ export interface DbAutonomousAuditLog {
   timestamp?: string;
 }
 
+export type JobQueueStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'RETRY_WAIT' | 'FAILED' | 'CANCELLED';
+
+export interface DbJobQueue {
+  id: string;
+  company_id: string;
+  job_type: 'publishing' | 'ai_summary' | 'seo_scan' | 'competitor_scan' | 'lead_nurture' | 'report' | 'media_render' | string;
+  payload: Record<string, any>;
+  status: JobQueueStatus;
+  attempts: number;
+  max_attempts: number;
+  locked_at?: string | null;
+  locked_by?: string | null;
+  idempotency_key?: string | null;
+  result?: Record<string, any> | null;
+  error_message?: string | null;
+  scheduled_for: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 let pool: mysql.Pool | null = null;
 let isMySqlAvailable = false;
 let tablesInitialized = false;
@@ -407,6 +428,7 @@ const inMemoryCustomDomains: DbCustomDomain[] = [];
 const inMemoryWebsiteConfigs: DbWebsiteConfig[] = [];
 const inMemoryInvoices: DbInvoice[] = [];
 const inMemorySubscriptions: DbSubscription[] = [];
+const inMemoryJobQueue: DbJobQueue[] = [];
 
 export function isProductionDatabaseMode(): boolean {
   return process.env.NODE_ENV === 'production' || (process.env.IS_PRODUCTION === 'true' && process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test');
@@ -970,6 +992,7 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
 
       // Self-heal extended columns on content_posts if table already existed with minimal columns
       const postColumnsToCheck = [
+        { col: 'campaign_id', def: 'VARCHAR(64) DEFAULT NULL AFTER company_id' },
         { col: 'title', def: 'VARCHAR(255) DEFAULT NULL AFTER company_id' },
         { col: 'type', def: "VARCHAR(64) DEFAULT 'offer' AFTER title" },
         { col: 'platforms', def: 'TEXT DEFAULT NULL AFTER type' },
@@ -1372,6 +1395,30 @@ async function autoInitializeTables(dbPool: mysql.Pool) {
           timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_aal_company (company_id),
           INDEX idx_aal_timestamp (timestamp)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // 26. Job Queue Table (Shared-Hosting-Safe Persistent Task Queue)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS job_queue (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          job_type VARCHAR(64) NOT NULL,
+          payload LONGTEXT NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'QUEUED',
+          attempts INT NOT NULL DEFAULT 0,
+          max_attempts INT NOT NULL DEFAULT 3,
+          locked_at TIMESTAMP NULL DEFAULT NULL,
+          locked_by VARCHAR(128) DEFAULT NULL,
+          idempotency_key VARCHAR(128) DEFAULT NULL,
+          result LONGTEXT DEFAULT NULL,
+          error_message TEXT DEFAULT NULL,
+          scheduled_for TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_jq_status_sched (status, scheduled_for),
+          INDEX idx_jq_company (company_id),
+          INDEX idx_jq_idempotency (idempotency_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
 
@@ -2554,6 +2601,7 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
   const newPost: DbContentPost = {
     id: post.id || `post_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
     company_id: post.company_id,
+    campaign_id: post.campaign_id || null,
     title: post.title || 'Untitled Post',
     type: post.type || 'offer',
     platforms: post.platforms && post.platforms.length > 0 ? post.platforms : ['google'],
@@ -2576,11 +2624,12 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
     const db = await getDbPool();
     if (db) {
       await db.query(
-        `INSERT INTO content_posts (id, company_id, title, type, platforms, channel, headline, caption, cta, image_url, video_url, status, scheduled_date, scheduled_time, time_slot, hashtags, reel_script)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO content_posts (id, company_id, campaign_id, title, type, platforms, channel, headline, caption, cta, image_url, video_url, status, scheduled_date, scheduled_time, time_slot, hashtags, reel_script)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newPost.id,
           newPost.company_id || null,
+          newPost.campaign_id || null,
           newPost.title || null,
           newPost.type || 'offer',
           JSON.stringify(newPost.platforms || []),
@@ -2607,6 +2656,46 @@ export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?:
   assertNotProductionFallback('createContentPost');
   inMemoryContentPosts.unshift(newPost);
   return newPost;
+}
+
+export async function getCompanyPostsByCampaignId(companyId: string, campaignId: string): Promise<DbContentPost[]> {
+  if (!companyId || !campaignId) return [];
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM content_posts WHERE company_id = ? AND campaign_id = ? ORDER BY created_at DESC',
+        [companyId, campaignId]
+      );
+      if (rows && Array.isArray(rows)) {
+        return rows.map((r: any) => {
+          let platforms: string[] = ['google'];
+          if (r.platforms) {
+            try {
+              platforms = typeof r.platforms === 'string' ? JSON.parse(r.platforms) : r.platforms;
+            } catch {
+              platforms = String(r.platforms).split(',').map((s: string) => s.trim());
+            }
+          }
+          let hashtags: string[] = [];
+          if (r.hashtags) {
+            try {
+              hashtags = typeof r.hashtags === 'string' ? JSON.parse(r.hashtags) : r.hashtags;
+            } catch {
+              hashtags = String(r.hashtags).split(',').map((s: string) => s.trim());
+            }
+          }
+          return { ...r, platforms, hashtags };
+        });
+      }
+      return [];
+    }
+  } catch (err: any) {
+    handleDbError('getCompanyPostsByCampaignId', err);
+  }
+
+  assertNotProductionFallback('getCompanyPostsByCampaignId');
+  return inMemoryContentPosts.filter((p) => p.company_id === companyId && p.campaign_id === campaignId);
 }
 
 export async function getAllScheduledPosts(): Promise<DbContentPost[]> {
@@ -4896,6 +4985,399 @@ export async function getAutonomousAuditLogsByCompany(
   return inMemoryAutonomousAuditLogs
     .filter((l) => l.company_id === companyId)
     .slice(0, limit);
+}
+
+// ---------------- PERSISTENT JOB QUEUE (HOSTINGER SHARED-SAFE WORKER ENGINE) ---------------- //
+
+export async function enqueueJob(options: {
+  company_id: string;
+  job_type: string;
+  payload: Record<string, any>;
+  idempotency_key?: string;
+  scheduled_for?: string;
+  max_attempts?: number;
+}): Promise<DbJobQueue> {
+  const scheduledTime = options.scheduled_for || new Date().toISOString();
+  const maxAttempts = options.max_attempts || 3;
+  const newJob: DbJobQueue = {
+    id: `jq_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+    company_id: options.company_id,
+    job_type: options.job_type,
+    payload: options.payload,
+    status: 'QUEUED',
+    attempts: 0,
+    max_attempts: maxAttempts,
+    idempotency_key: options.idempotency_key || null,
+    scheduled_for: scheduledTime,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const db = await getDbPool();
+    if (db) {
+      // Idempotency check: if an idempotency key was supplied, check if job already exists
+      if (options.idempotency_key) {
+        const [existing]: any = await db.query(
+          'SELECT * FROM job_queue WHERE company_id = ? AND idempotency_key = ? LIMIT 1',
+          [options.company_id, options.idempotency_key]
+        );
+        if (existing && existing.length > 0) {
+          const row = existing[0];
+          return {
+            ...row,
+            payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+            result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+          };
+        }
+      }
+
+      await db.query(
+        `INSERT INTO job_queue (id, company_id, job_type, payload, status, attempts, max_attempts, idempotency_key, scheduled_for)
+         VALUES (?, ?, ?, ?, 'QUEUED', 0, ?, ?, ?)`,
+        [
+          newJob.id,
+          newJob.company_id,
+          newJob.job_type,
+          JSON.stringify(newJob.payload),
+          newJob.max_attempts,
+          newJob.idempotency_key,
+          newJob.scheduled_for,
+        ]
+      );
+      return newJob;
+    }
+  } catch (err: any) {
+    handleDbError('enqueueJob', err);
+  }
+
+  assertNotProductionFallback('enqueueJob');
+
+  if (options.idempotency_key) {
+    const existing = inMemoryJobQueue.find(
+      (j) => j.company_id === options.company_id && j.idempotency_key === options.idempotency_key
+    );
+    if (existing) return existing;
+  }
+
+  inMemoryJobQueue.push(newJob);
+  return newJob;
+}
+
+export async function claimNextJob(
+  workerId: string,
+  supportedTypes?: string[]
+): Promise<DbJobQueue | null> {
+  const nowIso = new Date().toISOString();
+  try {
+    const db = await getDbPool();
+    if (db) {
+      // Lease timeout threshold: if worker crashed, lease expires after 5 minutes
+      let typeClause = '';
+      const params: any[] = [];
+      if (supportedTypes && supportedTypes.length > 0) {
+        typeClause = `AND job_type IN (${supportedTypes.map(() => '?').join(', ')})`;
+        params.push(...supportedTypes);
+      }
+
+      // Find runnable job with lease timeout
+      const [candidates]: any = await db.query(
+        `SELECT id FROM job_queue 
+         WHERE (status IN ('QUEUED', 'RETRY_WAIT') AND scheduled_for <= NOW())
+            OR (status = 'RUNNING' AND locked_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+         ${typeClause}
+         ORDER BY scheduled_for ASC
+         LIMIT 1
+         FOR UPDATE`,
+        params
+      );
+
+      if (candidates && candidates.length > 0) {
+        const jobId = candidates[0].id;
+        await db.query(
+          `UPDATE job_queue 
+           SET status = 'RUNNING', locked_at = NOW(), locked_by = ?, attempts = attempts + 1, updated_at = NOW()
+           WHERE id = ?`,
+          [workerId, jobId]
+        );
+
+        const [claimed]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+        if (claimed && claimed.length > 0) {
+          const row = claimed[0];
+          return {
+            ...row,
+            payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+            result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+          };
+        }
+      }
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('claimNextJob', err);
+  }
+
+  assertNotProductionFallback('claimNextJob');
+
+  const nowMs = Date.now();
+  const candidate = inMemoryJobQueue.find((j) => {
+    if (supportedTypes && supportedTypes.length > 0 && !supportedTypes.includes(j.job_type)) {
+      return false;
+    }
+    const schedMs = Date.parse(j.scheduled_for);
+    const isDue = isNaN(schedMs) || schedMs <= nowMs;
+    const isPending = (j.status === 'QUEUED' || j.status === 'RETRY_WAIT') && isDue;
+    const isStalled = j.status === 'RUNNING' && j.locked_at && (nowMs - Date.parse(j.locked_at) > 5 * 60 * 1000);
+    return isPending || isStalled;
+  });
+
+  if (candidate) {
+    candidate.status = 'RUNNING';
+    candidate.locked_at = nowIso;
+    candidate.locked_by = workerId;
+    candidate.attempts += 1;
+    candidate.updated_at = nowIso;
+    return candidate;
+  }
+
+  return null;
+}
+
+export async function completeJob(
+  jobId: string,
+  result?: Record<string, any>
+): Promise<DbJobQueue | null> {
+  const nowIso = new Date().toISOString();
+  try {
+    const db = await getDbPool();
+    if (db) {
+      await db.query(
+        `UPDATE job_queue 
+         SET status = 'SUCCEEDED', result = ?, locked_at = NULL, locked_by = NULL, error_message = NULL, updated_at = NOW()
+         WHERE id = ?`,
+        [result ? JSON.stringify(result) : null, jobId]
+      );
+      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        return {
+          ...row,
+          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+        };
+      }
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('completeJob', err);
+  }
+
+  assertNotProductionFallback('completeJob');
+
+  const job = inMemoryJobQueue.find((j) => j.id === jobId);
+  if (job) {
+    job.status = 'SUCCEEDED';
+    job.result = result || null;
+    job.locked_at = null;
+    job.locked_by = null;
+    job.error_message = null;
+    job.updated_at = nowIso;
+    return job;
+  }
+  return null;
+}
+
+export async function failJob(
+  jobId: string,
+  errorMessage: string,
+  retryable = true
+): Promise<DbJobQueue | null> {
+  const nowIso = new Date().toISOString();
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [curr]: any = await db.query('SELECT attempts, max_attempts FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+      const attempts = curr && curr[0] ? curr[0].attempts : 1;
+      const maxAttempts = curr && curr[0] ? curr[0].max_attempts : 3;
+
+      if (!retryable || attempts >= maxAttempts) {
+        // Dead letter: permanent failure
+        await db.query(
+          `UPDATE job_queue 
+           SET status = 'FAILED', error_message = ?, locked_at = NULL, locked_by = NULL, updated_at = NOW()
+           WHERE id = ?`,
+          [errorMessage, jobId]
+        );
+      } else {
+        // Exponential retry backoff: (attempts * 30) seconds delay
+        await db.query(
+          `UPDATE job_queue 
+           SET status = 'RETRY_WAIT', error_message = ?, 
+               scheduled_for = DATE_ADD(NOW(), INTERVAL (? * 30) SECOND), 
+               locked_at = NULL, locked_by = NULL, updated_at = NOW()
+           WHERE id = ?`,
+          [errorMessage, attempts, jobId]
+        );
+      }
+
+      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        return {
+          ...row,
+          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+        };
+      }
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('failJob', err);
+  }
+
+  assertNotProductionFallback('failJob');
+
+  const job = inMemoryJobQueue.find((j) => j.id === jobId);
+  if (job) {
+    if (!retryable || job.attempts >= job.max_attempts) {
+      job.status = 'FAILED';
+    } else {
+      job.status = 'RETRY_WAIT';
+      const backoffSec = job.attempts * 30;
+      job.scheduled_for = new Date(Date.now() + backoffSec * 1000).toISOString();
+    }
+    job.error_message = errorMessage;
+    job.locked_at = null;
+    job.locked_by = null;
+    job.updated_at = nowIso;
+    return job;
+  }
+  return null;
+}
+
+export async function getJobById(jobId: string): Promise<DbJobQueue | null> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        return {
+          ...row,
+          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+        };
+      }
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('getJobById', err);
+  }
+
+  assertNotProductionFallback('getJobById');
+  return inMemoryJobQueue.find((j) => j.id === jobId) || null;
+}
+
+export async function getJobsByCompany(companyId: string, limit = 50): Promise<DbJobQueue[]> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const [rows]: any = await db.query(
+        'SELECT * FROM job_queue WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
+        [companyId, limit]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((row: any) => ({
+          ...row,
+          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+        }));
+      }
+      return [];
+    }
+  } catch (err: any) {
+    handleDbError('getJobsByCompany', err);
+  }
+
+  assertNotProductionFallback('getJobsByCompany');
+  return inMemoryJobQueue
+    .filter((j) => j.company_id === companyId)
+    .slice(0, limit);
+}
+
+export async function cancelJob(jobId: string, companyId?: string): Promise<DbJobQueue | null> {
+  const nowIso = new Date().toISOString();
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const whereComp = companyId ? ' AND company_id = ?' : '';
+      const params = companyId ? [jobId, companyId] : [jobId];
+      await db.query(
+        `UPDATE job_queue 
+         SET status = 'CANCELLED', locked_at = NULL, locked_by = NULL, updated_at = NOW()
+         WHERE id = ? AND status IN ('QUEUED', 'RETRY_WAIT') ${whereComp}`,
+        params
+      );
+      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        return {
+          ...row,
+          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+        };
+      }
+      return null;
+    }
+  } catch (err: any) {
+    handleDbError('cancelJob', err);
+  }
+
+  assertNotProductionFallback('cancelJob');
+
+  const job = inMemoryJobQueue.find((j) => j.id === jobId && (!companyId || j.company_id === companyId));
+  if (job && (job.status === 'QUEUED' || job.status === 'RETRY_WAIT')) {
+    job.status = 'CANCELLED';
+    job.locked_at = null;
+    job.locked_by = null;
+    job.updated_at = nowIso;
+    return job;
+  }
+  return null;
+}
+
+export async function getPendingJobsCount(companyId?: string): Promise<{ queued: number; running: number; failed: number }> {
+  try {
+    const db = await getDbPool();
+    if (db) {
+      const whereComp = companyId ? 'WHERE company_id = ?' : '';
+      const params = companyId ? [companyId] : [];
+      const [rows]: any = await db.query(
+        `SELECT status, COUNT(*) as cnt FROM job_queue ${whereComp} GROUP BY status`,
+        params
+      );
+      const counts = { queued: 0, running: 0, failed: 0 };
+      if (rows && Array.isArray(rows)) {
+        for (const r of rows) {
+          if (r.status === 'QUEUED' || r.status === 'RETRY_WAIT') counts.queued += Number(r.cnt);
+          if (r.status === 'RUNNING') counts.running += Number(r.cnt);
+          if (r.status === 'FAILED') counts.failed += Number(r.cnt);
+        }
+      }
+      return counts;
+    }
+  } catch (err: any) {
+    handleDbError('getPendingJobsCount', err);
+  }
+
+  assertNotProductionFallback('getPendingJobsCount');
+
+  const list = companyId ? inMemoryJobQueue.filter((j) => j.company_id === companyId) : inMemoryJobQueue;
+  return {
+    queued: list.filter((j) => j.status === 'QUEUED' || j.status === 'RETRY_WAIT').length,
+    running: list.filter((j) => j.status === 'RUNNING').length,
+    failed: list.filter((j) => j.status === 'FAILED').length,
+  };
 }
 
 

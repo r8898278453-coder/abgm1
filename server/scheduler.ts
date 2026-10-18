@@ -540,6 +540,33 @@ export function stopScheduler(): void {
   console.log('[Scheduler] Background automation engine stopped.');
 }
 
+import { tickJobQueue, QueueTickSummary } from './jobQueueService';
+
+/**
+ * Universal Scheduler & Queue Tick.
+ * Can be executed by:
+ * 1. Internal in-process timer
+ * 2. External HTTP webhook ping (Hostinger hPanel cron: POST /api/scheduler/tick)
+ */
+export async function runSchedulerTick(): Promise<{
+  timestamp: string;
+  autoPublish: any;
+  queue: QueueTickSummary;
+}> {
+  const timestamp = new Date().toISOString();
+  // 1. Process due jobs in persistent job queue
+  const queueResult = await tickJobQueue(`scheduler_${process.pid}`);
+
+  // 2. Process any scheduled posts
+  const autoPublishResult = await runAutoPublishJob();
+
+  return {
+    timestamp,
+    autoPublish: autoPublishResult,
+    queue: queueResult,
+  };
+}
+
 /**
  * Returns current health and diagnostic statistics for the scheduler.
  */

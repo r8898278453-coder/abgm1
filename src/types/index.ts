@@ -228,6 +228,10 @@ export interface CompetitorData {
 
 export interface ContentPost {
   id: string;
+  company_id?: string;
+  companyId?: string;
+  campaign_id?: string | null;
+  campaignId?: string | null;
   title: string;
   type: 'offer' | 'festival' | 'product' | 'service' | 'educational' | 'announcement';
   platforms: ('google' | 'instagram' | 'facebook' | 'whatsapp')[];

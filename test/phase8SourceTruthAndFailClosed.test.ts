@@ -415,11 +415,12 @@ async function main() {
   // =========================================================================
   console.log('\n--- 6. Canonical Table & Index Registry Verification ---');
 
-  await runTest('CANONICAL_REQUIRED_TABLES contains exactly 28 tables including schema_migrations_lock', async () => {
-    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 28);
+  await runTest('CANONICAL_REQUIRED_TABLES contains exactly 29 tables including schema_migrations_lock and job_queue', async () => {
+    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 29);
     assert(CANONICAL_REQUIRED_TABLES.includes('schema_migrations'));
     assert(CANONICAL_REQUIRED_TABLES.includes('schema_migrations_lock'));
     assert(CANONICAL_REQUIRED_TABLES.includes('system_settings'));
+    assert(CANONICAL_REQUIRED_TABLES.includes('job_queue'));
   });
 
   await runTest('CANONICAL_EXPECTED_INDEXES and CONSTRAINTS cover all critical domain entities', async () => {

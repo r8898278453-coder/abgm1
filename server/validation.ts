@@ -265,6 +265,8 @@ export const createPostSchema = z.object({
   scheduled_time: z.string().trim().max(64).optional().default('Immediate'),
   scheduled_date: z.string().trim().max(64).optional(),
   hashtags: z.union([z.string(), z.array(z.string())]).optional(),
+  campaign_id: z.string().trim().max(64).optional(),
+  campaignId: z.string().trim().max(64).optional(),
   company_id: z.string().trim().max(64).optional(),
 });
 

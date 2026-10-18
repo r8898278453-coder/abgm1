@@ -48,6 +48,7 @@ interface CampaignsViewProps {
 
 export const CampaignsView: React.FC<CampaignsViewProps> = ({
   companyId,
+  posts = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'internal' | 'external_ads' | 'attribution'>('internal');
   const [internalCampaigns, setInternalCampaigns] = useState<InternalCampaign[]>([]);
@@ -490,6 +491,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                           </span>
                         ))}
                       </div>
+
+                      {/* Bound Content Posts Summary */}
+                      {(() => {
+                        const linkedPosts = (posts || []).filter((p: any) => p.campaignId === camp.id || p.campaign_id === camp.id);
+                        return linkedPosts.length > 0 ? (
+                          <div className="flex items-center justify-between text-[11px] bg-indigo-50/80 rounded-xl px-3 py-1.5 border border-indigo-100">
+                            <span className="font-semibold text-indigo-950 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                              {linkedPosts.length} Content {linkedPosts.length === 1 ? 'Post' : 'Posts'} Linked
+                            </span>
+                            <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">
+                              Bound Execution
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Link to External Ad Campaign section */}

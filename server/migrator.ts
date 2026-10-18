@@ -66,6 +66,7 @@ export const CANONICAL_REQUIRED_TABLES = [
   'autonomous_recommendations',
   'autonomous_audit_logs',
   'system_settings',
+  'job_queue',
 ];
 
 // Canonical List of Expected Critical Table Indexes
@@ -94,6 +95,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
   schema_migrations: ['PRIMARY', 'migration_name'],
   schema_migrations_lock: ['PRIMARY'],
   system_settings: ['PRIMARY'],
+  job_queue: ['PRIMARY', 'idx_jq_status_sched', 'idx_jq_company'],
 };
 
 // Canonical List of Expected Critical Table Constraints
@@ -107,6 +109,7 @@ export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
   schema_migrations: ['PRIMARY', 'migration_name'],
   schema_migrations_lock: ['PRIMARY'],
   system_settings: ['PRIMARY'],
+  job_queue: ['PRIMARY'],
 };
 
 // Definition of Canonical Versioned Migrations
@@ -626,6 +629,43 @@ export const MIGRATIONS: MigrationDefinition[] = [
           is_public TINYINT(1) NOT NULL DEFAULT 0,
           description VARCHAR(255) DEFAULT NULL,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+    },
+  },
+  {
+    name: '006_durable_job_queue_and_campaign_binding',
+    up: async (db) => {
+      // 1. Add campaign_id to content_posts if missing
+      try {
+        await db.query(`
+          ALTER TABLE content_posts 
+          ADD COLUMN campaign_id VARCHAR(64) DEFAULT NULL AFTER company_id,
+          ADD INDEX idx_post_campaign (company_id, campaign_id);
+        `);
+      } catch {}
+
+      // 2. Create job_queue table
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS job_queue (
+          id VARCHAR(64) PRIMARY KEY,
+          company_id VARCHAR(64) NOT NULL,
+          job_type VARCHAR(64) NOT NULL,
+          payload LONGTEXT NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'QUEUED',
+          attempts INT NOT NULL DEFAULT 0,
+          max_attempts INT NOT NULL DEFAULT 3,
+          locked_at TIMESTAMP NULL DEFAULT NULL,
+          locked_by VARCHAR(128) DEFAULT NULL,
+          idempotency_key VARCHAR(128) DEFAULT NULL,
+          result LONGTEXT DEFAULT NULL,
+          error_message TEXT DEFAULT NULL,
+          scheduled_for TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_jq_status_sched (status, scheduled_for),
+          INDEX idx_jq_company (company_id),
+          INDEX idx_jq_idempotency (idempotency_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
     },

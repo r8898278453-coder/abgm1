@@ -146,6 +146,22 @@ npm run deploy:validate
 
 ---
 
+### Step 6: Configure Hostinger Cron Job (Durable Queue & Universal Scheduler)
+
+Hostinger shared hosting puts idle Node.js applications to sleep after periods of no traffic. To guarantee background publishing, review reminders, and durable queue execution:
+
+1. In Hostinger hPanel, go to **Advanced > Cron Jobs**.
+2. Select **Custom** cron type.
+3. Set schedule: `*/5 * * * *` (Every 5 minutes).
+4. Set Command:
+   ```bash
+   curl -X POST https://bga.aaditechs.in/api/scheduler/tick -H "x-cron-secret: your_32_character_cryptographic_jwt_secret_key_here"
+   ```
+5. Click **Save**.
+   This wakes the server if idle, leases and processes pending queue jobs (SEO scans, AI summaries, post publishing), and maintains automation continuity without requiring background system daemons.
+
+---
+
 ## Troubleshooting & Verification Commands
 
 | Command | Purpose |

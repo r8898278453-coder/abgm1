@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS `reviews` (
 CREATE TABLE IF NOT EXISTS `content_posts` (
   `id` varchar(64) NOT NULL,
   `company_id` varchar(64) DEFAULT NULL,
+  `campaign_id` varchar(64) DEFAULT NULL,
   `title` varchar(255) DEFAULT NULL,
   `type` varchar(64) DEFAULT 'offer',
   `platforms` text DEFAULT NULL,
@@ -142,7 +143,8 @@ CREATE TABLE IF NOT EXISTS `content_posts` (
   `reel_script` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_company_post` (`company_id`)
+  KEY `idx_company_post` (`company_id`),
+  KEY `idx_post_campaign` (`company_id`, `campaign_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -464,6 +466,31 @@ CREATE TABLE IF NOT EXISTS `autonomous_audit_logs` (
   PRIMARY KEY (`id`),
   KEY `idx_aal_company` (`company_id`),
   KEY `idx_aal_timestamp` (`timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for `job_queue` (Durable Background Tasks)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `job_queue` (
+  `id` varchar(64) NOT NULL,
+  `company_id` varchar(64) NOT NULL,
+  `job_type` varchar(64) NOT NULL,
+  `payload` longtext NOT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'QUEUED',
+  `attempts` int(11) NOT NULL DEFAULT 0,
+  `max_attempts` int(11) NOT NULL DEFAULT 3,
+  `locked_at` timestamp NULL DEFAULT NULL,
+  `locked_by` varchar(128) DEFAULT NULL,
+  `idempotency_key` varchar(128) DEFAULT NULL,
+  `result` longtext DEFAULT NULL,
+  `error_message` text DEFAULT NULL,
+  `scheduled_for` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_jq_status_sched` (`status`, `scheduled_for`),
+  KEY `idx_jq_company` (`company_id`),
+  KEY `idx_jq_idempotency` (`idempotency_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 COMMIT;
