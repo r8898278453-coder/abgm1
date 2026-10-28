@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { CompetitorData } from '../types';
 import { DataStatusBadge } from './DataStatusBadge';
+import { apiRequest } from '../services/authService';
 
 interface CompetitorsViewProps {
   competitors: CompetitorData[];
@@ -83,32 +84,34 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
     try {
       if (companyId) {
         if (editingCompId) {
-          const res = await fetch(`/api/companies/${companyId}/competitors/${editingCompId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: name.trim(),
-              rating: parsedRating,
-              reviewsCount: parsedReviews,
-            }),
-          });
-          const data = await res.json();
+          const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
+            `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(editingCompId)}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify({
+                name: name.trim(),
+                rating: parsedRating,
+                reviewsCount: parsedReviews,
+              }),
+            }
+          );
           if (data.success && data.competitors) {
             onUpdateCompetitors?.(data.competitors);
             setStatusMessage({ type: 'success', text: `Updated competitor "${name.trim()}".` });
           }
         } else {
-          const res = await fetch(`/api/companies/${companyId}/competitors`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: name.trim(),
-              rating: parsedRating,
-              reviewsCount: parsedReviews,
-              refreshNow,
-            }),
-          });
-          const data = await res.json();
+          const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
+            `/api/companies/${encodeURIComponent(companyId)}/competitors`,
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                name: name.trim(),
+                rating: parsedRating,
+                reviewsCount: parsedReviews,
+                refreshNow,
+              }),
+            }
+          );
           if (data.success && data.competitors) {
             onUpdateCompetitors?.(data.competitors);
             setStatusMessage({
@@ -159,10 +162,12 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
   const handleDeleteCompetitor = async (id: string) => {
     if (companyId) {
       try {
-        const res = await fetch(`/api/companies/${companyId}/competitors/${id}`, {
-          method: 'DELETE',
-        });
-        const data = await res.json();
+        const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
+          `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(id)}`,
+          {
+            method: 'DELETE',
+          }
+        );
         if (data.success && data.competitors) {
           onUpdateCompetitors?.(data.competitors);
           setStatusMessage({ type: 'info', text: 'Competitor removed from radar.' });
@@ -179,10 +184,12 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
     if (!companyId) return;
     setRefreshingCompId(comp.id);
     try {
-      const res = await fetch(`/api/companies/${companyId}/competitors/${comp.id}/refresh`, {
-        method: 'POST',
-      });
-      const data = await res.json();
+      const data = await apiRequest<{ success: boolean; competitors: CompetitorData[]; snapshot?: any; error?: string }>(
+        `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/refresh`,
+        {
+          method: 'POST',
+        }
+      );
       if (data.success && data.competitors) {
         onUpdateCompetitors?.(data.competitors);
         const classification = data.snapshot?.dataClassification || 'UPDATED';
@@ -204,10 +211,12 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
     if (!companyId) return;
     setIsRefreshingAll(true);
     try {
-      const res = await fetch(`/api/companies/${companyId}/competitors/refresh-all`, {
-        method: 'POST',
-      });
-      const data = await res.json();
+      const data = await apiRequest<{ success: boolean; competitors: CompetitorData[]; message?: string; error?: string }>(
+        `/api/companies/${encodeURIComponent(companyId)}/competitors/refresh-all`,
+        {
+          method: 'POST',
+        }
+      );
       if (data.success && data.competitors) {
         onUpdateCompetitors?.(data.competitors);
         setStatusMessage({
@@ -232,8 +241,9 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
 
     if (companyId) {
       try {
-        const res = await fetch(`/api/companies/${companyId}/competitors/${comp.id}/history`);
-        const data = await res.json();
+        const data = await apiRequest<{ success: boolean; history: any[] }>(
+          `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/history`
+        );
         if (data.success && Array.isArray(data.history)) {
           setObservationHistory(data.history);
         }

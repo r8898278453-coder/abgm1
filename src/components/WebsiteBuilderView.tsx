@@ -67,6 +67,8 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   // Static Export State
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Form State for Config
   const [primaryColor, setPrimaryColor] = useState(business.brandKit?.primaryColor || '#4f46e5');
@@ -132,12 +134,15 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
     e.preventDefault();
     if (!newDomainInput.trim()) return;
     setIsAddingDomain(true);
+    setActionError(null);
     try {
       const added = await addCompanyDomainApi(companyId, newDomainInput.trim());
       setDomains([added, ...domains]);
       setNewDomainInput('');
+      setActionSuccess('Custom domain added successfully.');
+      setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to add custom domain');
+      setActionError(err?.message || 'Failed to add custom domain');
     } finally {
       setIsAddingDomain(false);
     }
@@ -163,18 +168,27 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   };
 
   const handleDeleteDomain = async (domainId: string) => {
-    if (!confirm('Are you sure you want to remove this custom domain binding?')) return;
+    try {
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+        if (!window.confirm('Are you sure you want to remove this custom domain binding?')) return;
+      }
+    } catch {
+      // Proceed safely in sandboxed iframes
+    }
     try {
       await deleteCompanyDomainApi(companyId, domainId);
       setDomains(domains.filter((d) => d.id !== domainId));
+      setActionSuccess('Domain binding removed successfully.');
+      setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to delete domain');
+      setActionError(err?.message || 'Failed to delete domain');
     }
   };
 
   const handleSaveConfig = async () => {
     setIsSavingConfig(true);
     setConfigSuccessMsg(false);
+    setActionError(null);
     try {
       const updated = await saveWebsiteConfigApi(companyId, {
         primary_color: primaryColor,
@@ -193,7 +207,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
       setConfigSuccessMsg(true);
       setTimeout(() => setConfigSuccessMsg(false), 3000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to save website configuration');
+      setActionError(err?.message || 'Failed to save website configuration');
     } finally {
       setIsSavingConfig(false);
     }
@@ -202,13 +216,14 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   const handleExportZip = async () => {
     setIsExporting(true);
     setExportSuccess(false);
+    setActionError(null);
     try {
       const primaryDomain = domains.find((d) => d.status === 'active')?.domain || 'bga.aaditechs.in';
       await downloadStaticWebsiteZip(companyId, primaryDomain);
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 4000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to export static website package');
+      setActionError(err?.message || 'Failed to export static website package');
     } finally {
       setIsExporting(false);
     }
@@ -304,6 +319,20 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
           </a>
         </div>
       </div>
+
+      {/* Action Notification Banners */}
+      {actionError && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError(null)} className="text-rose-500 hover:text-rose-700 font-bold ml-2">✕</button>
+        </div>
+      )}
+      {actionSuccess && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+          <span>{actionSuccess}</span>
+          <button onClick={() => setActionSuccess(null)} className="text-emerald-500 hover:text-emerald-700 font-bold ml-2">✕</button>
+        </div>
+      )}
 
       {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">

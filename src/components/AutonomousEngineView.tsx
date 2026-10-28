@@ -21,6 +21,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AutonomousAction, AutonomousRecommendation, AutonomousAuditLog } from '../types';
+import { apiRequest } from '../services/authService';
 
 export interface ApprovalRules {
   googlePosts: 'approval' | 'auto';
@@ -77,38 +78,24 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
 
   const fetchAutonomousData = async () => {
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
       const compParam = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
-      const [actionsRes, recsRes, logsRes, statusRes] = await Promise.all([
-        fetch(`/api/autonomous/actions${compParam}`, { headers }),
-        fetch(`/api/autonomous/recommendations${compParam}`, { headers }),
-        fetch(`/api/autonomous/audit-logs${compParam}`, { headers }),
-        fetch(`/api/autonomous/status${compParam}`, { headers }),
+      const [actionsData, recsData, logsData, statusData] = await Promise.all([
+        apiRequest<{ success: boolean; actions: AutonomousAction[] }>(`/api/autonomous/actions${compParam}`).catch(() => null),
+        apiRequest<{ success: boolean; recommendations: AutonomousRecommendation[] }>(`/api/autonomous/recommendations${compParam}`).catch(() => null),
+        apiRequest<{ success: boolean; logs: AutonomousAuditLog[] }>(`/api/autonomous/audit-logs${compParam}`).catch(() => null),
+        apiRequest<{ success: boolean; autopilotEnabled: boolean; globalEmergencyStop: boolean }>(`/api/autonomous/status${compParam}`).catch(() => null),
       ]);
 
-      if (actionsRes.ok) {
-        const data = await actionsRes.json();
-        if (data.actions) {
-          setActions(data.actions);
-        }
+      if (actionsData?.actions) {
+        setActions(actionsData.actions);
       }
-      if (recsRes.ok) {
-        const data = await recsRes.json();
-        if (data.recommendations) {
-          setRecommendations(data.recommendations);
-        }
+      if (recsData?.recommendations) {
+        setRecommendations(recsData.recommendations);
       }
-      if (logsRes.ok) {
-        const data = await logsRes.json();
-        if (data.logs) {
-          setAuditLogs(data.logs);
-        }
+      if (logsData?.logs) {
+        setAuditLogs(logsData.logs);
       }
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
+      if (statusData) {
         if (typeof statusData.autopilotEnabled === 'boolean') {
           setIsAutopilotOn(statusData.autopilotEnabled);
         }
@@ -129,20 +116,14 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
     setIsTogglingAutopilot(true);
     const targetState = !isAutopilotOn;
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/autonomous/kill-switch', {
+      const data = await apiRequest<{ success: boolean; autopilotEnabled?: boolean; error?: string }>('/api/autonomous/kill-switch', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           companyId,
           autopilotEnabled: targetState,
         }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setIsAutopilotOn(targetState);
         setStatusNotice({
           type: 'success',
@@ -169,20 +150,14 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
     setIsTogglingEmergency(true);
     const targetState = !isEmergencyPaused;
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/autonomous/kill-switch', {
+      const data = await apiRequest<{ success: boolean; globalEmergencyStop?: boolean; error?: string }>('/api/autonomous/kill-switch', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           companyId,
           emergencyStop: targetState,
         }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setIsEmergencyPaused(targetState);
         setStatusNotice({
           type: targetState ? 'error' : 'success',
@@ -219,19 +194,13 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
   const handleRunCycle = async () => {
     setIsRunningCycle(true);
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/autonomous/run-cycle', {
+      const data = await apiRequest<{ success: boolean; result?: any; error?: string }>('/api/autonomous/run-cycle', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           companyId,
           approvalPolicy: approvalSettings,
         }),
       });
-      const data = await res.json();
       if (data.success && data.result) {
         setStatusNotice({
           type: 'success',
@@ -254,22 +223,18 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
 
   const handleApproveAndExecute = async (actionId: string) => {
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
       // Step 1: Approve
-      await fetch(`/api/autonomous/actions/${actionId}/approve`, {
+      await apiRequest(`/api/autonomous/actions/${encodeURIComponent(actionId)}/approve`, {
         method: 'POST',
-        headers,
       });
 
       // Step 2: Execute through 8-Stage Gate
-      const execRes = await fetch(`/api/autonomous/actions/${actionId}/execute`, {
-        method: 'POST',
-        headers,
-      });
-      const execData = await execRes.json();
+      const execData = await apiRequest<{ success: boolean; result?: any; error?: string }>(
+        `/api/autonomous/actions/${encodeURIComponent(actionId)}/execute`,
+        {
+          method: 'POST',
+        }
+      );
 
       if (execData.success && execData.result?.status === 'EXECUTED') {
         setStatusNotice({
@@ -293,13 +258,8 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
 
   const handleRejectAction = async (actionId: string) => {
     try {
-      const token = localStorage.getItem('abga_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      await fetch(`/api/autonomous/actions/${actionId}/reject`, {
+      await apiRequest(`/api/autonomous/actions/${encodeURIComponent(actionId)}/reject`, {
         method: 'POST',
-        headers,
       });
       setStatusNotice({ type: 'info', message: 'Action rejected by user.' });
       await fetchAutonomousData();

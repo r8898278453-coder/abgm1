@@ -16,6 +16,7 @@ import {
 import { GrowthScore, AuditItem, BusinessProfile } from '../types';
 import { freshBlankGrowthScore } from '../data/initialData';
 import { DataStatusBadge } from './DataStatusBadge';
+import { apiRequest } from '../services/authService';
 
 interface AuditViewProps {
   growthScore?: GrowthScore;
@@ -47,16 +48,13 @@ export const AuditView: React.FC<AuditViewProps> = ({
     setFixingItemId(item.id);
     try {
       if (companyId) {
-        const token = localStorage.getItem('abga_auth_token');
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`/api/companies/${companyId}/audit/${item.id}/resolve`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ action: item.category }),
-        });
-        const data = await res.json();
+        const data = await apiRequest<{ success: boolean; status: string }>(
+          `/api/companies/${encodeURIComponent(companyId)}/audit/${encodeURIComponent(item.id)}/resolve`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ action: item.category }),
+          }
+        );
         if (data.success && data.status === 'RESOLVED') {
           resolveItem(item.id);
         }
@@ -77,15 +75,12 @@ export const AuditView: React.FC<AuditViewProps> = ({
     setIsScanning(true);
     try {
       if (companyId) {
-        const token = localStorage.getItem('abga_auth_token');
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`/api/companies/${companyId}/audit/scan`, {
-          method: 'POST',
-          headers,
-        });
-        const data = await res.json();
+        const data = await apiRequest<{ success: boolean; auditItems: AuditItem[] }>(
+          `/api/companies/${encodeURIComponent(companyId)}/audit/scan`,
+          {
+            method: 'POST',
+          }
+        );
         if (data.success && data.auditItems) {
           onRescanAudit?.(data.auditItems);
         }

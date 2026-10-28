@@ -44,9 +44,11 @@ import {
   fetchCompanyPosts,
   createContentPostApi,
   updatePostStatusApi,
+  publishContentPostApi,
   deleteContentPostApi,
   scanKeywordRankApi,
   refreshAllKeywordRanksApi,
+  updateLeadStageApi,
 } from './services/authService';
 
 import {
@@ -623,6 +625,13 @@ export default function App() {
 
   const handleDeleteReview = async (reviewId: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    if (activeCompanyId) {
+      try {
+        await deleteReviewApi(reviewId, activeCompanyId);
+      } catch (err) {
+        console.error('Failed to delete review in MySQL:', err);
+      }
+    }
   };
 
   const handleAddNewPost = async (post: ContentPost) => {
@@ -649,16 +658,31 @@ export default function App() {
     setContentPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
     );
+    try {
+      await publishContentPostApi(postId, activeCompanyId || undefined);
+    } catch (err) {
+      console.error('Failed to publish post on server:', err);
+    }
   };
 
   const handleDeletePost = async (postId: string) => {
     setContentPosts((prev) => prev.filter((p) => p.id !== postId));
+    try {
+      await deleteContentPostApi(postId, activeCompanyId || undefined);
+    } catch (err) {
+      console.error('Failed to delete post on server:', err);
+    }
   };
 
-  const handleUpdateLeadStage = (leadId: string, stage: LeadItem['stage']) => {
+  const handleUpdateLeadStage = async (leadId: string, stage: LeadItem['stage']) => {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stage } : l))
     );
+    try {
+      await updateLeadStageApi(leadId, stage);
+    } catch (err) {
+      console.error('Failed to update lead stage in database:', err);
+    }
   };
 
   const handleAddKeyword = async (newKwText: string) => {
@@ -737,8 +761,20 @@ export default function App() {
     setCompetitors((prev) => [...prev, newComp]);
   };
 
-  const handleDeleteKeyword = (kwId: string) => {
-    setKeywords((prev) => prev.filter((k) => k.id !== kwId));
+  const handleDeleteKeyword = async (kwId: string) => {
+    const updatedKeywords = keywords.filter((k) => k.id !== kwId);
+    setKeywords(updatedKeywords);
+    if (activeCompanyId) {
+      try {
+        await saveCompanyData(activeCompanyId, {
+          business,
+          keywords: updatedKeywords,
+          competitors,
+        });
+      } catch (err) {
+        console.warn('Failed to persist keyword deletion to MySQL:', err);
+      }
+    }
   };
 
   const handleApproveAction = (actionId: string) => {

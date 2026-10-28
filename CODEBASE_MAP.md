@@ -19,8 +19,8 @@
   - Background autonomous daemon (`server/scheduler.ts`) handling post publishing, review auto-responses, competitor analysis, and Telegram alerts.
   - MySQL-backed durable job queue service (`server/jobQueueService.ts`) with atomic lease locking, attempts tracking, dead-letter retry states, and Hostinger hPanel cron wake triggers (`POST /api/scheduler/tick`).
 
-## Canonical Capability Implementation Map
-- **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `CalendarView.tsx`, `ContentStudioView.tsx`.
+- **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `App.tsx` (`handlePublishPost`), `DashboardView.tsx`, `CalendarView.tsx`, `ContentStudioView.tsx`.
+- **CRM Leads & Pipeline**: `server/db.ts` (`getAllLeads`, `updateLeadStatus`, `createLead`) + `PATCH /api/leads/:id/stage`. Callers: `App.tsx` (`handleUpdateLeadStage`), `LeadsCrmView.tsx`.
 - **Scheduler**: `server/scheduler.ts` (single in-process node-cron daemon with hot-reload guard `global.__abga_scheduler_started`).
 - **Video Reel Rendering**: `server/reelJobManager.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`) + `remotion/*`.
 - **Google Integrations**: `POST /api/companies/:id/google-profile/sync` & `GET /api/companies/:id/google-profile` in `server.ts` with Places Details API & review deduplication.

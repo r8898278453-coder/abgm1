@@ -74,11 +74,14 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   // Restrict sensitive hardware APIs
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-  // Prevent clickjacking while allowing Google AI Studio preview & authorized production domain
-  res.setHeader(
-    'Content-Security-Policy',
-    "frame-ancestors 'self' https://*.google.com https://*.run.app https://ai.studio https://bga.aaditechs.in;"
-  );
+  // Prevent clickjacking while allowing Google AI Studio preview & authorized production domain.
+  // In development, the AI Studio reverse proxy (Nginx) manages frame-ancestors; in production, Express enforces it.
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader(
+      'Content-Security-Policy',
+      "frame-ancestors 'self' https://*.google.com https://*.run.app https://ai.studio https://bga.aaditechs.in;"
+    );
+  }
 
   next();
 }

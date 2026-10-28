@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.34.0] - 2026-10-21
+### Dev Server Diagnostic, Iframe CSP Resolution & Clean Restart (COMPLETED)
+- **Dev Server Startup & Port Binding**:
+  - Verified process supervisor execution (`tsx server.ts --port 3000 --host 0.0.0.0`) on port 3000.
+  - Confirmed health endpoint `/api/health` responding with 200 OK and Gemini AI configuration active.
+- **Iframe Content-Security-Policy Conflict Resolution (`server/security.ts`)**:
+  - Fixed duplicate/conflicting `frame-ancestors` directive between Express middleware and the AI Studio Nginx reverse proxy.
+  - Express now conditionally sets `frame-ancestors` in production mode only, allowing Nginx to cleanly manage iframe embedding permissions during development without browser blocking.
+- **Verification**:
+  - Dev server restarted cleanly via `restart_dev_server`.
+  - Confirmed 200 OK on both local port 3000 and reverse proxy port 8080.
+  - TypeScript validation (`npm run lint`) passed with 0 errors.
+  - Production build (`compile_applet`) succeeded.
+  - Full test suite (23 test files) passed with 100% success rate.
+
+## [1.33.0] - 2026-10-20
+### Full Platform End-to-End Review, State Machine Synchronization & Sandbox Hardening (COMPLETED)
+- **Frontend-to-Backend State Machine & Pipeline Synchronization (`src/App.tsx`)**:
+  - Connected `handleUpdateLeadStage` to backend route `/api/leads/:id/stage` via `updateLeadStageApi`, ensuring CRM lead status transitions persist to the MySQL database across page reloads.
+  - Connected `handlePublishPost` to the canonical publishing pipeline via `publishContentPostApi`, ensuring single-click publishing from dashboard and content cards updates database records.
+  - Connected `handleDeletePost` to `deleteContentPostApi` and `handleDeleteReview` to `deleteReviewApi` to guarantee backend synchronization on deletions.
+  - Connected `handleDeleteKeyword` to `saveCompanyData`, preventing deleted rank trackers from reappearing on workspace reload.
+- **Iframe & Sandboxed Runtime Safety Hardening (`src/components/WebsiteBuilderView.tsx`)**:
+  - Replaced blocking `window.alert()` calls with clean, non-blocking inline error and success feedback banners (`actionError`, `actionSuccess`).
+  - Wrapped `window.confirm()` in safe try/catch guards to prevent sandbox security exceptions in iframe and mobile WebView runtimes.
+- **Comprehensive Quality & Test Verification**:
+  - Ran full test suite: all 23 unit and integration test suites passed (100% pass rate).
+  - Executed all 9 stages of the End-to-End User Journey Audit with 100% success.
+  - TypeScript type check (`npm run lint` / `tsc --noEmit`) completed with 0 errors.
+  - Production Vite build (`compile_applet`) succeeded.
+
 ## [1.32.0] - 2026-10-17
 ### Hostinger Shared-Safe Scaling Adaptation: Durable Job Queue & Campaign Binding (COMPLETED)
 - **MySQL-Backed Durable Job Queue (`server/db.ts`, `server/jobQueueService.ts`)**:

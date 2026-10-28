@@ -35,4 +35,5 @@
 | GAP-PHASE8-SCHEMA-INTEG | Checksum & Constraint Verification | SHA-256 migration checksum comparison against schema_migrations; 28 canonical table & index checks | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
 | GAP-P1-QUEUE | Durable Job Queue & Hostinger Cron | MySQL-backed persistent job queue with atomic lease locking, attempts tracking, dead-letter retry states, and external /api/scheduler/tick webhook ping | REAL | E5 (Verified) | P0 | Scaling Adaptation |
 | GAP-P1-CAMP-BIND | Campaign Execution Binding | Direct relational campaign_id binding on content_posts with multi-tenant isolation, indexed retrieval, and UI pipeline display | REAL | E5 (Verified) | P0 | Scaling Adaptation |
+| GAP-P2-E2E-SYNC | Frontend State & Pipeline Synchronization | Full end-to-end API synchronization for CRM lead stages (`updateLeadStageApi`), post publishing (`publishContentPostApi`), post & review deletions, keyword persistence, and sandbox-safe non-blocking feedback in Website Builder | REAL | E5 (Verified) | P0 | Platform Verification |
 

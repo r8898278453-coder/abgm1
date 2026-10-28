@@ -30,8 +30,8 @@ import {
   publishToMetaSocialApi,
   WhatsAppSendResult,
   MetaSocialPublishResult,
+  apiRequest,
 } from '../services/authService';
-import { API_BASE_URL } from '../config/apiConfig';
 
 interface RequiredField {
   key: string;
@@ -124,8 +124,9 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const fetchIntegrations = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/integrations?companyId=${encodeURIComponent(companyId)}`);
-      const data = await res.json();
+      const data = await apiRequest<{ success: boolean; integrations: any[]; systemTelegramConfigured?: boolean }>(
+        `/api/integrations?companyId=${encodeURIComponent(companyId)}`
+      );
       if (data.success && Array.isArray(data.integrations)) {
         setIntegrations(data.integrations);
         setSystemTelegramActive(Boolean(data.systemTelegramConfigured));
@@ -166,15 +167,13 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setTestingConnection(true);
     setTestResult(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/integrations/test`, {
+      const data = await apiRequest<{ success: boolean; message?: string; error?: string }>('/api/integrations/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: itemToTest.id,
           credentials: credsToTest,
         }),
       });
-      const data = await res.json();
       if (data.success) {
         setTestResult({
           success: true,
@@ -202,16 +201,14 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
     setSavingConnection(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/integrations/save`, {
+      const data = await apiRequest<{ success: boolean; message?: string; error?: string }>('/api/integrations/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           companyId,
           provider: activeModalItem.id,
           credentials: formCredentials,
         }),
       });
-      const data = await res.json();
       if (data.success) {
         await fetchIntegrations();
         closeModal();
@@ -245,10 +242,12 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
     try {
       setSyncingId(providerId);
-      const res = await fetch(`${API_BASE_URL}/api/integrations/${providerId}?companyId=${encodeURIComponent(companyId)}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
+      const data = await apiRequest<{ success: boolean }>(
+        `/api/integrations/${encodeURIComponent(providerId)}?companyId=${encodeURIComponent(companyId)}`,
+        {
+          method: 'DELETE',
+        }
+      );
       if (data.success) {
         await fetchIntegrations();
       }
@@ -396,15 +395,13 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setEmailSending(true);
     setEmailSendResult(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/integrations/email/test-send`, {
+      const data = await apiRequest<{ success: boolean; message?: string; error?: string }>('/api/integrations/email/test-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipientEmail: emailTestRecipient.trim() || undefined,
           companyId,
         }),
       });
-      const data = await res.json();
       if (data.success) {
         setEmailSendResult({
           success: true,
@@ -431,12 +428,10 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setMetaAdsSyncing(true);
     setMetaAdsSyncMessage(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaigns/external/sync`, {
+      const data = await apiRequest<{ success: boolean; syncedCampaignsCount?: number; message?: string; error?: string }>('/api/campaigns/external/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, provider: 'meta_ads' }),
       });
-      const data = await res.json();
       if (data.success) {
         setMetaAdsSyncMessage(`Synced ${data.syncedCampaignsCount ?? 0} verified ad campaign(s) from Meta Marketing API.`);
         await fetchIntegrations();

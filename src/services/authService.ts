@@ -214,6 +214,16 @@ export async function fetchCompanyLeads(companyId?: string): Promise<LeadItem[]>
   }
 }
 
+export async function updateLeadStageApi(
+  leadId: string,
+  stage: LeadItem['stage']
+): Promise<{ success: boolean; lead: any }> {
+  return apiRequest<{ success: boolean; lead: any }>(`/api/leads/${encodeURIComponent(leadId)}/stage`, {
+    method: 'PATCH',
+    body: JSON.stringify({ stage }),
+  });
+}
+
 // ---------------- REVIEWS API CLIENT (MYSQL-BACKED) ---------------- //
 
 export async function fetchCompanyReviews(companyId?: string): Promise<ReviewItem[]> {
@@ -1342,7 +1352,7 @@ export async function saveWebsiteConfigApi(
 
 export async function downloadStaticWebsiteZip(companyId: string, domain = 'bga.aaditechs.in'): Promise<void> {
   const token = getStoredToken();
-  const url = `/api/companies/${encodeURIComponent(companyId)}/website/export`;
+  const url = `${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/website/export`;
   const response = await fetch(url, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -1363,6 +1373,45 @@ export async function downloadStaticWebsiteZip(companyId: string, domain = 'bga.
   document.body.removeChild(link);
   window.URL.revokeObjectURL(downloadUrl);
 }
+
+// ---------------- AUTONOMOUS GOVERNANCE & KILL SWITCH APIS ---------------- //
+
+export async function toggleAutonomousKillSwitchApi(params: {
+  companyId?: string;
+  emergencyStop?: boolean;
+  autopilotEnabled?: boolean;
+}): Promise<{
+  success: boolean;
+  globalEmergencyStop?: boolean;
+  autopilotEnabled?: boolean;
+  message?: string;
+  error?: string;
+}> {
+  return apiRequest<{
+    success: boolean;
+    globalEmergencyStop?: boolean;
+    autopilotEnabled?: boolean;
+    message?: string;
+    error?: string;
+  }>('/api/autonomous/kill-switch', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function fetchAutonomousStatusApi(companyId?: string): Promise<{
+  success: boolean;
+  globalEmergencyStop: boolean;
+  autopilotEnabled: boolean;
+}> {
+  const compParam = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+  return apiRequest<{
+    success: boolean;
+    globalEmergencyStop: boolean;
+    autopilotEnabled: boolean;
+  }>(`/api/autonomous/status${compParam}`);
+}
+
 
 
 
