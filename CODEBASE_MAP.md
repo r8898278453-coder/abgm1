@@ -118,6 +118,13 @@
 - `BillingAdminView.tsx`: Subscription plans and billing management.
 - `KnowledgeBaseView.tsx`: AI prompt knowledge & training documents.
 - `MobileAppView.tsx`: Mobile PWA setup and installation preview.
+- `PublicInfoModal.tsx`: Public corporate, legal, pricing, and contact info modal for About, Contact, Services, Pricing, Terms, and Privacy.
+
+## Agent-Ready Protocols & Public Resources
+- `/public/robots.txt`: Robots policy declaring `Content-Signal: search=yes, ai-train=no` and `Sitemap: https://bga.aaditechs.in/sitemap.xml`.
+- `/public/sitemap.xml`: XML sitemap indexing all canonical routes.
+- `/public/llms.txt`: Structured plain text model index adhering to llmstxt.org specification.
+- `/public/.well-known/mcp/server-card.json`: Model Context Protocol server capabilities card adhering to SEP-1649.
 
 ## Build & Runtime Commands
 - Dev Server: `npm run dev` (running `tsx server.ts` on port 3000)

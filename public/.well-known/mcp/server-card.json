@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "aaditech-bga",
+  "version": "1.0.0",
+  "title": "Aaditech BGA - Business Growth Accelerator MCP Server",
+  "description": "Model Context Protocol server for Aaditech BGA (bga.aaditechs.in). Exposes tools for autonomous marketing, local SEO keyword rankings, leads CRM, and review automation.",
+  "endpoint": "https://bga.aaditechs.in/api/mcp",
+  "transport": "http-sse",
+  "capabilities": {
+    "tools": {
+      "listChanged": false
+    },
+    "resources": {
+      "subscribe": false,
+      "listChanged": false
+    },
+    "prompts": {
+      "listChanged": false
+    }
+  },
+  "tools": [
+    {
+      "name": "get_growth_score",
+      "description": "Fetch verified business growth score and health metrics for a company.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The unique company identifier"
+          }
+        },
+        "required": ["companyId"]
+      }
+    },
+    {
+      "name": "scan_local_seo_ranks",
+      "description": "Trigger a 3x3 geographical grid local keyword rank scan across Google Local 3-Pack.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The unique company identifier"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "Target local keyword"
+          }
+        },
+        "required": ["companyId", "keyword"]
+      }
+    },
+    {
+      "name": "submit_lead_inquiry",
+      "description": "Submit a qualified customer lead or business inquiry to the CRM.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Lead contact full name"
+          },
+          "email": {
+            "type": "string",
+            "description": "Lead business email address"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Contact telephone number"
+          },
+          "source": {
+            "type": "string",
+            "description": "Acquisition channel"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Inquiry context or requested services"
+          }
+        },
+        "required": ["name", "email"]
+      }
+    },
+    {
+      "name": "generate_audit_report",
+      "description": "Generate an evidence-grounded business growth and digital presence audit report.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The unique company identifier"
+          }
+        },
+        "required": ["companyId"]
+      }
+    }
+  ],
+  "contact": {
+    "name": "Aaditech Support",
+    "email": "contact@aaditechs.in",
+    "url": "https://bga.aaditechs.in/contact"
+  }
+}

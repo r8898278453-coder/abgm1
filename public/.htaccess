@@ -10,8 +10,7 @@
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # 2. Forward API requests to Node.js backend if using Passenger/Reverse Proxy
-  # (If running as full Node.js app on Hostinger, Passenger handles / automatically)
+  # 2. Forward API requests to Node.js backend
   RewriteCond %{REQUEST_URI} ^/api/ [NC]
   RewriteRule ^ - [L]
 
@@ -20,15 +19,19 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 4. Fallback all other frontend routes to index.html (SPA Client-Side Routing)
-  RewriteRule ^ index.html [L]
+  # 4. Fallback known frontend SPA routes to index.html
+  RewriteRule ^(about|contact|terms|privacy|pricing|services|login|auth|app|dashboard|audit|google|localseo|competitors|reviews|studio|calendar|campaigns|leads|website|bot|autonomous|trust|agency|mobile|integrations|billing|knowledge|docs)/?$ index.html [L]
+
+  # 5. Root page to index.html
+  RewriteRule ^$ index.html [L]
 </IfModule>
 
-# Security Headers
+# Security Headers & Link Advertisements
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Link "</llms.txt>; rel=\"alternate\"; type=\"text/plain\", </>; rel=\"alternate\"; type=\"text/markdown\", </.well-known/mcp/server-card.json>; rel=\"service-desc\"; type=\"application/json\""
 </IfModule>
 
 # Browser Caching for Performance

@@ -7275,6 +7275,354 @@ async function startServer() {
       }
     }
 
+    // ====================================================================
+    // Agent-Ready Protocol Endpoints (RFC 8288, SEP-1649, llms.txt, Sitemap)
+    // ====================================================================
+
+    const RFC_8288_LINK_HEADER =
+      '</llms.txt>; rel="alternate"; type="text/plain", </>; rel="alternate"; type="text/markdown", </.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"';
+
+    const ROBOTS_TXT_CONTENT = `# Robots.txt for bga.aaditechs.in (Aaditech Business Growth Accelerator)
+User-agent: *
+Allow: /
+
+# Agent & AI Content Usage Signals
+Content-Signal: search=yes, ai-train=no
+
+# XML Sitemap Location
+Sitemap: https://bga.aaditechs.in/sitemap.xml
+`;
+
+    const SITEMAP_XML_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://bga.aaditechs.in/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/about</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/contact</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/services</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/pricing</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/terms</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/privacy</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://bga.aaditechs.in/llms.txt</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>`;
+
+    const LLMS_TXT_CONTENT = `# Aaditech BGA (Business Growth Accelerator)
+
+> Aaditech BGA (bga.aaditechs.in) is an autonomous 24/7 AI-driven business growth and marketing operations platform for local businesses, multi-location franchises, and digital agencies. It automates 3x3 local SEO map ranking scans, Google Business Profile management, review sentiment replies, WhatsApp lead capture, and programmatic social video generation.
+
+## Platform Capabilities & Modules
+- [Local SEO 3x3 Grid Tracker](https://bga.aaditechs.in/localseo): Geotargeted local map pack rankings and keyword observation across a 3x3 geographical grid.
+- [Autonomous Marketing Autopilot](https://bga.aaditechs.in/autonomous): AI-driven policy governance and autonomous marketing execution with human-in-the-loop controls.
+- [Review Autopilot & Reputation](https://bga.aaditechs.in/reviews): Automated AI sentiment analysis, review reply drafting, and dispute management.
+- [Leads CRM & Attribution](https://bga.aaditechs.in/leads): Omnichannel lead capture, WhatsApp routing, and multi-touch revenue attribution.
+- [Content Studio & Video Reels](https://bga.aaditechs.in/studio): Automated social content generation and Remotion programmatic short-form video rendering.
+- [Competitor Intelligence](https://bga.aaditechs.in/competitors): Competitor ranking shifts, keyword gap monitoring, and market share tracking.
+- [Integrations Hub](https://bga.aaditechs.in/integrations): Google Business Profile, WhatsApp Cloud API, Telegram, Meta Ads, and Razorpay integrations.
+
+## Company & Public Pages
+- [About Aaditech](https://bga.aaditechs.in/about): Corporate background, engineering architecture, and platform mission.
+- [Contact Support & Sales](https://bga.aaditechs.in/contact): Direct email, phone, and technical support channels.
+- [Services Overview](https://bga.aaditechs.in/services): Growth acceleration service modules and SLA guarantees.
+- [Pricing Plans](https://bga.aaditechs.in/pricing): Self-serve and enterprise agency subscription tiers.
+- [Terms of Service](https://bga.aaditechs.in/terms): Master service agreement, usage limits, and autonomous engine terms.
+- [Privacy Policy](https://bga.aaditechs.in/privacy): Data protection, customer privacy, and compliance policies.
+
+## Machine-Readable Resources & Agent Protocols
+- [MCP Server Card](https://bga.aaditechs.in/.well-known/mcp/server-card.json): Model Context Protocol server capabilities, endpoint schema, and tools (SEP-1649).
+- [XML Sitemap](https://bga.aaditechs.in/sitemap.xml): Machine-readable index of public URLs.
+- [Robots Policy](https://bga.aaditechs.in/robots.txt): Crawler rules and content usage signals.
+`;
+
+    const HOMEPAGE_MARKDOWN_CONTENT = `# Aaditech BGA - Autonomous Business Growth Accelerator
+
+> 24/7 Autonomous AI Marketing & Growth Acceleration Platform for Local Businesses, Multi-Location Franchises, and Digital Agencies.
+> Domain: [bga.aaditechs.in](https://bga.aaditechs.in/) | Contact: [contact@aaditechs.in](mailto:contact@aaditechs.in) | Phone: [+91 88982 78453](tel:+918898278453)
+
+## Overview
+Aaditech BGA (bga.aaditechs.in) is an autonomous growth engine combining local SEO rank intelligence, Google Business Profile management, Meta Ads, WhatsApp conversational qualification, customer review autopilot, and programmatic Remotion short-form video generation into a single unified platform.
+
+## Core Capabilities
+- **Local SEO 3x3 Geo-Grid Tracking**: Measure true local search visibility across 9 coordinates centered on your business address.
+- **Autonomous Autopilot Engine**: 24/7 AI-driven campaign recommendations, automated execution, and strict human approval safety guardrails.
+- **Reputation & Review Autopilot**: Real-time sentiment classification, automated response drafting, and zero-gating review request flows.
+- **Omnichannel Leads CRM**: Real-time lead capture from web forms, WhatsApp, and social campaigns with verified multi-touch revenue attribution.
+- **Programmatic Content & Video Studio**: Generates on-brand static social assets and full 1080x1920 60fps Remotion video reels.
+- **Competitor Intelligence**: Track top local competitors, keyword overlap, rating momentum, and market share changes.
+
+## Machine-Readable & Agent Interfaces
+- **MCP Server**: [/.well-known/mcp/server-card.json](https://bga.aaditechs.in/.well-known/mcp/server-card.json) (SEP-1649)
+- **Plaintext LLM Index**: [/llms.txt](https://bga.aaditechs.in/llms.txt)
+- **Sitemap**: [/sitemap.xml](https://bga.aaditechs.in/sitemap.xml)
+- **Robots Policy**: [/robots.txt](https://bga.aaditechs.in/robots.txt)
+- **WebMCP**: In-browser client tool registration via \`navigator.modelContext.registerTool\`
+
+## Public Pages
+- [About](https://bga.aaditechs.in/about)
+- [Contact](https://bga.aaditechs.in/contact)
+- [Services](https://bga.aaditechs.in/services)
+- [Pricing](https://bga.aaditechs.in/pricing)
+- [Terms of Service](https://bga.aaditechs.in/terms)
+- [Privacy Policy](https://bga.aaditechs.in/privacy)
+
+## Contact Information
+- **Company**: Aaditech Solutions Private Limited
+- **Support Email**: [contact@aaditechs.in](mailto:contact@aaditechs.in)
+- **Phone**: [+91 88982 78453](tel:+918898278453)
+- **Address**: Tech Hub, Western Express Highway, Mumbai, Maharashtra 400001, India
+- **Operating Hours**: Monday - Sunday, 24/7 Autonomous Operations
+`;
+
+    const MCP_SERVER_CARD_JSON = {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "name": "aaditech-bga",
+      "version": "1.0.0",
+      "title": "Aaditech BGA - Business Growth Accelerator MCP Server",
+      "description": "Model Context Protocol server for Aaditech BGA (bga.aaditechs.in). Exposes tools for autonomous marketing, local SEO keyword rankings, leads CRM, and review automation.",
+      "endpoint": "https://bga.aaditechs.in/api/mcp",
+      "transport": "http-sse",
+      "capabilities": {
+        "tools": { "listChanged": false },
+        "resources": { "subscribe": false, "listChanged": false },
+        "prompts": { "listChanged": false }
+      },
+      "tools": [
+        {
+          "name": "get_growth_score",
+          "description": "Fetch verified business growth score and health metrics for a company.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "companyId": { "type": "string", "description": "The unique company identifier" }
+            },
+            "required": ["companyId"]
+          }
+        },
+        {
+          "name": "scan_local_seo_ranks",
+          "description": "Trigger a 3x3 geographical grid local keyword rank scan across Google Local 3-Pack.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "companyId": { "type": "string", "description": "The unique company identifier" },
+              "keyword": { "type": "string", "description": "Target local keyword" }
+            },
+            "required": ["companyId", "keyword"]
+          }
+        },
+        {
+          "name": "submit_lead_inquiry",
+          "description": "Submit a qualified customer lead or business inquiry to the CRM.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "description": "Lead contact full name" },
+              "email": { "type": "string", "description": "Lead business email address" },
+              "phone": { "type": "string", "description": "Contact telephone number" },
+              "source": { "type": "string", "description": "Acquisition channel" },
+              "notes": { "type": "string", "description": "Inquiry context or requested services" }
+            },
+            "required": ["name", "email"]
+          }
+        },
+        {
+          "name": "generate_audit_report",
+          "description": "Generate an evidence-grounded business growth and digital presence audit report.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "companyId": { "type": "string", "description": "The unique company identifier" }
+            },
+            "required": ["companyId"]
+          }
+        }
+      ],
+      "contact": {
+        "name": "Aaditech Support",
+        "email": "contact@aaditechs.in",
+        "url": "https://bga.aaditechs.in/contact"
+      }
+    };
+
+    // Dedicated Agent-Facing Protocol Routes
+    app.get('/robots.txt', (_req, res) => {
+      res.type('text/plain; charset=utf-8').send(ROBOTS_TXT_CONTENT);
+    });
+
+    app.get('/sitemap.xml', (_req, res) => {
+      res.type('application/xml; charset=utf-8').send(SITEMAP_XML_CONTENT);
+    });
+
+    app.get('/llms.txt', (_req, res) => {
+      res.type('text/plain; charset=utf-8').send(LLMS_TXT_CONTENT);
+    });
+
+    app.get(['/.well-known/mcp/server-card.json', '/.well-known/mcp/server-card'], (_req, res) => {
+      res.type('application/json; charset=utf-8').json(MCP_SERVER_CARD_JSON);
+    });
+
+    app.get('/api/mcp', (_req, res) => {
+      res.type('application/json; charset=utf-8').json({
+        jsonrpc: '2.0',
+        result: {
+          name: 'aaditech-bga',
+          version: '1.0.0',
+          capabilities: MCP_SERVER_CARD_JSON.capabilities,
+          tools: MCP_SERVER_CARD_JSON.tools,
+        },
+      });
+    });
+
+    const VALID_SPA_ROUTES = new Set([
+      '/',
+      '/index.html',
+      '/about',
+      '/contact',
+      '/services',
+      '/pricing',
+      '/terms',
+      '/privacy',
+      '/login',
+      '/auth',
+      '/app',
+      '/docs',
+      '/dashboard',
+      '/audit',
+      '/google',
+      '/localseo',
+      '/seo',
+      '/competitors',
+      '/reviews',
+      '/studio',
+      '/calendar',
+      '/campaigns',
+      '/leads',
+      '/website',
+      '/bot',
+      '/autonomous',
+      '/trust',
+      '/agency',
+      '/mobile',
+      '/integrations',
+      '/billing',
+      '/knowledge',
+      '/manifest.webmanifest',
+      '/sw.js',
+      '/icon.svg',
+      '/icon-192.png',
+      '/icon-512.png',
+    ]);
+
+    function isMarkdownRequested(req: express.Request): boolean {
+      const accept = req.headers['accept'] || '';
+      return typeof accept === 'string' && accept.includes('text/markdown');
+    }
+
+    function render404Page(requestedPath: string): string {
+      return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>404 Not Found - Aaditech BGA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 1.5rem; max-width: 32rem; width: 100%; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+    h1 { font-size: 2rem; margin: 0 0 0.5rem 0; color: #f43f5e; }
+    p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem 0; }
+    code { background: #0f172a; padding: 0.2rem 0.4rem; border-radius: 0.25rem; color: #38bdf8; font-size: 0.85rem; }
+    a { display: inline-block; background: #4f46e5; color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-weight: 600; font-size: 0.9rem; }
+    a:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>404 Not Found</h1>
+    <p>The requested URL <code>${encodeURI(requestedPath)}</code> was not found on Aaditech BGA.</p>
+    <a href="/">Return to Homepage</a>
+  </div>
+</body>
+</html>`;
+    }
+
+    function handle404(req: express.Request, res: express.Response) {
+      if (isMarkdownRequested(req)) {
+        res.status(404).set({ 'Content-Type': 'text/markdown; charset=utf-8' }).send(`# 404 Not Found\n\nThe requested URL \`${req.path}\` does not exist on Aaditech BGA.`);
+        return;
+      }
+      const accept = req.headers['accept'] || '';
+      if (typeof accept === 'string' && accept.includes('application/json')) {
+        res.status(404).json({ success: false, error: 'Not Found', status: 404, path: req.path });
+        return;
+      }
+      res.status(404).set({ 'Content-Type': 'text/html; charset=utf-8' }).send(render404Page(req.path));
+    }
+
+    function isValidRouteOrAsset(pathname: string): boolean {
+      const cleanPath = pathname.split('?')[0].replace(/\/+$/, '') || '/';
+      if (VALID_SPA_ROUTES.has(cleanPath)) {
+        return true;
+      }
+      if (
+        cleanPath.startsWith('/api') ||
+        cleanPath.startsWith('/uploads') ||
+        cleanPath.startsWith('/@') ||
+        cleanPath.startsWith('/src') ||
+        cleanPath.startsWith('/node_modules') ||
+        cleanPath.startsWith('/assets') ||
+        cleanPath.startsWith('/.well-known') ||
+        cleanPath === '/robots.txt' ||
+        cleanPath === '/sitemap.xml' ||
+        cleanPath === '/llms.txt'
+      ) {
+        return true;
+      }
+      const distFile = path.join(process.cwd(), 'dist', 'client', cleanPath);
+      const publicFile = path.join(process.cwd(), 'public', cleanPath);
+      if (fs.existsSync(distFile) || fs.existsSync(publicFile)) {
+        return true;
+      }
+      return false;
+    }
+
     let viteInstance: any = null;
 
     if (process.env.NODE_ENV !== 'production') {
@@ -7284,15 +7632,32 @@ async function startServer() {
       });
       app.use(viteInstance.middlewares);
       app.use('*', async (req, res, next) => {
-        const url = req.originalUrl;
+        const url = req.originalUrl.split('?')[0];
         if (url.startsWith('/api') || url.startsWith('/uploads')) {
           return next();
         }
+
+        // Return real 404 for non-existent routes
+        if (!isValidRouteOrAsset(url)) {
+          handle404(req, res);
+          return;
+        }
+
+        // Serve Markdown when requested
+        if (isMarkdownRequested(req)) {
+          res.setHeader('Link', RFC_8288_LINK_HEADER);
+          res.setHeader('Vary', 'Accept');
+          res.status(200).set({ 'Content-Type': 'text/markdown; charset=utf-8' }).send(HOMEPAGE_MARKDOWN_CONTENT);
+          return;
+        }
+
         try {
           const indexPath = path.resolve(process.cwd(), 'index.html');
           let template = fs.readFileSync(indexPath, 'utf-8');
-          template = await viteInstance.transformIndexHtml(url, template);
-          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+          template = await viteInstance.transformIndexHtml(req.originalUrl, template);
+          res.setHeader('Link', RFC_8288_LINK_HEADER);
+          res.setHeader('Vary', 'Accept');
+          res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(template);
         } catch (e: any) {
           if (viteInstance) viteInstance.ssrFixStacktrace(e);
           next(e);
@@ -7302,7 +7667,28 @@ async function startServer() {
     } else {
       const distPath = path.join(process.cwd(), 'dist', 'client');
       app.use(express.static(distPath));
-      app.get('*', (req, res) => {
+      app.get('*', (req, res, next) => {
+        const url = req.path;
+        if (url.startsWith('/api') || url.startsWith('/uploads')) {
+          return next();
+        }
+
+        // Return real 404 for non-existent routes
+        if (!isValidRouteOrAsset(url)) {
+          handle404(req, res);
+          return;
+        }
+
+        // Serve Markdown when requested
+        if (isMarkdownRequested(req)) {
+          res.setHeader('Link', RFC_8288_LINK_HEADER);
+          res.setHeader('Vary', 'Accept');
+          res.status(200).set({ 'Content-Type': 'text/markdown; charset=utf-8' }).send(HOMEPAGE_MARKDOWN_CONTENT);
+          return;
+        }
+
+        res.setHeader('Link', RFC_8288_LINK_HEADER);
+        res.setHeader('Vary', 'Accept');
         res.sendFile(path.join(distPath, 'index.html'));
       });
     }

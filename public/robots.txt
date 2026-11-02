@@ -1,0 +1,9 @@
+# Robots.txt for bga.aaditechs.in (Aaditech Business Growth Accelerator)
+User-agent: *
+Allow: /
+
+# Agent & AI Content Usage Signals
+Content-Signal: search=yes, ai-train=no
+
+# XML Sitemap Location
+Sitemap: https://bga.aaditechs.in/sitemap.xml

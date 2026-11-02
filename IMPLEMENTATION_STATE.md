@@ -1,6 +1,40 @@
 # Implementation State
 
-## Current Phase: Phase 15 — Dev Server Diagnostic, Iframe CSP Resolution & Clean Restart (COMPLETED)
+## Current Phase: Phase 16 — Agent-Ready Architecture & Universal Agent Protocols (COMPLETED)
+- **Completed in this Phase**:
+  - **1. Robots.txt Content-Signal & Sitemap Directives**:
+    - Embedded `Content-Signal: search=yes, ai-train=no` and `Sitemap: https://bga.aaditechs.in/sitemap.xml` in `/public/robots.txt` and Express route handler.
+  - **2. Standardized XML Sitemap**:
+    - Published `/public/sitemap.xml` and Express handler listing all 8 core canonical pages with change frequencies and priorities.
+  - **3. Real HTTP 404 Status for Missing Pages**:
+    - Replaced generic 200 catch-all with route existence verification: non-existent URLs return 404 with format matching request `Accept` header (HTML, Markdown, or JSON).
+  - **4. Semantic Pre-rendered Copy Without JavaScript**:
+    - Added over 8,500 characters of rich semantic copy inside `#root` and `<noscript>` in `index.html` detailing services, value props, contact details, and links.
+  - **5. Canonical Link, Metadata & Heading Hierarchy**:
+    - Added `<link rel="canonical" href="https://bga.aaditechs.in/" />`.
+    - Enforced a single clear `<h1>` on the homepage.
+  - **6. Rich Schema.org JSON-LD Structured Data**:
+    - Defined multi-type `@graph` covering `Organization`, `LocalBusiness`, `WebSite`, `WebApplication`, and `WebPage` with address, geocoordinates, opening hours, customer service contact points, and `sameAs` social profiles.
+  - **7. Public & Legal Navigation Links & Modal**:
+    - Added links to `/about`, `/services`, `/pricing`, `/contact`, `/terms`, and `/privacy` in initial HTML, sidebar, and footer.
+    - Implemented interactive `PublicInfoModal` for desktop and mobile users.
+  - **8. Machine-Readable Contact Details**:
+    - Embedded direct `mailto:contact@aaditechs.in` and `tel:+918898278453` links and JSON-LD contact fields.
+  - **9. llms.txt Plaintext Index**:
+    - Published `/public/llms.txt` and Express endpoint conforming to llmstxt.org specification.
+  - **10. Content Negotiation for Markdown**:
+    - Supported `Accept: text/markdown` negotiation, returning concise Markdown representations with `Vary: Accept`.
+  - **11. RFC 8288 Resource Advertising Link Headers**:
+    - Emitted Link headers advertising `/llms.txt`, markdown alternate, and MCP server card.
+  - **12. WebMCP In-Browser Agent Tools**:
+    - Registered `get_business_growth_status`, `scan_local_seo_ranks`, and `submit_lead_inquiry` via `navigator.modelContext.registerTool()`.
+    - Annotated forms with `toolname` and `tooldescription`.
+  - **13. SEP-1649 MCP Server Card**:
+    - Published MCP server card at `/.well-known/mcp/server-card.json`.
+  - **14. Quality Verification**:
+    - Added `test/agentReadiness.test.ts` and `test/agentHttpProtocols.test.ts` (100% pass rate).
+
+## Previous Phase: Phase 15 — Dev Server Diagnostic, Iframe CSP Resolution & Clean Restart (COMPLETED)
 - **Completed in this Phase**:
   - **1. Dev Server & Port 3000 Binding Verification**:
     - Verified dev server startup on port 3000 (`tsx server.ts --port 3000 --host 0.0.0.0`).

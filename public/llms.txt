@@ -1,0 +1,25 @@
+# Aaditech BGA (Business Growth Accelerator)
+
+> Aaditech BGA (bga.aaditechs.in) is an autonomous 24/7 AI-driven business growth and marketing operations platform for local businesses, multi-location franchises, and digital agencies. It automates 3x3 local SEO map ranking scans, Google Business Profile management, review sentiment replies, WhatsApp lead capture, and programmatic social video generation.
+
+## Platform Capabilities & Modules
+- [Local SEO 3x3 Grid Tracker](https://bga.aaditechs.in/localseo): Geotargeted local map pack rankings and keyword observation across a 3x3 geographical grid.
+- [Autonomous Marketing Autopilot](https://bga.aaditechs.in/autonomous): AI-driven policy governance and autonomous marketing execution with human-in-the-loop controls.
+- [Review Autopilot & Reputation](https://bga.aaditechs.in/reviews): Automated AI sentiment analysis, review reply drafting, and dispute management.
+- [Leads CRM & Attribution](https://bga.aaditechs.in/leads): Omnichannel lead capture, WhatsApp routing, and multi-touch revenue attribution.
+- [Content Studio & Video Reels](https://bga.aaditechs.in/studio): Automated social content generation and Remotion programmatic short-form video rendering.
+- [Competitor Intelligence](https://bga.aaditechs.in/competitors): Competitor ranking shifts, keyword gap monitoring, and market share tracking.
+- [Integrations Hub](https://bga.aaditechs.in/integrations): Google Business Profile, WhatsApp Cloud API, Telegram, Meta Ads, and Razorpay integrations.
+
+## Company & Public Pages
+- [About Aaditech](https://bga.aaditechs.in/about): Corporate background, engineering architecture, and platform mission.
+- [Contact Support & Sales](https://bga.aaditechs.in/contact): Direct email, phone, and technical support channels.
+- [Services Overview](https://bga.aaditechs.in/services): Growth acceleration service modules and SLA guarantees.
+- [Pricing Plans](https://bga.aaditechs.in/pricing): Self-serve and enterprise agency subscription tiers.
+- [Terms of Service](https://bga.aaditechs.in/terms): Master service agreement, usage limits, and autonomous engine terms.
+- [Privacy Policy](https://bga.aaditechs.in/privacy): Data protection, customer privacy, and compliance policies.
+
+## Machine-Readable Resources & Agent Protocols
+- [MCP Server Card](https://bga.aaditechs.in/.well-known/mcp/server-card.json): Model Context Protocol server capabilities, endpoint schema, and tools (SEP-1649).
+- [XML Sitemap](https://bga.aaditechs.in/sitemap.xml): Machine-readable index of public URLs.
+- [Robots Policy](https://bga.aaditechs.in/robots.txt): Crawler rules and content usage signals.

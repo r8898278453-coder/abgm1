@@ -2,7 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.34.0] - 2026-10-21
+## [1.35.0] - 2026-11-02
+### Agent-Ready Architecture & Universal Agent Protocols (COMPLETED)
+- **Content Signals & Robots Policy (`public/robots.txt`, `server.ts`)**:
+  - Added `Content-Signal: search=yes, ai-train=no` directive in `robots.txt` declaring AI and crawler content usage terms.
+  - Declared `Sitemap: https://bga.aaditechs.in/sitemap.xml` directly in `robots.txt`.
+- **Parseable XML Sitemap (`public/sitemap.xml`, `server.ts`)**:
+  - Created standardized `sitemap.xml` listing canonical index and public pages (`/`, `/about`, `/contact`, `/services`, `/pricing`, `/terms`, `/privacy`, `/llms.txt`).
+- **Real HTTP 404 Status for Missing Pages (`server.ts`, `public/.htaccess`)**:
+  - Replaced indiscriminate SPA 200 catch-all with strict route validation: non-existent URLs now return authentic HTTP 404 status codes with structured HTML, Markdown, or JSON error payloads depending on the client's `Accept` header.
+- **Readable Content Without JavaScript (`index.html`)**:
+  - Pre-rendered over 8,500 characters of rich semantic HTML copy inside the initial `#root` and `<noscript>` blocks, detailing the business model, platform pillars, machine-readable contact info, and navigation links before client JavaScript executes.
+- **Canonical Head Tags & Heading Hierarchy (`index.html`, `DashboardView.tsx`)**:
+  - Added `<link rel="canonical" href="https://bga.aaditechs.in/" />`, branded `<title>`, and descriptive `<meta name="description">`.
+  - Enforced a single, authoritative `<h1>` heading on the homepage naming the platform and mission.
+- **Rich Schema.org JSON-LD Structured Data (`index.html`)**:
+  - Implemented multi-schema `@graph` containing `Organization`, `LocalBusiness`, `WebSite`, `WebApplication`, and `WebPage`.
+  - Added complete physical address, geocoordinates, opening hours, customer service `ContactPoint`, machine-readable `telephone` and `email`.
+  - Connected company identity to external authority profiles via `sameAs` (LinkedIn, X/Twitter, GitHub, Facebook, Instagram).
+- **Public & Legal Pages Navigation (`index.html`, `src/App.tsx`, `src/components/PublicInfoModal.tsx`)**:
+  - Added accessible, clickable navigation links to `/about`, `/contact`, `/services`, `/pricing`, `/terms`, and `/privacy`.
+  - Built interactive `PublicInfoModal` presenting full corporate, legal, pricing, and contact documentation.
+- **Machine-Readable Contact Points (`index.html`, `src/App.tsx`)**:
+  - Embedded direct `mailto:contact@aaditechs.in` and `tel:+918898278453` hyperlinks across initial HTML and responsive footer.
+- **llms.txt Plaintext Index (`public/llms.txt`, `server.ts`)**:
+  - Published and served `/llms.txt` as `text/plain; charset=utf-8` conforming to the llmstxt.org specification with `# ` title, `> ` summary, and markdown link blocks.
+- **Content Negotiation for Markdown (`server.ts`)**:
+  - Handled `Accept: text/markdown` header on homepage and pages, returning concise token-efficient Markdown representations with `Content-Type: text/markdown; charset=utf-8` and `Vary: Accept`.
+- **RFC 8288 Resource Advertising Link Headers (`server.ts`, `server/security.ts`, `public/.htaccess`)**:
+  - Emitted `Link: </llms.txt>; rel="alternate"; type="text/plain", </>; rel="alternate"; type="text/markdown", </.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"` headers.
+- **WebMCP In-Browser Agent Tool Registration (`index.html`, `src/main.tsx`)**:
+  - Automated page load registration with `navigator.modelContext.registerTool()` for `get_business_growth_status`, `scan_local_seo_ranks`, and `submit_lead_inquiry`.
+  - Annotated contact inquiry forms with `toolname="submit_lead_inquiry"` and `tooldescription`.
+- **SEP-1649 Model Context Protocol Server Card (`public/.well-known/mcp/server-card.json`, `server.ts`)**:
+  - Published standardized MCP Server Card with version, endpoints, schema capabilities, and tool specifications at `/.well-known/mcp/server-card.json`.
+- **Comprehensive Quality & Test Verification**:
+  - Created `test/agentReadiness.test.ts` verifying all 19 agent readiness goals.
+  - Created `test/agentHttpProtocols.test.ts` verifying live HTTP content negotiation, Link headers, and 404 responses.
+  - All test suites passed with 100% success rate.
+
 ### Dev Server Diagnostic, Iframe CSP Resolution & Clean Restart (COMPLETED)
 - **Dev Server Startup & Port Binding**:
   - Verified process supervisor execution (`tsx server.ts --port 3000 --host 0.0.0.0`) on port 3000.

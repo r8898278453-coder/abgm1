@@ -25,6 +25,7 @@ import { AskAiModal } from './components/AskAiModal';
 import { ResetSystemModal } from './components/ResetSystemModal';
 import { AuthScreen } from './components/AuthScreen';
 import { CreateCompanyModal } from './components/CreateCompanyModal';
+import { PublicInfoModal, PublicInfoTab } from './components/PublicInfoModal';
 import { Sparkles, Building2, Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
 
 import {
@@ -104,6 +105,16 @@ export default function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState<boolean>(false);
   const [isLiveMode, setIsLiveMode] = useState<boolean>(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [infoModalTab, setInfoModalTab] = useState<PublicInfoTab | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.replace(/^\//, '').toLowerCase();
+      if (['about', 'contact', 'services', 'pricing', 'terms', 'privacy'].includes(path)) {
+        setInfoModalTab(path as PublicInfoTab);
+      }
+    }
+  }, []);
 
   // Core Data States - initialized with empty states and loaded cleanly from server
   const [business, setBusiness] = useState<BusinessProfile>(freshBlankBusiness);
@@ -1134,6 +1145,48 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Accessible Footer with Links & Machine-Readable Contact Details */}
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 border-t border-slate-200 mt-12 text-xs text-slate-500">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800">Aaditech BGA</span>
+            <span>•</span>
+            <span>Autonomous Business Growth Accelerator</span>
+          </div>
+          <nav className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600">
+            <a href="/about" onClick={(e) => { e.preventDefault(); setInfoModalTab('about'); }} className="hover:text-indigo-600 transition">About</a>
+            <a href="/services" onClick={(e) => { e.preventDefault(); setInfoModalTab('services'); }} className="hover:text-indigo-600 transition">Services</a>
+            <a href="/pricing" onClick={(e) => { e.preventDefault(); setInfoModalTab('pricing'); }} className="hover:text-indigo-600 transition">Pricing</a>
+            <a href="/contact" onClick={(e) => { e.preventDefault(); setInfoModalTab('contact'); }} className="hover:text-indigo-600 transition">Contact</a>
+            <a href="/terms" onClick={(e) => { e.preventDefault(); setInfoModalTab('terms'); }} className="hover:text-indigo-600 transition">Terms</a>
+            <a href="/privacy" onClick={(e) => { e.preventDefault(); setInfoModalTab('privacy'); }} className="hover:text-indigo-600 transition">Privacy</a>
+            <a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition font-mono text-[11px]">llms.txt</a>
+            <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition font-mono text-[11px]">sitemap.xml</a>
+            <a href="/robots.txt" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition font-mono text-[11px]">robots.txt</a>
+            <a href="/.well-known/mcp/server-card.json" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition font-mono text-[11px]">MCP Card</a>
+          </nav>
+        </div>
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Official Support:</span>
+            <a href="mailto:contact@aaditechs.in" className="text-indigo-600 hover:underline">contact@aaditechs.in</a>
+            <span>•</span>
+            <a href="tel:+918898278453" className="text-indigo-600 hover:underline">+91 88982 78453</a>
+          </div>
+          <div>
+            <span>bga.aaditechs.in © {new Date().getFullYear()} Aaditech Solutions Private Limited</span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Public Information Modal (About, Contact, Services, Pricing, Terms, Privacy) */}
+      <PublicInfoModal
+        isOpen={infoModalTab !== null}
+        activeTab={infoModalTab || 'about'}
+        onClose={() => setInfoModalTab(null)}
+        onSelectTab={setInfoModalTab}
+      />
 
       {/* 5-Minute Onboarding & Setup Wizard (Section 3 & 72) */}
       <OnboardingModal
