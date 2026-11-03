@@ -4,6 +4,10 @@ import {
   CANONICAL_REQUIRED_TABLES,
   CANONICAL_EXPECTED_INDEXES,
   CANONICAL_EXPECTED_CONSTRAINTS,
+  CANONICAL_MIGRATION_CHECKSUMS,
+  KNOWN_VALID_MIGRATION_CHECKSUMS,
+  computeMigrationChecksum,
+  isMigrationChecksumValid,
   ensureMigrationInfrastructure,
   acquireMigrationLock,
   releaseMigrationLock,
@@ -236,6 +240,48 @@ async function runAllTests() {
     assert.equal(secondRun.appliedCount, 0, 'Zero migrations should be applied on second execution');
     assert.equal(secondRun.appliedNames.length, 0, 'Applied names array must be empty');
     assert.equal(pool.conn.migrationsApplied.length, MIGRATIONS.length, 'No duplicate entries in migration table');
+  });
+
+  // Test 3b: Multi-Runtime Checksum Resilience & Fail-Closed Tampering Protection
+  await runTest('Multi-runtime checksum compatibility (TSX & bundled esbuild) and tamper detection', async () => {
+    const mig001 = MIGRATIONS.find((m) => m.name === '001_core_multi_tenant_schema')!;
+    assert.ok(mig001, 'Migration 001 exists');
+
+    // Both canonical TSX checksum and bundled esbuild checksum must be valid
+    const canonicalHash = CANONICAL_MIGRATION_CHECKSUMS['001_core_multi_tenant_schema'];
+    const bundledHash = 'ce148d0a23ed0c5610f62c822c4aa2d95ffb8c4246b16c4f44a6c385f64af79c';
+    assert.equal(isMigrationChecksumValid(mig001, canonicalHash), true, 'Canonical TSX checksum must be accepted');
+    assert.equal(isMigrationChecksumValid(mig001, bundledHash), true, 'Bundled esbuild checksum must be accepted');
+
+    // Tampered / corrupted checksum must be rejected
+    const tamperedHash = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+    assert.equal(isMigrationChecksumValid(mig001, tamperedHash), false, 'Tampered checksum must be rejected');
+
+    // Verify fail-closed behavior if database contains tampered checksum
+    const tamperedConn = new MockMySqlConnection();
+    tamperedConn.tables.add('schema_migrations');
+    tamperedConn.tables.add('schema_migrations_lock');
+    tamperedConn.migrationsApplied.push({
+      name: '001_core_multi_tenant_schema',
+      checksum: tamperedHash,
+      time: 10,
+    });
+    const tamperedPool = {
+      getConnection: async () => tamperedConn,
+      query: (sql: string, params: any[]) => tamperedConn.query(sql, params),
+    };
+
+    let caughtErr: any = null;
+    try {
+      await runMigrations(tamperedPool as any);
+    } catch (err: any) {
+      caughtErr = err;
+    }
+    assert.ok(caughtErr, 'Must fail closed when stored checksum is invalid');
+    assert.ok(
+      caughtErr.message.includes('MIGRATION_CHECKSUM_MISMATCH'),
+      `Error must specify MIGRATION_CHECKSUM_MISMATCH, got: ${caughtErr.message}`
+    );
   });
 
   // Test 4: Schema Verification & Drift Detection

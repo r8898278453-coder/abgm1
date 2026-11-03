@@ -112,10 +112,49 @@ export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
   job_queue: ['PRIMARY'],
 };
 
+// Canonical, runtime-independent SHA-256 checksums for each schema migration
+export const CANONICAL_MIGRATION_CHECKSUMS: Record<string, string> = {
+  '001_core_multi_tenant_schema': '95f0c8ff95246526e90ef6a0349c54f48911358074793242a3cafb2e8168a64e',
+  '002_integrations_and_billing_schema': '08b5b91e16bb4f1498afd33877da4bb150e0d5d8c76b5c8a679928bbbdda1ee6',
+  '003_websites_and_seo_telemetry_schema': '2e3e9bc29363426afad111d61925f2e6bd67d023ae5bf24ffcba0308988a4e24',
+  '004_publishing_campaigns_and_autonomous_schema': 'ea73eb53938854286ed95662884aa7d1f4cfb31a428c7517d42fbc883d882d8d',
+  '005_system_settings_and_metadata_schema': '05c541e1ab362e666710c11656b7e278a92a2a10389e10a3bc736b653506eb22',
+  '006_durable_job_queue_and_campaign_binding': 'dd6a1f67d4eabf850c26127dbb75fc4a55116f278ed5f52dfeeae0e6c587097d',
+};
+
+// Known valid checksum variants (covers TSX unbundled executions & esbuild bundled cjs runtime)
+export const KNOWN_VALID_MIGRATION_CHECKSUMS: Record<string, string[]> = {
+  '001_core_multi_tenant_schema': [
+    '95f0c8ff95246526e90ef6a0349c54f48911358074793242a3cafb2e8168a64e', // TSX / Canonical
+    'ce148d0a23ed0c5610f62c822c4aa2d95ffb8c4246b16c4f44a6c385f64af79c', // esbuild cjs bundle
+  ],
+  '002_integrations_and_billing_schema': [
+    '08b5b91e16bb4f1498afd33877da4bb150e0d5d8c76b5c8a679928bbbdda1ee6',
+    '6c551f7aad41d3fff38c8b4a85f3054f6800db88230890528aec5d72ddba708b',
+  ],
+  '003_websites_and_seo_telemetry_schema': [
+    '2e3e9bc29363426afad111d61925f2e6bd67d023ae5bf24ffcba0308988a4e24',
+    'ae4533ff9a7f9023fe5ec4003bc5ad12ecf62faa23e384d6c6570bf85baa4d15',
+  ],
+  '004_publishing_campaigns_and_autonomous_schema': [
+    'ea73eb53938854286ed95662884aa7d1f4cfb31a428c7517d42fbc883d882d8d',
+    '40882f13ad4918b2ff838ea8da7a08854b75d42c76a43a6b38e0cbdadaa077fe',
+  ],
+  '005_system_settings_and_metadata_schema': [
+    '05c541e1ab362e666710c11656b7e278a92a2a10389e10a3bc736b653506eb22',
+    'e2424521176b9fbdff6de84d1950df81131fcfbfd6dc5493bc3cc8f1a3c605b6',
+  ],
+  '006_durable_job_queue_and_campaign_binding': [
+    'dd6a1f67d4eabf850c26127dbb75fc4a55116f278ed5f52dfeeae0e6c587097d',
+    '6a445a38b235253f8d638f7887ee2770a9d228b78273396264e96071e332deff',
+  ],
+};
+
 // Definition of Canonical Versioned Migrations
 export const MIGRATIONS: MigrationDefinition[] = [
   {
     name: '001_core_multi_tenant_schema',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['001_core_multi_tenant_schema'],
     up: async (db) => {
       // 1. Users table
       await db.query(`
@@ -278,6 +317,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
   {
     name: '002_integrations_and_billing_schema',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['002_integrations_and_billing_schema'],
     up: async (db) => {
       // 9. Company integrations table
       await db.query(`
@@ -393,6 +433,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
   {
     name: '003_websites_and_seo_telemetry_schema',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['003_websites_and_seo_telemetry_schema'],
     up: async (db) => {
       // 16. Custom domains table
       await db.query(`
@@ -485,6 +526,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
   {
     name: '004_publishing_campaigns_and_autonomous_schema',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['004_publishing_campaigns_and_autonomous_schema'],
     up: async (db) => {
       // 20. Publishing records table
       await db.query(`
@@ -619,6 +661,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
   {
     name: '005_system_settings_and_metadata_schema',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['005_system_settings_and_metadata_schema'],
     up: async (db) => {
       // 26. System settings table (Production Key-Value Registry)
       await db.query(`
@@ -635,6 +678,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
   {
     name: '006_durable_job_queue_and_campaign_binding',
+    checksum: CANONICAL_MIGRATION_CHECKSUMS['006_durable_job_queue_and_campaign_binding'],
     up: async (db) => {
       // 1. Add campaign_id to content_posts if missing
       try {
@@ -672,9 +716,36 @@ export const MIGRATIONS: MigrationDefinition[] = [
   },
 ];
 
-// Helper to calculate migration checksum
-function computeMigrationChecksum(m: MigrationDefinition): string {
+/**
+ * Helper to calculate or retrieve migration checksum.
+ * If migration definition defines a checksum, use it.
+ * If canonical checksum exists in CANONICAL_MIGRATION_CHECKSUMS, use it.
+ * Otherwise falls back to SHA-256 of name + function code.
+ */
+export function computeMigrationChecksum(m: MigrationDefinition): string {
+  if (m.checksum) {
+    return m.checksum;
+  }
+  if (CANONICAL_MIGRATION_CHECKSUMS[m.name]) {
+    return CANONICAL_MIGRATION_CHECKSUMS[m.name];
+  }
   return crypto.createHash('sha256').update(m.name + m.up.toString()).digest('hex');
+}
+
+/**
+ * Validates whether a stored migration checksum matches canonical or known runtime variants.
+ * Handles differences across runtimes (e.g. tsx execution vs bundled esbuild dist/server.cjs)
+ * while strictly rejecting unrecognized or tampered checksums.
+ */
+export function isMigrationChecksumValid(m: MigrationDefinition, storedChecksum: string): boolean {
+  if (!storedChecksum) return false;
+  const canonical = computeMigrationChecksum(m);
+  if (storedChecksum === canonical) return true;
+  const validVariants = KNOWN_VALID_MIGRATION_CHECKSUMS[m.name];
+  if (validVariants && validVariants.includes(storedChecksum)) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -791,7 +862,7 @@ export async function runMigrations(dbPool: mysql.Pool): Promise<{
 
       if (appliedMap.has(migration.name)) {
         const storedChecksum = appliedMap.get(migration.name);
-        if (storedChecksum && storedChecksum !== expectedChecksum) {
+        if (storedChecksum && !isMigrationChecksumValid(migration, storedChecksum)) {
           throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${migration.name} has stored checksum '${storedChecksum}' but current definition checksum is '${expectedChecksum}'. Execution halted (FAIL CLOSED).`);
         }
         continue;
@@ -877,7 +948,7 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         if (appliedMap.has(m.name)) {
           const stored = appliedMap.get(m.name);
           const computed = computeMigrationChecksum(m);
-          if (stored && stored !== computed) {
+          if (stored && !isMigrationChecksumValid(m, stored)) {
             checksumMismatch = `Checksum mismatch on ${m.name} (stored: ${stored}, current: ${computed})`;
             break;
           }

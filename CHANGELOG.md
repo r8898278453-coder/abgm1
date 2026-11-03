@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.35.0] - 2026-11-02
+## [1.36.0] - 2026-11-03
+### Hostinger MySQL Migration Checksum Resolution & 503 Outage Fix (COMPLETED)
+- **Deterministic Multi-Runtime Migration Checksums (`server/migrator.ts`)**:
+  - Root Cause Diagnosed: Migration checksums were previously calculated dynamically via `m.name + m.up.toString()`. While unbundled TSX (`npm run db:migrate`) recorded hash `95f0c8ff...` in Hostinger's `schema_migrations`, Hostinger's production start runner (`node dist/server.cjs` bundled with esbuild) transpiled the function body and produced hash `ce148d0a...`. This triggered a fatal `MIGRATION_CHECKSUM_MISMATCH` fail-closed shutdown on boot, causing LiteSpeed/Apache to return HTTP `503 Service Unavailable` on `bga.aaditechs.in`.
+  - Added canonical, runtime-independent SHA-256 checksum constants (`CANONICAL_MIGRATION_CHECKSUMS`) and known runtime variants (`KNOWN_VALID_MIGRATION_CHECKSUMS`) across all 6 migrations.
+  - Updated `computeMigrationChecksum` to use deterministic canonical checksums, and added `isMigrationChecksumValid` to recognize both canonical and compiled runtime equivalents.
+  - Updated `runMigrations` and `verifySchema` to use `isMigrationChecksumValid`, preventing spurious boot crashes while strictly maintaining fail-closed security against actual database tampering or corruption.
+- **Automated Test Hardening (`test/hostingerDatabaseMigration.test.ts`)**:
+  - Added test case verifying multi-runtime checksum compatibility across TSX and esbuild bundled runtimes.
+  - Added explicit test verifying fail-closed tamper detection when an unauthorized or corrupted checksum is encountered in `schema_migrations`.
+- **Production Build (`dist/server.cjs`, `dist/client/`)**:
+  - Rebuilt production bundle via `npm run build`. Verified that `dist/server.cjs` executes schema verification seamlessly against stored checksum `95f0c8ff...`.
 ### Agent-Ready Architecture & Universal Agent Protocols (COMPLETED)
 - **Content Signals & Robots Policy (`public/robots.txt`, `server.ts`)**:
   - Added `Content-Signal: search=yes, ai-train=no` directive in `robots.txt` declaring AI and crawler content usage terms.

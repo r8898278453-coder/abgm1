@@ -37,4 +37,6 @@
 | GAP-P1-CAMP-BIND | Campaign Execution Binding | Direct relational campaign_id binding on content_posts with multi-tenant isolation, indexed retrieval, and UI pipeline display | REAL | E5 (Verified) | P0 | Scaling Adaptation |
 | GAP-P2-E2E-SYNC | Frontend State & Pipeline Synchronization | Full end-to-end API synchronization for CRM lead stages (`updateLeadStageApi`), post publishing (`publishContentPostApi`), post & review deletions, keyword persistence, and sandbox-safe non-blocking feedback in Website Builder | REAL | E5 (Verified) | P0 | Platform Verification |
 | GAP-AGENT-READY | Agent-Ready Protocols & Semantic Compliance | robots.txt Content-Signal & Sitemap, XML sitemap, real 404 status, rich pre-rendered HTML without JS, single H1, Schema.org multi-node JSON-LD with sameAs, machine-readable contact, llms.txt, Markdown negotiation, RFC 8288 Link headers, WebMCP tool registration, and SEP-1649 MCP Server Card | REAL | E5 (Verified) | P0 | Agent Readiness |
+| GAP-HOSTINGER-MIG | Database Migrations | Hostinger MySQL multi-runtime migration checksum resilience (TSX unbundled vs esbuild bundled cjs) & fail-closed tamper detection resolving production 503 boot crash | REAL | E5 (Verified) | P0 | Production Fix |
+
 
