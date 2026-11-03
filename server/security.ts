@@ -8,32 +8,54 @@ import cors from 'cors';
 // Allowed origins whitelist for production and development
 const ALLOWED_ORIGIN_PATTERNS: (string | RegExp)[] = [
   'https://bga.aaditechs.in',
+  'http://bga.aaditechs.in',
   'https://aaditechs.in',
+  'http://aaditechs.in',
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  /^https?:\/\/[a-z0-9-]+\.aaditechs\.in$/, // All aaditechs.in subdomains
+  /^https?:\/\/[a-z0-9-]+\.hostingersite\.com$/, // Hostinger preview sites (e.g. aqua-spider-820634.hostingersite.com)
   /^https:\/\/[a-z0-9-]+\.run\.app$/, // Cloud Run preview instances
   /^https:\/\/[a-z0-9-]+\.google\.com$/, // AI Studio web app preview frames
 ];
 
+/**
+ * Checks whether an origin is allowed by whitelist patterns or environment configuration.
+ */
+export function isOriginAllowed(origin?: string | null): boolean {
+  if (!origin) return true;
+
+  // Environment-configured extra allowed origins
+  const envOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  if (envOrigins.includes(origin)) return true;
+
+  return ALLOWED_ORIGIN_PATTERNS.some((pattern) => {
+    if (typeof pattern === 'string') {
+      return pattern === origin;
+    }
+    return pattern.test(origin);
+  });
+}
+
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow server-to-server or non-browser requests (e.g. mobile apps, curl, cron)
+    // Allow server-to-server, same-origin, or non-browser requests (e.g. mobile apps, curl, cron)
     if (!origin) {
       callback(null, true);
       return;
     }
 
-    const isAllowed = ALLOWED_ORIGIN_PATTERNS.some((pattern) => {
-      if (typeof pattern === 'string') {
-        return pattern === origin;
-      }
-      return pattern.test(origin);
-    });
-
-    if (isAllowed || process.env.NODE_ENV !== 'production') {
+    if (isOriginAllowed(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
+      // Reject cross-origin request cleanly without throwing an unhandled Error into the Express pipeline
+      callback(null, false);
     }
   },
   credentials: true,
@@ -45,6 +67,8 @@ export const corsMiddleware = cors({
     'Accept',
     'Origin',
     'Cache-Control',
+    'x-cron-secret',
+    'X-Cron-Secret',
   ],
   exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   maxAge: 86400, // 24 hours preflight cache
@@ -79,7 +103,7 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   if (process.env.NODE_ENV === 'production') {
     res.setHeader(
       'Content-Security-Policy',
-      "frame-ancestors 'self' https://*.google.com https://*.run.app https://ai.studio https://bga.aaditechs.in;"
+      "frame-ancestors 'self' https://*.google.com https://*.run.app https://ai.studio https://bga.aaditechs.in https://*.aaditechs.in https://*.hostingersite.com;"
     );
   }
 

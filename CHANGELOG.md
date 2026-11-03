@@ -3,17 +3,26 @@
 All notable changes to this project will be documented in this file.
 
 ## [1.36.0] - 2026-11-03
-### Hostinger MySQL Migration Checksum Resolution & 503 Outage Fix (COMPLETED)
+### Hostinger MySQL Migration Checksum Resolution, CORS Whitelist & Outage Fix (COMPLETED)
+- **Hostinger Preview Subdomain CORS Resolution (`server/security.ts`)**:
+  - Root Cause Diagnosed: Hostinger preview domains (e.g. `https://aqua-spider-820634.hostingersite.com`) were not present in `ALLOWED_ORIGIN_PATTERNS`, and the CORS middleware invoked `callback(new Error(...))`, which caused Express to treat rejected origins as unhandled 500 errors.
+  - Added regex matching for all Hostinger preview subdomains (`/^https?:\/\/[a-z0-9-]+\.hostingersite\.com$/`), all `aaditechs.in` subdomains (`/^https?:\/\/[a-z0-9-]+\.aaditechs\.in$/`), and environment variable `ALLOWED_ORIGINS`.
+  - Replaced `callback(new Error(...))` with standard CORS rejection `callback(null, false)`, preventing 500 errors on unrecognized origins while cleanly allowing all legitimate tenant and preview origins.
+  - Added `https://*.hostingersite.com` and `https://*.aaditechs.in` to CSP `frame-ancestors`.
 - **Deterministic Multi-Runtime Migration Checksums (`server/migrator.ts`)**:
   - Root Cause Diagnosed: Migration checksums were previously calculated dynamically via `m.name + m.up.toString()`. While unbundled TSX (`npm run db:migrate`) recorded hash `95f0c8ff...` in Hostinger's `schema_migrations`, Hostinger's production start runner (`node dist/server.cjs` bundled with esbuild) transpiled the function body and produced hash `ce148d0a...`. This triggered a fatal `MIGRATION_CHECKSUM_MISMATCH` fail-closed shutdown on boot, causing LiteSpeed/Apache to return HTTP `503 Service Unavailable` on `bga.aaditechs.in`.
   - Added canonical, runtime-independent SHA-256 checksum constants (`CANONICAL_MIGRATION_CHECKSUMS`) and known runtime variants (`KNOWN_VALID_MIGRATION_CHECKSUMS`) across all 6 migrations.
   - Updated `computeMigrationChecksum` to use deterministic canonical checksums, and added `isMigrationChecksumValid` to recognize both canonical and compiled runtime equivalents.
   - Updated `runMigrations` and `verifySchema` to use `isMigrationChecksumValid`, preventing spurious boot crashes while strictly maintaining fail-closed security against actual database tampering or corruption.
-- **Automated Test Hardening (`test/hostingerDatabaseMigration.test.ts`)**:
+- **Database Schema Verification Alias Mapping (`server/migrator.ts`, `server.ts`)**:
+  - Added `INDEX_ALIASES` and `CONSTRAINT_ALIASES` to `verifySchema` so that generated index and constraint names (`idx_company_lead`, `idx_comp_public_form_token`, `idx_company_domain`, etc.) correctly map to the canonical verification list without false `MIGRATION_REQUIRED` warnings.
+  - Added granular logging of any missing tables, indexes, or constraints in `server.ts`.
+- **Automated Test Hardening (`test/hostingerDatabaseMigration.test.ts`, `test/phase1SecurityHardening.test.ts`)**:
   - Added test case verifying multi-runtime checksum compatibility across TSX and esbuild bundled runtimes.
   - Added explicit test verifying fail-closed tamper detection when an unauthorized or corrupted checksum is encountered in `schema_migrations`.
+  - Added CORS test verifying Hostinger preview domains and tenant subdomains pass origin validation.
 - **Production Build (`dist/server.cjs`, `dist/client/`)**:
-  - Rebuilt production bundle via `npm run build`. Verified that `dist/server.cjs` executes schema verification seamlessly against stored checksum `95f0c8ff...`.
+  - Rebuilt production bundle via `npm run build`. Verified that `dist/server.cjs` executes schema verification seamlessly and allows Hostinger origins.
 ### Agent-Ready Architecture & Universal Agent Protocols (COMPLETED)
 - **Content Signals & Robots Policy (`public/robots.txt`, `server.ts`)**:
   - Added `Content-Signal: search=yes, ai-train=no` directive in `robots.txt` declaring AI and crawler content usage terms.

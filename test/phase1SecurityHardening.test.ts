@@ -5,6 +5,7 @@ import {
   getCompanyIntegration,
 } from '../server/db';
 import { verifyWhatsAppWebhookSignature } from '../server/metaWhatsAppService';
+import { isOriginAllowed } from '../server/security';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -158,7 +159,19 @@ async function runPhase1SecurityTests() {
     if (origMetaSecret) process.env.META_APP_SECRET = origMetaSecret;
   }
 
-  console.log('\n🎉 ALL 5 PHASE 1 SECURITY & TENANT ISOLATION TESTS PASSED PERFECTLY!\n');
+  // =========================================================================
+  // TEST 6: Production CORS Origin Validation & Hostinger Site Support
+  // =========================================================================
+  console.log('Test 6: Hostinger preview domains and production origins are allowed by CORS');
+  assert(isOriginAllowed('https://aqua-spider-820634.hostingersite.com'), 'Hostinger preview domain must be allowed');
+  assert(isOriginAllowed('https://bga.aaditechs.in'), 'Primary production domain must be allowed');
+  assert(isOriginAllowed('https://aaditechs.in'), 'Apex domain must be allowed');
+  assert(isOriginAllowed('https://tenant1.aaditechs.in'), 'Tenant subdomains must be allowed');
+  assert(isOriginAllowed('http://localhost:3000'), 'Local development origin must be allowed');
+  assert(!isOriginAllowed('https://evil-hacker.com'), 'Malicious external origin must be rejected');
+  console.log('  ✅ Test 6 Passed: Hostinger domains and production origins properly validated.');
+
+  console.log('\n🎉 ALL 6 PHASE 1 SECURITY & TENANT ISOLATION TESTS PASSED PERFECTLY!\n');
 }
 
 runPhase1SecurityTests().catch((err) => {

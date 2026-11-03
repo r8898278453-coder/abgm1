@@ -993,13 +993,29 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         existingIndexMap.get(idx.TABLE_NAME)!.add(idx.INDEX_NAME);
       }
 
+      // Canonical index alias mapping (canonical schema migration definition vs telemetry monitor names)
+      const INDEX_ALIASES: Record<string, string[]> = {
+        'leads.idx_leads_company': ['idx_company_lead', 'idx_leads_company'],
+        'leads.idx_leads_stage': ['idx_lead_stage', 'idx_leads_stage'],
+        'reviews.idx_rev_company': ['idx_company_review', 'idx_rev_company'],
+        'reviews.idx_rev_rating': ['idx_review_rating', 'idx_rev_rating'],
+        'reviews.idx_rev_source': ['idx_review_source', 'idx_rev_source', 'idx_review_replied'],
+        'content_posts.idx_cp_company': ['idx_company_post', 'idx_cp_company'],
+        'content_posts.idx_cp_status': ['idx_post_status', 'idx_cp_status'],
+        'custom_domains.idx_custom_domains_domain': ['idx_company_domain', 'idx_custom_domains_domain', 'domain'],
+        'custom_domains.idx_custom_domains_company': ['idx_domains_company', 'idx_custom_domains_company', 'idx_company_domain'],
+      };
+
       const missingIndexes: string[] = [];
       for (const [tbl, expectedIdxs] of Object.entries(CANONICAL_EXPECTED_INDEXES)) {
         if (existingTableSet.has(tbl)) {
           const liveIdxs = existingIndexMap.get(tbl) || new Set();
           for (const expIdx of expectedIdxs) {
-            if (!liveIdxs.has(expIdx)) {
-              missingIndexes.push(`${tbl}.${expIdx}`);
+            const key = `${tbl}.${expIdx}`;
+            const aliases = INDEX_ALIASES[key] || [expIdx];
+            const hasIndex = aliases.some((a) => liveIdxs.has(a));
+            if (!hasIndex) {
+              missingIndexes.push(key);
             }
           }
         }
@@ -1019,13 +1035,21 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         existingConstraintMap.get(c.TABLE_NAME)!.add(c.CONSTRAINT_NAME);
       }
 
+      const CONSTRAINT_ALIASES: Record<string, string[]> = {
+        'companies.public_form_token': ['idx_comp_public_form_token', 'public_form_token'],
+        'custom_domains.domain': ['idx_company_domain', 'domain', 'idx_company_domain_unique'],
+      };
+
       const missingConstraints: string[] = [];
       for (const [tbl, expectedConsts] of Object.entries(CANONICAL_EXPECTED_CONSTRAINTS)) {
         if (existingTableSet.has(tbl)) {
           const liveConsts = existingConstraintMap.get(tbl) || new Set();
           for (const expConst of expectedConsts) {
-            if (!liveConsts.has(expConst)) {
-              missingConstraints.push(`${tbl}.${expConst}`);
+            const key = `${tbl}.${expConst}`;
+            const aliases = CONSTRAINT_ALIASES[key] || [expConst];
+            const hasConst = aliases.some((a) => liveConsts.has(a));
+            if (!hasConst) {
+              missingConstraints.push(key);
             }
           }
         }

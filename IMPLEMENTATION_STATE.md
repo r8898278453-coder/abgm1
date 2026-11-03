@@ -1,6 +1,6 @@
 # Implementation State
 
-## Current Phase: Phase 17 — Hostinger MySQL Migration Checksum Resolution & 503 Outage Fix (COMPLETED)
+## Current Phase: Phase 17 — Hostinger MySQL Migration Checksum Resolution, CORS Whitelist & 503 Outage Fix (COMPLETED)
 - **Completed in this Phase**:
   - **1. Root Cause Diagnosis of Production 503 Service Unavailable**:
     - Analyzed the fatal server log: `FATAL PRODUCTION DATABASE ERROR: MIGRATION_CHECKSUM_MISMATCH: Migration 001_core_multi_tenant_schema has stored checksum '95f0c8ff95246526e90ef6a0349c54f48911358074793242a3cafb2e8168a64e' but current definition checksum is 'ce148d0a23ed0c5610f62c822c4aa2d95ffb8c4246b16c4f44a6c385f64af79c'. Execution halted (FAIL CLOSED).`
@@ -10,10 +10,20 @@
     - Updated `computeMigrationChecksum` to use explicit canonical checksums.
     - Implemented `isMigrationChecksumValid` to accept known runtime variants while strictly rejecting tampered or unauthorized hashes.
     - Updated `runMigrations` and `verifySchema` to use `isMigrationChecksumValid`.
-  - **3. Test Verification & Multi-Runtime Hardening**:
+  - **3. Hostinger Preview Subdomains & CORS Whitelist Resolution (`server/security.ts`)**:
+    - Resolved `Error: CORS policy violation: Origin https://aqua-spider-820634.hostingersite.com not allowed`.
+    - Added wildcard pattern matching for Hostinger preview domains (`/^https?:\/\/[a-z0-9-]+\.hostingersite\.com$/`) and `aaditechs.in` subdomains (`/^https?:\/\/[a-z0-9-]+\.aaditechs\.in$/`).
+    - Added support for custom origins via `ALLOWED_ORIGINS` environment variable.
+    - Replaced `callback(new Error(...))` with standard CORS rejection `callback(null, false)`, avoiding 500 error propagation in Express.
+    - Added `https://*.hostingersite.com` and `https://*.aaditechs.in` to CSP `frame-ancestors`.
+  - **4. Schema Verification Alias Resilience (`server/migrator.ts`, `server.ts`)**:
+    - Added `INDEX_ALIASES` and `CONSTRAINT_ALIASES` in `verifySchema` so generated index names (`idx_company_lead`, `idx_comp_public_form_token`, `idx_company_domain`) resolve accurately without false `MIGRATION_REQUIRED` warnings.
+    - Added granular console warnings for missing schema elements in `server.ts`.
+  - **5. Test Verification & Multi-Runtime Hardening**:
     - Added test cases in `test/hostingerDatabaseMigration.test.ts` verifying both canonical and bundled checksums validate, and tampered checksums fail closed.
+    - Added CORS test in `test/phase1SecurityHardening.test.ts` verifying Hostinger preview domains and tenant subdomains pass origin validation.
     - All tests passed 100%.
-  - **4. Production Build & Bundled Server Verification**:
+  - **6. Production Build & Bundled Server Verification**:
     - Recompiled production bundle via `npm run build` (`dist/server.cjs` & `dist/client/`).
     - Verified `dist/server.cjs` generates matching canonical checksums and validates without error.
 

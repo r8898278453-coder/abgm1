@@ -7257,6 +7257,15 @@ async function startServer() {
           console.log(`[Hostinger MySQL] Schema verified & ready (Version: ${report.schemaVersion}, Tables: PASS).`);
         } else {
           console.warn(`[Hostinger MySQL] Schema verification status: ${report.status}`);
+          if (report.missingTables && report.missingTables.length > 0) {
+            console.warn(`[Hostinger MySQL] Missing tables: ${report.missingTables.join(', ')}`);
+          }
+          if (report.missingIndexes && report.missingIndexes.length > 0) {
+            console.warn(`[Hostinger MySQL] Missing indexes: ${report.missingIndexes.join(', ')}`);
+          }
+          if (report.missingConstraints && report.missingConstraints.length > 0) {
+            console.warn(`[Hostinger MySQL] Missing constraints: ${report.missingConstraints.join(', ')}`);
+          }
           if (isProductionDeployment && report.status === 'DATABASE_SCHEMA_OUTDATED') {
             console.error('FATAL: Database schema outdated in production. Please run "npm run db:migrate".');
             process.exit(1);
