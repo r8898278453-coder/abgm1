@@ -1,0 +1,13 @@
+import {platformDateKey,dailyWorkReportCsv,type DailyWorkReport} from '../shared/dailyWorkReport';
+export function formatDailyWorkDigest(report:DailyWorkReport):string{
+ dailyWorkReportCsv(report); // Validate fixed numeric coverage before generating a customer-facing summary.
+ const a=report.activity,b=report.backlog;
+ return `Recorded work — ${report.date} IST (queue, approval, admission and control records):\nCompleted jobs: ${a.completedJobs}; jobs with failure records: ${a.failedJobs}; paused jobs: ${a.pausedJobs}.\nScheduling approvals: ${a.approvedPosts}; posts rescheduled: ${a.rescheduledPosts}.\nAdmitted posts: ${a.admittedPosts}; publishing control changes: ${a.controlChanges}. Admissions are not delivery confirmations.\nMessage requests recorded: ${a.messageRequests}; requests API-accepted: ${a.apiAcceptedMessages}. Acceptance is not delivery.\nWebsite inquiries received: ${a.websiteInquiries}; staff inquiry alerts API-accepted: ${a.inquiryAlertsAccepted}. Receipt is not a sale; API acceptance is not recipient delivery.\nCurrent backlog: ${b.waitingJobs} waiting, ${b.runningJobs} running, ${b.failedJobs} failed jobs; ${b.pendingApprovals} posts marked pending approval, ${b.uncertainPublications} uncertain publishing claims, ${b.unconfirmedMessages} in-progress or unknown message requests; ${b.inquiryAlertsNotAttempted} inquiry alerts not attempted, ${b.inquiryAlertsUnconfirmed} inquiry alerts without confirmed API acceptance.\nActivity counts can overlap; backlog is current, across all dates.`;
+}
+export async function loadDailyWorkDigest(company:string,dueAt:number,read:(company:string,date:string)=>Promise<DailyWorkReport>,canStart:()=>boolean=()=>true){
+ const date=platformDateKey(dueAt-86400000);
+ const unavailable=`Recorded work — ${date} IST: unavailable. Check the dashboard after the connection recovers.`;
+ if(!canStart())return {available:false,deferred:true,readTimedOut:false,text:unavailable};
+ try{const report=await read(company,date);return {available:true,deferred:false,readTimedOut:false,text:formatDailyWorkDigest(report)};}
+ catch(error){return {available:false,deferred:false,readTimedOut:(error as any)?.code==='READ_ONLY_SQL_TIMEOUT',text:unavailable};}
+}

@@ -1,0 +1,14 @@
+{
+  "source_count": 6,
+  "bundle_count": 6,
+  "mismatches": [
+    "001_core_multi_tenant_schema",
+    "002_integrations_and_billing_schema",
+    "003_websites_and_seo_telemetry_schema",
+    "004_publishing_campaigns_and_autonomous_schema",
+    "005_system_settings_and_metadata_schema",
+    "006_durable_job_queue_and_campaign_binding"
+  ],
+  "historical_definitions_changed": false,
+  "production_database_accessed": false
+}

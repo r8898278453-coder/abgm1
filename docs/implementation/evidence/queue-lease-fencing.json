@@ -1,0 +1,38 @@
+{
+  "scope": "disposable MariaDB plus isolated worker fixtures",
+  "results": [
+    {
+      "schema_verification": "READY"
+    },
+    {
+      "engine": "10.11.19-MariaDB-ubu2204",
+      "fresh_schema_001_to_005": "passed",
+      "upgrade_from_005_through_007": "passed",
+      "duplicate_domain_preflight": "passed",
+      "incorrect_index_columns": "rejected",
+      "equivalent_lead_index_reused": true,
+      "repeat_upgrade": "passed",
+      "concurrent_workers": 12,
+      "single_claim": "passed",
+      "type_filter": "passed",
+      "expired_lease_recovery": "passed",
+      "rollback": "passed",
+      "stale_worker_completion_failure": "rejected",
+      "unfenced_running_update": "rejected",
+      "reused_worker_attempt_fence": "passed",
+      "lease_renewal": "passed",
+      "concurrent_settlement": "single winner",
+      "attempt_exhaustion": "dead letter",
+      "retry_backoff": "passed",
+      "cancelled_state_fence": "passed",
+      "production_access": false
+    }
+  ],
+  "exhausted_backlog_over_cleanup_limit": 105,
+  "worker_pre_dispatch_lost_lease": "rejected",
+  "worker_heartbeat_loss_and_cleanup": "passed; cancelled state injected",
+  "historical_migrations_changed": false,
+  "default_regression_programs": 31,
+  "production_changes": false,
+  "external_exactly_once_delivery": "not claimed"
+}

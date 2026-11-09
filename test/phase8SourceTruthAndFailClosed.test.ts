@@ -202,7 +202,7 @@ async function main() {
         { name: 'upsertWebsiteConfig', fn: () => upsertWebsiteConfig({ company_id: 'comp_123' }) },
         { name: 'getCustomDomain', fn: () => getCustomDomain('comp_123') },
         // 12. SEO / Rank Telemetry
-        { name: 'saveRankObservations', fn: () => saveRankObservations('comp_123', 'dentist', [{ grid_index: 0, position: 1 }]) },
+        { name: 'saveRankObservations', fn: () => saveRankObservations('comp_123', 'dentist', [{ grid_index: 0, position: null,latitude:18,longitude:73,provider:'fixture',status:'UNAVAILABLE',timestamp:'2026-11-06T00:00:00Z' }]) },
         { name: 'getLatestKeywordObservations', fn: () => getLatestKeywordObservations('comp_123', 'dentist') },
         { name: 'getKeywordObservationHistory', fn: () => getKeywordObservationHistory('comp_123', 'dentist') },
         { name: 'calculateHistoricalTrend', fn: () => calculateHistoricalTrend('comp_123', 'dentist', 3) },
@@ -415,8 +415,12 @@ async function main() {
   // =========================================================================
   console.log('\n--- 6. Canonical Table & Index Registry Verification ---');
 
-  await runTest('CANONICAL_REQUIRED_TABLES contains exactly 29 tables including schema_migrations_lock and job_queue', async () => {
-    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 29);
+  await runTest('CANONICAL_REQUIRED_TABLES contains 50 unique tables including the transactional queue ledger', async () => {
+    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 50);
+    assert.strictEqual(new Set(CANONICAL_REQUIRED_TABLES).size, 50);
+    for (const table of ['job_action_runs', 'job_action_events', 'job_action_outbox']) {
+      assert.ok(CANONICAL_REQUIRED_TABLES.includes(table), `Missing ledger table: ${table}`);
+    }
     assert(CANONICAL_REQUIRED_TABLES.includes('schema_migrations'));
     assert(CANONICAL_REQUIRED_TABLES.includes('schema_migrations_lock'));
     assert(CANONICAL_REQUIRED_TABLES.includes('system_settings'));

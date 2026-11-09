@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import {auditSnapshotSchema,type AuditEvidence} from '../../shared/auditSnapshot';
+import React, { useState,useEffect,useRef } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -20,79 +21,41 @@ import { apiRequest } from '../services/authService';
 
 interface AuditViewProps {
   growthScore?: GrowthScore;
-  auditItems?: AuditItem[];
-  onResolveItem?: (id: string) => void;
-  onFixItem?: (id: string) => void;
   onNavigate?: (tab: any) => void;
   business?: BusinessProfile;
   companyId?: string;
-  onRescanAudit?: (newItems: AuditItem[]) => void;
 }
 
 export const AuditView: React.FC<AuditViewProps> = ({
   growthScore = freshBlankGrowthScore,
-  auditItems = [],
-  onResolveItem,
-  onFixItem,
   onNavigate = (_tab: any) => {},
   companyId,
-  onRescanAudit,
 }) => {
-  const resolveItem = onResolveItem || onFixItem || (() => {});
+  const [items,setItems]=useState<AuditEvidence[]>([]),[error,setError]=useState('');
+  const request=useRef<AbortController|null>(null);
   const [filter, setFilter] = useState<'all' | 'critical' | 'important' | 'recommended' | 'resolved'>('all');
   const [isScanning, setIsScanning] = useState(false);
-  const [fixingItemId, setFixingItemId] = useState<string | null>(null);
   const [showTelemetryModal, setShowTelemetryModal] = useState(false);
 
-  const handleFix = async (item: AuditItem) => {
-    setFixingItemId(item.id);
-    try {
-      if (companyId) {
-        const data = await apiRequest<{ success: boolean; status: string }>(
-          `/api/companies/${encodeURIComponent(companyId)}/audit/${encodeURIComponent(item.id)}/resolve`,
-          {
-            method: 'POST',
-            body: JSON.stringify({ action: item.category }),
-          }
-        );
-        if (data.success && data.status === 'RESOLVED') {
-          resolveItem(item.id);
-        }
-      }
-
-      if (item.category === 'reviews') onNavigate('reviews');
-      else if (item.category === 'content') onNavigate('content');
-      else if (item.category === 'seo') onNavigate('seo');
-      else if (item.category === 'google') onNavigate('google');
-    } catch (err) {
-      console.error('Failed to resolve audit item:', err);
-    } finally {
-      setFixingItemId(null);
-    }
+  const handleFix = (item: AuditEvidence) => {
+    const destination={reviews:'reviews',content:'content',seo:'seo',google:'google',social:'integrations',website:'website'}[item.category];
+    onNavigate(destination);
   };
-
-  const handleRescan = async () => {
+  const load=async(scan=false)=>{
+    request.current?.abort();const controller=new AbortController();request.current=controller;
+    setItems([]);setError('');if(!companyId){setError('Select a workspace to evaluate audit evidence.');return;}
     setIsScanning(true);
-    try {
-      if (companyId) {
-        const data = await apiRequest<{ success: boolean; auditItems: AuditItem[] }>(
-          `/api/companies/${encodeURIComponent(companyId)}/audit/scan`,
-          {
-            method: 'POST',
-          }
-        );
-        if (data.success && data.auditItems) {
-          onRescanAudit?.(data.auditItems);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to run audit scan on backend:', err);
-    } finally {
-      setIsScanning(false);
-    }
+    try{
+      const response=await apiRequest<unknown>(`/api/companies/${encodeURIComponent(companyId)}/audit${scan?'/scan':''}`,{method:scan?'POST':'GET',signal:controller.signal});
+      if(controller.signal.aborted)return;const parsed=auditSnapshotSchema.safeParse(response);
+      if(!parsed.success||parsed.data.companyId!==companyId)throw new Error('Invalid audit');
+      setItems(parsed.data.auditItems);
+    }catch{if(!controller.signal.aborted)setError('Audit evidence unavailable. Previous findings are hidden; retry after the connection recovers.');}
+    finally{if(!controller.signal.aborted)setIsScanning(false);}
   };
-
-  const safeAuditItems = auditItems || [];
+  const handleRescan=()=>void load(true);
+  useEffect(()=>{void load();return()=>request.current?.abort();},[companyId]);
+  const safeAuditItems=items;
 
   const filteredItems = safeAuditItems.filter((item) => {
     if (filter === 'all') return true;
@@ -138,16 +101,18 @@ export const AuditView: React.FC<AuditViewProps> = ({
   const statusLabel = growthScore.statusLabel || (isUnavailable ? 'UNAVAILABLE' : isIncomplete ? 'INCOMPLETE DATA' : 'CALCULATED');
 
   return (
-    <div className="space-y-6 pb-12">
+    <div role="region" aria-label="Workspace audit evidence" className="space-y-6 pb-12">
+      <p className="text-sm text-slate-500">Coverage: saved workspace evidence, not a live provider audit. Open the relevant module to review changes; navigation does not fix a finding.</p>
+      {error && <p role="alert">{error}</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
             <ShieldCheck className="w-7 h-7 text-indigo-600" />
-            AI Business Growth Audit
+            Business Evidence Audit
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Continuous 360° health scan across Google Maps, Reviews, Local SEO, Content & Leads.
+            Evaluate available saved records for configuration, reviews, local SEO and content.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,7 +131,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs w-fit"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-            <span>{isScanning ? 'Scanning Business...' : 'Run Full AI Audit'}</span>
+            <span>{isScanning ? 'Evaluating saved evidence...' : 'Refresh Evidence Audit'}</span>
           </button>
         </div>
       </div>
@@ -334,7 +299,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
             </div>
 
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-              <span>All scores are computed with 0 hardcoded growth or fabricated metrics.</span>
+              <span>Score telemetry is loaded separately from this evidence evaluation. Check its sources and timestamps.</span>
               <button
                 onClick={() => setShowTelemetryModal(false)}
                 className="bg-slate-900 text-white font-bold px-4 py-2 rounded-xl hover:bg-slate-800 transition"
@@ -398,7 +363,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
                 filter === 'resolved' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Resolved
+              Passed checks
             </button>
           </div>
         </div>
@@ -428,28 +393,23 @@ export const AuditView: React.FC<AuditViewProps> = ({
                   {item.title}
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  {item.description}
-                </p>
+                  {item.evidence}
+                </p><p className="text-xs text-slate-500">{item.recommendation}</p>
               </div>
 
               {/* Action */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 {item.resolved ? (
                   <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                    <Check className="w-3.5 h-3.5" /> Resolved with AI
+                    <Check className="w-3.5 h-3.5" /> Evidence check passed
                   </span>
                 ) : (
                   <button
                     onClick={() => handleFix(item)}
-                    disabled={fixingItemId === item.id}
                     className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shadow-xs disabled:opacity-50"
                   >
-                    {fixingItemId === item.id ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
-                    <span>{fixingItemId === item.id ? 'Fixing...' : item.actionText}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>{item.actionText}</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 )}

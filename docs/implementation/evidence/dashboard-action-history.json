@@ -1,0 +1,26 @@
+{
+  "scope": "local dashboard integration",
+  "checks": {
+    "typescript": "passed",
+    "build": "passed",
+    "regression_programs": 32,
+    "real_mariadb": "passed",
+    "chromium_workspace_suite": "passed"
+  },
+  "browser_cases": [
+    "action history cursor pagination",
+    "refresh503 retains clearly marked prior history",
+    "unavailable and empty client histories differ",
+    "delayed prior-client feed cannot appear in new workspace",
+    "fresh cross-tab login survives old-tab invalidation",
+    "cross-tab token removal still signs other tab out"
+  ],
+  "production_changes": false,
+  "provider_sends": false,
+  "pending": [
+    "daily reconciled reports",
+    "current work inventory",
+    "persistent scheduler catch-up",
+    "notifications"
+  ]
+}

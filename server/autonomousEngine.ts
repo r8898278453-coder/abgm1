@@ -1,10 +1,13 @@
-import fs from 'fs';
-import path from 'path';
+import {changeMetaCampaignStatus} from './metaAdsControl';
+import {dispatchAutonomousReviewReply} from './autonomousReviewReply';
+import {dispatchAutonomousMessage} from './autonomousMessageDispatch';
 import {
+  getDbPool,
   getCompanyById,
   getCompanyIntegrations,
   getCompanyIntegration,
   getCompanyReviews,
+  getReviewById,
   updateReviewReply,
   getAllLeads,
   getLatestKeywordObservations,
@@ -28,41 +31,13 @@ import { getCompanyExternalAdCampaigns } from './adCampaignService';
 import { sendWhatsAppCloudMessage, resolveWhatsAppCredentials } from './metaWhatsAppService';
 import { executePublishingJob } from './publishingEngine';
 
-// Global emergency stop state (Persisted to disk to survive server restarts)
-const EMERGENCY_STOP_FILE = path.join(process.cwd(), 'uploads', '.emergency_stop.json');
-let globalEmergencyStop = false;
-
-try {
-  if (fs.existsSync(EMERGENCY_STOP_FILE)) {
-    const raw = fs.readFileSync(EMERGENCY_STOP_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    globalEmergencyStop = Boolean(parsed?.globalEmergencyStop);
-  }
-} catch {}
+import {isGlobalEmergencyStopActive} from './executionStop';
+export {setGlobalEmergencyStop,isGlobalEmergencyStopActive} from './executionStop';
 
 // Per-company action execution rate limiter (max 10 actions per minute per company)
 const companyActionTimestamps = new Map<string, number[]>();
 
-export function setGlobalEmergencyStop(stopped: boolean): boolean {
-  globalEmergencyStop = stopped;
-  try {
-    const dir = path.dirname(EMERGENCY_STOP_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(EMERGENCY_STOP_FILE, JSON.stringify({ globalEmergencyStop: stopped, updatedAt: new Date().toISOString() }));
-  } catch {}
-  return globalEmergencyStop;
-}
 
-export function isGlobalEmergencyStopActive(): boolean {
-  try {
-    if (fs.existsSync(EMERGENCY_STOP_FILE)) {
-      const raw = fs.readFileSync(EMERGENCY_STOP_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      globalEmergencyStop = Boolean(parsed?.globalEmergencyStop);
-    }
-  } catch {}
-  return globalEmergencyStop;
-}
 
 /**
  * Validates rate limit for a company. Max 10 executions per 60 seconds.
@@ -121,7 +96,7 @@ export async function runAutonomousCycle(
   }
 
   // Check Kill Switch
-  if (globalEmergencyStop || !company.autopilot_enabled) {
+  if (isGlobalEmergencyStopActive() || !company.autopilot_enabled) {
     return {
       companyId,
       lifecycleStage: 'OBSERVE_DETECT_ANALYZE_RECOMMEND',
@@ -327,7 +302,7 @@ export async function runAutonomousCycle(
   }
 
   // --- TRIGGER D: High-Risk Budget / Ad Campaign Optimization ---
-  const activeAdsWithSpend = adCampaigns.filter((ad) => ad.spend !== null && ad.spend > 0);
+  const activeAdsWithSpend = adCampaigns.filter((ad) => ad.provider==='meta_ads' && ad.spend !== null && Number.isFinite(ad.spend) && ad.spend > 0);
   for (const ad of activeAdsWithSpend.slice(0, 1)) {
     // Ad budget and mass marketing changes are strictly classified as HIGH risk
     const risk: 'low' | 'medium' | 'high' = 'high';
@@ -335,12 +310,12 @@ export async function runAutonomousCycle(
 
     const rec = await createAutonomousRecommendation({
       company_id: companyId,
-      observation: `Verified Meta Ad campaign "${ad.name}" recorded spend ₹${ad.spend} with ${ad.clicks || 0} clicks and ${ad.conversions || 0} conversions.`,
+      observation: `Meta Ad campaign "${ad.name}" recorded provider spend ${ad.spend} with ${ad.clicks ?? 'unavailable'} clicks and ${ad.conversions ?? 'unavailable'} conversions.`,
       evidence_ids: [ad.id],
       source: 'meta_ads',
       timestamp: ad.fetched_at || nowStr,
-      recommended_action: `Optimize ad audience targeting and allocate 15% budget reallocation for "${ad.name}".`,
-      action_type: 'adjust_campaign',
+      recommended_action: `Review spend and tracking for "${ad.name}". Budget/audience optimization is a recommendation only and has no execution adapter.`,
+      action_type: 'campaign_review',
       action_payload: {
         adCampaignId: ad.id,
         externalCampaignId: ad.external_campaign_id,
@@ -355,23 +330,8 @@ export async function runAutonomousCycle(
 
     generatedRecommendations.push(rec);
 
-    const action = await createAutonomousAction({
-      company_id: companyId,
-      recommendation_id: rec.id,
-      action_type: 'adjust_campaign',
-      payload: rec.action_payload,
-      source_evidence: {
-        evidence_ids: [ad.id],
-        source: 'meta_ads',
-        observation: rec.observation,
-        timestamp: rec.timestamp,
-      },
-      approval_status: 'pending_approval',
-      execution_state: 'idle',
-      verification_state: 'unverified',
-    });
+    // Review-only recommendation: no executable budget/audience command is created.
 
-    createdActions.push(action);
   }
 
   // Record audit log for the cycle
@@ -479,7 +439,7 @@ export async function executeAutonomousAction(
   }
 
   // Gate 3: Kill Switch & Emergency Stop
-  if (globalEmergencyStop || !company.autopilot_enabled) {
+  if (isGlobalEmergencyStopActive() || !company.autopilot_enabled) {
     await updateAutonomousAction(actionId, {
       execution_state: 'blocked',
       error: 'Blocked by active kill switch.',
@@ -556,46 +516,16 @@ export async function executeAutonomousAction(
   // Gate 7: Provider Availability & Real Outbound Execution
   try {
     if (action.action_type === 'review_reply') {
-      const { reviewId, replyText, externalReviewId } = action.payload || {};
+      const { reviewId, replyText } = action.payload || {};
       if (!reviewId || !replyText) {
         throw new Error('Invalid review reply payload: reviewId and replyText are required');
       }
 
-      let replyStatus: 'LOCAL_ONLY' | 'GOOGLE_PUBLISHED' | 'GOOGLE_VERIFIED' | 'FAILED' = 'LOCAL_ONLY';
-      let liveGoogleSync = false;
-      let googleError: string | null = null;
-
-      // Check if Google Business Profile OAuth API is configured for this tenant
-      const gmbIntegration = await getCompanyIntegration(action.company_id, 'google_gmb_oauth');
-      const oauthToken = gmbIntegration?.credentials?.oauthToken;
-      const accountId = gmbIntegration?.credentials?.accountId;
-      const locationId = gmbIntegration?.credentials?.locationId;
-
-      if (oauthToken && accountId && locationId && externalReviewId) {
-        try {
-          const gmbUrl = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(accountId)}/${encodeURIComponent(locationId)}/reviews/${encodeURIComponent(externalReviewId)}/reply`;
-          const gmbRes = await fetch(gmbUrl, {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${oauthToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ comment: replyText }),
-            signal: AbortSignal.timeout(6000),
-          });
-          if (gmbRes.ok) {
-            replyStatus = 'GOOGLE_PUBLISHED';
-            liveGoogleSync = true;
-          } else {
-            const errData = await gmbRes.json().catch(() => ({}));
-            googleError = errData?.error?.message || `Google API returned HTTP ${gmbRes.status}`;
-            replyStatus = 'LOCAL_ONLY';
-          }
-        } catch (apiErr: any) {
-          googleError = apiErr?.message || 'Google API network timeout';
-          replyStatus = 'LOCAL_ONLY';
-        }
-      }
+      const review=await getReviewById(reviewId);
+      if(!review||review.company_id!==action.company_id)throw new Error('Review workspace mismatch');
+      const gmbIntegration=await getCompanyIntegration(action.company_id,'google_gmb_oauth');
+      const outcome=await dispatchAutonomousReviewReply(action.company_id,review,replyText,gmbIntegration);
+      const replyStatus=outcome.replyStatus;
 
       const updated = await updateReviewReply(reviewId, replyText, action.company_id, replyStatus);
       if (!updated) {
@@ -603,22 +533,11 @@ export async function executeAutonomousAction(
       }
 
       // Record success with genuine provider sync information
-      const providerResp = {
-        provider: liveGoogleSync ? 'google_business_profile_oauth' : 'local_crm_database',
-        reviewId,
-        repliedAt: nowIso,
-        verified: true,
-        replyStatus,
-        liveGoogleSync,
-        googleError,
-        note: liveGoogleSync
-          ? 'Review reply published directly to Google Business Profile via OAuth2 API.'
-          : 'Review reply committed to CRM database as LOCAL_ONLY (GBP OAuth not configured or unverified).',
-      };
+      const providerResp = {provider:outcome.publication==='LOCAL_ONLY'?'local_crm_database':'google_business_profile_oauth',reviewId,repliedAt:nowIso,localSaved:true,verified:outcome.verified,replyStatus,publication:outcome.publication};
 
       await updateAutonomousAction(actionId, {
         execution_state: 'executed',
-        verification_state: 'verified',
+        verification_state: outcome.verified?'verified':'unverified',
         provider_response: providerResp,
         executed_at: nowIso,
         error: null,
@@ -633,7 +552,7 @@ export async function executeAutonomousAction(
         company_id: action.company_id,
         action_id: actionId,
         actor: context.actor || context.userId,
-        event_type: 'ACTION_EXECUTED_VERIFIED',
+        event_type: outcome.verified?'ACTION_EXECUTED_VERIFIED':'ACTION_REVIEW_REPLY_SAVED',
         details: {
           actionType: action.action_type,
           providerResponse: providerResp,
@@ -645,12 +564,12 @@ export async function executeAutonomousAction(
         companyId: action.company_id,
         lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
         status: 'EXECUTED',
-        verificationState: 'verified',
-        code: 'EXECUTION_SUCCESS',
-        message: 'Owner review reply successfully posted and verified in database.',
+        verificationState: outcome.verified?'verified':'unverified',
+        code: outcome.verified?'REVIEW_REPLY_VERIFIED':outcome.publication==='LOCAL_ONLY'?'REVIEW_REPLY_SAVED_LOCALLY':`REVIEW_REPLY_${outcome.publication}`,
+        message: `Review reply saved in this workspace. Google publication: ${outcome.publication}.`,
         providerResponse: providerResp,
-        affectedMetric: 'Reputation & Review Response Rate',
-        measuredDelta: '+1 Verified Review Reply',
+        affectedMetric: outcome.verified?'Verified Google replies':'Saved review replies',
+        measuredDelta: outcome.verified?'+1 provider-read-back verified reply':'Local save recorded; no public response-rate claim',
       };
     } else if (action.action_type === 'send_whatsapp') {
       const { recipientPhone, message } = action.payload || {};
@@ -674,26 +593,29 @@ export async function executeAutonomousAction(
         };
       }
 
-      const waRes = await sendWhatsAppCloudMessage(creds, {
-        to: recipientPhone,
-        message,
-        companyId: action.company_id,
-      });
+      const messagePool=await getDbPool();if(!messagePool)throw new Error('Durable message dispatch storage unavailable');
+      const waRes = await dispatchAutonomousMessage(messagePool,action.company_id,actionId,creds.phoneNumberId,recipientPhone,message,(phone,text)=>sendWhatsAppCloudMessage(creds,{to:phone,message:text,companyId:action.company_id}),context.userId||context.actor||'system');
 
       if (!waRes.success || !waRes.messageId) {
-        throw new Error(waRes.error || 'Meta WhatsApp Cloud API rejected message dispatch');
+        const state=waRes.status||'UNKNOWN';
+        const response={provider:'meta_whatsapp_cloud_api',requestKey:waRes.requestKey,dispatchStatus:state,verified:false,delivery:'UNOBSERVED'};
+        await updateAutonomousAction(actionId,{execution_state:'blocked',verification_state:'unverified',provider_response:response,error:waRes.error||'Message dispatch unconfirmed'});
+        await recordAutonomousAuditLog({company_id:action.company_id,action_id:actionId,actor:context.actor||context.userId,event_type:'ACTION_MESSAGE_UNCONFIRMED',details:{dispatchStatus:state,requestKey:waRes.requestKey}});
+        return {actionId,companyId:action.company_id,lifecycleStage:'APPROVE_EXECUTE_VERIFY_MEASURE',status:'BLOCKED',verificationState:'unverified',code:`MESSAGE_${state}`,message:waRes.error||'Message dispatch unconfirmed; inspect stored request before retrying.',providerResponse:response};
       }
 
       const providerResp = {
         provider: 'meta_whatsapp_cloud_api',
         messageId: waRes.messageId,
-        recipient: recipientPhone,
-        verified: true,
+        requestKey: waRes.requestKey,
+        dispatchStatus: 'API_ACCEPTED',
+        verified: false,
+        delivery: 'UNOBSERVED',
       };
 
       await updateAutonomousAction(actionId, {
         execution_state: 'executed',
-        verification_state: 'verified',
+        verification_state: 'unverified',
         provider_response: providerResp,
         executed_at: nowIso,
         error: null,
@@ -708,7 +630,7 @@ export async function executeAutonomousAction(
         company_id: action.company_id,
         action_id: actionId,
         actor: context.actor || context.userId,
-        event_type: 'ACTION_EXECUTED_VERIFIED',
+        event_type: 'ACTION_API_ACCEPTED',
         details: {
           actionType: action.action_type,
           providerResponse: providerResp,
@@ -720,12 +642,12 @@ export async function executeAutonomousAction(
         companyId: action.company_id,
         lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
         status: 'EXECUTED',
-        verificationState: 'verified',
-        code: 'EXECUTION_SUCCESS',
-        message: `WhatsApp message dispatched and verified by Meta Cloud API (ID: ${waRes.messageId}).`,
+        verificationState: 'unverified',
+        code: 'MESSAGE_API_ACCEPTED',
+        message: `WhatsApp request accepted by Meta Cloud API (ID: ${waRes.messageId}); delivery is unobserved.`,
         providerResponse: providerResp,
-        affectedMetric: 'Lead Conversion Speed',
-        measuredDelta: 'Follow-up dispatched in < 2 hrs',
+        affectedMetric: 'WhatsApp API acceptance',
+        measuredDelta: '+1 API-accepted message; no conversion or delivery claim',
       };
     } else if (action.action_type === 'publish_post') {
       const payload = action.payload || {};
@@ -745,7 +667,7 @@ export async function executeAutonomousAction(
       }
 
       // Execute canonical publishing job
-      const pubResult = await executePublishingJob(targetPost);
+      const pubResult = await executePublishingJob(targetPost,{executionMode:'automatic'});
 
       if (pubResult.overallStatus === 'PUBLISHED') {
         const providerResp = {
@@ -824,83 +746,14 @@ export async function executeAutonomousAction(
         };
       }
     } else if (action.action_type === 'adjust_campaign') {
-      const payload = action.payload || {};
-      const metaAdsInteg = await getCompanyIntegration(action.company_id, 'meta_ads').catch(() => null);
-      const adAccountId = metaAdsInteg?.credentials?.adAccountId || metaAdsInteg?.credentials?.ad_account_id || process.env.META_AD_ACCOUNT_ID;
-      const accessToken = metaAdsInteg?.credentials?.accessToken || metaAdsInteg?.credentials?.access_token || process.env.META_ADS_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
-
-      if (!adAccountId || !accessToken) {
-        await updateAutonomousAction(actionId, {
-          execution_state: 'blocked',
-          verification_state: 'unavailable',
-          error: 'Meta Ads API credentials (adAccountId and accessToken) are not configured.',
-        });
-        return {
-          actionId,
-          companyId: action.company_id,
-          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
-          status: 'BLOCKED',
-          verificationState: 'unavailable',
-          code: 'BLOCKED_PROVIDER_NOT_CONFIGURED',
-          message: 'Meta Marketing API credentials are not configured in Integrations.',
-        };
-      }
-
-      const sanitizedAccountId = String(adAccountId).startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      const targetId = payload.externalCampaignId || sanitizedAccountId;
-
-      const metaRes = await fetch(`https://graph.facebook.com/v21.0/${targetId}?access_token=${encodeURIComponent(accessToken)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: payload.status || 'ACTIVE',
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      const metaData = await metaRes.json();
-      if (metaRes.ok && (metaData.success || metaData.id)) {
-        const providerResp = {
-          provider: 'meta_marketing_api',
-          targetId,
-          adjustmentType: payload.adjustmentType || 'budget_reallocation',
-          rawResponse: metaData,
-          verified: true,
-        };
-
-        await updateAutonomousAction(actionId, {
-          execution_state: 'executed',
-          verification_state: 'verified',
-          provider_response: providerResp,
-          executed_at: nowIso,
-          error: null,
-        });
-
-        if (action.recommendation_id) {
-          await updateAutonomousRecommendationStatus(action.recommendation_id, 'executed');
-        }
-
-        await recordAutonomousAuditLog({
-          company_id: action.company_id,
-          action_id: actionId,
-          actor: context.actor || context.userId,
-          event_type: 'ACTION_EXECUTED_VERIFIED',
-          details: { actionType: action.action_type, providerResponse: providerResp },
-        });
-
-        return {
-          actionId,
-          companyId: action.company_id,
-          lifecycleStage: 'APPROVE_EXECUTE_VERIFY_MEASURE',
-          status: 'EXECUTED',
-          verificationState: 'verified',
-          code: 'EXECUTION_SUCCESS',
-          message: `Campaign optimization applied via Meta Marketing API (Target: ${targetId}).`,
-          providerResponse: providerResp,
-          affectedMetric: 'Meta ROAS & Cost Per Acquisition',
-        };
-      } else {
-        throw new Error(metaData.error?.message || `Meta Marketing API error (status ${metaRes.status})`);
-      }
+      const integration=await getCompanyIntegration(action.company_id,'meta_ads');
+      const outcome=await changeMetaCampaignStatus(action.company_id,action.payload,integration);
+      const accepted=['VERIFIED','API_ACCEPTED'].includes(outcome.status);
+      const providerResp={provider:'meta_marketing_api',...outcome};
+      await updateAutonomousAction(actionId,{execution_state:accepted?'executed':'blocked',verification_state:outcome.verified?'verified':'unverified',provider_response:providerResp,...(accepted?{executed_at:nowIso}:{}),error:accepted?null:outcome.code});
+      if(accepted&&action.recommendation_id)await updateAutonomousRecommendationStatus(action.recommendation_id,'executed');
+      await recordAutonomousAuditLog({company_id:action.company_id,action_id:actionId,actor:context.actor||context.userId,event_type:outcome.verified?'CAMPAIGN_STATUS_VERIFIED':'CAMPAIGN_STATUS_OBSERVED',details:{providerResponse:providerResp}});
+      return {actionId,companyId:action.company_id,lifecycleStage:'APPROVE_EXECUTE_VERIFY_MEASURE',status:accepted?'EXECUTED':'BLOCKED',verificationState:outcome.verified?'verified':'unverified',code:outcome.code,message:`Campaign status control: ${outcome.status}. No budget, targeting or ROAS improvement is implied.`,providerResponse:providerResp,affectedMetric:'Configured campaign status'};
     } else {
       // Unknown or unsupported action type -> Strictly BLOCKED with no fake execution
       await updateAutonomousAction(actionId, {

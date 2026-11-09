@@ -1,3 +1,4 @@
+import {PLATFORM_TIME_ZONE} from '../../shared/platformTime';
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -40,7 +41,7 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
     {
       id: '1',
       sender: 'ai',
-      text: `Namaste! I am your LocalPulse 24/7 AI Marketing Copilot for ${business.name}. I continuously monitor your Google Maps rank (#2), competitor movements, incoming reviews, and active leads. How can I help you grow today?`,
+      text: `Namaste! I am your LocalPulse 24/7 AI Marketing Copilot for ${business.name}. Ask for marketing suggestions using the business context you provide. This conversation does not verify live rankings or execute campaigns.`,
       time: 'Just now',
     },
   ]);
@@ -52,7 +53,7 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
   const quickPrompts = [
     { label: '🚀 Grow my business', prompt: 'Analyze my business metrics and create a high-impact 7-day growth plan to gain more clients.' },
     { label: '⚡ 3 things to do today', prompt: 'What are the top 3 highest priority marketing and review actions I must complete today?' },
-    { label: '🔍 Competitor Audit', prompt: 'Compare Aaditech Solution against local competitors in Sector 17 and find my ranking gaps.' },
+    { label: '🔍 Competitor Audit', prompt: `Help plan a competitor audit for ${business.name || 'this business'} in ${business.city || 'its service area'}. Identify data needed before making ranking claims.` },
     { label: '💬 WhatsApp follow-up script', prompt: 'Write an irresistible WhatsApp follow-up message with an exclusive offer for my new leads.' },
   ];
 
@@ -64,7 +65,7 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
       id: Date.now().toString(),
       sender: 'user',
       text: prompt,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -73,7 +74,7 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
 
     try {
       const reply = await askAiChat({
-        message: prompt,
+        message: prompt,companyId:business.id,
         businessName: business.name,
         category: business.category,
       });
@@ -82,15 +83,15 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
         id: (Date.now() + 1).toString(),
         sender: 'ai',
         text: reply,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       const fallbackMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: `Analysis for ${business.name}: Your profile health is at 94%. Prioritize responding to pending customer reviews and activating your weekend promo post to defend your #2 local rank.`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: 'Assistant unavailable. No analysis or publishing action was completed. Please retry later.',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -111,10 +112,10 @@ export const AskAiModal: React.FC<AskAiModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black text-slate-900">LocalPulse AI Marketing Agent</h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase">
-                  Online 24/7
+                  Assistant preview
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Master Growth Brain & Copilot (Section 24 & 66)</p>
+              <p className="text-xs text-slate-500">Marketing discussion and planning</p>
             </div>
           </div>
 

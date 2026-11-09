@@ -1,0 +1,38 @@
+import {normalizeContentPost} from '../server/contentPostWriter';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { scheduledTimeMs, isScheduledTimePassed } from '../server/scheduleTime';
+import { formatPlatformDateTime, PLATFORM_TIME_ZONE } from '../shared/platformTime';
+const originalNow=Date.now;
+try{
+ Date.now=()=>Date.parse('2026-11-02T20:00:00Z');
+ const defaults=normalizeContentPost({company_id:'fixture',caption:'draft',status:'draft'});
+ assert.equal(defaults.scheduled_date,'2026-11-03');assert.equal(defaults.scheduled_time,'10:00:00');
+ assert.equal(scheduledTimeMs(defaults.scheduled_date,defaults.scheduled_time,defaults.time_slot),Date.parse('2026-11-03T04:30:00Z'));
+ const selected=normalizeContentPost({company_id:'fixture',caption:'draft',status:'draft',time_slot:'2:30 PM'});
+ assert.equal(scheduledTimeMs(selected.scheduled_date,selected.scheduled_time,selected.time_slot),Date.parse('2026-11-03T09:00:00Z'));
+ const clockOnly=normalizeContentPost({company_id:'fixture',caption:'draft',status:'draft',scheduled_time:'14:30'});assert.equal(clockOnly.time_slot,'14:30');
+}finally{Date.now=originalNow;}
+const cutoff = Date.parse('2026-11-03T02:30:00Z');
+assert.equal(PLATFORM_TIME_ZONE, 'Asia/Kolkata');
+for (const clock of ['08:00', '8:00 AM', '08:00:00']) assert.equal(scheduledTimeMs('2026-11-03', clock), cutoff);
+assert.equal(scheduledTimeMs('2026-11-03T08:00:00'), cutoff);
+assert.equal(scheduledTimeMs('2026-11-03','2026-11-03 08:00:00'),cutoff);
+assert.equal(scheduledTimeMs('2026-11-03','2026-11-03T02:30:00Z'),cutoff);
+assert.equal(scheduledTimeMs('2026-11-03','2026-11-04 08:00:00'),null);
+assert.equal(scheduledTimeMs('2026-11-03 08:00:00'), cutoff);
+assert.equal(scheduledTimeMs('2026-11-03T08:00:00+05:30'), cutoff);
+assert.equal(scheduledTimeMs('2026-11-03T02:30:00Z'), cutoff);
+assert.equal(scheduledTimeMs('2026-11-03T08:00:00+01:00'), Date.parse('2026-11-03T07:00:00Z'));
+assert.equal(scheduledTimeMs('2026-11-03','12:00 AM'), Date.parse('2026-11-02T18:30:00Z'));
+assert.equal(scheduledTimeMs('2026-11-03','12:00 PM'), Date.parse('2026-11-03T06:30:00Z'));
+assert.equal(scheduledTimeMs('2026-11-03',null,'5:30 PM'), Date.parse('2026-11-03T12:00:00Z'));
+assert.equal(isScheduledTimePassed('2026-11-03','08:00',null,cutoff-1), false);
+assert.equal(isScheduledTimePassed('2026-11-03','08:00',null,cutoff), true);
+assert.equal(scheduledTimeMs('2026-11-03'), Date.parse('2026-11-03T18:30:00Z'));
+for (const [date,clock] of [['2026-02-30','08:00'],['2026-13-01','08:00'],['2026-11-03','25:00'],['2026-11-03','0:30 AM'],['2026-11-03','13:00 PM'],['2026-11-03','08:60'],['2026-11-03','morning'],['2026-11-03T08:00:99Z',''],['2026-11-03T08:00:00+05:90',''],['tomorrow','08:00']]) assert.equal(scheduledTimeMs(date,clock), null);
+const script = `import { scheduledTimeMs } from './server/scheduleTime.ts'; import { formatPlatformDateTime } from './shared/platformTime.ts'; console.log(JSON.stringify([scheduledTimeMs('2026-11-03','08:00'), formatPlatformDateTime('2026-11-03T02:30:00Z')]));`;
+const outputs = ['UTC','America/Los_Angeles','Asia/Kolkata'].map(TZ => execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',script],{ env: {...process.env,TZ}, encoding:'utf8' }).trim());
+assert.equal(new Set(outputs).size,1);
+assert.ok(formatPlatformDateTime(cutoff).endsWith(' IST'));
+console.log('IST scheduling: strict dates/clocks, AM/PM, explicit offsets, due boundaries, date-only policy and three host timezones passed.');

@@ -1,0 +1,25 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P01-05",
+    "P01-09"
+  ],
+  "status": "in_progress",
+  "scope": "Review CRUD reliability batch: confirm create/delete before updating visible records; keep form/record after failure, mounted-workspace completion fence; parent mirrors acknowledged CRUD without duplicate requests. Create schema preserves companyId/company_id, rejects conflicting aliases and retains operational issue; manual source matches schema. Delete authenticates canonical tenant, validates requested scope/query, honors affected-row result and redacts storage errors. SQL reply/delete no longer report success on missing/foreign rows. Evidence: review-crud-reliability.json.",
+  "validation": {
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "default_programs": 57,
+    "default_suite": "57 programs passed including selected-workspace alias preservation and delete HTTP scope",
+    "sql": "Disposable MariaDB through023 passed; matched/foreign/missing/repeated-delete affected row checks",
+    "browser": "Full isolated Chromium rerun passed, including failed create retains input/no temporary record, retry exactly one write, failed delete retains record, retry exactly one delete. Initial run interrupted by Vite navigation during existing publishing-review scenario.",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "late completion suppression does not cancel committed server work",
+    "lost-acknowledgement create may need reconciliation; no create idempotency introduced",
+    "workspace records only, no provider review write/delete",
+    "full phase gate and hosting acceptance pending"
+  ],
+  "production_changes": false
+}

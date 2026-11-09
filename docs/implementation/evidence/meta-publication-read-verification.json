@@ -1,0 +1,22 @@
+{
+  "date_ist": "2026-11-03",
+  "scope": "read-only Meta publication evidence, not claim reconciliation",
+  "migration": "015_publishing_verification_audit",
+  "canonical_tables": 40,
+  "validation": {
+    "default_programs": 46,
+    "typescript": "passed",
+    "build": "passed; existing large chunk warning",
+    "sql": "disposable MariaDB10.11: migrations, scoped metadata, stale source/connection, rollback, no resend release",
+    "browser": "mocked Meta check plus existing workspace isolation",
+    "provider": "mocked GET-only contracts; no live Meta acceptance"
+  },
+  "limits": [
+    "media identity not compared",
+    "exact dispatch attribution not verified",
+    "claim remains blocked",
+    "no provider quota controls added",
+    "live Meta fields and permissions untested"
+  ],
+  "production_changes": false
+}

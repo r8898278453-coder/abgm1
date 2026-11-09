@@ -1,0 +1,25 @@
+{
+  "policy": "fixed Asia/Kolkata for every client",
+  "default_regression_programs": 39,
+  "typescript": "passed",
+  "build": "passed",
+  "chromium_timezone": "America/Los_Angeles",
+  "browser": "passed",
+  "host_timezones_tested": [
+    "UTC",
+    "America/Los_Angeles",
+    "Asia/Kolkata"
+  ],
+  "schedule_cases": [
+    "naive schedules interpreted as IST",
+    "explicit offsets preserved",
+    "12/24h clocks",
+    "invalid dates and times rejected",
+    "exact due boundary",
+    "date-only waits until IST day ends"
+  ],
+  "schema_changes": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "scope_limit": "legacy fixed calendar and other unrefactored provider screens remain planned work"
+}

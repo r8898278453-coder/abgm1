@@ -1,3 +1,28 @@
+import {migrationIdentity,validateMigrationRegistry,inspectMigrationLedger,MigrationLedgerError} from './migrationIdentity';
+import {createPublicLeadIntakes} from './migrations/029_public_lead_intakes';
+import {repairLegacyExport} from './migrations/028_legacy_export_compatibility';
+import {createDispatcherJournal} from './migrations/027_dispatcher_journal';
+import {addCompanyProfileRevision} from './migrations/026_company_profile_revision';
+import {createMessageDeliveryReceipts} from './migrations/025_message_delivery_receipts';
+import {createMessageDispatchIntents} from './migrations/024_message_dispatch_intents';
+import {createPublicationAdmissionLimits} from './migrations/023_publication_admission_limits';
+import {createPublicationScopedControls} from './migrations/022_publication_scoped_controls';
+import {addDailyWorkReportIndexes} from './migrations/021_daily_work_report_indexes';
+import {addQueuePauseDeferrals} from './migrations/020_queue_pause_deferrals';
+import {addPublicationPolicyBinding} from './migrations/019_publication_policy_binding';
+import {addPublicationScheduleHistory} from './migrations/018_publication_schedule_history';
+import {createPublicationWorkflowAudit} from './migrations/017_publication_workflow_audit';
+import {createPublicationDraftIntents} from './migrations/016_publication_draft_intents';
+import { createPublishingVerificationAudit } from './migrations/015_publishing_verification_audit';
+import { createPublishingReviewAudit } from './migrations/014_publishing_review_audit';
+import { createPublishingDispatchClaims } from './migrations/013_publishing_dispatch_claims';
+import { createScheduledPostDispatchCursors } from './migrations/012_scheduled_post_dispatch_cursors';
+import { createNotificationDispatchCursors } from './migrations/011_notification_dispatch_cursors';
+import { createNotificationOccurrences } from './migrations/010_notification_occurrences';
+import { createInternalActionFeed } from './migrations/009_internal_action_feed';
+import { createQueueActionLedger } from './migrations/008_queue_action_ledger';
+import { alignSchemaIndexes } from './migrations/007_schema_index_alignment';
+import { hasEquivalentIndex, INDEX_REQUIREMENTS, UNIQUE_REQUIREMENTS } from './schemaIndexes';
 import mysql from 'mysql2/promise';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -16,7 +41,6 @@ export interface MigrationRecord {
 export interface MigrationDefinition {
   name: string;
   up: (conn: mysql.Connection | mysql.Pool) => Promise<void>;
-  checksum?: string;
 }
 
 export interface VerificationResult {
@@ -38,12 +62,15 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'public_lead_intakes',
   'schema_migrations',
   'schema_migrations_lock',
   'users',
   'password_reset_tokens',
   'companies',
   'company_profiles_data',
+  'dispatcher_state',
+  'dispatcher_ticks',
   'leads',
   'reviews',
   'content_posts',
@@ -67,16 +94,42 @@ export const CANONICAL_REQUIRED_TABLES = [
   'autonomous_audit_logs',
   'system_settings',
   'job_queue',
+  'job_action_runs',
+  'job_action_events',
+  'job_action_outbox',
+  'job_action_feed_cursors',
+  'job_action_receipts',
+  'notification_occurrences',
+  'notification_dispatch_cursors',
+  'scheduled_post_dispatch_cursors',
+  'publishing_dispatch_claims',
+  'publishing_review_audit',
+  'publishing_verification_audit',
+  'publication_draft_intents',
+  'publication_workflow_audit',
+  'publication_execution_controls',
+  'publication_control_audit',
+  'publication_admission_reservations',
+  'message_dispatch_intents',
+  'message_delivery_receipts',
 ];
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  public_lead_intakes:['PRIMARY','uq_public_intake_lead','idx_public_intake_created','idx_public_intake_notification'],
+  dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY','idx_dispatcher_status'],
+  company_profiles_data:['PRIMARY'],
+  message_delivery_receipts:['PRIMARY','idx_receipt_message','idx_receipt_day'],
+  message_dispatch_intents:['PRIMARY','idx_message_intent_created','idx_message_intent_state'],
+  publication_admission_reservations:['PRIMARY','idx_admission_post'],
+  publication_execution_controls:['PRIMARY'],
+  publication_control_audit:['PRIMARY','uq_publication_control_revision'],
   users: ['PRIMARY', 'idx_user_email', 'idx_user_role'],
   password_reset_tokens: ['PRIMARY', 'idx_prt_token_hash', 'idx_prt_user_id'],
   companies: ['PRIMARY', 'idx_company_user', 'idx_company_city'],
   leads: ['PRIMARY', 'idx_leads_company', 'idx_leads_stage'],
   reviews: ['PRIMARY', 'idx_rev_company', 'idx_rev_rating', 'idx_rev_source'],
-  content_posts: ['PRIMARY', 'idx_cp_company', 'idx_cp_status'],
+  content_posts: ['idx_post_company_status','PRIMARY', 'idx_cp_company', 'idx_cp_status'],
   autonomous_actions: ['PRIMARY', 'idx_aa_company', 'idx_aa_approval', 'idx_aa_execution'],
   company_integrations: ['PRIMARY', 'idx_company_provider', 'idx_comp_integ'],
   google_profile_cache: ['PRIMARY', 'idx_gpc_comp'],
@@ -95,21 +148,56 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
   schema_migrations: ['PRIMARY', 'migration_name'],
   schema_migrations_lock: ['PRIMARY'],
   system_settings: ['PRIMARY'],
-  job_queue: ['PRIMARY', 'idx_jq_status_sched', 'idx_jq_company'],
+  job_queue: ['idx_job_company_status','PRIMARY', 'idx_jq_status_sched', 'idx_jq_company'],
+  job_action_feed_cursors: ['PRIMARY'],
+  job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision'],
+  notification_occurrences: ['PRIMARY'],
+  notification_dispatch_cursors: ['PRIMARY'],
+  scheduled_post_dispatch_cursors: ['PRIMARY'],
+  publishing_dispatch_claims: ['idx_claim_company_status','PRIMARY'],
+  publishing_review_audit: ['PRIMARY','uq_pub_review_sequence','idx_pub_review_scope'],
+  publication_workflow_audit: ['idx_workflow_day','PRIMARY','idx_workflow_scope','uq_workflow_sequence','idx_workflow_sequence'],
+  publication_draft_intents: ['PRIMARY','uq_publication_intent_post'],
+  publishing_verification_audit: ['PRIMARY','uq_pub_check_sequence','idx_pub_check_scope'],
+  job_action_runs: ['PRIMARY', 'idx_action_runs_company'],
+  job_action_events: ['PRIMARY', 'idx_action_events_company', 'idx_action_events_job', 'uq_action_event_sequence'],
+  job_action_outbox: ['PRIMARY', 'uq_outbox_event', 'idx_outbox_pending'],
 };
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  public_lead_intakes:['PRIMARY','uq_public_intake_lead','fk_public_intake_company'],
+  dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY'],
+  company_profiles_data:['PRIMARY'],
+  message_delivery_receipts:['PRIMARY','fk_receipt_company'],
+  message_dispatch_intents:['PRIMARY','fk_message_intent_company'],
+  publication_admission_reservations:['PRIMARY','fk_admission_post'],
+  publication_execution_controls:['PRIMARY','fk_publication_controls_company'],
+  publication_control_audit:['PRIMARY','uq_publication_control_revision','fk_publication_control_audit'],
   users: ['PRIMARY', 'email'],
   companies: ['PRIMARY', 'public_form_token'],
   company_integrations: ['PRIMARY', 'idx_company_provider'],
   external_ad_campaigns: ['PRIMARY', 'idx_ext_camp_prov_id'],
   custom_domains: ['PRIMARY', 'domain'],
+  website_configs:['PRIMARY','company_id'],
   subscriptions: ['PRIMARY', 'idx_company_sub'],
   schema_migrations: ['PRIMARY', 'migration_name'],
   schema_migrations_lock: ['PRIMARY'],
   system_settings: ['PRIMARY'],
-  job_queue: ['PRIMARY'],
+  job_queue: ['PRIMARY', 'uq_jq_company_idempotency'],
+  job_action_feed_cursors: ['PRIMARY'],
+  job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision', 'fk_action_receipt_event'],
+  notification_occurrences: ['PRIMARY'],
+  notification_dispatch_cursors: ['PRIMARY'],
+  scheduled_post_dispatch_cursors: ['PRIMARY'],
+  publishing_dispatch_claims: ['PRIMARY'],
+  publishing_review_audit: ['PRIMARY','uq_pub_review_sequence','fk_pub_review_claim'],
+  publication_workflow_audit: ['PRIMARY','uq_workflow_sequence','fk_workflow_post'],
+  publication_draft_intents: ['PRIMARY','uq_publication_intent_post','fk_publication_intent_post'],
+  publishing_verification_audit: ['PRIMARY','uq_pub_check_sequence','fk_pub_check_claim'],
+  job_action_runs: ['PRIMARY', 'fk_action_run_job'],
+  job_action_events: ['PRIMARY', 'fk_action_event_run'],
+  job_action_outbox: ['PRIMARY', 'uq_outbox_event', 'fk_action_outbox_event'],
 };
 
 // Definition of Canonical Versioned Migrations
@@ -670,12 +758,38 @@ export const MIGRATIONS: MigrationDefinition[] = [
       `);
     },
   },
+  { name: '007_schema_index_alignment', up: alignSchemaIndexes },
+  { name: '008_queue_action_ledger', up: createQueueActionLedger },
+  { name: '009_internal_action_feed', up: createInternalActionFeed },
+  { name: '010_notification_occurrences', up: createNotificationOccurrences },
+  { name: '011_notification_dispatch_cursors', up: createNotificationDispatchCursors },
+  { name: '012_scheduled_post_dispatch_cursors', up: createScheduledPostDispatchCursors },
+  { name: '013_publishing_dispatch_claims', up: createPublishingDispatchClaims },
+  { name: '014_publishing_review_audit', up: createPublishingReviewAudit },
+  { name: '015_publishing_verification_audit', up: createPublishingVerificationAudit },
+  { name: '016_publication_draft_intents', up: createPublicationDraftIntents },
+  { name: '017_publication_workflow_audit', up: createPublicationWorkflowAudit },
+  { name: '018_publication_schedule_history', up: addPublicationScheduleHistory },
+  { name: '019_publication_policy_binding', up: addPublicationPolicyBinding },
+  { name: '020_queue_pause_deferrals', up: addQueuePauseDeferrals },
+  { name: '021_daily_work_report_indexes', up: addDailyWorkReportIndexes },
+  { name: '022_publication_scoped_controls', up: createPublicationScopedControls },
+  { name: '023_publication_admission_limits', up: createPublicationAdmissionLimits },
+  { name:'024_message_dispatch_intents',up:createMessageDispatchIntents },
+  {name:'025_message_delivery_receipts',up:createMessageDeliveryReceipts},
+  {name:'026_company_profile_revision',up:addCompanyProfileRevision},
+  {name:'027_dispatcher_journal',up:createDispatcherJournal},
+  {name:'028_legacy_export_compatibility',up:repairLegacyExport},
+  {name:'029_public_lead_intakes',up:createPublicLeadIntakes},
 ];
 
-// Helper to calculate migration checksum
-function computeMigrationChecksum(m: MigrationDefinition): string {
-  return crypto.createHash('sha256').update(m.name + m.up.toString()).digest('hex');
+// Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
+for(const migration of MIGRATIONS){Object.freeze(migration.up);Object.freeze(migration);}Object.freeze(MIGRATIONS);
+declare const __MIGRATION_SOURCE_CHECKSUMS__: Readonly<Record<string, string>>;
+export function computeMigrationChecksum(m: MigrationDefinition): string {
+ return migrationIdentity(m,MIGRATIONS,typeof __MIGRATION_SOURCE_CHECKSUMS__==='undefined'?undefined:__MIGRATION_SOURCE_CHECKSUMS__);
 }
+export function validateRegisteredMigrations(registry:readonly MigrationDefinition[]=MIGRATIONS){validateMigrationRegistry(registry,m=>computeMigrationChecksum(m as MigrationDefinition));}
 
 /**
  * Ensures the migration tracking and lock tables exist.
@@ -762,11 +876,12 @@ export async function releaseMigrationLock(db: mysql.Connection | mysql.Pool): P
 /**
  * Run pending migrations sequentially in deterministic order
  */
-export async function runMigrations(dbPool: mysql.Pool): Promise<{
+export async function runMigrations(dbPool: mysql.Pool,registry:readonly MigrationDefinition[]=MIGRATIONS): Promise<{
   appliedCount: number;
   totalMigrations: number;
   appliedNames: string[];
 }> {
+  validateRegisteredMigrations(registry);
   const conn = await dbPool.getConnection();
   let lockAcquired = false;
 
@@ -778,15 +893,12 @@ export async function runMigrations(dbPool: mysql.Pool): Promise<{
       throw new Error('MIGRATION_LOCK_TIMEOUT: Could not acquire migration lock within 15 seconds. Another migration is running.');
     }
 
-    const [rows]: any = await conn.query('SELECT migration_name, checksum FROM schema_migrations WHERE success = 1');
-    const appliedMap = new Map<string, string>();
-    for (const r of rows) {
-      appliedMap.set(r.migration_name, r.checksum);
-    }
+    const [rows]: any = await conn.query('SELECT migration_name, checksum, success FROM schema_migrations');
+    const appliedMap=inspectMigrationLedger(rows,registry);
 
     const appliedNames: string[] = [];
 
-    for (const migration of MIGRATIONS) {
+    for (const migration of registry) {
       const expectedChecksum = computeMigrationChecksum(migration);
 
       if (appliedMap.has(migration.name)) {
@@ -812,14 +924,15 @@ export async function runMigrations(dbPool: mysql.Pool): Promise<{
         appliedNames.push(migration.name);
         console.log(`[Database Migration] ✅ Successfully applied: ${migration.name} (${duration}ms)`);
       } catch (migErr: any) {
-        console.error(`[Database Migration] ❌ Migration failed: ${migration.name}:`, migErr);
-        throw new Error(`MIGRATION_FAILED: ${migration.name} failed (${migErr?.message})`);
+        console.error(`[Database Migration] Migration failed: ${migration.name}`);
+        const code=String(migErr?.code||migErr?.message||'').match(/^[A-Z][A-Z0-9_]*(?=:|$)/)?.[0]||'MIGRATION_STEP_UNCONFIRMED';
+        throw new Error(`MIGRATION_FAILED: ${migration.name} (${code})`);
       }
     }
 
     return {
       appliedCount: appliedNames.length,
-      totalMigrations: MIGRATIONS.length,
+      totalMigrations: registry.length,
       appliedNames,
     };
   } finally {
@@ -833,13 +946,15 @@ export async function runMigrations(dbPool: mysql.Pool): Promise<{
 /**
  * Verifies complete schema integrity against production requirements
  */
-export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResult> {
+export async function verifySchema(dbPool: mysql.Pool,registry:readonly MigrationDefinition[]=MIGRATIONS): Promise<VerificationResult> {
+  let observedEngine='Unknown';
   try {
+    validateRegisteredMigrations(registry);
     const conn = await dbPool.getConnection();
     try {
       // 1. Check MySQL Engine & Connectivity
       const [versionRows]: any = await conn.query('SELECT VERSION() as version');
-      const engineVersion = versionRows?.[0]?.version || 'MySQL/MariaDB';
+      const engineVersion = versionRows?.[0]?.version || 'MySQL/MariaDB';observedEngine=engineVersion;
 
       // 2. Check schema_migrations table
       const [migTable]: any = await conn.query(`
@@ -854,7 +969,7 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
           engine: engineVersion,
           migrationTable: 'FAIL',
           appliedMigrations: 0,
-          pendingMigrations: MIGRATIONS.length,
+          pendingMigrations: registry.length,
           requiredTables: 'FAIL',
           requiredIndexes: 'FAIL',
           schemaVersion: 0,
@@ -864,16 +979,13 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
       }
 
       // 3. Check applied migrations count and checksums
-      const [appliedRows]: any = await conn.query('SELECT migration_name, checksum FROM schema_migrations WHERE success = 1');
-      const appliedMap = new Map<string, string>();
-      for (const r of (appliedRows || [])) {
-        appliedMap.set(r.migration_name, r.checksum);
-      }
-      const pendingCount = MIGRATIONS.filter((m) => !appliedMap.has(m.name)).length;
+      const [appliedRows]: any = await conn.query('SELECT migration_name, checksum, success FROM schema_migrations');
+      const appliedMap=inspectMigrationLedger(appliedRows,registry);
+      const pendingCount = registry.filter((m) => !appliedMap.has(m.name)).length;
 
       // Verify checksum integrity
       let checksumMismatch: string | null = null;
-      for (const m of MIGRATIONS) {
+      for (const m of registry) {
         if (appliedMap.has(m.name)) {
           const stored = appliedMap.get(m.name);
           const computed = computeMigrationChecksum(m);
@@ -910,7 +1022,7 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
 
       // 5. Check all canonical indexes exist
       const [existingIndexes]: any = await conn.query(`
-        SELECT TABLE_NAME, INDEX_NAME
+        SELECT TABLE_NAME, INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE, SUB_PART
         FROM INFORMATION_SCHEMA.STATISTICS
         WHERE TABLE_SCHEMA = DATABASE()
       `);
@@ -922,12 +1034,15 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         existingIndexMap.get(idx.TABLE_NAME)!.add(idx.INDEX_NAME);
       }
 
+      const hasColumnMetadata = existingIndexes.some((row: any) => 'COLUMN_NAME' in row);
       const missingIndexes: string[] = [];
       for (const [tbl, expectedIdxs] of Object.entries(CANONICAL_EXPECTED_INDEXES)) {
         if (existingTableSet.has(tbl)) {
           const liveIdxs = existingIndexMap.get(tbl) || new Set();
           for (const expIdx of expectedIdxs) {
-            if (!liveIdxs.has(expIdx)) {
+            const columns = INDEX_REQUIREMENTS[`${tbl}.${expIdx}`];
+            const equivalent = columns && hasEquivalentIndex(existingIndexes, tbl, columns);
+            if (columns && hasColumnMetadata ? !equivalent : !liveIdxs.has(expIdx) && !equivalent) {
               missingIndexes.push(`${tbl}.${expIdx}`);
             }
           }
@@ -953,17 +1068,33 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         if (existingTableSet.has(tbl)) {
           const liveConsts = existingConstraintMap.get(tbl) || new Set();
           for (const expConst of expectedConsts) {
-            if (!liveConsts.has(expConst)) {
+            const columns = UNIQUE_REQUIREMENTS[`${tbl}.${expConst}`];
+            const equivalent = columns && hasEquivalentIndex(existingIndexes, tbl, columns, true);
+            if (columns && hasColumnMetadata ? !equivalent : !liveConsts.has(expConst) && !equivalent) {
               missingConstraints.push(`${tbl}.${expConst}`);
             }
           }
         }
       }
 
+      const [workflowColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'content_posts' AND COLUMN_NAME = 'workflow_revision'");
+      const missingColumns=workflowColumns.length?[]:['content_posts.workflow_revision'];
+      const [queueColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'job_queue' AND COLUMN_NAME = 'deferrals'");
+      if(!queueColumns.length)missingColumns.push('job_queue.deferrals');
+      const [historyColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'publication_workflow_audit'");
+      const historyNames=new Set(historyColumns.map((row:any)=>row.COLUMN_NAME));
+      for(const name of ['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'])if(!historyNames.has(name))missingColumns.push(`publication_workflow_audit.${name}`);
+
+      const [controlColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('publication_execution_controls','publication_control_audit','publication_admission_reservations','message_dispatch_intents','message_delivery_receipts','company_profiles_data','dispatcher_state','dispatcher_ticks','autonomous_actions','reviews','public_lead_intakes')");
+      for(const [table,names] of Object.entries({public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']})){
+        for(const name of names)if(!controlColumns.some((row:any)=>row.TABLE_NAME===table&&row.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      }
+      const [legacyActionColumns]:any=await conn.query("SELECT COLUMN_NAME,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='autonomous_actions' AND COLUMN_NAME IN ('type','title','description')");
+      if(legacyActionColumns.some((row:any)=>row.IS_NULLABLE==='NO'))missingConstraints.push('autonomous_actions.legacy_display_fields_optional');
       const isTablesPass = missingTables.length === 0;
       const isIndexesPass = missingIndexes.length === 0;
       const isConstraintsPass = missingConstraints.length === 0;
-      const isSchemaPass = isTablesPass && isIndexesPass && isConstraintsPass;
+      const isSchemaPass = isTablesPass && isIndexesPass && isConstraintsPass && missingColumns.length===0;
       const status = pendingCount > 0 ? 'DATABASE_SCHEMA_OUTDATED' : (isSchemaPass ? 'READY' : 'MIGRATION_REQUIRED');
 
       return {
@@ -976,6 +1107,7 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
         requiredIndexes: isIndexesPass ? 'PASS' : 'FAIL',
         schemaVersion: appliedMap.size,
         status,
+        missingColumns:missingColumns.length?missingColumns:undefined,
         missingTables: missingTables.length > 0 ? missingTables : undefined,
         missingIndexes: missingIndexes.length > 0 ? missingIndexes : undefined,
         missingConstraints: missingConstraints.length > 0 ? missingConstraints : undefined,
@@ -985,15 +1117,15 @@ export async function verifySchema(dbPool: mysql.Pool): Promise<VerificationResu
     }
   } catch (err: any) {
     return {
-      connection: 'FAIL',
-      engine: 'Unknown',
-      migrationTable: 'FAIL',
+      connection: err instanceof MigrationLedgerError?'PASS':'FAIL',
+      engine: observedEngine,
+      migrationTable: err instanceof MigrationLedgerError?'PASS':'FAIL',
       appliedMigrations: 0,
-      pendingMigrations: MIGRATIONS.length,
+      pendingMigrations: registry.length,
       requiredTables: 'FAIL',
       requiredIndexes: 'FAIL',
       schemaVersion: 0,
-      status: 'UNAVAILABLE',
+      status: err instanceof MigrationLedgerError?'DATABASE_SCHEMA_OUTDATED':'UNAVAILABLE',
       error: err?.message || 'Failed to connect to MySQL database',
     };
   }

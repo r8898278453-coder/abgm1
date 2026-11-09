@@ -1,0 +1,26 @@
+{
+  "scope": "local scheduled publishing recovery",
+  "migration_changes": false,
+  "default_regression_programs": 33,
+  "typescript": "passed",
+  "build": "passed",
+  "mariadb": "passed",
+  "concurrent_scheduler_admissions": 8,
+  "simulated_restart": "one durable job and initial event retained",
+  "worker_guards": [
+    "tenant ownership",
+    "schedule fingerprint",
+    "autopilot enabled",
+    "scheduled or already published state",
+    "still due"
+  ],
+  "provider_sends": false,
+  "production_changes": false,
+  "pending": [
+    "digest/reminder persistent occurrences",
+    "client timezone normalization",
+    "paused-job retry UI/policy",
+    "ambiguous provider outcome reconciliation",
+    "inflight schedule edit locking"
+  ]
+}

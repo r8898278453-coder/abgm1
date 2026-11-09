@@ -1,0 +1,29 @@
+{
+  "scope": "disposable local MariaDB and pure cutoff tests",
+  "migration": "010_notification_occurrences",
+  "schema": "READY",
+  "historical_001_to_009_changed": false,
+  "default_regression_programs": 37,
+  "typescript": "passed",
+  "build": "passed",
+  "concurrency": 8,
+  "checks": [
+    "one callback per persisted client/kind/due occurrence",
+    "restart suppresses duplicate",
+    "independent clients and kinds",
+    "false acknowledgment becomes UNKNOWN",
+    "crashed same/older-slot claim not replayed",
+    "lost SQL acknowledgment never repeats callback",
+    "IST08:00 daily and hourly cutoffs",
+    "shared internal/external dispatcher"
+  ],
+  "catch_up": "latest due occurrence only; older intervals coalesced",
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "UNKNOWN operator UI and reconciliation",
+    "bounded fair per-client iteration",
+    "per-client timezone schedules",
+    "planned-vs-done daily reporting"
+  ]
+}

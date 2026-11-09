@@ -1,0 +1,27 @@
+{
+  "date_ist": "2026-11-03",
+  "scope": [
+    "canonical stored-source binding",
+    "SQL atomic source-version claim check",
+    "pending approval force guard",
+    "tab-persistent retry references"
+  ],
+  "migration": null,
+  "validation": {
+    "default_programs": 49,
+    "sql": "disposable MariaDB migration through015 and stale source admission rejection passed",
+    "source": "SQL JSON/hydrated parity; tenant/status/content/target/media changes; forged/missing/foreign sources send zero provider calls",
+    "retry_memory": "actor/company scope, hashed keys, capacity/no eviction, malformed/unavailable storage",
+    "browser": "Passed: composer remount reuses acknowledged post ID; existing verification, workspace, notification, cache and session isolation regressions",
+    "typescript": "passed",
+    "build": "passed with existing chunk warning",
+    "browser_attempts": "Earlier attempts: autosave-status timeout and remount test navigation blocked by open composer/transition. Test now closes composer and waits for destination before remount; final full browser run passed."
+  },
+  "limits": [
+    "no durable server idempotent draft admission",
+    "lost draft acknowledgment and new tabs/devices still require history review",
+    "no full versioned approval",
+    "post-claim mutations not frozen throughout provider requests"
+  ],
+  "production_changes": false
+}

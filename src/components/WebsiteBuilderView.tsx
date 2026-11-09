@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import {formatPlatformDateTime} from '../../shared/platformTime';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Globe,
   Smartphone,
@@ -46,6 +47,10 @@ interface WebsiteBuilderViewProps {
 
 export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business }) => {
   const companyId = business.id;
+  const requestRef=useRef<AbortController|null>(null);
+  const [isLoading,setIsLoading]=useState(true);
+  const [loadError,setLoadError]=useState<string|null>(null);
+  const current=(controller:AbortController|null)=>!!controller&&controller===requestRef.current&&!controller.signal.aborted;
   const [activeTab, setActiveTab] = useState<'preview' | 'domains' | 'seo_branding' | 'export'>('preview');
   const [activePageId, setActivePageId] = useState('main');
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -77,8 +82,8 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   const [heroTitle, setHeroTitle] = useState(`${business.name || 'Business'} — Official ${business.category || 'Services'} Hub`);
   const [heroSubtitle, setHeroSubtitle] = useState(
     business.city
-      ? `Professional solutions serving clients across ${business.city} with verified customer support.`
-      : `Professional solutions with verified customer support.`
+      ? `Professional solutions serving clients across ${business.city} Contact the business for service details.`
+      : `Professional solutions Contact the business for service details.`
   );
   const [metaDesc, setMetaDesc] = useState(
     business.city
@@ -93,81 +98,67 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
   const [enableDirectCallCta, setEnableDirectCallCta] = useState(true);
   const [enableInquiryForm, setEnableInquiryForm] = useState(true);
 
-  // Load Domains and Config on Mount
-  useEffect(() => {
-    loadDomains();
-    loadWebsiteConfig();
-  }, [companyId]);
-
-  const loadDomains = async () => {
-    try {
-      const data = await fetchCompanyDomainsApi(companyId);
-      setDomains(data);
-    } catch (err) {
-      console.warn('Failed to load domains:', err);
-    }
-  };
-
-  const loadWebsiteConfig = async () => {
-    try {
-      const cfg = await fetchWebsiteConfigApi(companyId);
-      if (cfg) {
-        setWebsiteConfig(cfg);
-        if (cfg.primary_color) setPrimaryColor(cfg.primary_color);
-        if (cfg.secondary_color) setSecondaryColor(cfg.secondary_color);
-        if (cfg.tagline) setTagline(cfg.tagline);
-        if (cfg.hero_title) setHeroTitle(cfg.hero_title);
-        if (cfg.hero_subtitle) setHeroSubtitle(cfg.hero_subtitle);
-        if (cfg.meta_description) setMetaDesc(cfg.meta_description);
-        if (cfg.keywords) setKeywords(cfg.keywords);
-        if (cfg.google_analytics_id) setGoogleAnalyticsId(cfg.google_analytics_id);
-        if (cfg.enable_whatsapp_cta !== undefined) setEnableWhatsAppCta(cfg.enable_whatsapp_cta);
-        if (cfg.enable_direct_call_cta !== undefined) setEnableDirectCallCta(cfg.enable_direct_call_cta);
-        if (cfg.enable_inquiry_form !== undefined) setEnableInquiryForm(cfg.enable_inquiry_form);
-      }
-    } catch (err) {
-      console.warn('Failed to load website config:', err);
-    }
+  const draft=JSON.stringify({primaryColor,secondaryColor,tagline,heroTitle,heroSubtitle,metaDesc,keywords,googleAnalyticsId,enableWhatsAppCta,enableDirectCallCta,enableInquiryForm});
+  const draftRef=useRef(draft);draftRef.current=draft;
+  useEffect(()=>{setConfigSuccessMsg(false);},[draft]);
+  useEffect(()=>{const controller=new AbortController();requestRef.current=controller;void loadWorkspace(controller);return()=>controller.abort();},[companyId]);
+  const loadWorkspace=async(controller=requestRef.current)=>{
+    if(!current(controller))return;setIsLoading(true);setLoadError(null);
+    try{
+      const [records,cfg]=await Promise.all([fetchCompanyDomainsApi(companyId,controller!.signal),fetchWebsiteConfigApi(companyId,controller!.signal)]);
+      if(!current(controller))return;setDomains(records);setWebsiteConfig(cfg);
+      if(cfg){setPrimaryColor(cfg.primary_color);setSecondaryColor(cfg.secondary_color);setTagline(cfg.tagline??'');setHeroTitle(cfg.hero_title??'');setHeroSubtitle(cfg.hero_subtitle??'');setMetaDesc(cfg.meta_description??'');setKeywords(cfg.keywords??'');setGoogleAnalyticsId(cfg.google_analytics_id??'');setEnableWhatsAppCta(cfg.enable_whatsapp_cta);setEnableDirectCallCta(cfg.enable_direct_call_cta);setEnableInquiryForm(cfg.enable_inquiry_form);}
+    }catch{if(current(controller)){setDomains([]);setWebsiteConfig(null);setLoadError('Website data unavailable. Reload before editing or exporting.');}}
+    finally{if(current(controller))setIsLoading(false);}
   };
 
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
+    const controller=requestRef.current;if(!current(controller)||isLoading||loadError||isAddingDomain)return;
     if (!newDomainInput.trim()) return;
     setIsAddingDomain(true);
     setActionError(null);
     try {
-      const added = await addCompanyDomainApi(companyId, newDomainInput.trim());
-      setDomains([added, ...domains]);
+      const added = await addCompanyDomainApi(companyId, newDomainInput.trim(),controller!.signal);
+      if(!current(controller))return;
+      setDomains(rows=>[added,...rows.filter(row=>row.id!==added.id)]);
       setNewDomainInput('');
       setActionSuccess('Custom domain added successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
+      if(!current(controller))return;
       setActionError(err?.message || 'Failed to add custom domain');
     } finally {
+      if(!current(controller))return;
       setIsAddingDomain(false);
     }
   };
 
   const handleVerifyDomain = async (domainId: string) => {
+    const controller=requestRef.current;if(!current(controller)||isLoading||loadError||isVerifyingDomain)return;
     setIsVerifyingDomain(domainId);
     try {
-      const result = await verifyCompanyDomainApi(companyId, domainId);
+      const result = await verifyCompanyDomainApi(companyId, domainId,controller!.signal);
+      if(!current(controller))return;
       setVerificationFeedback((prev) => ({
         ...prev,
         [domainId]: result.verification?.diagnostics || 'Verification check completed.',
       }));
-      await loadDomains();
+      setDomains(rows=>rows.map(row=>row.id===domainId?result.domain:row));
     } catch (err: any) {
+      if(!current(controller))return;
       setVerificationFeedback((prev) => ({
         ...prev,
         [domainId]: `Verification check failed: ${err?.message || 'Network error'}`,
       }));
     } finally {
+      if(!current(controller))return;
       setIsVerifyingDomain(null);
     }
   };
 
   const handleDeleteDomain = async (domainId: string) => {
+    const controller=requestRef.current;if(!current(controller)||isLoading||loadError)return;
     try {
       if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
         if (!window.confirm('Are you sure you want to remove this custom domain binding?')) return;
@@ -176,16 +167,19 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
       // Proceed safely in sandboxed iframes
     }
     try {
-      await deleteCompanyDomainApi(companyId, domainId);
-      setDomains(domains.filter((d) => d.id !== domainId));
+      await deleteCompanyDomainApi(companyId, domainId,controller!.signal);
+      if(!current(controller))return;
+      setDomains(rows=>rows.filter(row=>row.id!==domainId));
       setActionSuccess('Domain binding removed successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
+      if(!current(controller))return;
       setActionError(err?.message || 'Failed to delete domain');
     }
   };
 
   const handleSaveConfig = async () => {
+    const controller=requestRef.current;if(!current(controller)||isLoading||loadError||isSavingConfig)return;const submitted=draftRef.current;
     setIsSavingConfig(true);
     setConfigSuccessMsg(false);
     setActionError(null);
@@ -202,35 +196,42 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
         enable_whatsapp_cta: enableWhatsAppCta,
         enable_direct_call_cta: enableDirectCallCta,
         enable_inquiry_form: enableInquiryForm,
-      });
+      },controller!.signal);
+      if(!current(controller))return;
       setWebsiteConfig(updated);
-      setConfigSuccessMsg(true);
+      setConfigSuccessMsg(submitted===draftRef.current);
       setTimeout(() => setConfigSuccessMsg(false), 3000);
     } catch (err: any) {
+      if(!current(controller))return;
       setActionError(err?.message || 'Failed to save website configuration');
     } finally {
+      if(!current(controller))return;
       setIsSavingConfig(false);
     }
   };
 
   const handleExportZip = async () => {
+    const controller=requestRef.current;if(!current(controller)||isLoading||loadError||isExporting)return;
     setIsExporting(true);
     setExportSuccess(false);
     setActionError(null);
     try {
-      const primaryDomain = domains.find((d) => d.status === 'active')?.domain || 'bga.aaditechs.in';
-      await downloadStaticWebsiteZip(companyId, primaryDomain);
+      const primaryDomain = domains.find((d) => d.status === 'dns_verified')?.domain || 'bga.aaditechs.in';
+      await downloadStaticWebsiteZip(companyId, primaryDomain,{signal:controller!.signal,isCurrent:()=>current(controller)});
+      if(!current(controller))return;
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 4000);
     } catch (err: any) {
+      if(!current(controller))return;
       setActionError(err?.message || 'Failed to export static website package');
     } finally {
+      if(!current(controller))return;
       setIsExporting(false);
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+  const copyToClipboard = async (text: string, id: string) => {
+    const controller=requestRef.current;try{await navigator.clipboard.writeText(text);}catch{if(current(controller))setActionError('Clipboard copy was not confirmed.');return;}if(!current(controller))return;
     setCopiedDns(id);
     setTimeout(() => setCopiedDns(null), 2000);
   };
@@ -267,23 +268,25 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
       path: `/instant-inquiry`,
       label: 'Instant Consultation',
       title: `Connect Directly with ${business.name || 'Our Team'}`,
-      heroSub: `Connect via WhatsApp or direct phone inquiry to receive tailored quotes, project estimates, and verified support.`,
+      heroSub: `Connect via WhatsApp or direct phone inquiry to receive tailored quotes, project estimates, and service details.`,
     },
   ];
 
   const currentPage = pages.find((p) => p.id === activePageId) || pages[0];
-  const activeDomain = domains.find((d) => d.status === 'active')?.domain || 'bga.aaditechs.in';
+  const activeDomain = 'Storefront preview';
   const liveStorefrontUrl = `/storefront/${companyId}?page=${activePageId}`;
-  const displayUrl = `https://${activeDomain}${currentPage.path === '/' ? '' : currentPage.path}`;
+  const displayUrl = typeof window!=='undefined'?new URL(liveStorefrontUrl,window.location.origin).toString():liveStorefrontUrl;
 
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(displayUrl).catch(() => {});
+  const handleCopyUrl = async () => {
+    const controller=requestRef.current;try{await navigator.clipboard.writeText(displayUrl);}catch{if(current(controller))setActionError('Clipboard copy was not confirmed.');return;}if(!current(controller))return;
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
   return (
     <div className="space-y-6 pb-12">
+      {isLoading&&<p role="status">Loading saved website data…</p>}
+      {loadError&&<div role="alert">{loadError}<button onClick={()=>void loadWorkspace()}>Reload website data</button></div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -292,7 +295,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
             Mini Website Builder & Static Hosting Export
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Auto-generate SEO-optimized static storefronts, bind custom domains with SSL, and export production-ready bundles.
+            Edit a storefront draft, check domain DNS records, and download a static package for hosting.
           </p>
         </div>
 
@@ -314,7 +317,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
             rel="noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold transition border border-indigo-200 shadow-2xs"
           >
-            <span>Live Page</span>
+            <span>Open storefront</span>
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
@@ -446,7 +449,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                   {activeDomain}{currentPage.path}
                 </div>
                 <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> SSL Active
+                  <ShieldCheck className="w-3 h-3" /> Preview · TLS unverified
                 </div>
               </div>
 
@@ -575,11 +578,12 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <h2 className="text-base font-black text-slate-900">Connect Custom Domain</h2>
             </div>
             <p className="text-xs text-slate-500">
-              Point your domain name (e.g., <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">bga.aaditechs.in</code> or <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">app.yourcompany.com</code>) to our Edge CDN. Free SSL certificates are automatically provisioned.
+              Point your domain name (e.g., <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">bga.aaditechs.in</code> or <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">app.yourcompany.com</code>) to the hosting target shown below only after confirming it with your hosting provider. DNS observation does not attach the domain or install TLS. Confirm the hosting target and configure HTTPS with your hosting provider.
             </p>
 
             <form onSubmit={handleAddDomain} className="flex flex-col sm:flex-row gap-3">
               <input
+                disabled={isLoading||!!loadError}
                 type="text"
                 value={newDomainInput}
                 onChange={(e) => setNewDomainInput(e.target.value)}
@@ -615,9 +619,9 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-sm text-slate-900 font-mono">{dom.domain}</span>
-                        {dom.status === 'active' ? (
+                        {dom.status === 'dns_verified' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3" /> Active & Live
+                            <CheckCircle2 className="w-3 h-3" /> DNS observed
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
@@ -629,8 +633,8 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500">
-                        Added on {new Date(dom.created_at || Date.now()).toLocaleDateString()}
-                        {dom.verified_at && ` • Verified on ${new Date(dom.verified_at).toLocaleString()}`}
+                        Added on {dom.created_at?formatPlatformDateTime(dom.created_at):'Date unavailable'}
+                        {dom.verified_at && ` • DNS observed on ${formatPlatformDateTime(dom.verified_at)}`}
                       </p>
                     </div>
 
@@ -752,6 +756,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Hero Title (H1)</label>
                 <input
+                disabled={isLoading||!!loadError}
                   type="text"
                   value={heroTitle}
                   onChange={(e) => setHeroTitle(e.target.value)}
@@ -762,6 +767,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Tagline / Subheading</label>
                 <input
+                disabled={isLoading||!!loadError}
                   type="text"
                   value={tagline}
                   onChange={(e) => setTagline(e.target.value)}
@@ -772,6 +778,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Hero Subtitle / Value Proposition</label>
                 <textarea
+                disabled={isLoading||!!loadError}
                   rows={3}
                   value={heroSubtitle}
                   onChange={(e) => setHeroSubtitle(e.target.value)}
@@ -782,6 +789,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">SEO Meta Description</label>
                 <textarea
+                disabled={isLoading||!!loadError}
                   rows={2}
                   value={metaDesc}
                   onChange={(e) => setMetaDesc(e.target.value)}
@@ -794,6 +802,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">SEO Keywords (Comma-separated)</label>
                 <input
+                disabled={isLoading||!!loadError}
                   type="text"
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
@@ -806,12 +815,14 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                   <label className="block text-xs font-bold text-slate-700 mb-1">Primary Color</label>
                   <div className="flex items-center gap-2">
                     <input
+                disabled={isLoading||!!loadError}
                       type="color"
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
                       className="w-9 h-9 rounded-xl border border-slate-300 cursor-pointer"
                     />
                     <input
+                disabled={isLoading||!!loadError}
                       type="text"
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
@@ -823,12 +834,14 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                   <label className="block text-xs font-bold text-slate-700 mb-1">Secondary Color</label>
                   <div className="flex items-center gap-2">
                     <input
+                disabled={isLoading||!!loadError}
                       type="color"
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
                       className="w-9 h-9 rounded-xl border border-slate-300 cursor-pointer"
                     />
                     <input
+                disabled={isLoading||!!loadError}
                       type="text"
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
@@ -841,6 +854,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Google Analytics Measurement ID</label>
                 <input
+                disabled={isLoading||!!loadError}
                   type="text"
                   value={googleAnalyticsId}
                   onChange={(e) => setGoogleAnalyticsId(e.target.value)}
@@ -853,6 +867,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                 <label className="block text-xs font-bold text-slate-700 mb-1">Interactive Features & CTAs</label>
                 <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                   <input
+                disabled={isLoading||!!loadError}
                     type="checkbox"
                     checked={enableWhatsAppCta}
                     onChange={(e) => setEnableWhatsAppCta(e.target.checked)}
@@ -862,6 +877,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                 </label>
                 <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                   <input
+                disabled={isLoading||!!loadError}
                     type="checkbox"
                     checked={enableDirectCallCta}
                     onChange={(e) => setEnableDirectCallCta(e.target.checked)}
@@ -871,6 +887,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
                 </label>
                 <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                   <input
+                disabled={isLoading||!!loadError}
                     type="checkbox"
                     checked={enableInquiryForm}
                     onChange={(e) => setEnableInquiryForm(e.target.checked)}
@@ -885,7 +902,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
               onClick={handleSaveConfig}
-              disabled={isSavingConfig}
+              disabled={isSavingConfig||isLoading||!!loadError}
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-2xl shadow-xs transition"
             >
               {isSavingConfig ? 'Saving Settings...' : 'Save Configuration'}
@@ -944,7 +961,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-4">
               <button
                 onClick={handleExportZip}
-                disabled={isExporting}
+                disabled={isExporting||isLoading||!!loadError}
                 className="w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-md transition flex items-center justify-center gap-3"
               >
                 <Download className={`w-5 h-5 ${isExporting ? 'animate-bounce' : ''}`} />

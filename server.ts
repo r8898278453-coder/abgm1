@@ -1,3 +1,51 @@
+import {registerObservationHistoryRoutes} from './server/observationHistoryRoutes';
+import {registerPublicLeadRoutes} from './server/publicLeadRoutes';
+import {resolvePublicLeadCompany,savePublicLeadIntake,readPublicLeadReceipt,notifyPublicLeadOnce} from './server/publicLeadStore';
+import {registerWebsiteRoutes} from './server/websiteRoutes';
+import {readDispatcherHistory} from './server/dispatcherStore';
+import {registerCompanyDataRoutes} from './server/companyDataRoutes';
+import {registerAdCampaignRoutes} from './server/adCampaignRoutes';
+import {inspectDatabaseStartup} from './server/databaseStartup';
+import {recordWhatsAppInboundLead,describeWhatsAppInbound} from './server/whatsAppInbound';
+import {registerWhatsAppWebhook} from './server/whatsAppWebhook';
+import {recordMessageReceipt} from './server/messageDeliveryReceipts';
+import {registerMessageDispatchStatus,readMessageDispatchStatus} from './server/messageDispatchStatus';
+import {dispatchMessageIntent,DispatchIntentError} from './server/messageDispatchIntents';
+import {createHash} from 'node:crypto';
+import {runWhatsAppBroadcast} from './server/whatsAppBroadcast';
+import {registerAutonomousControlRoutes} from './server/autonomousControlRoutes';
+import {requireAiWorkspace} from './server/aiWorkspace';
+import {registerLeadStageRoutes} from './server/leadStageRoutes';
+import {registerContentMutationRoutes} from './server/contentMutationRoutes';
+import {registerAuditRoutes} from './server/auditRoutes';
+import {registerReviewReplyRoutes} from './server/reviewReplyRoutes';
+import {contentSchema} from './shared/aiGeneration';
+import {readPublicationControlHistory} from './server/publicationControlHistory';
+import {registerPublicationControls} from './server/publicationControlRoutes';
+import {readScopedPublicationControls,updateScopedPublicationControls} from './server/publicationScopedControls';
+import {registerDailyWorkReport} from './server/dailyWorkReportRoutes';
+import {readDailyWorkReport} from './server/dailyWorkReport';
+import {readPublicationWorkflowHistory} from './server/publicationWorkflowHistory';
+import {registerPublicationWorkflow} from './server/publicationWorkflowRoutes';
+import {transitionPublication} from './server/publicationWorkflow';
+import {publishingSourceVersion} from './server/publishingSource';
+import {registerPublicationDrafts} from './server/publicationDraftRoutes';
+import {preparePublicationDraft} from './server/publicationDraftIntents';
+import {PublishingReviewError} from './server/publishingReview';
+import {registerMetaVerification} from './server/metaVerificationRoutes';
+import {checkCompanyMetaPublication} from './server/metaVerificationService';
+import { registerPublishingReview } from './server/publishingReviewRoutes';
+import { getCompanyPublishingReview,recordCompanyPublishingReview } from './server/publishingReviewService';
+import { registerMetaPublishing } from './server/metaPublishingRoutes';
+import { registerNotificationStatus } from './server/notificationStatusRoutes';
+import { getCompanyNotificationStatus } from './server/notificationStatusService';
+import { registerTenantNotificationRoutes } from './server/tenantNotificationRoutes';
+import { sendTenantTelegram } from './server/tenantNotifications';
+import { registerSchedulerRoutes } from './server/schedulerRoutes';
+import { registerActionFeed } from './server/actionFeedRoutes';
+import { getCompanyActionFeed } from './server/actionFeedService';
+import { registerQueueAdmission } from './server/queueRoutes';
+import { registerHealthRoutes } from './server/health';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -28,6 +76,7 @@ import {
   findCompanyByPublicFormToken,
   getCompanyDataPayload,
   saveCompanyDataPayload,
+  companyDataVersion,
   getDbStatus,
   getCompanyIntegrations,
   getCompanyIntegration,
@@ -100,9 +149,6 @@ import { runSchedulerTick } from './server/scheduler';
 import { tickJobQueue } from './server/jobQueueService';
 import {
   verifySchema,
-  runMigrations,
-  seedSystemSettings,
-  initializeAdminUser,
 } from './server/migrator';
 import {
   runAutonomousCycle,
@@ -161,8 +207,6 @@ import {
   findCompanyByWhatsAppIdentifier,
   verifyWhatsAppWebhookSignature,
   verifyMetaWebhookHandshake,
-  publishToFacebookPage,
-  publishToInstagram,
   sendWhatsAppCloudMessage,
 } from './server/metaWhatsAppService';
 import {
@@ -218,7 +262,6 @@ import {
   rankScanSchema,
   whatsappSendSchema,
   whatsappBroadcastSchema,
-  metaPublishSchema,
   createInvoiceSchema,
   upgradeSubscriptionSchema,
   validateBody,
@@ -407,13 +450,11 @@ async function safeGenerateContent(options: {
   return null;
 }
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    geminiConfigured: !!process.env.GEMINI_API_KEY,
-    timestamp: new Date().toISOString(),
-  });
+registerHealthRoutes(app, {
+  isProduction: () => process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true',
+  getDbPool,
+  getDbStatus,
+  verifySchema,
 });
 
 // ==================== AUTHENTICATION APIS ==================== //
@@ -776,198 +817,7 @@ app.post('/api/companies', validateBody(createCompanySchema), async (req, res) =
   }
 });
 
-// Fetch isolated company data (Growth score, audits, competitors, reviews)
-app.get('/api/companies/:id/data', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    const payload = await getCompanyDataPayload(id);
-    res.json({ success: true, company, data: payload });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Save isolated company data payload
-app.put('/api/companies/:id/data', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    const clientData = req.body?.data || {};
-    const existingPayload: any = (await getCompanyDataPayload(id)) || {};
-
-    // Strict Data Authority Boundary:
-    // Only accept user-configurable settings and metadata.
-    // Client CANNOT overwrite authoritative calculated scores, verified ranks, verified reviews, or provider observations.
-    const sanitizedPayload: any = {
-      ...existingPayload,
-      business: clientData.business
-        ? {
-            ...(existingPayload.business || {}),
-            ...clientData.business,
-            id: company.id,
-            name: company.name,
-            category: clientData.business.category || company.category,
-            city: clientData.business.city || company.city,
-          }
-        : existingPayload.business,
-      knowledge_base: clientData.knowledge_base !== undefined ? clientData.knowledge_base : existingPayload.knowledge_base,
-      engine_settings: clientData.engine_settings !== undefined ? clientData.engine_settings : existingPayload.engine_settings,
-      customization: clientData.customization !== undefined ? clientData.customization : existingPayload.customization,
-      isDemoMode: Boolean(clientData.isDemoMode),
-    };
-
-    // User-managed keywords: user can add/remove keywords to monitor, but cannot forge provider observations/ranks
-    if (Array.isArray(clientData.keywords)) {
-      const existingKwMap = new Map(
-        (existingPayload.keywords || []).map((k: any) => [(k.keyword || '').toLowerCase().trim(), k])
-      );
-      sanitizedPayload.keywords = clientData.keywords.map((kw: any) => {
-        const cleanKw = (kw.keyword || kw.name || '').trim();
-        const existing: any = existingKwMap.get(cleanKw.toLowerCase());
-        if (existing) {
-          return {
-            ...existing,
-            id: existing.id || kw.id,
-            keyword: cleanKw,
-          };
-        }
-        return {
-          id: kw.id || `kw_${crypto.randomUUID().slice(0, 8)}`,
-          keyword: cleanKw,
-          rank: null,
-          previousRank: null,
-          diff: null,
-          searchVolume: null,
-          dataClassification: 'UNAVAILABLE',
-          provider: 'UNCONFIGURED',
-          lastScannedAt: null,
-          observations: [],
-          topCompetitors: [],
-          gridRankings: [],
-        };
-      });
-    }
-
-    // User-managed competitors: user can add/remove competitors to monitor, but cannot forge provider ratings/reviews
-    if (Array.isArray(clientData.competitors)) {
-      const existingCompMap = new Map(
-        (existingPayload.competitors || []).map((c: any) => [(c.name || '').toLowerCase().trim(), c])
-      );
-      sanitizedPayload.competitors = clientData.competitors.map((comp: any) => {
-        const cleanName = (comp.name || '').trim();
-        const existing: any = existingCompMap.get(cleanName.toLowerCase());
-        if (existing) {
-          return {
-            ...existing,
-            id: existing.id || comp.id,
-            name: cleanName,
-            placeId: existing.placeId || comp.placeId,
-            address: existing.address || comp.address,
-          };
-        }
-        return {
-          id: comp.id || `comp_${crypto.randomUUID().slice(0, 8)}`,
-          name: cleanName,
-          placeId: comp.placeId || null,
-          address: comp.address || null,
-          rating: null,
-          reviewsCount: null,
-          reviewGrowthThisMonth: null,
-          photosCount: null,
-          postsPerWeek: null,
-          localVisibilityRank: null,
-          provider: 'UNCONFIGURED',
-          lastObservedAt: null,
-          dataClassification: 'UNAVAILABLE',
-        };
-      });
-    }
-
-    // User-managed campaigns: user can manage strategic campaign plans, but actual_spend / impressions / provider IDs are strictly server/provider-verified
-    if (Array.isArray(clientData.campaigns)) {
-      const existingCampMap = new Map((existingPayload.campaigns || []).map((c: any) => [c.id, c]));
-      sanitizedPayload.campaigns = clientData.campaigns.map((camp: any) => {
-        const existing: any = existingCampMap.get(camp.id);
-        return {
-          id: camp.id || `camp_${crypto.randomUUID().slice(0, 8)}`,
-          name: (camp.name || 'Campaign').trim(),
-          type: camp.type || 'offer',
-          status: camp.status || 'draft',
-          channels: Array.isArray(camp.channels) ? camp.channels : ['google'],
-          target_audience: camp.target_audience || '',
-          start_date: camp.start_date || null,
-          end_date: camp.end_date || null,
-          budget: typeof camp.budget === 'number' ? camp.budget : null,
-          actual_spend: existing?.actual_spend ?? null,
-          verified_spend: existing?.verified_spend ?? null,
-          provider_campaign_id: existing?.provider_campaign_id ?? null,
-          impressions: existing?.impressions ?? null,
-          clicks: existing?.clicks ?? null,
-          leads_generated: existing?.leads_generated ?? null,
-        };
-      });
-    }
-
-    // Audit items: user can only toggle resolved status on EXISTING server-evaluated items; client cannot invent or inject unknown audit findings
-    if (Array.isArray(clientData.audit_items)) {
-      const clientAuditMap = new Map(clientData.audit_items.map((a: any) => [a.id, a]));
-      sanitizedPayload.audit_items = (existingPayload.audit_items || []).map((existing: any) => {
-        const clientItem: any = clientAuditMap.get(existing.id);
-        if (clientItem) {
-          return {
-            ...existing,
-            resolved: Boolean(clientItem.resolved),
-          };
-        }
-        return existing;
-      });
-    }
-
-    // Autonomous actions: client must NOT inject autonomous action history; strictly server-authoritative
-    sanitizedPayload.autonomous_actions = existingPayload.autonomous_actions || [];
-
-    // Growth Score remains strictly derived by canonical engine only
-    sanitizedPayload.growth_score = existingPayload.growth_score || null;
-
-    await saveCompanyDataPayload(id, sanitizedPayload);
-    res.json({ success: true, data: sanitizedPayload });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerCompanyDataRoutes(app,{auth:getAuthUserFromRequest,company:getCompanyById,access:verifyCompanyWorkspaceAccess,read:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};},save:async(company,data,version)=>{if(!await saveCompanyDataPayload(company,data,version))throw new Error('Workspace save unconfirmed');return companyDataVersion(data);}});
 
 // ==================== GROWTH INTELLIGENCE SCORE APIS ==================== //
 
@@ -1844,23 +1694,7 @@ async function performRankScan(
 
   // Persist all 9 real observations to relational table
   if (scanResult.observations && scanResult.observations.length > 0) {
-    await saveRankObservations(
-      scanResult.observations.map((obs) => ({
-        id: obs.id,
-        company_id: obs.companyId,
-        keyword: obs.keyword,
-        latitude: obs.latitude,
-        longitude: obs.longitude,
-        grid_index: obs.gridIndex,
-        grid_label: obs.gridLabel,
-        timestamp: obs.timestamp,
-        provider: obs.provider,
-        position: obs.position,
-        status: obs.status,
-        source_evidence: obs.sourceEvidence,
-        top_competitors_json: scanResult.topCompetitors ? JSON.stringify(scanResult.topCompetitors) : undefined,
-      }))
-    );
+    await saveRankObservations(company.id,keyword,scanResult.observations);
   }
 
   // Calculate historical trend strictly from stored DB observations
@@ -2087,28 +1921,7 @@ app.post('/api/companies/:id/rank-radar/refresh-all', async (req, res) => {
   }
 });
 
-// Observation history for a specific keyword
-app.get('/api/companies/:id/keywords/:kw/history', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, kw } = req.params;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const history = await getKeywordObservationHistory(id, decodeURIComponent(kw), 50);
-    res.json({ success: true, keyword: kw, history });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch keyword history' });
-  }
-});
+registerObservationHistoryRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,ranks:getKeywordObservationHistory,competitors:getCompetitorObservationHistory});
 
 // ---------------- COMPETITOR RADAR & INTELLIGENCE API ---------------- //
 
@@ -2348,29 +2161,6 @@ app.post('/api/companies/:id/competitors/refresh-all', async (req, res) => {
   }
 });
 
-// Observation history for a competitor
-app.get('/api/companies/:id/competitors/:competitorId/history', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, competitorId } = req.params;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const history = await getCompetitorObservationHistory(id, competitorId, 50);
-    res.json({ success: true, competitorId, history });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch competitor history' });
-  }
-});
-
 // Add a new competitor entry
 app.post('/api/companies/:id/competitors', async (req, res) => {
   try {
@@ -2596,223 +2386,11 @@ app.delete('/api/companies/:id/competitors/:competitorId', async (req, res) => {
 
 // ---------------- EVIDENCE-BASED AUDIT ENGINE & ACTION REMEDIATION ---------------- //
 
-// GET /api/companies/:id/audit - Retrieve or evaluate evidence-based audit
-app.get('/api/companies/:id/audit', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const payload: any = (await getCompanyDataPayload(id)) || {};
-    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
-      getCompanyReviews(id).catch(() => []),
-      getCompanyPosts(id).catch(() => []),
-      getAllLeads(id).catch(() => []),
-      getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id).catch(() => []),
-    ]);
-
-    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
-
-    const auditItems = generateEvidenceBasedAudit({
-      companyId: id,
-      businessProfile: payload.business,
-      reviews: dbReviews,
-      contentPosts: dbPosts,
-      leads: dbLeads,
-      rankObservations: latestObs as any,
-      campaigns: payload.campaigns || [],
-      customDomainVerified: isDomainVerified,
-    });
-
-    // Check resolution states stored in company payload
-    const resolvedIds = new Set((payload.audit_items || []).filter((a: any) => a.resolved).map((a: any) => a.id));
-    const mergedItems = auditItems.map((item) => ({
-      ...item,
-      resolved: resolvedIds.has(item.id) || item.resolved,
-    }));
-
-    res.json({
-      success: true,
-      companyId: id,
-      auditItems: mergedItems,
-      totalIssues: mergedItems.filter((i) => !i.resolved).length,
-      resolvedIssues: mergedItems.filter((i) => i.resolved).length,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// POST /api/companies/:id/audit/scan - Run fresh evidence scan & persist to company workspace
-app.post('/api/companies/:id/audit/scan', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const payload: any = (await getCompanyDataPayload(id)) || {};
-    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
-      getCompanyReviews(id).catch(() => []),
-      getCompanyPosts(id).catch(() => []),
-      getAllLeads(id).catch(() => []),
-      getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id).catch(() => []),
-    ]);
-
-    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
-
-    const auditItems = generateEvidenceBasedAudit({
-      companyId: id,
-      businessProfile: payload.business,
-      reviews: dbReviews,
-      contentPosts: dbPosts,
-      leads: dbLeads,
-      rankObservations: latestObs as any,
-      campaigns: payload.campaigns || [],
-      customDomainVerified: isDomainVerified,
-    });
-
-    // Merge previous manual resolutions
-    const resolvedIds = new Set((payload.audit_items || []).filter((a: any) => a.resolved).map((a: any) => a.id));
-    const mergedItems = auditItems.map((item) => ({
-      ...item,
-      resolved: resolvedIds.has(item.id) || item.resolved,
-    }));
-
-    payload.audit_items = mergedItems;
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      companyId: id,
-      auditItems: mergedItems,
-      totalIssues: mergedItems.filter((i) => !i.resolved).length,
-      resolvedIssues: mergedItems.filter((i) => i.resolved).length,
-      message: `Fresh audit scan completed across all 6 evidence pillars. Found ${mergedItems.length} audited items.`,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// POST /api/companies/:id/audit/:auditId/resolve - Mark audit issue resolved with audit trail or execute remediation
-app.post('/api/companies/:id/audit/:auditId/resolve', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, auditId } = req.params;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, id);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const payload: any = (await getCompanyDataPayload(id)) || {};
-    if (!Array.isArray(payload.audit_items)) {
-      payload.audit_items = [];
-    }
-
-    const action = req.body?.action || 'resolve';
-    const existingIndex = payload.audit_items.findIndex((a: any) => a.id === auditId);
-    let auditItem = existingIndex >= 0 ? payload.audit_items[existingIndex] : null;
-
-    let lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
-    let remediationExecuted = false;
-    let remediationMessage = 'This issue requires configuration changes or manual customer interaction.';
-
-    // Check if manual action is required for this issue
-    if (
-      auditId.includes('aud_gmb_unlinked') ||
-      auditId.includes('aud_website_missing') ||
-      auditId.includes('aud_reviews_low_rating') ||
-      auditId.includes('aud_seo_perimeter_drop')
-    ) {
-      lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
-      remediationMessage = 'This issue requires configuration changes or manual customer interaction. Navigate to the relevant tab to complete setup.';
-    } else if (action === 'remediate' && auditId.includes('aud_reviews_unreplied')) {
-      // Execute local remediation for unreplied reviews
-      const reviews = await getCompanyReviews(id);
-      const unreplied = reviews.filter((r) => !r.replied && (!r.reply_text || r.reply_text.trim().length === 0));
-      for (const rev of unreplied) {
-        await updateReviewReply(rev.id, 'Thank you for your feedback! We appreciate your support.', id, 'LOCAL_ONLY');
-      }
-      remediationExecuted = true;
-      const gmbIntegration = await getCompanyIntegration(id, 'google_business');
-      if (gmbIntegration?.status === 'connected' && gmbIntegration?.credentials?.apiKey) {
-        lifecycleStatus = 'PROVIDER_PENDING';
-        remediationMessage = `Local draft replies saved for ${unreplied.length} reviews. Awaiting Google Business Profile provider sync verification.`;
-      } else {
-        lifecycleStatus = 'MANUAL_ACTION_REQUIRED';
-        remediationMessage = `Local draft replies saved for ${unreplied.length} reviews. Google Business Profile is not connected; manual publish to Google Maps required.`;
-      }
-    }
-
-    const updatedEntry = {
-      ...(auditItem || { id: auditId }),
-      resolved: lifecycleStatus === 'RESOLVED',
-      status: lifecycleStatus,
-      remediationExecuted,
-      resolvedAt: lifecycleStatus === 'RESOLVED' ? new Date().toISOString() : null,
-      resolvedBy: user.email || user.id,
-    };
-
-    if (existingIndex >= 0) {
-      payload.audit_items[existingIndex] = updatedEntry;
-    } else {
-      payload.audit_items.push(updatedEntry);
-    }
-
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      message: remediationMessage,
-      auditId,
-      status: lifecycleStatus,
-      remediationExecuted,
-      auditItem: updatedEntry,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerAuditRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,read:async(company)=>{
+ const payload:any=await getCompanyDataPayload(company);
+ const [reviews,posts,leads,domains,observations]=await Promise.all([getCompanyReviews(company),getCompanyPosts(company),getAllLeads(company),getCustomDomainsByCompany(company),getLatestKeywordObservations(company)]);
+ return generateEvidenceBasedAudit({companyId:company,businessProfile:payload?.business,reviews,contentPosts:posts,leads,rankObservations:observations as any,campaigns:payload?.campaigns||[],customDomainVerified:domains.some((domain:any)=>domain.status==='verified')});
+}});
 
 // ---------------- INTEGRATIONS MANAGEMENT & LIVE CREDENTIAL VERIFICATION ---------------- //
 
@@ -3767,78 +3345,15 @@ app.post('/api/reviews', validateBody(createReviewSchema), async (req, res) => {
       source: source || 'manual',
     });
 
+    if(!review?.id){res.status(503).json({success:false,error:'Review creation not confirmed'});return;}
     res.status(201).json({ success: true, review });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(503).json({ success: false, error: 'Review creation unavailable' });
   }
 });
 
 // Publish / save reply to a review
-app.post(['/api/reviews/:id/reply', '/api/reviews/:id/replyText'], validateBody(replyReviewSchema), async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required to post review replies' });
-      return;
-    }
-
-    const { id } = req.params;
-    const { replyText } = req.body;
-
-    const realCompanyId = await getReviewCompanyId(id);
-    if (!realCompanyId) {
-      res.status(404).json({ success: false, error: 'Review not found' });
-      return;
-    }
-
-    const company = await getCompanyById(realCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to reply to this company review' });
-      return;
-    }
-
-    const success = await updateReviewReply(id, replyText.trim(), realCompanyId);
-
-    if (!success) {
-      res.status(404).json({ success: false, error: 'Review not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Review reply saved to MySQL database successfully', reviewId: id });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Delete a review
-app.delete('/api/reviews/:id', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-
-    const realCompanyId = await getReviewCompanyId(id);
-    if (!realCompanyId) {
-      res.status(404).json({ success: false, error: 'Review not found' });
-      return;
-    }
-
-    const company = await getCompanyById(realCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to delete this company review' });
-      return;
-    }
-
-    await deleteReview(id, realCompanyId);
-    res.json({ success: true, message: 'Review deleted from MySQL' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerReviewReplyRoutes(app,{validate:validateBody(replyReviewSchema),auth:getAuthUserFromRequest,companyForReview:getReviewCompanyId,access:verifyCompanyWorkspaceAccess,save:updateReviewReply,remove:deleteReview});
 
 // ---------------- CONTENT POSTS API ENDPOINTS (PER-TENANT MYSQL PERSISTENCE) ---------------- //
 
@@ -3859,7 +3374,7 @@ app.get(['/api/content-posts', '/api/posts'], async (req, res) => {
     }
 
     const posts = await getCompanyPosts(resolved.companyId);
-    res.json({ success: true, companyId: resolved.companyId, posts });
+    res.json({ success: true, companyId: resolved.companyId, posts:posts.map(post=>({...post,sourceVersion:publishingSourceVersion(post)})) });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
@@ -3910,137 +3425,29 @@ app.post(['/api/content-posts', '/api/posts'], validateBody(createPostSchema), a
       campaign_id: req.body.campaign_id || req.body.campaignId || null,
       title: title || 'New Campaign Post',
       type: type || 'offer',
-      platforms: Array.isArray(platforms) ? platforms : ['google'],
-      channel: channel || (Array.isArray(platforms) && platforms[0]) || 'google',
+      platforms: Array.isArray(platforms) ? platforms : [channel || 'google'],
+      channel: (Array.isArray(platforms) && platforms[0]) || channel || 'google',
       headline: headline || '',
       caption,
       cta: cta || '',
-      image_url: image_url || imageUrl || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+      image_url: image_url || imageUrl || undefined,
       video_url: video_url || videoUrl || undefined,
       status: status || 'scheduled',
-      scheduled_date: scheduled_date || scheduledDate || new Date().toISOString().split('T')[0],
-      scheduled_time: scheduled_time || scheduledTime || `${new Date().toISOString().split('T')[0]} 10:00:00`,
-      time_slot: time_slot || timeSlot || '10:00 AM',
+      scheduled_date: scheduled_date || scheduledDate || undefined,
+      scheduled_time: scheduled_time || scheduledTime || undefined,
+      time_slot: time_slot || timeSlot || undefined,
       hashtags: Array.isArray(hashtags) ? hashtags : [],
       reel_script: reel_script || reelScript || undefined,
     });
 
-    res.status(201).json({ success: true, post: newPost });
+    if(!newPost?.id){res.status(503).json({success:false,error:'Post creation not confirmed'});return;}
+    res.status(201).json({ success: true, post: {...newPost,sourceVersion:publishingSourceVersion(newPost)} });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(503).json({ success: false, error: 'Post creation unavailable' });
   }
 });
 
-// Update post status (e.g. publish now, approve draft)
-app.patch(['/api/content-posts/:id/status', '/api/posts/:id/status'], async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const { status } = req.body;
-    if (!status) {
-      res.status(400).json({ success: false, error: 'Status is required' });
-      return;
-    }
-
-    if (status === 'published') {
-      res.status(400).json({
-        success: false,
-        error: "Directly setting status to 'published' via PATCH is forbidden. All publishing must pass through the canonical publishing service via POST /api/content-posts/:id/publish with verified external provider confirmation.",
-      });
-      return;
-    }
-
-    const realCompanyId = await getContentPostCompanyId(id);
-    if (!realCompanyId) {
-      res.status(404).json({ success: false, error: 'Content post not found' });
-      return;
-    }
-
-    const company = await getCompanyById(realCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to update this content post' });
-      return;
-    }
-
-    await updateContentPostStatus(id, status, realCompanyId);
-    res.json({ success: true, message: `Post status updated to ${status} in MySQL` });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Delete a content post
-app.delete(['/api/content-posts/:id', '/api/posts/:id'], async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-
-    const realCompanyId = await getContentPostCompanyId(id);
-    if (!realCompanyId) {
-      res.status(404).json({ success: false, error: 'Content post not found' });
-      return;
-    }
-
-    const company = await getCompanyById(realCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to delete this content post' });
-      return;
-    }
-
-    await deleteContentPost(id, realCompanyId);
-    res.json({ success: true, message: 'Content post deleted from MySQL' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Trigger immediate publishing job with strict provider verification state machine
-app.post(['/api/content-posts/:id/publish', '/api/posts/:id/publish'], async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const realCompanyId = await getContentPostCompanyId(id);
-    if (!realCompanyId) {
-      res.status(404).json({ success: false, error: 'Content post not found' });
-      return;
-    }
-
-    const company = await getCompanyById(realCompanyId);
-    if (company && company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to publish this content post' });
-      return;
-    }
-
-    const post = await getPostById(id);
-    if (!post) {
-      res.status(404).json({ success: false, error: 'Content post details not found' });
-      return;
-    }
-
-    const jobResult = await executePublishingJob(post, { force: Boolean(req.body?.force), triggeredBy: user.email });
-    res.json({
-      success: jobResult.overallStatus === 'PUBLISHED',
-      result: jobResult,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerContentMutationRoutes(app,{auth:getAuthUserFromRequest,company:getContentPostCompanyId,access:verifyCompanyWorkspaceAccess,remove:deleteContentPost});
 
 // Get immutable publishing audit records and idempotency status for a post
 app.get(['/api/content-posts/:id/publishing-history', '/api/posts/:id/publishing-history'], async (req, res) => {
@@ -4199,54 +3606,7 @@ app.delete('/api/campaigns/internal/:id', async (req, res) => {
   }
 });
 
-// 5. Get all Verified External Ad Campaigns (Telemetry strictly from Ad Provider API)
-app.get('/api/campaigns/external', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const companyIdQuery = (req.query.company_id || req.query.companyId) as string | undefined;
-    const resolved = await resolveUserCompanyId(user, companyIdQuery);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-
-    const campaigns = await getCompanyExternalAdCampaigns(resolved.companyId);
-    res.json({ success: true, companyId: resolved.companyId, campaigns });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// 6. Trigger Real-Time Synchronization with Verified Ad Provider (e.g. meta_ads)
-app.post('/api/campaigns/external/sync', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { provider = 'meta_ads', company_id, companyId } = req.body;
-    const resolved = await resolveUserCompanyId(user, company_id || companyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-
-    const syncResult = await syncExternalAdCampaigns(resolved.companyId, provider);
-    res.json({
-      success: syncResult.status === 'SUCCESS',
-      syncResult,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerAdCampaignRoutes(app,{auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,read:getCompanyExternalAdCampaigns,sync:syncExternalAdCampaigns});
 
 // 7. Link an Internal Initiative to a Verified External Ad Campaign
 app.post('/api/campaigns/internal/:id/link-external', async (req, res) => {
@@ -4309,16 +3669,18 @@ app.get(['/api/companies/:id/campaigns/:campaignId/posts', '/api/campaigns/inter
   }
 });
 
+app.post(['/api/ai/chat','/api/ai/reply-review','/api/ai/generate-content'],aiRateLimiter,requireAiWorkspace({auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,company:getCompanyById}));
+
 // AI Chat / Telegram Natural Language endpoint (Protected with Auth + Rate Limiting)
-app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
-  const user = await getAuthUserFromRequest(req);
+app.post('/api/ai/chat', async (req, res) => {
+  const user:DbUser = res.locals.aiUser;
   if (!user) {
     res.status(401).json({ success: false, error: 'Authentication required to use AI marketing features. Please log in.' });
     return;
   }
 
   const { message, context, businessName, category, language, companyId } = req.body;
-  const resolved = await resolveUserCompanyId(user, companyId);
+  const resolved = {companyId:res.locals.aiCompany.id as string};
   let targetBiz = businessName || 'our business';
   let targetCat = category || 'Business Services';
 
@@ -4369,24 +3731,12 @@ CRITICAL TRUTH & INTEGRITY RULES:
     return;
   }
 
-  // Fallback intelligent responder based strictly on tenant data
-  const lowerMsg = (message || '').toLowerCase();
-  let fallbackReply = '';
-  if (lowerMsg.includes('aaj') || lowerMsg.includes('today') || lowerMsg.includes('important')) {
-    fallbackReply = `📢 **${targetBiz} - Daily Summary:**\nAutonomous monitoring is active. All scheduled actions and reviews are checked against system safety rules.`;
-  } else if (lowerMsg.includes('review') || lowerMsg.includes('reply')) {
-    fallbackReply = `✅ **Review Management for ${targetBiz}:**\nNew reviews can be reviewed and replied to in the Reviews tab with customized safety guardrails.`;
-  } else if (lowerMsg.includes('post') || lowerMsg.includes('sale') || lowerMsg.includes('creative')) {
-    fallbackReply = `✨ **Marketing Campaign Post for ${targetBiz}:**\n🚀 **Topic:** Quality & dependable ${targetCat}.\n📝 **Caption:** "Looking for dependable ${targetCat}? At ${targetBiz}, we deliver proven excellence and dedicated service. Contact us today!"`;
-  } else {
-    fallbackReply = `LocalPulse AI is active for **${targetBiz}**. System status is operational. How can I assist you with your marketing and reputation management today?`;
-  }
-  res.json({ reply: fallbackReply });
+  res.status(503).json({success:false,error:'AI assistant unavailable'});
 });
 
 // AI Review Reply Generator (Protected with Auth + Rate Limiting)
-app.post('/api/ai/reply-review', aiRateLimiter, async (req, res) => {
-  const user = await getAuthUserFromRequest(req);
+app.post('/api/ai/reply-review', async (req, res) => {
+  const user:DbUser = res.locals.aiUser;
   if (!user) {
     res.status(401).json({ success: false, error: 'Authentication required to use AI review reply generator. Please log in.' });
     return;
@@ -4415,12 +3765,7 @@ Draft the exact reply text only.`;
     return;
   }
 
-  // Fallback reply
-  const fallback = rating >= 4
-    ? `Thank you so much, ${reviewerName || 'valued customer'}! We at ${targetBiz} appreciate your feedback and look forward to serving you again.`
-    : `Dear ${reviewerName || 'valued customer'}, thank you for your feedback. We continuously strive to improve our services and invite you to reach out directly so we can ensure all your needs are addressed.`;
-
-  res.json({ replyText: fallback });
+  res.status(503).json({success:false,error:'AI reply generation unavailable'});
 });
 
 // AI Grounded Knowledge Base & Anti-Hallucination Fact Checker (Protected with Auth + Rate Limiting)
@@ -4514,8 +3859,8 @@ STRICT INSTRUCTIONS:
 });
 
 // AI Content Studio Generator (Protected with Auth + Rate Limiting + Zod Validation)
-app.post('/api/ai/generate-content', aiRateLimiter, validateBody(generateAiContentSchema), async (req, res) => {
-  const user = await getAuthUserFromRequest(req);
+app.post('/api/ai/generate-content', validateBody(generateAiContentSchema), async (req, res) => {
+  const user:DbUser = res.locals.aiUser;
   if (!user) {
     res.status(401).json({ success: false, error: 'Authentication required to use AI content generator. Please log in.' });
     return;
@@ -4582,52 +3927,13 @@ Provide a JSON-compatible structured response with:
     responseMimeType: 'application/json',
   });
 
-  if (aiText) {
-    try {
-      const parsed = JSON.parse(aiText);
-      res.json(parsed);
-      return;
-    } catch {
-      res.json({ raw: aiText });
-      return;
-    }
-  }
+  if (!aiText) {res.status(503).json({success:false,error:'AI content generation unavailable'});return;}
+  try{
+    const parsed=contentSchema.safeParse(JSON.parse(aiText));
+    if(!parsed.success){res.status(502).json({success:false,error:'AI content response invalid'});return;}
+    res.json(parsed.data);
+  }catch{res.status(502).json({success:false,error:'AI content response invalid'});}
 
-  const fallbackHashtagCategory = category ? category.replace(/[^a-zA-Z0-9]/g, '') : 'Business';
-  const fallbackHashtagCity = city ? city.replace(/[^a-zA-Z0-9]/g, '') : 'Local';
-  const cleanBizName = businessName;
-  const webMention = website && website.trim() ? ` Visit ${website.trim()} or contact` : ' Contact';
-
-  res.json({
-    headline: `⚡ Exclusive ${effectiveOffer} at ${cleanBizName}!`,
-    caption: `Looking for exceptional ${category}${city ? ' in ' + city : ''}? 🌟 At ${cleanBizName}, we are dedicated to delivering top-tier service, certified quality, and dependable support.${webMention} our team today for details!`,
-    callToAction: 'Message Us on WhatsApp',
-    hashtags: [
-      `#${cleanBizName.replace(/[^a-zA-Z0-9]/g, '')}`,
-      `#${fallbackHashtagCategory}`,
-      `#${fallbackHashtagCity}`,
-      '#SpecialOffer',
-      '#TrustedService',
-    ],
-    googlePostSnippet: `Special promotion from ${cleanBizName}: Premium ${category}${city ? ' in ' + city : ''}. Call or message today to claim this limited-time offer!`,
-    reelScript: [
-      {
-        scene: 'Scene 1 (0-4s)',
-        visual: `Visualizing common customer need for ${category}`,
-        audio: `Looking for trusted, high-quality ${category}?`,
-      },
-      {
-        scene: 'Scene 2 (4-10s)',
-        visual: `Expert team at ${cleanBizName} delivering professional service`,
-        audio: `At ${cleanBizName}, we provide dependable results with complete peace of mind.`,
-      },
-      {
-        scene: 'Scene 3 (10-15s)',
-        visual: 'Satisfied customer with clear call to action on screen',
-        audio: `Claim your special offer today. Contact us now!`,
-      },
-    ],
-  });
 });
 
 // AI Template Definitions List
@@ -4976,7 +4282,7 @@ app.get('/api/leads', async (req, res) => {
         return;
       }
       const leads = await getAllLeads(requestedCompanyId);
-      res.json({ success: true, leads });
+      res.json({ success: true, companyId:requestedCompanyId, leads });
       return;
     }
 
@@ -5005,66 +4311,9 @@ app.get('/api/leads', async (req, res) => {
 });
 
 // Public Lead Ingestion Endpoint (Strict Token Validation, Honeypot Anti-Spam & Rate Limiting)
-app.post(['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req, res) => {
-  try {
-    // 1. Honeypot check
-    if (req.body._hp || req.body.website_url_hp || req.body._gotcha) {
-      // Silently drop bot submission
-      res.status(200).json({ success: true, message: 'Inquiry received' });
-      return;
-    }
-
-    const { name, company, phone, email, service, budget, source, notes, form_token, formToken, publicFormToken, token } = req.body;
-    const providedToken = form_token || formToken || publicFormToken || token;
-
-    if (!name || !phone) {
-      res.status(400).json({ success: false, error: 'Name and phone number are required' });
-      return;
-    }
-
-    if (!providedToken || typeof providedToken !== 'string' || !providedToken.trim()) {
-      res.status(400).json({ success: false, error: 'A valid publicFormToken is strictly required to submit inquiries through the public lead endpoint.' });
-      return;
-    }
-
-    const targetCompany = await findCompanyByPublicFormToken(String(providedToken).trim());
-    if (!targetCompany) {
-      res.status(400).json({ success: false, error: 'Invalid or unrecognized publicFormToken.' });
-      return;
-    }
-
-    const intentAnalysis = calculateMessageIntent(notes || service || '', {
-      service,
-      budget,
-      phone,
-      email,
-    });
-
-    const compName = targetCompany.name || 'Our Team';
-
-    const newLead = await createLead({
-      company_id: targetCompany.id,
-      name: String(name).trim(),
-      company: company ? String(company).trim() : 'Direct Client',
-      phone: String(phone).trim(),
-      email: email ? String(email).trim() : '',
-      service: service ? String(service).trim() : 'Inquiry',
-      budget: budget ? String(budget).trim() : 'Custom Proposal',
-      stage: 'new',
-      intent_score: intentAnalysis.score ?? null,
-      source: source ? String(source).trim() : `${targetCompany.name} Web Form`,
-      notes: notes ? String(notes).trim() : '',
-      ai_suggested_reply: `Namaste ${name}! Thank you for contacting ${compName}. We have received your inquiry for ${service || 'our services'}. Our team will connect with you shortly.`,
-    });
-
-    // Auto-dispatch Telegram alert
-    const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!*\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score !== null ? `${newLead.intent_score}%` : 'UNAVAILABLE'}\n\n📱 *Source:* ${newLead.source}`;
-    sendTelegramPushAlert(alertMsg).catch(() => {});
-
-    res.status(201).json({ success: true, lead: newLead });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to submit lead' });
-  }
+registerPublicLeadRoutes(app,{rateLimit:leadsRateLimiter,pool:getDbPool,resolve:resolvePublicLeadCompany,save:savePublicLeadIntake,receipt:readPublicLeadReceipt,
+ score:input=>calculateMessageIntent(input.notes||input.service||'',{service:input.service,budget:input.budget,phone:input.phone,email:input.email}).score??null,
+ notify:(pool,company,id,input)=>notifyPublicLeadOnce(pool,company,id,()=>sendTenantTelegram(company,`New website inquiry\nName: ${input.name}\nPhone: ${input.phone}\nService: ${input.service||'Inquiry'}`,{getCompanyIntegration,fetch}))
 });
 
 // Authenticated Lead Ingestion & Internal CRM Lead Management
@@ -5125,50 +4374,15 @@ app.post('/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (
 
     // Auto-dispatch Telegram alert
     const alertMsg = `🔥 *NEW HOT LEAD RECEIVED!* (${newLead.source})\n\n🏢 *Target Business:* ${compName}\n👤 *Client:* ${newLead.name}\n🏢 *Client Org:* ${newLead.company}\n📞 *Phone:* \`${newLead.phone}\`\n💼 *Service:* ${newLead.service}\n💰 *Budget:* ${newLead.budget}\n🎯 *Intent Score:* ${newLead.intent_score !== null ? `${newLead.intent_score}%` : 'UNAVAILABLE'}\n\n📱 *Source:* ${newLead.source}`;
-    sendTelegramPushAlert(alertMsg).catch(() => {});
+    const telegramAccepted=await sendTenantTelegram(newLead.company_id!,alertMsg,{getCompanyIntegration,fetch});
 
-    res.status(201).json({ success: true, lead: newLead });
+    res.status(201).json({success:true,lead:newLead,notifications:{telegram:telegramAccepted?'ACCEPTED':'UNAVAILABLE'}});
   } catch (error: any) {
     res.status(500).json({ success: false, error: error?.message });
   }
 });
 
-// Update lead stage - Protected with Authentication, IDOR Verification & Zod Validation
-app.patch('/api/leads/:id/stage', validateBody(updateLeadStageSchema), async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const { stage } = req.body;
-
-    const lead = await getLeadById(id);
-    if (!lead) {
-      res.status(404).json({ success: false, error: 'Lead not found' });
-      return;
-    }
-
-    // Verify IDOR authorization
-    if (lead.company_id) {
-      const company = await getCompanyById(lead.company_id);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to update this lead' });
-        return;
-      }
-    } else if (!user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to update global lead' });
-      return;
-    }
-
-    const success = await updateLeadStatus(id, stage);
-    res.json({ success });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error?.message });
-  }
-});
+registerLeadStageRoutes(app,{validate:validateBody(updateLeadStageSchema),auth:getAuthUserFromRequest,lead:getLeadById,access:verifyCompanyWorkspaceAccess,update:updateLeadStatus});
 
 // ---------------- WHATSAPP CLOUD API & META SOCIAL DIRECT DISPATCH ---------------- //
 
@@ -5267,7 +4481,9 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
     }
 
     // Call official Meta Graph API v21.0
-    const waRes = await sendWhatsAppCloudMessage(creds, {
+    const dispatchPool=await getDbPool();if(!dispatchPool)throw new Error('Durable dispatch store unavailable');
+    const dispatchInput={sender:creds.phoneNumberId,to:cleanTo,message,templateName,languageCode,components,templateParams,mediaType,mediaUrl,caption};
+    const waRes = await dispatchMessageIntent(dispatchPool,effectiveCompanyId,req.body.requestKey,dispatchInput,()=>sendWhatsAppCloudMessage(creds, {
       to: cleanTo,
       message,
       templateName,
@@ -5278,12 +4494,12 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
       mediaUrl,
       caption,
       companyId: effectiveCompanyId,
-    });
+    }),user.id);
 
     if (waRes.success && waRes.messageId) {
       res.json({
         success: true,
-        status: 'DELIVERED',
+        status: 'API_ACCEPTED',requestKey:req.body.requestKey,reused:waRes.reused,
         method: 'meta_cloud_api',
         messageId: waRes.messageId,
         recipient: cleanTo,
@@ -5292,20 +4508,21 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
       return;
     } else {
       const fallbackLink = `https://wa.me/${cleanTo}?text=${encodeURIComponent(message || caption || '')}`;
-      res.status(400).json({
+      res.status(waRes.status==='PAUSED'?423:waRes.status==='UNKNOWN'?502:400).json({
         success: false,
-        status: 'FAILED',
+        status: waRes.status||'UNKNOWN',
         method: 'meta_cloud_api',
         error: waRes.error || 'Meta Cloud API error',
-        waLink: fallbackLink,
-        fallbackNotice: 'Direct wa.me link generated as backup due to Meta Graph API rejection.',
+        fallbackNotice: 'Provider dispatch was not confirmed. Check provider history before another send.',
       });
       return;
     }
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(err instanceof DispatchIntentError?err.status:503).json({success:false,error:err instanceof DispatchIntentError?err.message:'Durable dispatch unavailable'});
   }
 });
+
+registerMessageDispatchStatus(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,read:async(company,key)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable dispatch state unavailable');return readMessageDispatchStatus(pool,company,key);}});
 
 // Broadcast WhatsApp Campaign Endpoint
 app.post('/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async (req, res) => {
@@ -5341,65 +4558,16 @@ app.post('/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async
       return;
     }
 
-    const results: Array<{ recipient: string; success: boolean; messageId?: string; waLink?: string; error?: string }> = [];
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const item of recipients) {
-      const rawPhone = typeof item === 'string' ? item : item.phone;
-      const recipientName = typeof item === 'object' ? item.name : undefined;
-
-      let cleanPhone = String(rawPhone).replace(/[^0-9]/g, '');
-      if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-      if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.substring(1);
-
-      if (!cleanPhone || cleanPhone.length < 10) {
-        results.push({ recipient: rawPhone, success: false, error: 'Invalid phone number format' });
-        failCount++;
-        continue;
-      }
-
-      const waRes = await sendWhatsAppCloudMessage(creds, {
-        to: cleanPhone,
-        message,
-        templateName,
-        languageCode,
-        templateParams: templateParams || (recipientName ? [recipientName] : undefined),
-        mediaType,
-        mediaUrl,
-        companyId: effectiveCompanyId,
-      });
-
-      if (waRes.success && waRes.messageId) {
-        successCount++;
-        results.push({
-          recipient: cleanPhone,
-          success: true,
-          messageId: waRes.messageId,
-        });
-      } else {
-        failCount++;
-        results.push({
-          recipient: cleanPhone,
-          success: false,
-          error: waRes.error || 'Meta Cloud API rejected message',
-          waLink: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message || '')}`,
-        });
-      }
-    }
-
-    res.json({
-      success: successCount > 0,
-      status: successCount > 0 ? 'COMPLETED' : 'FAILED',
-      campaignName: campaignName || 'WhatsApp Blast Campaign',
-      totalRecipients: recipients.length,
-      successCount,
-      failCount,
-      configured: true,
-      results,
+    const dispatchPool=await getDbPool();if(!dispatchPool)throw new Error('Durable dispatch store unavailable');
+    const outcome=await runWhatsAppBroadcast(recipients,(phone,recipientName)=>{
+      const input={sender:creds.phoneNumberId,to:phone,message,templateName,languageCode,templateParams:templateParams||(recipientName?[recipientName]:undefined),mediaType,mediaUrl};
+      const key=createHash('sha256').update(`wa-broadcast:${req.body.requestKey}:${phone}`).digest('hex');
+      return dispatchMessageIntent(dispatchPool,effectiveCompanyId,key,input,()=>sendWhatsAppCloudMessage(creds,{...input,companyId:effectiveCompanyId}),user.id);
     });
+    res.json({...outcome,requestKey:req.body.requestKey,campaignName:campaignName||'WhatsApp campaign',configured:true});
+
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(503).json({success:false,error:'Durable broadcast unavailable'});
   }
 });
 
@@ -5414,89 +4582,14 @@ app.get('/api/whatsapp/webhook', (req, res) => {
     console.log('[WhatsApp Webhook] Verification challenge accepted by Meta Graph API');
     res.status(200).send(handshake.challenge);
   } else {
-    console.warn('[WhatsApp Webhook] Verification token mismatch. Provided:', token);
+    console.warn('[WhatsApp Webhook] Verification token mismatch.');
     res.status(403).send('Verification token mismatch');
   }
 });
 
-// Meta Webhook Inbound Message & Status Receiver (POST /api/whatsapp/webhook with HMAC-SHA256 signature verification)
-app.post('/api/whatsapp/webhook', async (req, res) => {
-  try {
-    // 1. HMAC-SHA256 Payload Signature Verification
-    const hubSignature = req.headers['x-hub-signature-256'] as string | undefined;
-    const appSecret =
-      process.env.WHATSAPP_APP_SECRET ||
-      process.env.META_APP_SECRET ||
-      process.env.WHATSAPP_WEBHOOK_SECRET;
-
-    const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
-    const sigCheck = verifyWhatsAppWebhookSignature({ rawBody, signature: hubSignature, appSecret });
-    if (!sigCheck.isValid) {
-      console.warn('[WhatsApp Webhook] Invalid HMAC-SHA256 signature rejected:', sigCheck.error);
-      res.status(403).json({ error: 'Invalid webhook signature' });
-      return;
-    }
-
-    // 2. Parse Inbound Message and Contacts
-    const entry = req.body.entry?.[0];
-    const change = entry?.changes?.[0]?.value;
-    const wabaId = entry?.id;
-    const phoneNumberId = change?.metadata?.phone_number_id;
-    const displayPhone = change?.metadata?.display_phone_number;
-
-    const message = change?.messages?.[0];
-    const contact = change?.contacts?.[0];
-    const statusUpdate = change?.statuses?.[0];
-
-    // 3. Strict Multi-Tenant Mapping (Do NOT use generic/default company)
-    const matchedCompanyId = await findCompanyByWhatsAppIdentifier({
-      phoneNumberId,
-      wabaId,
-      displayPhoneNumber: displayPhone,
-    });
-
-    if (!matchedCompanyId) {
-      console.warn(`[WhatsApp Webhook] Unmatched tenant for phone_number_id=${phoneNumberId}, waba_id=${wabaId}. Strict multi-tenant isolation prevents routing to generic company.`);
-      res.status(200).json({ status: 'ok', warning: 'UNMATCHED_TENANT_IGNORED' });
-      return;
-    }
-
-    // 4. Duplicate Webhook Processing Prevention (Idempotency)
-    const eventId = message?.id || (statusUpdate?.id ? `status_${statusUpdate.id}_${statusUpdate.status}` : undefined);
-    if (eventId && (await isWebhookEventProcessed(eventId))) {
-      console.log(`[WhatsApp Webhook] Idempotent duplicate event ignored: ${eventId}`);
-      res.status(200).json({ status: 'ok', duplicate: true, eventId });
-      return;
-    }
-
-    // Handle delivery status notifications
-    if (statusUpdate && eventId) {
-      console.log(`[WhatsApp Status] Message ${statusUpdate.id} status updated to: ${statusUpdate.status} (Company: ${matchedCompanyId})`);
-      await markWebhookEventProcessed(eventId, `whatsapp_status_${statusUpdate.status}`, matchedCompanyId);
-      res.status(200).json({ status: 'status_recorded', eventId });
-      return;
-    }
-
-    if (message && contact) {
-      const fromPhone = message.from;
-      const contactName = contact.profile?.name || `WhatsApp Client (+${fromPhone})`;
-
-      let textBody = '';
-      if (message.type === 'text') {
-        textBody = message.text?.body || '';
-      } else if (message.type === 'interactive') {
-        textBody = message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || '[Interactive Response]';
-      } else if (message.type === 'button') {
-        textBody = message.button?.text || '[Button Click]';
-      } else if (message.type === 'image') {
-        textBody = `[Image Received: ${message.image?.caption || 'No caption'}]`;
-      } else if (message.type === 'document') {
-        textBody = `[Document: ${message.document?.filename || 'File'}]`;
-      } else {
-        textBody = `[${message.type || 'Media'} Message]`;
-      }
-
-      console.log(`[WhatsApp Inbound] Received message ${message.id} from ${contactName} (${fromPhone}) for company ${matchedCompanyId}: ${textBody}`);
+registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process.env.META_APP_SECRET,resolve:(phoneNumberId,wabaId)=>findCompanyByWhatsAppIdentifier({phoneNumberId,wabaId},true),receipt:async(company,input)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable receipt storage unavailable');await recordMessageReceipt(pool,company,input);},inbound:async(matchedCompanyId,message,contact)=>{
+ const inboundPool=await getDbPool();if(!inboundPool)throw new Error('Inbound storage unavailable');
+      const {phone:fromPhone,name:contactName,body:textBody}=describeWhatsAppInbound(message,contact);
 
       const intentAnalysis = calculateMessageIntent(textBody, {
         service: 'WhatsApp Direct Inquiry',
@@ -5507,8 +4600,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
       const compName = matchedCompany?.name || 'Our Team';
 
       // Auto-ingest lead into database for the matched company tenant
-      await createLead({
-        company_id: matchedCompanyId,
+      const inserted=await recordWhatsAppInboundLead(inboundPool,matchedCompanyId,message.id,{
         name: contactName,
         company: 'WhatsApp Inbound Inquiry',
         phone: `+${fromPhone}`,
@@ -5519,23 +4611,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         source: 'WhatsApp Cloud Inbound',
         notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
         ai_suggested_reply: `Namaste ${contactName}! ${compName} has received your message. A dedicated consultant will reply right here on WhatsApp shortly.`,
-      }).catch((e) => console.warn('Failed to save inbound WhatsApp lead:', e));
+      });
 
-      // Mark webhook event processed
-      await markWebhookEventProcessed(message.id, 'whatsapp_inbound_message', matchedCompanyId);
-
-      // Push instant Telegram alert
-      sendTelegramPushAlert(
-        `💬 *NEW WHATSAPP INBOUND MESSAGE!*\n\n🏢 *Tenant:* \`${matchedCompanyId}\`\n👤 *Client:* ${contactName}\n📞 *Phone:* \`+${fromPhone}\`\n📝 *Message:* "${textBody}"\n🆔 *Message ID:* \`${message.id}\`\n\n⚡ Ingested into CRM lead pipeline automatically.`
-      ).catch(() => {});
-    }
-
-    res.status(200).json({ status: 'ok' });
-  } catch (err: any) {
-    console.warn('[WhatsApp Webhook] Handler error:', err?.message);
-    res.status(200).json({ status: 'handled_with_error' });
-  }
-});
+      if(!inserted)return;
+      await sendTenantTelegram(matchedCompanyId,`New WhatsApp inbound message recorded for this workspace.`,{getCompanyIntegration,fetch});
+}});
 
 // ---------------- META SOCIAL DIRECT DISPATCH (FACEBOOK & INSTAGRAM) ---------------- //
 
@@ -5569,120 +4649,16 @@ app.get('/api/meta/status', async (req, res) => {
   }
 });
 
-// Meta Social Direct Post Publishing Endpoint (Facebook Page Feed & Instagram Business Account)
-app.post('/api/meta/publish-post', validateBody(metaPublishSchema), async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
+// Legacy URL delegates to the canonical stored-post publishing state machine.
+registerPublicationControls(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,history:async(company,before)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable history unavailable');return readPublicationControlHistory(pool,company,before);},read:async(company)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable controls unavailable');return readScopedPublicationControls(pool,company);},update:async(company,actor,input)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable controls unavailable');return updateScopedPublicationControls(pool,company,actor,input);}});
+registerDailyWorkReport(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,read:async(company,date)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable report storage unavailable');return readDailyWorkReport(pool,company,date);}});
+registerPublicationWorkflow(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,getPostById,history:async(company,post,before)=>{const pool=await getDbPool();if(!pool)throw new PublishingReviewError(503,'Durable workflow history unavailable');return readPublicationWorkflowHistory(pool,company,post,before);},publish:executePublishingJob,transition:async(id,actor,input)=>{const pool=await getDbPool();if(!pool)throw new PublishingReviewError(503,'Durable workflow storage unavailable');return transitionPublication(pool,id,actor,input);}});
+registerPublicationDrafts(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,prepare:async(company,actor,input)=>{const pool=await getDbPool();if(!pool)throw new PublishingReviewError(503,'Durable draft storage unavailable');return preparePublicationDraft(pool,company,actor,input);}});
+registerMetaVerification(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,check:checkCompanyMetaPublication});
 
-    const { content, caption, imageUrl, videoUrl, platforms, companyId, postId } = req.body;
-    const postBody = content || caption || '';
+registerPublishingReview(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,read:getCompanyPublishingReview,append:recordCompanyPublishingReview});
 
-    const resolved = await resolveUserCompanyId(user, companyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-    const effectiveCompanyId = resolved.companyId;
-
-    const creds = await resolveMetaSocialCredentials(effectiveCompanyId);
-    const targetPlatforms = Array.isArray(platforms) && platforms.length > 0 ? platforms : ['facebook', 'instagram'];
-
-    const results: {
-      facebook?: { success: boolean; id?: string; error?: string };
-      instagram?: { success: boolean; id?: string; error?: string };
-    } = {};
-
-    if (!creds.configured) {
-      res.status(400).json({
-        success: false,
-        status: 'NOT_CONFIGURED',
-        configured: false,
-        results,
-        error: 'Meta credentials (Facebook Page ID/Instagram Business Account ID and Access Token) not configured. Configure Meta integration in settings to publish live.',
-      });
-      return;
-    }
-
-    let publishedAny = false;
-
-    // 1. Facebook Page Direct Publishing via Graph API
-    if (targetPlatforms.includes('facebook')) {
-      if (creds.accessToken && creds.pageId) {
-        const fbRes = await publishToFacebookPage({
-          pageId: creds.pageId,
-          accessToken: creds.accessToken,
-          message: postBody,
-          imageUrl,
-        });
-
-        if (fbRes.success && fbRes.id) {
-          results.facebook = { success: true, id: fbRes.id };
-          publishedAny = true;
-        } else {
-          results.facebook = { success: false, error: fbRes.error || 'Facebook Graph API rejected post' };
-        }
-      } else {
-        results.facebook = { success: false, error: 'Facebook Page ID or Access Token not configured' };
-      }
-    }
-
-    // 2. Instagram Business Account Publishing via 2-Step Graph API Container Flow
-    if (targetPlatforms.includes('instagram')) {
-      if (creds.accessToken && creds.instagramId) {
-        const igRes = await publishToInstagram({
-          instagramId: creds.instagramId,
-          accessToken: creds.accessToken,
-          caption: postBody,
-          imageUrl,
-          videoUrl,
-        });
-
-        if (igRes.success && igRes.id) {
-          results.instagram = { success: true, id: igRes.id };
-          publishedAny = true;
-        } else {
-          results.instagram = { success: false, error: igRes.error || 'Instagram Graph API rejected media publish' };
-        }
-      } else {
-        results.instagram = { success: false, error: 'Instagram Business Account ID or Access Token not configured' };
-      }
-    }
-
-    // 3. Only if at least one platform confirmed with a provider publication ID, update database record to published
-    if (publishedAny && postId) {
-      try {
-        await updateContentPostStatus(postId, 'published', effectiveCompanyId);
-      } catch (dbErr) {
-        console.warn('Failed to update post status in DB:', dbErr);
-      }
-    }
-
-    if (!publishedAny) {
-      res.status(400).json({
-        success: false,
-        configured: true,
-        status: 'FAILED',
-        results,
-        error: 'Meta Graph API dispatch returned errors for all selected platforms.',
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      configured: true,
-      status: 'PUBLISHED',
-      results,
-      message: 'Successfully published to live Meta social channels!',
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerMetaPublishing(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,getPostById,executePublishingJob});
 
 // Razorpay Status Endpoint
 app.get('/api/razorpay/status', async (req, res) => {
@@ -6470,24 +5446,11 @@ app.get('/api/invoices/:id/download', async (req, res) => {
 });
 
 // Direct Telegram alert dispatch endpoint - Protected with Authentication & Rate Limiting
-app.post('/api/telegram/notify', telegramAlertLimiter, async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { message } = req.body;
-    if (!message) {
-      res.status(400).json({ success: false, error: 'Message is required' });
-      return;
-    }
-    const dispatched = await sendTelegramPushAlert(message);
-    res.json({ success: dispatched });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error?.message });
-  }
+registerTenantNotificationRoutes(app, {
+  limiter: telegramAlertLimiter,
+  getAuthUserFromRequest,
+  verifyCompanyWorkspaceAccess,
+  send: (companyId, message) => sendTenantTelegram(companyId, message, { getCompanyIntegration, fetch }),
 });
 
 // ---------------- AUTONOMOUS GOVERNANCE & EXECUTION ENGINE ---------------- //
@@ -6510,6 +5473,8 @@ app.get('/api/autonomous/status', async (req, res) => {
     const companyId = resolved.companyId;
     const company = await getCompanyById(companyId);
 
+    if(!company){res.status(404).json({success:false,error:'Workspace not found'});return;}
+    const rawAutopilot:unknown=company.autopilot_enabled;if(![true,false,0,1].some(value=>value===rawAutopilot)){res.status(503).json({success:false,error:'Autopilot state unavailable'});return;}
     const actions = await getAutonomousActionsByCompany(companyId);
     const recommendations = await getAutonomousRecommendationsByCompany(companyId);
     const pendingApprovals = actions.filter((a) => a.approval_status === 'pending_approval').length;
@@ -6517,7 +5482,7 @@ app.get('/api/autonomous/status', async (req, res) => {
     res.json({
       success: true,
       companyId,
-      autopilotEnabled: company ? Boolean(company.autopilot_enabled) : true,
+      autopilotEnabled: Boolean(company!.autopilot_enabled),
       globalEmergencyStop: isGlobalEmergencyStopActive(),
       activeKillSwitch: isGlobalEmergencyStopActive() || (company ? !company.autopilot_enabled : false),
       totalRecommendations: recommendations.length,
@@ -6530,53 +5495,10 @@ app.get('/api/autonomous/status', async (req, res) => {
   }
 });
 
-// POST /api/autonomous/kill-switch - Toggle emergency stop or tenant autopilot
-app.post('/api/autonomous/kill-switch', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { companyId, emergencyStop, autopilotEnabled } = req.body;
-
-    if (emergencyStop !== undefined) {
-      if (!user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Only platform administrators can trigger global emergency stop.' });
-        return;
-      }
-      setGlobalEmergencyStop(Boolean(emergencyStop));
-    }
-
-    if (companyId && autopilotEnabled !== undefined) {
-      const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-      if (!authCheck.authorized) {
-        res.status(authCheck.status).json({ success: false, error: authCheck.error });
-        return;
-      }
-      const company = authCheck.company;
-      if (company) {
-        company.autopilot_enabled = Boolean(autopilotEnabled);
-        try {
-          const db = await getDbPool();
-          if (db) {
-            await db.query('UPDATE companies SET autopilot_enabled = ? WHERE id = ?', [company.autopilot_enabled ? 1 : 0, companyId]);
-          }
-        } catch {}
-      }
-    }
-
-    res.json({
-      success: true,
-      globalEmergencyStop: isGlobalEmergencyStopActive(),
-      autopilotEnabled: companyId ? Boolean(autopilotEnabled) : undefined,
-      message: 'Autonomous kill switch / autopilot settings updated successfully.',
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerAutonomousControlRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,stop:setGlobalEmergencyStop,isStopped:isGlobalEmergencyStopActive,autopilot:async(company,enabled)=>{
+ const pool=await getDbPool();if(!pool)throw new Error('Durable control store unavailable');
+ const [result]:any=await pool.query('UPDATE companies SET autopilot_enabled = ? WHERE id = ?',[enabled?1:0,company]);return result.affectedRows>0;
+}});
 
 // POST /api/autonomous/run-cycle - Trigger grounded observation & recommendation cycle
 app.post('/api/autonomous/run-cycle', async (req, res) => {
@@ -6626,7 +5548,7 @@ app.get('/api/autonomous/recommendations', async (req, res) => {
 
     const recommendations = await getAutonomousRecommendationsByCompany(companyId);
     res.json({
-      success: true,
+      success: true,companyId,
       count: recommendations.length,
       recommendations,
     });
@@ -6654,7 +5576,7 @@ app.get('/api/autonomous/actions', async (req, res) => {
 
     const actions = await getAutonomousActionsByCompany(companyId);
     res.json({
-      success: true,
+      success: true,companyId,
       count: actions.length,
       actions,
     });
@@ -6679,6 +5601,7 @@ app.post('/api/autonomous/actions/:id/approve', async (req, res) => {
       return;
     }
 
+    if(req.body?.companyId!==undefined&&req.body.companyId!==action.company_id){res.status(403).json({success:false,error:'Action workspace mismatch'});return;}
     const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
     if (!authCheck.authorized) {
       res.status(authCheck.status).json({ success: false, error: authCheck.error });
@@ -6727,6 +5650,7 @@ app.post('/api/autonomous/actions/:id/reject', async (req, res) => {
       return;
     }
 
+    if(req.body?.companyId!==undefined&&req.body.companyId!==action.company_id){res.status(403).json({success:false,error:'Action workspace mismatch'});return;}
     const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
     if (!authCheck.authorized) {
       res.status(authCheck.status).json({ success: false, error: authCheck.error });
@@ -6777,6 +5701,7 @@ app.post('/api/autonomous/actions/:id/execute', async (req, res) => {
       return;
     }
 
+    if(req.body?.companyId!==undefined&&req.body.companyId!==action.company_id){res.status(403).json({success:false,error:'Action workspace mismatch'});return;}
     const authCheck = await verifyCompanyWorkspaceAccess(user, action.company_id);
     if (!authCheck.authorized) {
       res.status(authCheck.status).json({ success: false, error: authCheck.error });
@@ -6819,7 +5744,7 @@ app.get('/api/autonomous/audit-logs', async (req, res) => {
 
     const logs = await getAutonomousAuditLogsByCompany(companyId);
     res.json({
-      success: true,
+      success: true,companyId,
       count: logs.length,
       logs,
     });
@@ -6830,207 +5755,7 @@ app.get('/api/autonomous/audit-logs', async (req, res) => {
 
 // ---------------- CUSTOM DOMAINS, DNS VERIFICATION & STATIC WEBSITE BUILDER ---------------- //
 
-// List custom domains for a company
-app.get('/api/companies/:id/domains', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-    const domains = await getCustomDomainsByCompany(companyId);
-    res.json({ success: true, count: domains.length, domains });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch domains' });
-  }
-});
-
-// Add custom domain
-app.post('/api/companies/:id/domains', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-    const { domain } = req.body;
-    if (!domain || typeof domain !== 'string') {
-      res.status(400).json({ success: false, error: 'Domain name is required' });
-      return;
-    }
-
-    const cleanDomain = domain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    const newDomain = await createCustomDomain({
-      company_id: companyId,
-      domain: cleanDomain,
-    });
-
-    res.status(201).json({ success: true, domain: newDomain });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to add custom domain' });
-  }
-});
-
-// Verify DNS records for custom domain
-app.post('/api/companies/:id/domains/:domainId/verify', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const { id: companyId, domainId } = req.params;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const domainRecord = await getCustomDomainById(domainId);
-    if (!domainRecord || domainRecord.company_id !== companyId) {
-      res.status(404).json({ success: false, error: 'Domain record not found' });
-      return;
-    }
-
-    const verification = await verifyDomainDns(
-      domainRecord.domain,
-      domainRecord.cname_target,
-      domainRecord.a_record_target,
-      domainRecord.dns_txt_record
-    );
-
-    // If verified or simulation flag passed, mark active
-    const newStatus = verification.verified ? 'active' : 'pending_verification';
-    const sslStatus = verification.verified ? 'active' : 'provisioning';
-
-    const updated = await updateCustomDomainStatus(domainId, newStatus, sslStatus);
-
-    res.json({
-      success: true,
-      domain: updated || domainRecord,
-      verification,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'DNS verification failed' });
-  }
-});
-
-// Delete custom domain
-app.delete('/api/companies/:id/domains/:domainId', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const { id: companyId, domainId } = req.params;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const domainRecord = await getCustomDomainById(domainId);
-    if (!domainRecord || domainRecord.company_id !== companyId) {
-      res.status(404).json({ success: false, error: 'Domain record not found' });
-      return;
-    }
-
-    await deleteCustomDomain(domainId);
-    res.json({ success: true, message: 'Domain deleted successfully' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to delete domain' });
-  }
-});
-
-// Get website builder config
-app.get('/api/companies/:id/website/config', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const config = await getWebsiteConfigByCompany(companyId);
-    res.json({ success: true, config });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to get website config' });
-  }
-});
-
-// Update website builder config
-app.put('/api/companies/:id/website/config', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-
-    const updated = await upsertWebsiteConfig({
-      company_id: companyId,
-      ...req.body,
-    });
-    res.json({ success: true, config: updated });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to update website config' });
-  }
-});
-
-// Export production static website ZIP bundle
-app.get('/api/companies/:id/website/export', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
-    const company = authCheck.company;
-    const config = await getWebsiteConfigByCompany(companyId);
-    const domains = await getCustomDomainsByCompany(companyId);
-    const primaryDomain = domains.find((d) => d.status === 'active')?.domain || domains[0]?.domain || 'bga.aaditechs.in';
-
-    const zipBuffer = await generateStaticExportZip(company as any, config, primaryDomain);
-
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="storefront-${primaryDomain.replace(/[^a-z0-9]/gi, '_')}.zip"`);
-    res.setHeader('Content-Length', zipBuffer.length);
-    res.send(zipBuffer);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to export static website zip' });
-  }
-});
+registerWebsiteRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,domains:getCustomDomainsByCompany,domain:getCustomDomainById,create:createCustomDomain,verify:verifyDomainDns,saveDns:updateCustomDomainStatus,remove:deleteCustomDomain,config:getWebsiteConfigByCompany,save:upsertWebsiteConfig,zip:generateStaticExportZip});
 
 // Preview standalone HTML
 app.get('/api/companies/:id/website/preview-html', async (req, res) => {
@@ -7047,7 +5772,7 @@ app.get('/api/companies/:id/website/preview-html', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err: any) {
-    res.status(500).send(`<h1>Error generating preview</h1><p>${err?.message}</p>`);
+    res.status(503).send('<h1>Preview unavailable</h1>');
   }
 });
 
@@ -7066,45 +5791,8 @@ app.get('/storefront/:companyId', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err: any) {
-    res.status(500).send(`<h1>Storefront Error</h1><p>${err?.message}</p>`);
+    res.status(503).send('<h1>Storefront unavailable</h1>');
   }
-});
-
-// Production Health Endpoint (/api/health)
-app.get('/api/health', async (req, res) => {
-  const isProd = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
-  const dbStatus = getDbStatus();
-  let schemaReport: any = null;
-
-  try {
-    const pool = await getDbPool();
-    if (pool) {
-      schemaReport = await verifySchema(pool);
-    }
-  } catch (err: any) {
-    schemaReport = { error: err?.message, status: 'UNAVAILABLE' };
-  }
-
-  if (isProd && (!dbStatus.connected || schemaReport?.status === 'UNAVAILABLE' || schemaReport?.status === 'DATABASE_SCHEMA_OUTDATED')) {
-    res.status(503).json({
-      status: 'error',
-      database: dbStatus.connected ? 'connected' : 'unavailable',
-      migrations: schemaReport?.status || 'unknown',
-      version: '1.29.0',
-      timestamp: new Date().toISOString(),
-      error: schemaReport?.error || 'Database unavailable or schema outdated in production',
-    });
-    return;
-  }
-
-  res.json({
-    status: 'ok',
-    database: dbStatus.connected ? 'connected' : 'in-memory-development',
-    migrations: schemaReport ? (schemaReport.status === 'READY' ? 'current' : schemaReport.status) : 'development-mode',
-    schemaVersion: schemaReport?.schemaVersion ?? 0,
-    version: '1.29.0',
-    timestamp: new Date().toISOString(),
-  });
 });
 
 // System Deployment & Environment Health Check
@@ -7126,32 +5814,11 @@ app.get('/api/system/status', (req, res) => {
 // ---------------- HOSTINGER SHARED-SAFE UNIVERSAL SCHEDULER & DURABLE JOB QUEUE ---------------- //
 
 // Universal Scheduler & Durable Queue Tick (External Webhook Ping / Hostinger hPanel Cron)
-app.post(['/api/scheduler/tick', '/api/cron/tick'], async (req, res) => {
-  try {
-    const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
-    const expectedSecret = process.env.CRON_SECRET || process.env.AUTH_SECRET;
-
-    // In production, require either valid secret header OR authenticated platform_admin
-    if (isProductionEnvironment()) {
-      const user = await getAuthUserFromRequest(req);
-      const isAuthorizedSecret = expectedSecret && cronSecret === expectedSecret;
-      const isAuthorizedAdmin = user && user.is_platform_admin;
-
-      if (!isAuthorizedSecret && !isAuthorizedAdmin) {
-        res.status(403).json({ success: false, error: 'Unauthorized: Valid CRON_SECRET or platform_admin authorization required' });
-        return;
-      }
-    }
-
-    const result = await runSchedulerTick();
-    res.json({
-      success: true,
-      status: 'ok',
-      result,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
+registerSchedulerRoutes(app, {
+  getCronSecret: () => process.env.CRON_SECRET,
+  readHistory:async(before,limit)=>{const pool=await getDbPool();if(!pool)throw new Error('Dispatcher storage unavailable');return readDispatcherHistory(pool,before,limit);},
+  getAuthUserFromRequest,
+  runSchedulerTick,
 });
 
 // GET /api/companies/:id/jobs - Durable Job Queue Status & History
@@ -7188,45 +5855,16 @@ app.get('/api/companies/:id/jobs', async (req, res) => {
   }
 });
 
-// POST /api/companies/:id/jobs - Enqueue Background Job
-app.post('/api/companies/:id/jobs', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
+registerNotificationStatus(app, { getAuthUserFromRequest, verifyCompanyWorkspaceAccess, read: getCompanyNotificationStatus });
 
-    const companyId = req.params.id;
-    const authCheck = await verifyCompanyWorkspaceAccess(user, companyId);
-    if (!authCheck.authorized) {
-      res.status(authCheck.status).json({ success: false, error: authCheck.error });
-      return;
-    }
+registerActionFeed(app, { getAuthUserFromRequest, verifyCompanyWorkspaceAccess, getCompanyActionFeed });
 
-    const { job_type, jobType, payload, idempotency_key, idempotencyKey, scheduled_for, scheduledFor } = req.body;
-    const effectiveType = job_type || jobType;
-
-    if (!effectiveType) {
-      res.status(400).json({ success: false, error: 'job_type is required' });
-      return;
-    }
-
-    const job = await enqueueJob({
-      company_id: companyId,
-      job_type: effectiveType,
-      payload: payload || {},
-      idempotency_key: idempotency_key || idempotencyKey || undefined,
-      scheduled_for: scheduled_for || scheduledFor || undefined,
-    });
-
-    res.status(201).json({
-      success: true,
-      job,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
+registerQueueAdmission(app, {
+  getAuthUserFromRequest,
+  verifyCompanyWorkspaceAccess,
+  getPostById,
+  getAllLeads,
+  enqueueJob,
 });
 
 // Global process exception handlers to prevent unexpected process exit
@@ -7239,40 +5877,18 @@ process.on('uncaughtException', (err) => {
 
 async function startServer() {
   try {
-    const isProductionDeployment = process.env.NODE_ENV === 'production';
+    const isProductionDeployment = process.env.NODE_ENV === 'production' || process.env.IS_PRODUCTION === 'true';
 
-    // Auto-initialize / migrate database if MySQL connection parameters are configured
+    // Never migrate, seed, or grant administrator privileges on application startup.
     try {
-      const pool = await getDbPool();
-      if (pool) {
-        console.log('[Hostinger MySQL] Verifying database schema & running pending migrations...');
-        const migResult = await runMigrations(pool);
-        if (migResult.appliedCount > 0) {
-          console.log(`[Hostinger MySQL] Applied ${migResult.appliedCount} new migrations.`);
-        }
-        await seedSystemSettings(pool);
-        await initializeAdminUser(pool);
-        const report = await verifySchema(pool);
-        if (report.status === 'READY') {
-          console.log(`[Hostinger MySQL] Schema verified & ready (Version: ${report.schemaVersion}, Tables: PASS).`);
-        } else {
-          console.warn(`[Hostinger MySQL] Schema verification status: ${report.status}`);
-          if (isProductionDeployment && report.status === 'DATABASE_SCHEMA_OUTDATED') {
-            console.error('FATAL: Database schema outdated in production. Please run "npm run db:migrate".');
-            process.exit(1);
-          }
-        }
-      } else if (isProductionDeployment) {
-        console.error('FATAL: MySQL database is required in production mode. Refusing startup.');
+      const report=await inspectDatabaseStartup({production:isProductionDeployment,getDbPool,verifySchema});
+      console.log(`[Database] Startup status: ${report.status}; schema version: ${report.schemaVersion}.`);
+    } catch {
+      if(isProductionDeployment){
+        console.error('FATAL: Database unavailable or schema not ready. Run approved database setup/migrations before starting this build.');
         process.exit(1);
       }
-    } catch (dbBootErr: any) {
-      if (isProductionDeployment) {
-        console.error('FATAL PRODUCTION DATABASE ERROR:', dbBootErr?.message);
-        process.exit(1);
-      } else {
-        console.warn('[Server] Non-production database boot warning (running with in-memory store):', dbBootErr?.message);
-      }
+      console.warn('[Database] Non-production startup check unavailable; no schema or administrator changes attempted.');
     }
 
     let viteInstance: any = null;

@@ -1,0 +1,20 @@
+{
+  "date_ist": "2026-11-04",
+  "task": "P01-09",
+  "status": "in_progress",
+  "scope": "Truthful capability batch: removed fabricated AI chat rank/health fallback and copilot greeting, local Telegram publish-success branch/execute affordance, timer-only onboarding audit and profile-flag live-sync badges. Telegram boolean acknowledgement means API accepted, not recipient receipt. Dashboard labels loaded/calculated records; unclassified competitor observation unavailable. Setup/copilot keyed by actor/client/open state to discard stale drafts/conversations. No schema or production writes. Evidence: truthful-capability-surfaces.json.",
+  "validation": {
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "default_suite": "56 programs passed",
+    "browser": "Full Chromium workspace suite passed: mocked AI503 honest unavailable, Telegram failure/API acceptance and late-client isolation, setup no-audit wording and close/reopen reset. Initial run interrupted by Vite navigation in existing notification scenario; isolated rerun passed.",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "not full UI/fallback audit",
+    "saved flags do not verify OAuth",
+    "generation/review-draft fallbacks remain to audit",
+    "no new provider action or schema"
+  ],
+  "production_changes": false
+}

@@ -1,0 +1,109 @@
+{
+  "date_ist": "2026-11-06",
+  "tasks": [
+    "P00-03",
+    "P00-05",
+    "P00-06",
+    "P02-04",
+    "P01-01"
+  ],
+  "locally_validated_task": "P00-05",
+  "started_task": "P00-06",
+  "phase_status": "incomplete; actual hosting/P00-03 acceptance pending",
+  "sequential_batches": 7,
+  "migration_target": 29,
+  "canonical_tables": 50,
+  "new_product_migration": false,
+  "historical_migrations_changed": false,
+  "production_changes": false,
+  "design": {
+    "legacy": "fixed001\u2013029 identities; exact inline001\u2013006 source and full007\u2013029 artifacts; frozen metadata/handlers/registry; pinned source toolchain and embedded build bridge",
+    "forward": "030+ canonical SQL/preflight data plus immutable versioned executor source digest; no runtime callback/checksum override",
+    "ledger": "explicit successful records, lowercase SHA256, unique known names and contiguous applied prefix; future/failed/invalid/gapped block readiness/migration",
+    "source_command": "db:check:sources; no DB access",
+    "ddl": "nontransactional partial progress requires idempotent statements and same-plan retry; no automatic down/reset"
+  },
+  "validation": {
+    "default_programs": 79,
+    "default_suite": "passed79 isolated programs plus final targeted ledger-code and connection-privacy fixtures",
+    "typescript": "passed",
+    "build": "passed canonical build/source guard; existing chunk-size warning; no runtime require(typescript) dependency",
+    "source_guard": "passed29 immutable artifacts and v1 executor on Node24.19.0/npm11.9.0; mutated copied inline/module/executor artifacts rejected; unrelated caller edit permitted",
+    "sql": "passed disposable MariaDB10.11 source/minified preflight-before-DDL, deliberate partial-DDL failure without ledger adoption, compiled resume/repeat0, changed plan refusal, old registry/future/failed/blank ledger refusal, then canonical cleanup READY plus prior full fresh/005-upgrade/races; operational reader on actual restricted-user empty/migrated DB retains unchanged DDL/admin-DML counters",
+    "browser": "not rerun; backend/tooling only, prior browser evidence retained",
+    "diff_check": "passed"
+  },
+  "copied_export": {
+    "sourceSha256": "7d494bda5f71b539bfd3ae6c6c02bce14503398d23aac1a96949edb99d04758a",
+    "sourceBytes": 40265,
+    "statements": 75,
+    "engine": "10.11.19-MariaDB-ubu2204",
+    "importedTables": 31,
+    "originalBusinessTables": 29,
+    "originalLedgerEntries": 5,
+    "missingCanonicalColumns": [],
+    "appliedNames": [
+      "006_durable_job_queue_and_campaign_binding",
+      "007_schema_index_alignment",
+      "008_queue_action_ledger",
+      "009_internal_action_feed",
+      "010_notification_occurrences",
+      "011_notification_dispatch_cursors",
+      "012_scheduled_post_dispatch_cursors",
+      "013_publishing_dispatch_claims",
+      "014_publishing_review_audit",
+      "015_publishing_verification_audit",
+      "016_publication_draft_intents",
+      "017_publication_workflow_audit",
+      "018_publication_schedule_history",
+      "019_publication_policy_binding",
+      "020_queue_pause_deferrals",
+      "021_daily_work_report_indexes",
+      "022_publication_scoped_controls",
+      "023_publication_admission_limits",
+      "024_message_dispatch_intents",
+      "025_message_delivery_receipts",
+      "026_company_profile_revision",
+      "027_dispatcher_journal",
+      "028_legacy_export_compatibility",
+      "029_public_lead_intakes"
+    ],
+    "schemaStatus": "READY",
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "bundledLedgerReplay": "READY; applied0",
+    "canonicalWrites": "passed and rolled back",
+    "canonicalTables": 50,
+    "migrations": 29,
+    "repeatApplied": 0,
+    "result": "passed"
+  },
+  "tracker": {
+    "validated": 8,
+    "blocked": 1,
+    "in_progress": 7,
+    "planned": 77,
+    "total": 93
+  },
+  "limits": [
+    "legacy001\u2013029 source execution still needs pinned serialization toolchain; forward manifests alone are compiler-independent",
+    "SQL is trusted reviewed repository code, not an uploaded-plan interpreter or security sandbox",
+    "executor v1 supports SELECT-row preflights and ordered SQL; new semantics require a new immutable version",
+    "already-running old binaries/direct SQL writers are not stopped by readiness; coherent maintenance/deploy required",
+    "DDL may persist before failure; backup/current copied-data rehearsal and operator review remain required",
+    "source tools need development dependencies; production server startup stays read-only",
+    "live Hostinger runtime/revision/cron/backups/restore and broader phase acceptance remain open",
+    "billing excluded"
+  ],
+  "operational_readers": {
+    "owner": "shared canonical verifySchema report used by db:status/db:verify",
+    "success": "consistent complete READY only",
+    "claims_removed": [
+      "table presence proves100-percent-safe migration",
+      "schema verified means production ready",
+      "production connection failure silently uses memory"
+    ],
+    "privacy": "no configured binding values or raw errors in connection diagnostics/report; synthetic credential failure verified",
+    "lifecycle": "command-owned pools close"
+  }
+}

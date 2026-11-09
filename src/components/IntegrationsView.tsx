@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import {publicationDraftKey} from '../services/publicationDraftMemory';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plug,
   CheckCircle2,
@@ -31,6 +32,7 @@ import {
   WhatsAppSendResult,
   MetaSocialPublishResult,
   apiRequest,
+  getStoredUser,
 } from '../services/authService';
 
 interface RequiredField {
@@ -86,15 +88,15 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const [waSelectedTemplate, setWaSelectedTemplate] = useState('lead_instant_quote_v1');
   const [waTemplateParam1, setWaTemplateParam1] = useState('Rajesh Kumar');
   const [waTemplateParam2, setWaTemplateParam2] = useState('IT & Digital Growth Package');
-  const [waMediaUrl, setWaMediaUrl] = useState('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800');
+  const [waMediaUrl, setWaMediaUrl] = useState('');
   const [waMediaCaption, setWaMediaCaption] = useState('Aaditech Growth Solution — Official Brochure');
   const [waSending, setWaSending] = useState(false);
   const [waSendResult, setWaSendResult] = useState<WhatsAppSendResult | null>(null);
 
   // Meta Social Publisher States
   const [isMetaTestOpen, setIsMetaTestOpen] = useState(false);
-  const [metaContent, setMetaContent] = useState('🚀 Boost your local business reach with Aaditech Solution! Verified digital marketing & automation services.');
-  const [metaImageUrl, setMetaImageUrl] = useState('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800');
+  const [metaContent, setMetaContent] = useState('');
+  const [metaImageUrl, setMetaImageUrl] = useState('');
   const [metaFbChecked, setMetaFbChecked] = useState(true);
   const [metaIgChecked, setMetaIgChecked] = useState(true);
   const [metaPublishing, setMetaPublishing] = useState(false);
@@ -304,9 +306,14 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     }
   };
 
+  const metaSubmitting = useRef(false);
+  const metaAlive = useRef(true);
+  useEffect(()=>{metaAlive.current=true;return()=>{metaAlive.current=false;};},[]);
+
   // Meta Social Direct Publish Handler
   const handlePublishMetaSocial = async () => {
-    if (!metaContent.trim()) return;
+    if (!metaContent.trim() || !companyId || metaSubmitting.current) return;
+    metaSubmitting.current=true;
     setMetaPublishing(true);
     setMetaResult(null);
     try {
@@ -322,20 +329,39 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         return;
       }
 
+      if(targetPlatforms.includes('instagram') && !metaImageUrl.trim()) {
+        setMetaResult({success:false,error:'Add an image URL for Instagram, or select Facebook only.'});return;
+      }
+      const content=metaContent.trim();
+      const imageUrl=metaImageUrl.trim() || undefined;
+      const signature=JSON.stringify([companyId,content,imageUrl,targetPlatforms]);
+      const actor=getStoredUser()?.id;
+      if(!actor)throw new Error('Sign in before publishing');
+      const retryKey=await publicationDraftKey(actor,companyId,signature);
+      if(!metaAlive.current)return;
+      const prepared=await apiRequest<{success:boolean;post:{id:string};sourceVersion:string}>(`/api/companies/${encodeURIComponent(companyId)}/meta-publication-drafts`,{
+        method:'POST',body:JSON.stringify({requestKey:retryKey.replace('abgm1:meta-draft:',''),content,imageUrl,platforms:targetPlatforms}),
+      });
+      if(!prepared.success || !prepared.post?.id || !/^[a-f0-9]{64}$/.test(prepared.sourceVersion))throw new Error('Draft acknowledgment unconfirmed. Retry identical content and targets.');
+      const postId=prepared.post.id;
+      if(!metaAlive.current || getStoredUser()?.id!==actor)return;
       const res = await publishToMetaSocialApi({
-        content: metaContent,
-        imageUrl: metaImageUrl || undefined,
+        content,
+        imageUrl,
+        postId,
+        expectedVersion:prepared.sourceVersion,
         platforms: targetPlatforms,
         companyId,
       });
-      setMetaResult(res);
+      if(metaAlive.current)setMetaResult(res);
     } catch (err: any) {
-      setMetaResult({
+      if(metaAlive.current)setMetaResult({
         success: false,
         error: err?.message || 'Failed to dispatch Meta Social post',
       });
     } finally {
-      setMetaPublishing(false);
+      metaSubmitting.current=false;
+      if(metaAlive.current)setMetaPublishing(false);
     }
   };
 
@@ -1066,7 +1092,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   🌐
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Meta Social Direct Dispatcher</h3>
+                  <h3 className="font-bold text-slate-900 text-base">Meta Social Publisher</h3>
                   <p className="text-xs text-slate-500">Publish live posts directly to Facebook Pages & Instagram Business</p>
                 </div>
               </div>
@@ -1093,6 +1119,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
+                      disabled={metaPublishing}
                       checked={metaFbChecked}
                       onChange={(e) => setMetaFbChecked(e.target.checked)}
                       className="rounded text-blue-600 focus:ring-blue-500"
@@ -1102,6 +1129,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
+                      disabled={metaPublishing}
                       checked={metaIgChecked}
                       onChange={(e) => setMetaIgChecked(e.target.checked)}
                       className="rounded text-pink-600 focus:ring-pink-500"
@@ -1115,6 +1143,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Post Content / Caption *</label>
                 <textarea
+                  disabled={metaPublishing}
                   rows={3}
                   value={metaContent}
                   onChange={(e) => setMetaContent(e.target.value)}
@@ -1127,6 +1156,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Photo / Banner URL (Optional)</label>
                 <input
+                  disabled={metaPublishing}
                   type="url"
                   value={metaImageUrl}
                   onChange={(e) => setMetaImageUrl(e.target.value)}
@@ -1150,10 +1180,13 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   ) : (
                     <AlertCircle className="w-4 h-4 text-rose-600" />
                   )}
-                  <span>{metaResult.success ? 'Post Dispatch Successful!' : 'Dispatch Notice'}</span>
+                  <span>{metaResult.success ? 'Publish request complete' : 'Dispatch Notice'}</span>
                 </div>
 
                 <p className="text-[11px] leading-relaxed">{metaResult.message || metaResult.error}</p>
+                {metaResult.postId && <p className="text-[11px] break-all">Stored post: {metaResult.postId}</p>}
+                <p className="text-[11px]">Identical content and targets reuse the saved publication intent for this account and workspace, including after reload. After an unconfirmed result, check publishing history before changing content.</p>
+                {['UNKNOWN','IN_PROGRESS'].includes(metaResult.status || '') && <p className="text-[11px]">Inspect this post’s publishing history before retrying. Creating another post may duplicate an unconfirmed publication.</p>}
 
                 {metaResult.results && (
                   <div className="text-[10px] space-y-1 font-mono bg-white/80 p-2 rounded border border-slate-200">
@@ -1186,7 +1219,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               <button
                 type="button"
                 onClick={handlePublishMetaSocial}
-                disabled={metaPublishing || !metaContent.trim()}
+                disabled={metaPublishing || !companyId || !metaContent.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
               >
                 {metaPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}

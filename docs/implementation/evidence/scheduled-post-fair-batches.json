@@ -1,0 +1,29 @@
+{
+  "scope": "disposable local MariaDB scheduled-post admission batching",
+  "migration": "012_scheduled_post_dispatch_cursors",
+  "schema": "READY",
+  "historical_001_to_011_changed": false,
+  "runtime_company_limit": 2,
+  "runtime_posts_per_company": 5,
+  "default_regression_programs": 39,
+  "typescript": "passed",
+  "build": "passed",
+  "sql_checks": [
+    "concurrent company rotation fairness",
+    "within-client post rotation and big-client progress",
+    "restart resumes stored cursor",
+    "wrap without duplicates",
+    "paused/missing/draft filtering",
+    "schedule metadata only",
+    "all cursor writes rollback on fault",
+    "internal limit validation"
+  ],
+  "timezone": "Asia/Kolkata",
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "hard tick deadline/cancellation",
+    "bounded legacy report reads",
+    "operator reconciliation/audit workflow"
+  ]
+}

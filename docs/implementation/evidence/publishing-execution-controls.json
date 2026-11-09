@@ -1,0 +1,30 @@
+{
+  "date_ist": "2026-11-03",
+  "schema_change": false,
+  "canonical_tables": 42,
+  "schema_through": "019",
+  "scope": [
+    "canonical shared-file stop and truthful persistence failure",
+    "global guard for manual/direct and automatic publication",
+    "automatic company autopilot and holiday checks",
+    "provider attempt/channel/IG second-step start boundaries"
+  ],
+  "validation": {
+    "default_programs": 53,
+    "focused": "isolated stop restart/malformed/persistence failure; mocked direct/global, automatic pause/holiday, manual separation, confirmed first-channel then stop, IG second-step/replay guard",
+    "sql": "MariaDB10.11 full suite through019; enabled/paused/missing tenants; holiday true/false/null/unknown and malformed JSON; bounded metadata read; nonobject/null profile and engine settings also fail closed",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "diff_check": "passed",
+    "final_default_suite": "53 programs passed with final nonobject saved-control guards",
+    "final_typecheck_build": "passed"
+  },
+  "limits": [
+    "shared-file not distributed control store or power-loss durability",
+    "already-started remote requests may finish",
+    "not every direct action family covered",
+    "paused jobs use existing retry/failure semantics; reliable resume pending",
+    "agency/channel scopes and usage reservations pending"
+  ],
+  "production_changes": false
+}

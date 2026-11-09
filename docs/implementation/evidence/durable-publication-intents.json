@@ -1,0 +1,30 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "016_publication_draft_intents",
+  "canonical_tables": 41,
+  "scope": [
+    "transactional Meta composer draft intents",
+    "same-input replay across acknowledgment loss/restarts",
+    "required manual publish source snapshot",
+    "shared canonical post writer"
+  ],
+  "validation": {
+    "default_programs": "50 passed after mandatory-version contract",
+    "sql": "MariaDB10.11: READY through016/repeat0;8-way single draft, acknowledgment-loss replay, input/source conflict, tenant separation, atomic rollback, FK retention",
+    "http": "strict scoped authenticated preparation, creator identity, new/reuse/conflict/redaction; missing/stale publish source version rejection",
+    "browser": "Passed: committed draft/lost-ack failure sends zero provider requests, identical retry recovers one draft, composer remount reuse, expectedVersion payload, old-client completion isolation and full workspace suite",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "browser_attempts": "Initial browser invocation stalled and was terminated; bounded150s rerun with explicit stage diagnostics and updated lost-ack scenario passed.",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "generic post creation not idempotent",
+    "full agency-wide approval lifecycle and audit pending",
+    "other publish endpoints still lack required user-view version",
+    "changed actor/content creates new intent",
+    "same identical intent reused indefinitely; explicit new-intent and retention controls pending",
+    "live Meta staging acceptance pending"
+  ],
+  "production_changes": false
+}

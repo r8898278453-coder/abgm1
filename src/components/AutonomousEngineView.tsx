@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import {hasAutonomousProviderVerification} from '../../shared/autonomousEvidence';
+import {MessageDispatchStatus} from './MessageDispatchStatus';
+import {validateScopedCollection} from '../../shared/scopedCollection';
+import React, { useState, useEffect,useRef } from 'react';
 import {
   Cpu,
   Zap,
@@ -38,7 +41,6 @@ interface AutonomousEngineViewProps {
   setIsAutopilotOn: (on: boolean) => void;
   isEmergencyPaused: boolean;
   setIsEmergencyPaused: (paused: boolean) => void;
-  onApproveAction: (actionId: string) => void;
   approvalSettings?: ApprovalRules;
   onUpdateApprovalSettings?: (settings: ApprovalRules) => void;
   companyId?: string;
@@ -47,7 +49,7 @@ interface AutonomousEngineViewProps {
 const DEFAULT_SETTINGS: ApprovalRules = {
   googlePosts: 'approval',
   reviewReplies: 'approval',
-  socialPosts: 'auto',
+  socialPosts: 'approval',
   promotionalOffers: 'approval',
   profileEdits: 'approval',
   analyticsReports: 'auto',
@@ -59,13 +61,15 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
   setIsAutopilotOn,
   isEmergencyPaused,
   setIsEmergencyPaused,
-  onApproveAction,
   approvalSettings: propSettings,
   onUpdateApprovalSettings,
   companyId,
 }) => {
+  const mounted=useRef(true),readRequest=useRef<AbortController|null>(null),operation=useRef<AbortController|null>(null);
+  const [ready,setReady]=useState(false),[executingId,setExecutingId]=useState<string|null>(null);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;readRequest.current?.abort();operation.current?.abort();};},[]);
   const [localSettings, setLocalSettings] = useState<ApprovalRules>(propSettings || DEFAULT_SETTINGS);
-  const [actions, setActions] = useState<AutonomousAction[]>(initialActions);
+  const [actions, setActions] = useState<AutonomousAction[]>([]);
   const [recommendations, setRecommendations] = useState<AutonomousRecommendation[]>([]);
   const [auditLogs, setAuditLogs] = useState<AutonomousAuditLog[]>([]);
   const [isRunningCycle, setIsRunningCycle] = useState(false);
@@ -76,113 +80,103 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
 
   const approvalSettings = propSettings || localSettings;
 
-  const fetchAutonomousData = async () => {
-    try {
-      const compParam = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
-      const [actionsData, recsData, logsData, statusData] = await Promise.all([
-        apiRequest<{ success: boolean; actions: AutonomousAction[] }>(`/api/autonomous/actions${compParam}`).catch(() => null),
-        apiRequest<{ success: boolean; recommendations: AutonomousRecommendation[] }>(`/api/autonomous/recommendations${compParam}`).catch(() => null),
-        apiRequest<{ success: boolean; logs: AutonomousAuditLog[] }>(`/api/autonomous/audit-logs${compParam}`).catch(() => null),
-        apiRequest<{ success: boolean; autopilotEnabled: boolean; globalEmergencyStop: boolean }>(`/api/autonomous/status${compParam}`).catch(() => null),
-      ]);
-
-      if (actionsData?.actions) {
-        setActions(actionsData.actions);
-      }
-      if (recsData?.recommendations) {
-        setRecommendations(recsData.recommendations);
-      }
-      if (logsData?.logs) {
-        setAuditLogs(logsData.logs);
-      }
-      if (statusData) {
-        if (typeof statusData.autopilotEnabled === 'boolean') {
-          setIsAutopilotOn(statusData.autopilotEnabled);
-        }
-        if (typeof statusData.globalEmergencyStop === 'boolean') {
-          setIsEmergencyPaused(statusData.globalEmergencyStop);
-        }
-      }
-    } catch {
-      // Keep existing state on error
-    }
+  const fetchAutonomousData=async()=>{
+    readRequest.current?.abort();const controller=new AbortController();readRequest.current=controller;setReady(false);setActions([]);setRecommendations([]);setAuditLogs([]);
+    if(!companyId)return;
+    const suffix=`?companyId=${encodeURIComponent(companyId)}`;
+    try{
+      const [a,r,l,status]=await Promise.all([apiRequest<any>(`/api/autonomous/actions${suffix}`,{signal:controller.signal}),apiRequest<any>(`/api/autonomous/recommendations${suffix}`,{signal:controller.signal}),apiRequest<any>(`/api/autonomous/audit-logs${suffix}`,{signal:controller.signal}),apiRequest<any>(`/api/autonomous/status${suffix}`,{signal:controller.signal})]);
+      if(controller.signal.aborted||!mounted.current)return;
+      const rows=validateScopedCollection(a,'actions',companyId),recs=validateScopedCollection(r,'recommendations',companyId),logs=validateScopedCollection(l,'logs',companyId);
+      if(status.success!==true||status.companyId!==companyId||typeof status.autopilotEnabled!=='boolean'||typeof status.globalEmergencyStop!=='boolean')throw new Error();
+      setActions(rows);setRecommendations(recs);setAuditLogs(logs);setIsAutopilotOn(status.autopilotEnabled);setIsEmergencyPaused(status.globalEmergencyStop);setReady(true);
+    }catch{if(!controller.signal.aborted&&mounted.current)setStatusNotice({type:'error',message:'Autonomous state unavailable. Reload before changing controls or executing work.'});}
   };
-
-  useEffect(() => {
-    fetchAutonomousData();
-  }, [companyId]);
+  useEffect(()=>{void fetchAutonomousData();return()=>readRequest.current?.abort();},[companyId]);
+  const begin=()=>{if(!ready||operation.current)return null;const controller=new AbortController();operation.current=controller;return controller;};
 
   const handleToggleAutopilot = async () => {
+    const controller=begin();if(!controller)return;
     setIsTogglingAutopilot(true);
     const targetState = !isAutopilotOn;
     try {
-      const data = await apiRequest<{ success: boolean; autopilotEnabled?: boolean; error?: string }>('/api/autonomous/kill-switch', {
-        method: 'POST',
+      const data = await apiRequest<{ success: boolean; companyId?:string;autopilotEnabled?: boolean; error?: string }>('/api/autonomous/kill-switch', {
+        method: 'POST',signal:controller.signal,
         body: JSON.stringify({
           companyId,
           autopilotEnabled: targetState,
         }),
       });
-      if (data.success) {
+      if(controller.signal.aborted)return;
+      if (data.success===true&&data.companyId===companyId&&data.autopilotEnabled===targetState) {
         setIsAutopilotOn(targetState);
         setStatusNotice({
           type: 'success',
           message: `Autopilot ${targetState ? 'activated' : 'paused'} successfully on authoritative backend.`,
         });
       } else {
-        setStatusNotice({
+        setReady(false);setStatusNotice({
           type: 'error',
           message: data.error || 'Failed to update Autopilot setting on backend.',
         });
       }
     } catch (err: any) {
-      setStatusNotice({
+      if(controller.signal.aborted)return;
+      setReady(false);setStatusNotice({
         type: 'error',
         message: err?.message || 'Network error updating Autopilot state.',
       });
     } finally {
+      operation.current=null;
+      if(controller.signal.aborted)return;
       setIsTogglingAutopilot(false);
       setTimeout(() => setStatusNotice(null), 5000);
     }
   };
 
   const handleToggleEmergencyStop = async () => {
+    const controller=begin();if(!controller)return;
     setIsTogglingEmergency(true);
     const targetState = !isEmergencyPaused;
     try {
-      const data = await apiRequest<{ success: boolean; globalEmergencyStop?: boolean; error?: string }>('/api/autonomous/kill-switch', {
-        method: 'POST',
+      const data = await apiRequest<{ success: boolean; companyId?:string;globalEmergencyStop?: boolean; error?: string }>('/api/autonomous/kill-switch', {
+        method: 'POST',signal:controller.signal,
         body: JSON.stringify({
           companyId,
           emergencyStop: targetState,
         }),
       });
-      if (data.success) {
+      if(controller.signal.aborted)return;
+      if (data.success===true&&data.companyId===companyId&&data.globalEmergencyStop===targetState) {
         setIsEmergencyPaused(targetState);
         setStatusNotice({
           type: targetState ? 'error' : 'success',
           message: targetState
             ? 'EMERGENCY KILL SWITCH ENGAGED on authoritative backend.'
-            : 'Emergency Stop disengaged. Autonomous executions resumed.',
+            : 'Emergency Stop disengaged. Eligible work can start again; review previously blocked jobs.',
         });
       } else {
-        setStatusNotice({
+        setReady(false);setStatusNotice({
           type: 'error',
           message: data.error || 'Failed to toggle Emergency Stop on backend.',
         });
       }
     } catch (err: any) {
-      setStatusNotice({
+      if(controller.signal.aborted)return;
+      setReady(false);setStatusNotice({
         type: 'error',
         message: err?.message || 'Network error updating Emergency Stop.',
       });
     } finally {
+      operation.current=null;
+      if(controller.signal.aborted)return;
       setIsTogglingEmergency(false);
       setTimeout(() => setStatusNotice(null), 5000);
     }
   };
 
   const toggleSetting = (key: keyof ApprovalRules) => {
+    if(!ready||operation.current)return;
     const updated: ApprovalRules = {
       ...approvalSettings,
       [key]: approvalSettings[key] === 'auto' ? 'approval' : 'auto',
@@ -192,10 +186,11 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
   };
 
   const handleRunCycle = async () => {
+    const controller=begin();if(!controller)return;
     setIsRunningCycle(true);
     try {
       const data = await apiRequest<{ success: boolean; result?: any; error?: string }>('/api/autonomous/run-cycle', {
-        method: 'POST',
+        method: 'POST',signal:controller.signal,
         body: JSON.stringify({
           companyId,
           approvalPolicy: approvalSettings,
@@ -214,34 +209,41 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
         });
       }
     } catch (err: any) {
+      if(controller.signal.aborted)return;
       setStatusNotice({ type: 'error', message: err?.message || 'Network error running autonomous cycle.' });
     } finally {
+      operation.current=null;
+      if(controller.signal.aborted)return;
       setIsRunningCycle(false);
       setTimeout(() => setStatusNotice(null), 6000);
     }
   };
 
   const handleApproveAndExecute = async (actionId: string) => {
+    const controller=begin();if(!controller)return;
     try {
       // Step 1: Approve
-      await apiRequest(`/api/autonomous/actions/${encodeURIComponent(actionId)}/approve`, {
-        method: 'POST',
+      setExecutingId(actionId);
+      const approval=await apiRequest<{success:boolean;action?:{id:string;company_id:string;approval_status:string}}>(`/api/autonomous/actions/${encodeURIComponent(actionId)}/approve`, {
+        method: 'POST',signal:controller.signal,body:JSON.stringify({companyId}),
       });
 
+      if(controller.signal.aborted)return;
+      if(approval.success!==true||approval.action?.id!==actionId||approval.action.company_id!==companyId||approval.action.approval_status!=='approved')throw new Error('Approval unconfirmed; reload before executing.');
       // Step 2: Execute through 8-Stage Gate
       const execData = await apiRequest<{ success: boolean; result?: any; error?: string }>(
         `/api/autonomous/actions/${encodeURIComponent(actionId)}/execute`,
         {
-          method: 'POST',
+          method: 'POST',signal:controller.signal,body:JSON.stringify({companyId}),
         }
       );
 
-      if (execData.success && execData.result?.status === 'EXECUTED') {
+      if (execData.success===true && execData.result?.status === 'EXECUTED') {
         setStatusNotice({
           type: 'success',
-          message: `Verified & Executed: ${execData.result.message}`,
+          message: `Execution recorded: ${execData.result.message}`,
         });
-        onApproveAction(actionId);
+
       } else {
         setStatusNotice({
           type: 'error',
@@ -250,28 +252,37 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
       }
       await fetchAutonomousData();
     } catch (err: any) {
+      if(controller.signal.aborted)return;
       setStatusNotice({ type: 'error', message: err?.message || 'Error approving action.' });
     } finally {
+      operation.current=null;
+      if(controller.signal.aborted)return;setExecutingId(null);
       setTimeout(() => setStatusNotice(null), 6000);
     }
   };
 
   const handleRejectAction = async (actionId: string) => {
+    const controller=begin();if(!controller)return;
     try {
-      await apiRequest(`/api/autonomous/actions/${encodeURIComponent(actionId)}/reject`, {
-        method: 'POST',
+      const rejection=await apiRequest<{success:boolean}>(`/api/autonomous/actions/${encodeURIComponent(actionId)}/reject`, {
+        method: 'POST',signal:controller.signal,body:JSON.stringify({companyId}),
       });
+      if(controller.signal.aborted)return;if(rejection.success!==true)throw new Error('Rejection unconfirmed');
       setStatusNotice({ type: 'info', message: 'Action rejected by user.' });
       await fetchAutonomousData();
     } catch (err: any) {
+      if(controller.signal.aborted)return;
       setStatusNotice({ type: 'error', message: err?.message || 'Error rejecting action.' });
     } finally {
+      operation.current=null;if(controller.signal.aborted)return;
       setTimeout(() => setStatusNotice(null), 5000);
     }
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div role="region" aria-label="Autonomous execution controls" className="space-y-6 pb-12">
+      <button onClick={()=>void fetchAutonomousData()} disabled={!!operation.current}>Reload autonomous state</button>
+      {!ready&&<p role="status">Backend state unconfirmed; execution controls are disabled.</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -288,7 +299,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleRunCycle}
-            disabled={isRunningCycle || isEmergencyPaused}
+            disabled={!ready||!!operation.current||isRunningCycle || isEmergencyPaused}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border shadow-xs ${
               isRunningCycle
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
@@ -301,7 +312,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
 
           <button
             onClick={handleToggleAutopilot}
-            disabled={isTogglingAutopilot}
+            disabled={!ready||!!operation.current||isTogglingAutopilot}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border shadow-xs ${
               isAutopilotOn
                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
@@ -309,12 +320,12 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
-            Autopilot: {isAutopilotOn ? 'Active' : 'Paused'}
+            Autopilot: {ready?(isAutopilotOn ? 'Active' : 'Paused'):'Unconfirmed'}
           </button>
 
           <button
             onClick={handleToggleEmergencyStop}
-            disabled={isTogglingEmergency}
+            disabled={!ready||!!operation.current||isTogglingEmergency}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border shadow-xs ${
               isEmergencyPaused
                 ? 'bg-rose-600 text-white border-rose-600'
@@ -332,7 +343,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-medium text-rose-900 flex items-center gap-3 shadow-xs">
           <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
           <div className="flex-1">
-            <span className="font-bold">EMERGENCY KILL SWITCH ENGAGED:</span> All outbound autonomous executions and provider dispatches are blocked. Human approval and verification gates remain active.
+            <span className="font-bold">EMERGENCY KILL SWITCH ENGAGED:</span> New autonomous executions and publishing dispatches are paused. Requests already sent may still complete.
           </div>
         </div>
       )}
@@ -375,18 +386,18 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Governance Lifecycle</span>
             <h2 className="text-lg font-bold text-slate-900 mt-0.5">8-Stage Autonomous Loop</h2>
             <p className="text-xs text-slate-500 mt-1">
-              Deterministic verification at every stage. Never invents observations or claims unverified success.
+              Reference lifecycle only; stages below are not live progress indicators. Use recorded action and provider evidence to review actual work.
             </p>
           </div>
 
           <div className="space-y-2 pt-2 text-xs">
             {[
-              { stage: '1. OBSERVE', desc: 'Scan real DB observations (Local SEO, Reviews, Leads, Meta Ads).', state: 'active' },
-              { stage: '2. DETECT', desc: 'Identify verified triggers without synthetic hallucinations.', state: 'complete' },
-              { stage: '3. ANALYZE', desc: 'Compute deterministic impact and risk classification.', state: 'complete' },
-              { stage: '4. RECOMMEND', desc: 'Generate actionable advice with evidence IDs & confidence.', state: 'complete' },
-              { stage: '5. APPROVE', desc: 'Route through policy gates; High-risk strictly requires approval.', state: 'active' },
-              { stage: '6. EXECUTE', desc: 'Pass 8-stage outbound safety gate (Auth, Kill Switch, Rate Limit, Idempotency).', state: 'active' },
+              { stage: '1. OBSERVE', desc: 'Scan real DB observations (Local SEO, Reviews, Leads, Meta Ads).', state: 'idle' },
+              { stage: '2. DETECT', desc: 'Identify verified triggers without synthetic hallucinations.', state: 'idle' },
+              { stage: '3. ANALYZE', desc: 'Compute deterministic impact and risk classification.', state: 'idle' },
+              { stage: '4. RECOMMEND', desc: 'Generate actionable advice with evidence IDs & confidence.', state: 'idle' },
+              { stage: '5. APPROVE', desc: 'Route through policy gates; High-risk strictly requires approval.', state: 'idle' },
+              { stage: '6. EXECUTE', desc: 'Pass 8-stage outbound safety gate (Auth, Kill Switch, Rate Limit, Idempotency).', state: 'idle' },
               { stage: '7. VERIFY', desc: 'Require provider-confirmed post/message/review ID (no fake success).', state: 'idle' },
               { stage: '8. MEASURE', desc: 'Track empirical delta on business growth metrics.', state: 'idle' },
             ].map((s, idx) => (
@@ -425,7 +436,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
                   Human-in-the-Loop Approval Policies
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  High-risk actions (budgets, offers, profile edits) strictly require human approval.
+                  Publishing uses saved Google, social and offer settings. If an applicable rule needs approval, approve the current post in Content Studio. Wait for “Saved to server” before publishing after a settings change.
                 </p>
               </div>
             </div>
@@ -529,7 +540,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          {act.verification_state === 'verified' && (
+                          {hasAutonomousProviderVerification(act) && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
                               <ShieldCheck className="w-3 h-3" /> Provider Verified
                             </span>
@@ -567,6 +578,8 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
                         </div>
                       )}
 
+                      {companyId&&act.action_type==='send_whatsapp'&&/^[a-f0-9]{64}$/.test(act.provider_response?.requestKey||'')&&<MessageDispatchStatus companyId={companyId} requestKey={act.provider_response.requestKey}/>}
+
                       {act.error && (
                         <div className="text-rose-600 text-[11px] font-medium bg-rose-50 p-2 rounded-lg">
                           Error: {act.error}
@@ -576,13 +589,13 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
                       {isPending && (
                         <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleRejectAction(act.id)}
+                            disabled={!ready||!!operation.current} onClick={() => handleRejectAction(act.id)}
                             className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold px-3 py-1.5 rounded-xl transition text-xs flex items-center gap-1"
                           >
                             <XCircle className="w-3.5 h-3.5 text-slate-500" /> Reject
                           </button>
                           <button
-                            onClick={() => handleApproveAndExecute(act.id)}
+                            disabled={!ready||!!operation.current} onClick={() => handleApproveAndExecute(act.id)}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-1.5 rounded-xl transition shadow-xs text-xs flex items-center gap-1"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" /> Approve & Execute

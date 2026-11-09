@@ -63,15 +63,15 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
   if (!isGoogleConnected) {
     auditItems.push({
       id: `aud_gmb_unlinked_${inputs.companyId}`,
-      issue: 'Google Business Profile not linked',
-      title: 'Google Business Profile Disconnected',
+      issue: 'Google configuration flag not marked configured',
+      title: 'Google Configuration Needs Review',
       category: 'google',
       severity: 'critical',
       evidence: 'connectedAccounts.googleBusiness is false',
       source: 'Business Profile Configuration',
       timestamp,
       recommendation: 'Connect Google Places ID in Integrations to sync place details, hours, and customer reviews.',
-      impact: 'Missing direct Google Maps synchronization and automated reputation sync.',
+      impact: 'Configuration flag alone does not establish live account access or synchronization.',
       actionText: 'Connect Google Places in Integrations',
       resolved: false,
       status: 'MANUAL_ACTION_REQUIRED',
@@ -80,18 +80,18 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
   } else {
     auditItems.push({
       id: `aud_gmb_verified_${inputs.companyId}`,
-      issue: 'Google Business Profile connection active',
-      title: 'Google Business Profile Connected',
+      issue: 'Google configuration flag needs authorization verification',
+      title: 'Google Account Flag Configured — Authorization Unverified',
       category: 'google',
-      severity: 'good',
-      evidence: 'Verified Google Places ID configured',
-      source: 'Google Places API',
+      severity: 'recommended',
+      evidence: 'Saved connectedAccounts.googleBusiness flag is true; no live OAuth permission check was performed',
+      source: 'Business Profile Configuration',
       timestamp,
-      recommendation: 'Maintain accurate operational hours and verified location metadata.',
-      impact: 'Enables continuous synchronization of reviews and Google Maps place details.',
-      actionText: 'View Google Profile',
-      resolved: true,
-      status: 'RESOLVED',
+      recommendation: 'Verify the intended account and permissions in Integrations; a Places ID does not authorize Google Business publication.',
+      impact: 'Saved configuration alone cannot establish synchronization or publishing access.',
+      actionText: 'Review Google Integration',
+      resolved: false,
+      status: 'MANUAL_ACTION_REQUIRED',
       remediationType: 'manual',
     });
   }
@@ -99,8 +99,8 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
   // 2. Reviews & Reputation Engagement
   const reviews = inputs.reviews || [];
   if (reviews.length > 0) {
-    const unreplied = reviews.filter((r) => !r.replied && (!r.replyText || r.replyText.trim().length === 0));
-    const lowRatingReviews = reviews.filter((r) => r.rating <= 3);
+    const unreplied = reviews.filter((r) => !r.replied);
+    const lowRatingReviews = reviews.filter((r) => typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 3);
 
     if (unreplied.length > 0) {
       auditItems.push({

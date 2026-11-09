@@ -1,3 +1,4 @@
+import {INDEX_REQUIREMENTS} from '../server/schemaIndexes';
 import { strict as assert } from 'assert';
 import {
   MIGRATIONS,
@@ -86,7 +87,7 @@ class MockMySqlConnection {
 
     // SELECT migration_name, checksum FROM schema_migrations
     if (cleanSql.includes('FROM schema_migrations')) {
-      return [this.migrationsApplied.map((m) => ({ migration_name: m.name, checksum: m.checksum, applied_at: new Date().toISOString(), execution_time_ms: m.time })), []];
+      return [this.migrationsApplied.map((m) => ({ migration_name: m.name, checksum: m.checksum, success:1, applied_at: new Date().toISOString(), execution_time_ms: m.time })), []];
     }
 
     // INSERT INTO schema_migrations
@@ -100,6 +101,8 @@ class MockMySqlConnection {
     }
 
     // INFORMATION_SCHEMA.TABLES
+    if(cleanSql.includes("TABLE_NAME IN ('publication_execution_controls'"))return [[...Object.entries({public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']}).flatMap(([TABLE_NAME,names])=>names.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME})))],[]];
+    if(cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[{COLUMN_NAME:'workflow_revision'},{COLUMN_NAME:'deferrals'},...['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'].map(COLUMN_NAME=>({COLUMN_NAME}))],[]];
     if (cleanSql.includes('INFORMATION_SCHEMA.TABLES')) {
       if (cleanSql.includes("TABLE_NAME = 'schema_migrations'")) {
         const has = this.tables.has('schema_migrations');
@@ -109,6 +112,7 @@ class MockMySqlConnection {
       return [tableRows, []];
     }
 
+    if(cleanSql==='SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,NON_UNIQUE,SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE()')return [[...Object.entries(INDEX_REQUIREMENTS).flatMap(([key,names])=>names.map((COLUMN_NAME,i)=>({TABLE_NAME:key.split('.')[0],INDEX_NAME:key.split('.')[1],COLUMN_NAME,SEQ_IN_INDEX:i+1,NON_UNIQUE:1,SUB_PART:null})))],[]];
     // INFORMATION_SCHEMA.STATISTICS
     if (cleanSql.includes('INFORMATION_SCHEMA.STATISTICS')) {
       const idxRows: any[] = [];

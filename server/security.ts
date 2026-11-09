@@ -128,7 +128,10 @@ export function requestAuditLogger(req: Request, res: Response, next: NextFuncti
       const logEntry: AuditLogEntry = {
         timestamp: new Date().toISOString(),
         method: req.method,
-        url: req.originalUrl || req.url,
+        // Never log query values (OAuth codes, reset tokens, webhook secrets).
+        // Prefer the route template so resource IDs also stay out of normal audit logs.
+        url: `${req.baseUrl || ''}${typeof req.route?.path === 'string' ? req.route.path : req.path}`
+          .replace(/[\r\n]/g, ''),
         statusCode,
         durationMs,
         clientIp,

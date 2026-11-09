@@ -1,0 +1,23 @@
+{
+  "runtime": "local Chromium with pinned Playwright Core",
+  "api": "fixtures; remote traffic blocked",
+  "scenarios": {
+    "populated_to_empty_client": "passed",
+    "late_prior_client_response": "passed",
+    "faq_autosave_payload_isolation": "passed",
+    "logout_during_pending_load": "passed",
+    "failed_save_cache_protection": "passed",
+    "same_client_return_stale_save": "passed",
+    "failed_load_no_autosave": "passed",
+    "http_403_html_no_cache_fallback": "passed",
+    "wrong_user_cache_metadata": "rejected",
+    "recovery_retry": "passed",
+    "cross_tab_token_change": "invalidates active tab"
+  },
+  "backend_database_access": false,
+  "pending": [
+    "server version conflicts",
+    "request cancellation",
+    "broader session/cache retention lifecycle"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "date_ist": "2026-11-06",
+  "tasks": [
+    "P00-03",
+    "P00-05",
+    "P01-05",
+    "P01-06",
+    "P02-04"
+  ],
+  "task_promotions": [],
+  "phase_status": "incomplete; live hosting/restore prerequisites and source-independent extension design open",
+  "migration": "028_legacy_export_compatibility",
+  "historical_migrations_changed": false,
+  "production_changes": false,
+  "initial_findings": {
+    "upgrade_through_027": "MIGRATION_REQUIRED",
+    "missing_autonomous_fields": 9,
+    "missing_review_fields": 4,
+    "obsolete_required_action_display_fields": [
+      "type",
+      "title",
+      "description"
+    ],
+    "missing_or_unrecognized_indexes": 10
+  },
+  "copied_export": {
+    "sourceSha256": "7d494bda5f71b539bfd3ae6c6c02bce14503398d23aac1a96949edb99d04758a",
+    "sourceBytes": 40265,
+    "statements": 75,
+    "engine": "10.11.19-MariaDB-ubu2204",
+    "importedTables": 31,
+    "originalBusinessTables": 29,
+    "originalLedgerEntries": 5,
+    "missingCanonicalColumns": [],
+    "appliedNames": [
+      "006_durable_job_queue_and_campaign_binding",
+      "007_schema_index_alignment",
+      "008_queue_action_ledger",
+      "009_internal_action_feed",
+      "010_notification_occurrences",
+      "011_notification_dispatch_cursors",
+      "012_scheduled_post_dispatch_cursors",
+      "013_publishing_dispatch_claims",
+      "014_publishing_review_audit",
+      "015_publishing_verification_audit",
+      "016_publication_draft_intents",
+      "017_publication_workflow_audit",
+      "018_publication_schedule_history",
+      "019_publication_policy_binding",
+      "020_queue_pause_deferrals",
+      "021_daily_work_report_indexes",
+      "022_publication_scoped_controls",
+      "023_publication_admission_limits",
+      "024_message_dispatch_intents",
+      "025_message_delivery_receipts",
+      "026_company_profile_revision",
+      "027_dispatcher_journal",
+      "028_legacy_export_compatibility"
+    ],
+    "schemaStatus": "READY",
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "bundledLedgerReplay": "READY; applied0",
+    "canonicalWrites": "passed and rolled back",
+    "canonicalTables": 49,
+    "migrations": 28,
+    "repeatApplied": 0,
+    "result": "passed"
+  },
+  "autonomous_repository": {
+    "methods_repaired": 9,
+    "sql_acknowledgements": "confirmed creates return without memory fallback; SQL updates report actual found/missing outcomes; empty lists/missing records authoritative",
+    "reproduced_native_error": "ER_TRUNCATED_WRONG_VALUE from ISO TIMESTAMP literals",
+    "timestamp_fix": "FROM_UNIXTIME(epoch) writes; UNIX_TIMESTAMP aliases for UTC reads",
+    "actual_sql_fixture": "passed production-mode child using only SELECT/INSERT/UPDATE/DELETE privileges; UTC instants preserved with SQL session -08:00",
+    "limits": [
+      "no new provider execution/approval/retry permission",
+      "not a transaction/outbox for all autonomous action families",
+      "existing by-id repository methods rely on authenticated caller scope; this is not a new membership model"
+    ]
+  },
+  "validation": {
+    "default_programs": 74,
+    "default_suite": "passed with inherited production credentials excluded",
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "sql": "passed fresh001\u2013028/005-upgrade metadata parity, restricted read-only startup, UNKNOWN/claim/cursor/rollback/privacy/fairness regressions and legacy field-shape/row preservation/canonical inserts",
+    "copied_restore": "passed exact uploaded export, no missing canonical columns, original business-row multisets and ledger preserved, source/bundled replay0, rolled-back probes",
+    "browser": "not rerun for backend/CLI-only batch; prior dispatcher/workspace browser evidence retained",
+    "diff_check": "passed"
+  },
+  "tracker": {
+    "validated": 7,
+    "blocked": 1,
+    "in_progress": 7,
+    "planned": 78,
+    "total": 93
+  },
+  "limits": [
+    "historical copy does not prove a current live backup or production restore",
+    "compatible extra legacy columns/tables/nullability retained; copied schema not claimed identical to fresh",
+    "MySQL DDL partial commits require whole-copy retry; no destructive down migration or checksum reset",
+    "source runtime still uses pinned function serialization; build embeds source identities; fully toolchain-independent manifest remains open",
+    "Hostinger account tools not callable; deployed revision/runtime/cron/backups remain unverified",
+    "billing excluded"
+  ]
+}

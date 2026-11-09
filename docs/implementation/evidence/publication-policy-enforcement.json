@@ -1,0 +1,36 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "019_publication_policy_binding",
+  "canonical_tables": 42,
+  "scope": [
+    "enforce existing saved publishing approval rules at durable claim",
+    "bind approval to content/schedule/policy fingerprint",
+    "bounded SQL rule projection",
+    "default-deny memory fallback and truthful denial/reapproval UI",
+    "workflow-generation scheduler catch-up identity"
+  ],
+  "validation": {
+    "default_programs": 52,
+    "sql": "READY through019/repeat0; missing/malformed/direct-scheduled denial, changed-policy invalidation, matching proof succeeds, failed reapproval, explicit auto and UNKNOWN fence; new approval generation gets different durable job",
+    "browser": "policy denial preserves scheduled state and exposes reapproval; zero published fixture effects on denial; exactly one eventual send and no callback resend; existing suite passed",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "final_suite": "52 programs passed including approval-generation scheduler identity",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "publishing only, not review/profile/report action families",
+    "no peer approver roles or dedicated policy CAS/epoch",
+    "equivalent normalized A\u2192B\u2192A policy can match prior equivalent approval",
+    "policy changes affect new claims; not retroactive cancellation",
+    "failed job requires workflow revision/manual action after policy edit",
+    "live hosting/provider acceptance pending"
+  ],
+  "production_changes": false,
+  "tracker_status_counts": {
+    "validated": 5,
+    "blocked": 1,
+    "in_progress": 8,
+    "planned": 79
+  }
+}

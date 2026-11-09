@@ -1,0 +1,34 @@
+{
+  "scope": "publishing operator observation audit, not provider verification/resolution",
+  "migration": "014_publishing_review_audit",
+  "schema": "READY",
+  "historical_001_to_013_changed": false,
+  "default_regression_programs": 44,
+  "typescript": "passed",
+  "build": "passed",
+  "real_mariadb": "passed",
+  "chromium": "passed",
+  "checks": [
+    "authenticated workspace/actor scope",
+    "claim/content/recent provider/audit version conflicts",
+    "eight concurrent submissions yield one note",
+    "audit insertion rollback",
+    "20-row sequence pagination",
+    "observed publication retains UNKNOWN and original post state",
+    "active/confirmed claim rejection",
+    "late-client response isolation",
+    "no resend controls or requests"
+  ],
+  "dispatch_state_mutation": false,
+  "resend_enabled": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "actual provider verification",
+    "controlled claim resolution/replay",
+    "notification observation workflow",
+    "general manual action ledger adapter",
+    "reload-safe intents and approval versions",
+    "hosting acceptance"
+  ]
+}

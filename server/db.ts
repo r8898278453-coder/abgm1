@@ -1,3 +1,23 @@
+import {ObservationError,normalizeRanks,normalizeCompetitor,observationLimit,saveRanksSql,saveCompetitorSql,readRanksSql,readCompetitorsSql,rankTrendSql} from './observationStore';
+import {insertLeadRow} from './leadWriter';
+import {readDomainsSql,readDomainSql,readWebsiteConfigSql,saveWebsiteConfigSql,createDomainSql,saveDomainDnsSql,deleteDomainSql} from './websiteStore';
+import type {DomainDnsSnapshot} from '../shared/website';
+import {normalizeWebsiteDomain,WebsiteError,websiteConfigPatch} from '../shared/website';
+import {readCompanyProfile,writeCompanyProfile} from './companyProfileStore';
+import {WorkspaceConflict} from '../shared/workspaceRevision';
+import {isGlobalEmergencyStopActive} from './executionStop';
+import type {LeadStage} from '../shared/leadStages';
+import {updateLeadStageSql} from './leadStageSql';
+import {deleteContentPostSql} from './contentMutationSql';
+import {saveReviewReplySql,deleteReviewSql} from './reviewMutationSql';
+import {deferSqlJob,PAUSE_REASONS,type PauseReason} from './queueSql';
+import {publicationPolicy,publicationNeedsApproval} from './publicationPolicy';
+import {normalizeContentPost,insertContentPost} from './contentPostWriter';
+import {publishingSourceVersion} from './publishingSource';
+import { claimSqlPublishing, ownsSqlPublishing, settleSqlPublishing, type PublishingClaim } from './publishingClaims';
+import { findUnconfirmedPublishingEvidence, type UnconfirmedPublishingEvidence } from './publishingEvidence';
+import { enqueueSqlJob } from './queueEnqueue';
+import { claimSqlJob, cancelSqlJob, completeSqlJob, failSqlJob, renewSqlJobLease, ownsJobLease, type QueueLease } from './queueSql';
 import mysql from 'mysql2/promise';
 import crypto from 'crypto';
 
@@ -38,7 +58,7 @@ export interface DbLead {
   email?: string;
   service: string;
   budget?: string;
-  stage: 'new' | 'contacted' | 'qualified' | 'opportunity' | 'quotation' | 'won' | 'lost';
+  stage:LeadStage;
   intent_score: number;
   source: string;
   notes?: string;
@@ -113,6 +133,7 @@ export interface DbReview {
 }
 
 export interface DbContentPost {
+  workflow_revision?:string|number;
   id: string;
   company_id: string;
   campaign_id?: string | null;
@@ -224,8 +245,8 @@ export interface DbCustomDomain {
   id: string;
   company_id: string;
   domain: string;
-  status: 'active' | 'pending_verification' | 'failed';
-  ssl_status: 'active' | 'provisioning' | 'expired';
+  status: 'active' | 'dns_verified' | 'pending_verification' | 'failed';
+  ssl_status: 'active' | 'unverified' | 'provisioning' | 'expired';
   cname_target: string;
   a_record_target: string;
   dns_txt_record: string;
@@ -390,6 +411,7 @@ export interface DbAutonomousAuditLog {
 export type JobQueueStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'RETRY_WAIT' | 'FAILED' | 'CANCELLED';
 
 export interface DbJobQueue {
+  deferrals?:number;
   id: string;
   company_id: string;
   job_type: 'publishing' | 'ai_summary' | 'seo_scan' | 'competitor_scan' | 'lead_nurture' | 'report' | 'media_render' | string;
@@ -405,11 +427,11 @@ export interface DbJobQueue {
   scheduled_for: string;
   created_at?: string;
   updated_at?: string;
+  requested_by?: string;
 }
 
 let pool: mysql.Pool | null = null;
 let isMySqlAvailable = false;
-let tablesInitialized = false;
 let poolInitPromise: Promise<mysql.Pool | null> | null = null;
 let lastFailureTime = 0;
 let hasLoggedFailure = false;
@@ -745,17 +767,13 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
       isMySqlAvailable = true;
       lastFailureTime = 0;
       hasLoggedFailure = false;
-      console.log(`[Hostinger MySQL] Successfully connected to database: ${database} at ${host}`);
-
-      if (!tablesInitialized) {
-        await autoInitializeTables(pool);
-        tablesInitialized = true;
-      }
+      console.log('[Database] Connected to the configured MySQL endpoint');
 
       return pool;
     } catch (err: any) {
       if (!hasLoggedFailure) {
-        console.warn(`[Hostinger MySQL] Could not connect to MySQL at ${host}:${port} (${err?.message}). Seamlessly running with resilient in-memory store.`);
+        const code=/^[A-Z0-9_]+$/.test(err?.code||'')?err.code:'CONNECTION_UNAVAILABLE';
+        console.warn(`[Database] Connection unavailable (${code}). ${isProductionDatabaseMode()?'Production requests remain blocked.':'Development memory mode only.'}`);
         hasLoggedFailure = true;
       }
       if (candidatePool) {
@@ -765,7 +783,7 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
       isMySqlAvailable = false;
       lastFailureTime = Date.now();
       if (isProductionDatabaseMode()) {
-        const prodErr: any = new Error(`DATABASE_UNAVAILABLE: Could not connect to database in production mode (${err?.message})`);
+        const prodErr: any = new Error('DATABASE_UNAVAILABLE: Could not connect to configured database in production mode');
         prodErr.code = 'DATABASE_UNAVAILABLE';
         prodErr.status = 503;
         throw prodErr;
@@ -779,657 +797,7 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
   return poolInitPromise;
 }
 
-// Auto-create relational tables for users, companies, profiles & leads
-async function autoInitializeTables(dbPool: mysql.Pool) {
-  try {
-    const connection = await dbPool.getConnection();
-    try {
-      // 1. Users table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS users (
-          id VARCHAR(64) PRIMARY KEY,
-          email VARCHAR(191) NOT NULL UNIQUE,
-          password_hash VARCHAR(255) NOT NULL,
-          salt VARCHAR(64) NOT NULL,
-          full_name VARCHAR(128) NOT NULL,
-          role VARCHAR(32) DEFAULT 'owner',
-          is_platform_admin TINYINT(1) NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // Ensure is_platform_admin column exists if table was created in an earlier schema
-      try {
-        const [adminCol]: any = await connection.query(`
-          SELECT COLUMN_NAME
-          FROM INFORMATION_SCHEMA.COLUMNS
-          WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'users'
-            AND COLUMN_NAME = 'is_platform_admin'
-        `);
-        if (!adminCol || adminCol.length === 0) {
-          console.log('[Hostinger MySQL] Self-healing schema: Adding missing is_platform_admin column to users table...');
-          await connection.query(`
-            ALTER TABLE users
-            ADD COLUMN is_platform_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER role
-          `);
-          console.log('[Hostinger MySQL] Self-healing complete: is_platform_admin column added to users.');
-        }
-      } catch (colErr: any) {
-        console.warn('[Hostinger MySQL] is_platform_admin column check notice:', colErr?.message);
-      }
-
-      // Optional: Seed initial admin in MySQL if explicitly configured in environment variables
-      const envAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
-      const envAdminPass = process.env.INITIAL_ADMIN_PASSWORD?.trim();
-      if (envAdminEmail && envAdminPass) {
-        const [existing]: any = await connection.query('SELECT id FROM users WHERE email = ? LIMIT 1', [envAdminEmail]);
-        if (!existing || existing.length === 0) {
-          const { hash: adminHash, salt: adminSalt } = hashPassword(envAdminPass);
-          const adminId = `usr_${crypto.randomUUID().replace(/-/g, '')}`;
-          const adminName = process.env.INITIAL_ADMIN_NAME?.trim() || 'System Administrator';
-          await connection.query(`
-            INSERT INTO users (id, email, password_hash, salt, full_name, role, is_platform_admin)
-            VALUES (?, ?, ?, ?, ?, 'platform_admin', 1)
-          `, [adminId, envAdminEmail, adminHash, adminSalt, adminName]);
-          console.log(`[Hostinger MySQL] Initial administrator provisioned for: ${envAdminEmail} (is_platform_admin = 1)`);
-        } else {
-          // Ensure existing bootstrapped INITIAL_ADMIN has is_platform_admin = 1
-          await connection.query('UPDATE users SET is_platform_admin = 1 WHERE email = ?', [envAdminEmail]);
-        }
-      }
-
-      // 2. Companies table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS companies (
-          id VARCHAR(64) PRIMARY KEY,
-          user_id VARCHAR(64) NOT NULL,
-          name VARCHAR(191) NOT NULL,
-          legal_name VARCHAR(191),
-          category VARCHAR(128) NOT NULL,
-          city VARCHAR(128) NOT NULL,
-          phone VARCHAR(64),
-          website VARCHAR(255),
-          google_place_id VARCHAR(128),
-          autopilot_enabled TINYINT(1) DEFAULT 0,
-          score INT DEFAULT NULL,
-          rank_position INT DEFAULT NULL,
-          public_form_token VARCHAR(64) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_comp_public_form_token (public_form_token),
-          INDEX idx_user (user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // Ensure public_form_token column exists if table was created in an earlier schema
-      try {
-        const [tokenCol]: any = await connection.query(`
-          SELECT COLUMN_NAME
-          FROM INFORMATION_SCHEMA.COLUMNS
-          WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'companies'
-            AND COLUMN_NAME = 'public_form_token'
-        `);
-        if (!tokenCol || tokenCol.length === 0) {
-          console.log('[Hostinger MySQL] Self-healing schema: Adding missing public_form_token column to companies table...');
-          await connection.query(`
-            ALTER TABLE companies
-            ADD COLUMN public_form_token VARCHAR(64) DEFAULT NULL AFTER rank_position,
-            ADD UNIQUE KEY idx_comp_public_form_token (public_form_token)
-          `);
-        }
-      } catch (colErr: any) {
-        console.warn('[Hostinger MySQL] public_form_token column check notice:', colErr?.message);
-      }
-
-      // 3. Company Data (Isolated metrics, audits, competitors, etc.)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS company_profiles_data (
-          company_id VARCHAR(64) PRIMARY KEY,
-          data_payload LONGTEXT NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 4. Leads table with company isolation
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS leads (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) DEFAULT NULL,
-          name VARCHAR(128) NOT NULL,
-          company VARCHAR(128),
-          phone VARCHAR(64) NOT NULL,
-          email VARCHAR(191),
-          service VARCHAR(191),
-          budget VARCHAR(64),
-          stage VARCHAR(32) DEFAULT 'new',
-          intent_score INT DEFAULT NULL,
-          source VARCHAR(64) DEFAULT 'website',
-          notes TEXT,
-          ai_suggested_reply TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_company_lead (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // Proactive Self-Healing Migrations:
-      // Verify and add company_id columns & indexes across child tables if imported from legacy schemas
-      const tablesToCheck = [
-        { table: 'leads', col: 'company_id', idx: 'idx_company_lead' },
-        { table: 'reviews', col: 'company_id', idx: 'idx_company_review' },
-        { table: 'content_posts', col: 'company_id', idx: 'idx_company_post' },
-        { table: 'autonomous_actions', col: 'company_id', idx: 'idx_company_action' },
-      ];
-
-      for (const { table, col, idx } of tablesToCheck) {
-        try {
-          const [cols]: any = await connection.query(`
-            SELECT COLUMN_NAME
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = ?
-              AND COLUMN_NAME = ?
-          `, [table, col]);
-          if (!cols || cols.length === 0) {
-            console.log(`[Hostinger MySQL] Self-healing schema: Adding missing ${col} column to ${table}...`);
-            await connection.query(`
-              ALTER TABLE \`${table}\`
-              ADD COLUMN \`${col}\` VARCHAR(64) DEFAULT NULL AFTER id,
-              ADD INDEX \`${idx}\` (\`${col}\`)
-            `);
-            console.log(`[Hostinger MySQL] Self-healing complete: ${col} column and index added to ${table}.`);
-          }
-        } catch (colErr: any) {
-          console.warn(`[Hostinger MySQL] Column verification notice for ${table}:`, colErr?.message);
-        }
-      }
-
-      // 5. Reviews table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS reviews (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) DEFAULT NULL,
-          author VARCHAR(255) NOT NULL,
-          rating INT DEFAULT NULL,
-          date VARCHAR(64) NOT NULL,
-          relative_time VARCHAR(64),
-          content TEXT NOT NULL,
-          sentiment VARCHAR(32) DEFAULT NULL,
-          topic VARCHAR(128),
-          is_operational_issue TINYINT(1) DEFAULT 0,
-          replied TINYINT(1) DEFAULT 0,
-          reply_text TEXT,
-          reply_date VARCHAR(64),
-          source VARCHAR(64) DEFAULT 'manual',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_company_review (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 6. Content Posts table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS content_posts (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) DEFAULT NULL,
-          title VARCHAR(255) DEFAULT NULL,
-          type VARCHAR(64) DEFAULT 'offer',
-          platforms TEXT DEFAULT NULL,
-          channel VARCHAR(64) NOT NULL DEFAULT 'google',
-          headline VARCHAR(255) DEFAULT NULL,
-          caption TEXT NOT NULL,
-          cta VARCHAR(255) DEFAULT NULL,
-          image_url TEXT,
-          status VARCHAR(32) DEFAULT 'draft',
-          scheduled_date VARCHAR(64) DEFAULT NULL,
-          scheduled_time VARCHAR(64) DEFAULT NULL,
-          time_slot VARCHAR(64) DEFAULT NULL,
-          hashtags TEXT,
-          reel_script TEXT DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_company_post (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // Self-heal extended columns on content_posts if table already existed with minimal columns
-      const postColumnsToCheck = [
-        { col: 'campaign_id', def: 'VARCHAR(64) DEFAULT NULL AFTER company_id' },
-        { col: 'title', def: 'VARCHAR(255) DEFAULT NULL AFTER company_id' },
-        { col: 'type', def: "VARCHAR(64) DEFAULT 'offer' AFTER title" },
-        { col: 'platforms', def: 'TEXT DEFAULT NULL AFTER type' },
-        { col: 'headline', def: 'VARCHAR(255) DEFAULT NULL AFTER channel' },
-        { col: 'cta', def: 'VARCHAR(255) DEFAULT NULL AFTER caption' },
-        { col: 'scheduled_date', def: 'VARCHAR(64) DEFAULT NULL AFTER status' },
-        { col: 'time_slot', def: 'VARCHAR(64) DEFAULT NULL AFTER scheduled_time' },
-        { col: 'video_url', def: 'TEXT DEFAULT NULL AFTER image_url' },
-        { col: 'reel_script', def: 'TEXT DEFAULT NULL AFTER hashtags' },
-      ];
-
-      for (const { col, def } of postColumnsToCheck) {
-        try {
-          const [cols]: any = await connection.query(`
-            SELECT COLUMN_NAME
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'content_posts'
-              AND COLUMN_NAME = ?
-          `, [col]);
-          if (!cols || cols.length === 0) {
-            console.log(`[Hostinger MySQL] Self-healing schema: Adding missing column ${col} to content_posts...`);
-            await connection.query(`ALTER TABLE content_posts ADD COLUMN \`${col}\` ${def}`);
-          }
-        } catch (colErr: any) {
-          console.warn(`[Hostinger MySQL] Column check warning for content_posts.${col}:`, colErr?.message);
-        }
-      }
-
-      // 7. Autonomous Actions table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS autonomous_actions (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) DEFAULT NULL,
-          type VARCHAR(64) NOT NULL,
-          title VARCHAR(255) NOT NULL,
-          description TEXT NOT NULL,
-          impact VARCHAR(128),
-          action_type VARCHAR(64) DEFAULT 'automatic',
-          status VARCHAR(32) DEFAULT 'pending_approval',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_company_action (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 8. Business Profile table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS business_profile (
-          id VARCHAR(64) PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          category VARCHAR(255) NOT NULL,
-          address TEXT NOT NULL,
-          city VARCHAR(128) NOT NULL,
-          phone VARCHAR(64) NOT NULL,
-          email VARCHAR(255) NOT NULL,
-          website VARCHAR(255) NOT NULL,
-          whatsapp VARCHAR(64) NOT NULL,
-          services_json JSON,
-          settings_json JSON,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 9. Company Integrations table (Real API credentials & live verification)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS company_integrations (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          provider VARCHAR(64) NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'not_configured',
-          credentials TEXT,
-          config TEXT,
-          last_tested_at VARCHAR(64),
-          last_error TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_company_provider (company_id, provider),
-          INDEX idx_comp_integ (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 10. Google Business Profile & Places API Cache table (Short TTL to prevent redundant Places API costs)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS google_profile_cache (
-          company_id VARCHAR(64) PRIMARY KEY,
-          place_id VARCHAR(128) NOT NULL,
-          data_payload LONGTEXT NOT NULL,
-          cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_gpc_comp (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 11. Password Reset Tokens (Self-Service Recovery)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS password_reset_tokens (
-          id VARCHAR(64) PRIMARY KEY,
-          user_id VARCHAR(64) NOT NULL,
-          token_hash VARCHAR(64) NOT NULL,
-          expires_at DATETIME NOT NULL,
-          used_at DATETIME DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_prt_token_hash (token_hash),
-          INDEX idx_prt_user_id (user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 12. Company Assets (Logo, Photos, Brand Media Library)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS company_assets (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          asset_type ENUM('logo', 'photo') NOT NULL,
-          url VARCHAR(512) NOT NULL,
-          label VARCHAR(255) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_company_assets_comp (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 13. Content Theme History (Combinatorial Theme & Palette Rotation Engine)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS content_theme_history (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          template_id VARCHAR(64) NOT NULL,
-          palette_id VARCHAR(64) NOT NULL,
-          used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_cth_company_used (company_id, used_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 14. Invoices Table (GST Compliant Invoices via Razorpay / Direct)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS invoices (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          date VARCHAR(32) NOT NULL,
-          plan VARCHAR(128) NOT NULL,
-          amount DECIMAL(10,2) NOT NULL,
-          gst_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-          total_amount DECIMAL(10,2) NOT NULL,
-          payment_method VARCHAR(128) NOT NULL DEFAULT 'UPI / Razorpay',
-          payment_id VARCHAR(128) DEFAULT NULL,
-          order_id VARCHAR(128) DEFAULT NULL,
-          payment_link_id VARCHAR(128) DEFAULT NULL,
-          customer_name VARCHAR(255) DEFAULT NULL,
-          customer_email VARCHAR(255) DEFAULT NULL,
-          customer_phone VARCHAR(64) DEFAULT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'Paid',
-          hsn_code VARCHAR(32) DEFAULT '998314',
-          pdf_url VARCHAR(512) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_invoices_company (company_id),
-          INDEX idx_invoices_payment (payment_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 15. Subscriptions Table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS subscriptions (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          plan_id VARCHAR(64) NOT NULL DEFAULT 'growth',
-          plan_name VARCHAR(128) NOT NULL DEFAULT 'Growth Tier',
-          status VARCHAR(32) NOT NULL DEFAULT 'active',
-          amount DECIMAL(10,2) NOT NULL DEFAULT 799.00,
-          billing_cycle VARCHAR(32) NOT NULL DEFAULT 'monthly',
-          current_period_start TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          current_period_end TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          razorpay_subscription_id VARCHAR(128) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_company_sub (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 15b. Processed Webhook Events Table (Idempotency)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS processed_webhook_events (
-          id VARCHAR(128) PRIMARY KEY,
-          event_type VARCHAR(64) NOT NULL,
-          company_id VARCHAR(64) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 16. Custom Domains Table (Static Hosting & Domain Routing)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS custom_domains (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          domain VARCHAR(255) NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'pending_verification',
-          ssl_status VARCHAR(32) NOT NULL DEFAULT 'provisioning',
-          cname_target VARCHAR(255) NOT NULL DEFAULT 'cname.bga.aaditechs.in',
-          a_record_target VARCHAR(64) NOT NULL DEFAULT '77.37.54.108',
-          dns_txt_record VARCHAR(255) DEFAULT NULL,
-          verified_at TIMESTAMP NULL DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_company_domain (company_id, domain),
-          INDEX idx_domains_company (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 17. Website Configs Table (Storefront metadata, SEO, custom HTML)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS website_configs (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          subdomain VARCHAR(128) NOT NULL,
-          primary_color VARCHAR(32) NOT NULL DEFAULT '#4f46e5',
-          secondary_color VARCHAR(32) NOT NULL DEFAULT '#06b6d4',
-          tagline VARCHAR(255) DEFAULT NULL,
-          hero_title VARCHAR(255) DEFAULT NULL,
-          hero_subtitle TEXT DEFAULT NULL,
-          meta_description TEXT DEFAULT NULL,
-          keywords TEXT DEFAULT NULL,
-          google_analytics_id VARCHAR(64) DEFAULT NULL,
-          custom_header_html TEXT DEFAULT NULL,
-          enable_whatsapp_cta BOOLEAN NOT NULL DEFAULT TRUE,
-          enable_direct_call_cta BOOLEAN NOT NULL DEFAULT TRUE,
-          enable_inquiry_form BOOLEAN NOT NULL DEFAULT TRUE,
-          pages_json LONGTEXT DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_company_webconfig (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 18. Rank Observations Table (Geocoded 3x3 Grid Historical Observations)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS rank_observations (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          keyword VARCHAR(191) NOT NULL,
-          latitude DECIMAL(10,7) NOT NULL,
-          longitude DECIMAL(10,7) NOT NULL,
-          grid_index INT NOT NULL,
-          grid_label VARCHAR(128) DEFAULT NULL,
-          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          provider VARCHAR(64) NOT NULL,
-          position INT DEFAULT NULL,
-          status VARCHAR(32) NOT NULL,
-          source_evidence TEXT DEFAULT NULL,
-          top_competitors_json LONGTEXT DEFAULT NULL,
-          INDEX idx_ro_comp_kw (company_id, keyword),
-          INDEX idx_ro_timestamp (timestamp)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 19. Competitor Observations Table (Historical Snapshots & Change Tracking)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS competitor_observations (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          competitor_id VARCHAR(64) NOT NULL,
-          name VARCHAR(255) NOT NULL,
-          place_id VARCHAR(128) DEFAULT NULL,
-          address VARCHAR(512) DEFAULT NULL,
-          rating DECIMAL(3,2) DEFAULT NULL,
-          reviews_count INT DEFAULT NULL,
-          photos_count INT DEFAULT NULL,
-          posts_per_week DECIMAL(4,2) DEFAULT NULL,
-          rank_position INT DEFAULT NULL,
-          provider VARCHAR(64) NOT NULL,
-          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          status VARCHAR(32) NOT NULL,
-          raw_payload LONGTEXT DEFAULT NULL,
-          INDEX idx_co_comp_competitor (company_id, competitor_id),
-          INDEX idx_co_timestamp (timestamp)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 20. Publishing Records Table (Content -> Job -> Provider API -> Provider Success -> Record -> Published)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS publishing_records (
-          id VARCHAR(64) PRIMARY KEY,
-          post_id VARCHAR(64) NOT NULL,
-          company_id VARCHAR(64) NOT NULL,
-          platform VARCHAR(64) NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'RETRYING',
-          provider_post_id VARCHAR(128) DEFAULT NULL,
-          attempt_count INT NOT NULL DEFAULT 1,
-          max_attempts INT NOT NULL DEFAULT 3,
-          error_type VARCHAR(64) DEFAULT NULL,
-          error_message TEXT DEFAULT NULL,
-          idempotency_key VARCHAR(128) NOT NULL,
-          published_at TIMESTAMP NULL DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_pub_post_plat (post_id, platform),
-          INDEX idx_pub_company (company_id),
-          INDEX idx_pub_idempotency (idempotency_key),
-          INDEX idx_pub_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 21. Internal Campaigns Table (Marketing Plans, Objectives, Timelines & Budgets)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS internal_campaigns (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          name VARCHAR(255) NOT NULL,
-          objective TEXT NOT NULL,
-          status ENUM('draft', 'active', 'paused', 'completed') NOT NULL DEFAULT 'active',
-          start_date VARCHAR(64) NOT NULL,
-          end_date VARCHAR(64) NOT NULL,
-          planned_budget DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-          channels TEXT DEFAULT NULL,
-          external_campaign_id VARCHAR(128) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_int_camp_company (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 22. External Ad Campaigns Table (Telemetry from Verified Ad Providers)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS external_ad_campaigns (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          internal_campaign_id VARCHAR(64) DEFAULT NULL,
-          provider VARCHAR(64) NOT NULL,
-          external_campaign_id VARCHAR(128) NOT NULL,
-          name VARCHAR(255) NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
-          fetched_at VARCHAR(64) DEFAULT NULL,
-          spend DECIMAL(10,2) DEFAULT NULL,
-          impressions BIGINT DEFAULT NULL,
-          clicks BIGINT DEFAULT NULL,
-          conversions BIGINT DEFAULT NULL,
-          conversion_tracking_status VARCHAR(32) NOT NULL DEFAULT 'UNAVAILABLE',
-          revenue DECIMAL(10,2) DEFAULT NULL,
-          revenue_attribution_status VARCHAR(32) NOT NULL DEFAULT 'UNAVAILABLE',
-          roas DECIMAL(10,2) DEFAULT NULL,
-          raw_metrics_json LONGTEXT DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY idx_ext_camp_prov_id (company_id, provider, external_campaign_id),
-          INDEX idx_ext_camp_company (company_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 23. Autonomous Recommendations Table
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS autonomous_recommendations (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          observation TEXT NOT NULL,
-          evidence_ids TEXT NOT NULL,
-          source VARCHAR(64) NOT NULL,
-          timestamp VARCHAR(64) NOT NULL,
-          recommended_action TEXT NOT NULL,
-          action_type VARCHAR(64) NOT NULL,
-          action_payload LONGTEXT DEFAULT NULL,
-          affected_metric VARCHAR(128) NOT NULL,
-          confidence INT NOT NULL DEFAULT 85,
-          risk ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
-          approval_requirement ENUM('auto', 'required') NOT NULL DEFAULT 'required',
-          status VARCHAR(32) NOT NULL DEFAULT 'pending',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_ar_company (company_id),
-          INDEX idx_ar_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 24. Autonomous Actions Table (Execution State Machine)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS autonomous_actions (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          recommendation_id VARCHAR(64) DEFAULT NULL,
-          action_type VARCHAR(64) NOT NULL,
-          payload LONGTEXT DEFAULT NULL,
-          source_evidence LONGTEXT DEFAULT NULL,
-          approval_status VARCHAR(32) NOT NULL DEFAULT 'pending_approval',
-          execution_state VARCHAR(32) NOT NULL DEFAULT 'idle',
-          provider_response LONGTEXT DEFAULT NULL,
-          verification_state VARCHAR(32) NOT NULL DEFAULT 'unverified',
-          error TEXT DEFAULT NULL,
-          executed_at VARCHAR(64) DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_aa_company (company_id),
-          INDEX idx_aa_approval (approval_status),
-          INDEX idx_aa_execution (execution_state)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 25. Autonomous Audit Logs Table (Immutable Governance Trail)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS autonomous_audit_logs (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          action_id VARCHAR(64) DEFAULT NULL,
-          actor VARCHAR(128) NOT NULL,
-          event_type VARCHAR(64) NOT NULL,
-          details LONGTEXT DEFAULT NULL,
-          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_aal_company (company_id),
-          INDEX idx_aal_timestamp (timestamp)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      // 26. Job Queue Table (Shared-Hosting-Safe Persistent Task Queue)
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS job_queue (
-          id VARCHAR(64) PRIMARY KEY,
-          company_id VARCHAR(64) NOT NULL,
-          job_type VARCHAR(64) NOT NULL,
-          payload LONGTEXT NOT NULL,
-          status VARCHAR(32) NOT NULL DEFAULT 'QUEUED',
-          attempts INT NOT NULL DEFAULT 0,
-          max_attempts INT NOT NULL DEFAULT 3,
-          locked_at TIMESTAMP NULL DEFAULT NULL,
-          locked_by VARCHAR(128) DEFAULT NULL,
-          idempotency_key VARCHAR(128) DEFAULT NULL,
-          result LONGTEXT DEFAULT NULL,
-          error_message TEXT DEFAULT NULL,
-          scheduled_for TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_jq_status_sched (status, scheduled_for),
-          INDEX idx_jq_company (company_id),
-          INDEX idx_jq_idempotency (idempotency_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
-
-      console.log('[Hostinger MySQL] Relational Multi-Tenant Tables verified & ready!');
-    } finally {
-      connection.release();
-    }
-  } catch (err: any) {
-    console.warn('[Hostinger MySQL] Table auto-initialization error (proceeding safely):', err?.message);
-  }
-}
+// Schema changes and administrator provisioning belong to explicit migration/setup commands.
 
 // ---------------- USER AUTHENTICATION ---------------- //
 
@@ -1768,44 +1136,41 @@ export async function findCompanyByPublicFormToken(token: string): Promise<DbCom
   return inMemoryCompanies.find((c) => c.public_form_token === token) || null;
 }
 
+const profileVersions=new WeakMap<object,{company:string;version:string}>();
+const memoryProfileVersions:Record<string,string>={};
+export function companyDataVersion(payload:any):string{return payload&&typeof payload==='object'?profileVersions.get(payload)?.version||'0':'0';}
+
 export async function getCompanyDataPayload(companyId: string): Promise<DbCompanyData | null> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      const [rows]: any = await db.query('SELECT data_payload FROM company_profiles_data WHERE company_id = ? LIMIT 1', [companyId]);
-      if (rows && rows.length > 0) {
-        return JSON.parse(rows[0].data_payload);
-      }
-      return null;
+      connected=true;
+      const snapshot=await readCompanyProfile(db,companyId);
+      if(snapshot.data)profileVersions.set(snapshot.data,{company:companyId,version:snapshot.version});
+      return snapshot.data;
     }
   } catch (err: any) {
+    if(connected)throw new Error('Workspace snapshot storage unavailable');
     handleDbError('getCompanyDataPayload', err);
   }
 
   assertNotProductionFallback('getCompanyDataPayload');
-  return inMemoryCompanyData[companyId] || null;
+  const stored=inMemoryCompanyData[companyId];const value=stored?JSON.parse(JSON.stringify(stored)):null;if(value)profileVersions.set(value,{company:companyId,version:memoryProfileVersions[companyId]||'0'});return value;
 }
 
-export async function saveCompanyDataPayload(companyId: string, payload: any): Promise<boolean> {
-  const jsonString = JSON.stringify(payload);
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query(
-        `INSERT INTO company_profiles_data (company_id, data_payload)
-         VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE data_payload = ?`,
-        [companyId, jsonString, jsonString]
-      );
-      return true;
-    }
-  } catch (err: any) {
-    handleDbError('saveCompanyDataPayload', err);
-  }
-
+export async function saveCompanyDataPayload(companyId:string,payload:any,expectedVersion?:string):Promise<boolean>{
+  const origin=payload&&profileVersions.get(payload);if(origin&&origin.company!==companyId)throw new Error('Workspace snapshot scope mismatch');
+  let connected=false;
+  try{
+    const db=await getDbPool();
+    if(db){connected=true;const expected=expectedVersion??(payload&&profileVersions.get(payload)?.version)??'0';const version=await writeCompanyProfile(db,companyId,payload,expected);profileVersions.set(payload,{company:companyId,version});return true;}
+  }catch(error){if(error instanceof WorkspaceConflict)throw error;if(connected)throw new Error('Workspace save storage unavailable');handleDbError('saveCompanyDataPayload',error);}
   assertNotProductionFallback('saveCompanyDataPayload');
-  inMemoryCompanyData[companyId] = payload;
-  return true;
+  const actual=memoryProfileVersions[companyId]||'0';const expected=expectedVersion??(payload&&profileVersions.get(payload)?.version)??actual;
+  if(expected!==actual)throw new WorkspaceConflict();
+  const version=String(BigInt(actual)+1n);memoryProfileVersions[companyId]=version;
+  inMemoryCompanyData[companyId]=JSON.parse(JSON.stringify(payload));profileVersions.set(inMemoryCompanyData[companyId],{company:companyId,version});profileVersions.set(payload,{company:companyId,version});return true;
 }
 
 // ---------------- LEADS MANAGEMENT ---------------- //
@@ -1863,61 +1228,10 @@ export async function createLead(lead: Omit<DbLead, 'id'> & { id?: string }): Pr
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
-        `INSERT INTO leads (id, company_id, name, company, phone, email, service, budget, stage, intent_score, source, notes, ai_suggested_reply)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newLead.id,
-          newLead.company_id || null,
-          newLead.name,
-          newLead.company,
-          newLead.phone,
-          newLead.email,
-          newLead.service,
-          newLead.budget,
-          newLead.stage,
-          newLead.intent_score,
-          newLead.source,
-          newLead.notes,
-          newLead.ai_suggested_reply,
-        ]
-      );
+      await insertLeadRow(db,newLead);
       return newLead;
     }
   } catch (err: any) {
-    // Self-healing schema repair: if imported from a legacy schema without company_id column
-    if (err?.code === 'ER_BAD_FIELD_ERROR' || String(err?.message || '').includes('company_id')) {
-      try {
-        const db = await getDbPool();
-        if (db) {
-          console.log('[createLead] Attempting automatic schema repair for missing company_id column...');
-          await db.query('ALTER TABLE leads ADD COLUMN company_id VARCHAR(64) DEFAULT NULL AFTER id, ADD INDEX idx_company_lead (company_id)');
-          await db.query(
-            `INSERT INTO leads (id, company_id, name, company, phone, email, service, budget, stage, intent_score, source, notes, ai_suggested_reply)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              newLead.id,
-              newLead.company_id || null,
-              newLead.name,
-              newLead.company,
-              newLead.phone,
-              newLead.email,
-              newLead.service,
-              newLead.budget,
-              newLead.stage,
-              newLead.intent_score,
-              newLead.source,
-              newLead.notes,
-              newLead.ai_suggested_reply,
-            ]
-          );
-          console.log('[createLead] Successfully self-repaired schema and persisted lead to MySQL!');
-          return newLead;
-        }
-      } catch (repairErr: any) {
-        handleDbError('createLead:repair', repairErr);
-      }
-    }
     handleDbError('createLead', err);
   }
 
@@ -1942,19 +1256,18 @@ export async function getLeadById(id: string): Promise<DbLead | null> {
   return inMemoryLeads.find((l) => l.id === id) || null;
 }
 
-export async function updateLeadStatus(id: string, stage: DbLead['stage']): Promise<boolean> {
+export async function updateLeadStatus(id: string, stage: DbLead['stage'],companyId?:string,expectedStage?:LeadStage): Promise<boolean> {
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query('UPDATE leads SET stage = ? WHERE id = ?', [stage, id]);
-      return true;
+      return await updateLeadStageSql(db,id,stage,companyId,expectedStage);
     }
   } catch (err: any) {
     handleDbError('updateLeadStatus', err);
   }
 
   assertNotProductionFallback('updateLeadStatus');
-  const existing = inMemoryLeads.find((l) => l.id === id);
+  const existing = inMemoryLeads.find((l) => l.id === id && (!companyId||l.company_id===companyId) && (!expectedStage||l.stage===expectedStage));
   if (existing) {
     existing.stage = stage;
     return true;
@@ -1965,6 +1278,7 @@ export async function updateLeadStatus(id: string, stage: DbLead['stage']): Prom
 // ---------------- TELEGRAM DISPATCH ---------------- //
 
 export async function sendTelegramPushAlert(message: string): Promise<boolean> {
+  if(isGlobalEmergencyStopActive())return false;
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -2050,7 +1364,7 @@ export async function getCompanyIntegration(companyId: string, provider: string)
   return mem ? { ...mem, credentials: decryptCredentialsObject(mem.credentials || {}) } : null;
 }
 
-export async function getCompanyIntegrationsByProvider(provider: string): Promise<DbIntegration[]> {
+export async function getCompanyIntegrationsByProvider(provider: string, requireDurable = false): Promise<DbIntegration[]> {
   try {
     const db = await getDbPool();
     if (db) {
@@ -2070,9 +1384,11 @@ export async function getCompanyIntegrationsByProvider(provider: string): Promis
       }
     }
   } catch (err: any) {
+    if (requireDurable) throw new Error('Integration storage unavailable');
     handleDbError('getCompanyIntegrationsByProvider', err);
   }
 
+  if (requireDurable) throw new Error('Integration storage unavailable');
   assertNotProductionFallback('getCompanyIntegrationsByProvider');
   return inMemoryIntegrations.filter((i) => i.provider === provider).map((i) => ({
     ...i,
@@ -2359,18 +1675,7 @@ export async function updateReviewReply(
   try {
     const db = await getDbPool();
     if (db) {
-      if (companyId) {
-        await db.query(
-          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ?, reply_status = ? WHERE id = ? AND company_id = ?',
-          [replyText, replyDate, replyStatus, reviewId, companyId]
-        );
-      } else {
-        await db.query(
-          'UPDATE reviews SET replied = 1, reply_text = ?, reply_date = ?, reply_status = ? WHERE id = ?',
-          [replyText, replyDate, replyStatus, reviewId]
-        );
-      }
-      return true;
+      return await saveReviewReplySql(db,reviewId,replyText,replyDate,replyStatus,companyId);
     }
   } catch (err: any) {
     handleDbError('updateReviewReply', err);
@@ -2392,12 +1697,7 @@ export async function deleteReview(reviewId: string, companyId?: string): Promis
   try {
     const db = await getDbPool();
     if (db) {
-      if (companyId) {
-        await db.query('DELETE FROM reviews WHERE id = ? AND company_id = ?', [reviewId, companyId]);
-      } else {
-        await db.query('DELETE FROM reviews WHERE id = ?', [reviewId]);
-      }
-      return true;
+      return await deleteReviewSql(db,reviewId,companyId);
     }
   } catch (err: any) {
     handleDbError('deleteReview', err);
@@ -2598,55 +1898,12 @@ export async function getContentPostCompanyId(postId: string): Promise<string | 
 }
 
 export async function createContentPost(post: Omit<DbContentPost, 'id'> & { id?: string }): Promise<DbContentPost> {
-  const newPost: DbContentPost = {
-    id: post.id || `post_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
-    company_id: post.company_id,
-    campaign_id: post.campaign_id || null,
-    title: post.title || 'Untitled Post',
-    type: post.type || 'offer',
-    platforms: post.platforms && post.platforms.length > 0 ? post.platforms : ['google'],
-    channel: post.channel || post.platforms?.[0] || 'google',
-    headline: post.headline || '',
-    caption: post.caption,
-    cta: post.cta || '',
-    image_url: post.image_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
-    video_url: post.video_url || undefined,
-    status: post.status || 'scheduled',
-    scheduled_date: post.scheduled_date || new Date().toISOString().split('T')[0],
-    scheduled_time: post.scheduled_time || `${new Date().toISOString().split('T')[0]} 10:00:00`,
-    time_slot: post.time_slot || '10:00 AM',
-    hashtags: post.hashtags || [],
-    reel_script: post.reel_script || undefined,
-    created_at: new Date().toISOString(),
-  };
+  const newPost=normalizeContentPost(post);
 
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
-        `INSERT INTO content_posts (id, company_id, campaign_id, title, type, platforms, channel, headline, caption, cta, image_url, video_url, status, scheduled_date, scheduled_time, time_slot, hashtags, reel_script)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newPost.id,
-          newPost.company_id || null,
-          newPost.campaign_id || null,
-          newPost.title || null,
-          newPost.type || 'offer',
-          JSON.stringify(newPost.platforms || []),
-          newPost.channel,
-          newPost.headline || null,
-          newPost.caption,
-          newPost.cta || null,
-          newPost.image_url || null,
-          newPost.video_url || null,
-          newPost.status,
-          newPost.scheduled_date || null,
-          newPost.scheduled_time || null,
-          newPost.time_slot || null,
-          JSON.stringify(newPost.hashtags || []),
-          newPost.reel_script ? JSON.stringify(newPost.reel_script) : null,
-        ]
-      );
+      await insertContentPost(db,newPost);
       return newPost;
     }
   } catch (err: any) {
@@ -2723,6 +1980,7 @@ export async function getAllScheduledPosts(): Promise<DbContentPost[]> {
           }
           return {
             id: r.id,
+            workflow_revision:r.workflow_revision,
             company_id: r.company_id,
             title: r.title,
             type: r.type,
@@ -2781,19 +2039,14 @@ export async function deleteContentPost(postId: string, companyId?: string): Pro
   try {
     const db = await getDbPool();
     if (db) {
-      if (companyId) {
-        await db.query('DELETE FROM content_posts WHERE id = ? AND company_id = ?', [postId, companyId]);
-      } else {
-        await db.query('DELETE FROM content_posts WHERE id = ?', [postId]);
-      }
-      return true;
+      return await deleteContentPostSql(db,postId,companyId);
     }
   } catch (err: any) {
     handleDbError('deleteContentPost', err);
   }
 
   assertNotProductionFallback('deleteContentPost');
-  const idx = inMemoryContentPosts.findIndex((p) => p.id === postId && (!companyId || p.company_id === companyId));
+  const idx = inMemoryContentPosts.findIndex((p) => p.id === postId && (!companyId || p.company_id === companyId) && ['draft','pending_approval','scheduled','failed'].includes(p.status) && !inMemoryPublishingClaims.has(postId));
   if (idx >= 0) {
     inMemoryContentPosts.splice(idx, 1);
     return true;
@@ -2802,6 +2055,39 @@ export async function deleteContentPost(postId: string, companyId?: string): Pro
 }
 
 // ---------------- CONTENT PUBLISHING RECORDS & IDEMPOTENCY ---------------- //
+
+const inMemoryPublishingClaims = new Map<string, {companyId:string;token:string;status:string;started:number}>();
+export async function claimPublishingDispatch(postId:string,companyId:string,expectedVersion?:string) {
+  const claim:PublishingClaim={postId,companyId,token:crypto.randomUUID()};
+  const db=await getDbPool();
+  if(db) return {...await claimSqlPublishing(db,claim,expectedVersion),claim};
+  assertNotProductionFallback('claimPublishingDispatch');
+  if(!inMemoryContentPosts.some(post=>post.id===postId && post.company_id===companyId)) throw new Error('PUBLISHING_POST_SCOPE_MISMATCH');
+  if(expectedVersion && publishingSourceVersion(inMemoryContentPosts.find(post=>post.id===postId)!)!==expectedVersion)return {acquired:false,status:'SOURCE_CHANGED',claim};
+  const previous=inMemoryPublishingClaims.get(postId);
+  if(previous && previous.companyId!==companyId) throw new Error('PUBLISHING_CLAIM_SCOPE_MISMATCH');
+  if(previous?.status==='IN_PROGRESS' && Date.now()-previous.started>300000) previous.status='UNKNOWN';
+  if(previous && !['READY','FAILED'].includes(previous.status)) return {acquired:false,status:previous.status,claim};
+  if(publicationNeedsApproval(inMemoryContentPosts.find(post=>post.id===postId)!,publicationPolicy(companyId,inMemoryCompanyData[companyId])))return {acquired:false,status:'APPROVAL_REQUIRED',claim};
+  inMemoryPublishingClaims.set(postId,{companyId,token:claim.token,status:'IN_PROGRESS',started:Date.now()});
+  return {acquired:true,status:'IN_PROGRESS',claim};
+}
+export async function ownsPublishingDispatch(claim:PublishingClaim) {
+  const db=await getDbPool();if(db)return ownsSqlPublishing(db,claim);
+  assertNotProductionFallback('ownsPublishingDispatch');
+  const current=inMemoryPublishingClaims.get(claim.postId);
+  return current?.companyId===claim.companyId && current.token===claim.token && current.status==='IN_PROGRESS';
+}
+export async function settlePublishingDispatch(claim:PublishingClaim,status:'PUBLISHED'|'FAILED'|'UNKNOWN') {
+  const db=await getDbPool();if(db)return settleSqlPublishing(db,claim,status);
+  assertNotProductionFallback('settlePublishingDispatch');
+  const current=inMemoryPublishingClaims.get(claim.postId);
+  if(current?.companyId!==claim.companyId || current.token!==claim.token || current.status!=='IN_PROGRESS')return false;
+  const post=inMemoryContentPosts.find(post=>post.id===claim.postId && post.company_id===claim.companyId);
+  if(!post)return false;
+  post.status=status.toLowerCase() as DbContentPost['status'];
+  current.status=status;return true;
+}
 
 export async function createPublishingRecord(
   data: Omit<DbPublishingRecord, 'id' | 'created_at' | 'updated_at'> & { id?: string }
@@ -2939,6 +2225,15 @@ export async function getPublishingRecordsByPostId(postId: string): Promise<DbPu
 
   assertNotProductionFallback('getPublishingRecordsByPostId');
   return inMemoryPublishingRecords.filter((r) => r.post_id === postId);
+}
+
+export async function getUnconfirmedPublishingEvidence(postId: string, platform: string): Promise<UnconfirmedPublishingEvidence | null> {
+  try {
+    const db = await getDbPool();
+    if (db) return await findUnconfirmedPublishingEvidence(db,postId,platform);
+  } catch (error) { handleDbError('getUnconfirmedPublishingEvidence',error); }
+  assertNotProductionFallback('getUnconfirmedPublishingEvidence');
+  return inMemoryPublishingRecords.find(record => record.post_id === postId && record.platform === platform && ['UNKNOWN','RETRYING'].includes(record.status)) || null;
 }
 
 export async function getLatestPublishingRecord(
@@ -3432,6 +2727,7 @@ export async function recordThemeUsage(
   templateId: string,
   paletteId: string
 ): Promise<void> {
+  if(!companyId||companyId.length>64||!templateId||templateId.length>64||!paletteId||paletteId.length>64)throw new ObservationError('THEME_USAGE_INVALID');
   const id = `cth_${crypto.randomUUID().replace(/-/g, '')}`;
   const nowIso = new Date().toISOString();
 
@@ -3442,6 +2738,7 @@ export async function recordThemeUsage(
         'INSERT INTO content_theme_history (id, company_id, template_id, palette_id) VALUES (?, ?, ?, ?)',
         [id, companyId, templateId, paletteId]
       );
+      return;
     }
   } catch (err: any) {
     handleDbError('recordThemeUsage', err);
@@ -3466,18 +2763,19 @@ export async function getRecentThemeHistory(
   companyId: string,
   limit = 5
 ): Promise<Array<{ templateId: string; paletteId: string; usedAt: string }>> {
+  observationLimit(limit);
   try {
     const db = await getDbPool();
     if (db) {
       const [rows]: any = await db.query(
-        'SELECT template_id, palette_id, used_at FROM content_theme_history WHERE company_id = ? ORDER BY used_at DESC LIMIT ?',
+        'SELECT template_id, palette_id, UNIX_TIMESTAMP(used_at)*1000 stamp_ms FROM content_theme_history WHERE company_id = ? ORDER BY used_at DESC LIMIT ?',
         [companyId, limit]
       );
       if (rows && Array.isArray(rows)) {
         return rows.map((r: any) => ({
           templateId: r.template_id,
           paletteId: r.palette_id,
-          usedAt: r.used_at instanceof Date ? r.used_at.toISOString() : String(r.used_at),
+          usedAt: new Date(Number(r.stamp_ms)).toISOString(),
         }));
       }
     }
@@ -3828,121 +3126,21 @@ export async function upsertSubscription(
 
 // ---------------- CUSTOM DOMAINS & WEBSITE CONFIGURATION ---------------- //
 
-export async function getCustomDomainsByCompany(companyId: string): Promise<DbCustomDomain[]> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        'SELECT * FROM custom_domains WHERE company_id = ? ORDER BY created_at DESC',
-        [companyId]
-      );
-      if (rows && Array.isArray(rows)) {
-        return rows.map((r: any) => ({
-          ...r,
-          verified_at: r.verified_at instanceof Date ? r.verified_at.toISOString() : r.verified_at ? String(r.verified_at) : null,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
-          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
-        }));
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getCustomDomainsByCompany', err);
-  }
-
-  assertNotProductionFallback('getCustomDomainsByCompany');
-  return inMemoryCustomDomains.filter((d) => d.company_id === companyId);
+export async function getCustomDomainsByCompany(companyId:string):Promise<DbCustomDomain[]>{
+ try{const db=await getDbPool();if(db)return await readDomainsSql(db,companyId);}catch(error){handleDbError('getCustomDomainsByCompany',error);}
+ assertNotProductionFallback('getCustomDomainsByCompany');return inMemoryCustomDomains.filter(row=>row.company_id===companyId).map(row=>({...row}));
+}
+export async function getCustomDomainById(id:string):Promise<DbCustomDomain|null>{
+ try{const db=await getDbPool();if(db)return await readDomainSql(db,id);}catch(error){handleDbError('getCustomDomainById',error);}
+ assertNotProductionFallback('getCustomDomainById');const row=inMemoryCustomDomains.find(row=>row.id===id);return row?{...row}:null;
 }
 
-export async function getCustomDomainById(domainId: string): Promise<DbCustomDomain | null> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        'SELECT * FROM custom_domains WHERE id = ? LIMIT 1',
-        [domainId]
-      );
-      if (rows && rows.length > 0) {
-        const r = rows[0];
-        return {
-          ...r,
-          verified_at: r.verified_at instanceof Date ? r.verified_at.toISOString() : r.verified_at ? String(r.verified_at) : null,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
-          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
-        };
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getCustomDomainById', err);
-  }
-
-  assertNotProductionFallback('getCustomDomainById');
-  return inMemoryCustomDomains.find((d) => d.id === domainId) || null;
-}
-
-export async function createCustomDomain(
-  data: Partial<DbCustomDomain> & { company_id: string; domain: string }
-): Promise<DbCustomDomain> {
-  const cleanDomain = data.domain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  const id = data.id || `dom_${cleanDomain.replace(/[^a-z0-9]/g, '_')}_${Math.floor(1000 + Math.random() * 9000)}`;
-  const now = new Date().toISOString();
-  const txtRecord = `bga-site-verification=${cleanDomain.replace(/[^a-z0-9]/g, '')}_${Date.now().toString(36)}`;
-
-  const newDomain: DbCustomDomain = {
-    id,
-    company_id: data.company_id,
-    domain: cleanDomain,
-    status: data.status || 'pending_verification',
-    ssl_status: data.ssl_status || 'provisioning',
-    cname_target: data.cname_target || 'cname.bga.aaditechs.in',
-    a_record_target: data.a_record_target || '77.37.54.108',
-    dns_txt_record: data.dns_txt_record || txtRecord,
-    verified_at: data.verified_at || null,
-    created_at: now,
-    updated_at: now,
-  };
-
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query(
-        `INSERT INTO custom_domains (
-          id, company_id, domain, status, ssl_status, cname_target,
-          a_record_target, dns_txt_record, verified_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          status = VALUES(status),
-          ssl_status = VALUES(ssl_status),
-          cname_target = VALUES(cname_target),
-          a_record_target = VALUES(a_record_target),
-          dns_txt_record = VALUES(dns_txt_record),
-          verified_at = VALUES(verified_at)`,
-        [
-          newDomain.id,
-          newDomain.company_id,
-          newDomain.domain,
-          newDomain.status,
-          newDomain.ssl_status,
-          newDomain.cname_target,
-          newDomain.a_record_target,
-          newDomain.dns_txt_record,
-          newDomain.verified_at,
-        ]
-      );
-      return newDomain;
-    }
-  } catch (err: any) {
-    handleDbError('createCustomDomain', err);
-  }
-
-  assertNotProductionFallback('createCustomDomain');
-  const existingIdx = inMemoryCustomDomains.findIndex((d) => d.id === newDomain.id || (d.company_id === newDomain.company_id && d.domain === newDomain.domain));
-  if (existingIdx >= 0) {
-    inMemoryCustomDomains[existingIdx] = newDomain;
-  } else {
-    inMemoryCustomDomains.push(newDomain);
-  }
-
-  return newDomain;
+export async function createCustomDomain(data:Partial<DbCustomDomain>&{company_id:string;domain:string}):Promise<DbCustomDomain>{
+ const domain=normalizeWebsiteDomain(data.domain);const record:DbCustomDomain={id:'dom_'+crypto.randomUUID().replaceAll('-',''),company_id:data.company_id,domain,status:'pending_verification',ssl_status:'unverified',cname_target:'cname.bga.aaditechs.in',a_record_target:'77.37.54.108',dns_txt_record:'bga-site-verification='+crypto.randomBytes(24).toString('hex'),verified_at:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+ try{const db=await getDbPool();if(db)return await createDomainSql(db,record);}catch(error){if(error instanceof WebsiteError)throw error;handleDbError('createCustomDomain',error);}
+ assertNotProductionFallback('createCustomDomain');
+ const existing=inMemoryCustomDomains.find(row=>row.domain===domain);if(existing){if(existing.company_id!==data.company_id)throw new WebsiteError(409,'DOMAIN_CONFLICT','Domain registration conflicts with an existing record');return {...existing};}
+ inMemoryCustomDomains.push(record);return {...record};
 }
 
 export const getCompanyLeads = getAllLeads;
@@ -3951,665 +3149,78 @@ export const getSubscription = getSubscriptionByCompany;
 export const getCustomDomain = getCustomDomainsByCompany;
 export const getCustomDomains = getCustomDomainsByCompany;
 
-export async function updateCustomDomainStatus(
-  domainId: string,
-  status: 'active' | 'pending_verification' | 'failed',
-  sslStatus: 'active' | 'provisioning' | 'expired' = 'active'
-): Promise<DbCustomDomain | null> {
-  const verifiedAt = status === 'active' ? new Date().toISOString() : null;
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query(
-        'UPDATE custom_domains SET status = ?, ssl_status = ?, verified_at = ? WHERE id = ?',
-        [status, sslStatus, verifiedAt ? new Date(verifiedAt) : null, domainId]
-      );
-    }
-  } catch (err: any) {
-    handleDbError('updateCustomDomainStatus', err);
-  }
-
-  assertNotProductionFallback('updateCustomDomainStatus');
-  const found = inMemoryCustomDomains.find((d) => d.id === domainId);
-  if (found) {
-    found.status = status;
-    found.ssl_status = sslStatus;
-    found.verified_at = verifiedAt;
-    found.updated_at = new Date().toISOString();
-    return found;
-  }
-  return null;
+export async function updateCustomDomainStatus(company:string,id:string,proof:DomainDnsSnapshot,verified:boolean):Promise<DbCustomDomain|null>{
+ try{const db=await getDbPool();if(db)return await saveDomainDnsSql(db,company,id,proof,verified);}catch(error){handleDbError('updateCustomDomainStatus',error);}
+ assertNotProductionFallback('updateCustomDomainStatus');const record=inMemoryCustomDomains.find(row=>row.company_id===company&&row.id===id&&row.dns_txt_record===proof.dns_txt_record&&row.domain===proof.domain&&row.cname_target===proof.cname_target&&row.a_record_target===proof.a_record_target);if(!record)return null;
+ Object.assign(record,{status:verified?'dns_verified':'pending_verification',ssl_status:'unverified',verified_at:verified?new Date().toISOString():null,updated_at:new Date().toISOString()});return {...record};
 }
-
-export async function deleteCustomDomain(domainId: string): Promise<boolean> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query('DELETE FROM custom_domains WHERE id = ?', [domainId]);
-    }
-  } catch (err: any) {
-    handleDbError('deleteCustomDomain', err);
-  }
-
-  assertNotProductionFallback('deleteCustomDomain');
-  const idx = inMemoryCustomDomains.findIndex((d) => d.id === domainId);
-  if (idx >= 0) {
-    inMemoryCustomDomains.splice(idx, 1);
-    return true;
-  }
-  return true;
+export async function deleteCustomDomain(company:string,id:string):Promise<boolean>{
+ try{const db=await getDbPool();if(db)return await deleteDomainSql(db,company,id);}catch(error){handleDbError('deleteCustomDomain',error);}
+ assertNotProductionFallback('deleteCustomDomain');const index=inMemoryCustomDomains.findIndex(row=>row.company_id===company&&row.id===id);if(index<0)return false;inMemoryCustomDomains.splice(index,1);return true;
 }
-
-export async function getWebsiteConfigByCompany(companyId: string): Promise<DbWebsiteConfig | null> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        'SELECT * FROM website_configs WHERE company_id = ? LIMIT 1',
-        [companyId]
-      );
-      if (rows && rows.length > 0) {
-        const r = rows[0];
-        return {
-          ...r,
-          enable_whatsapp_cta: Boolean(r.enable_whatsapp_cta),
-          enable_direct_call_cta: Boolean(r.enable_direct_call_cta),
-          enable_inquiry_form: Boolean(r.enable_inquiry_form),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
-          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
-        };
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getWebsiteConfigByCompany', err);
-  }
-
-  assertNotProductionFallback('getWebsiteConfigByCompany');
-  return inMemoryWebsiteConfigs.find((c) => c.company_id === companyId) || null;
+export async function getWebsiteConfigByCompany(company:string):Promise<DbWebsiteConfig|null>{
+ try{const db=await getDbPool();if(db)return await readWebsiteConfigSql(db,company);}catch(error){handleDbError('getWebsiteConfigByCompany',error);}
+ assertNotProductionFallback('getWebsiteConfigByCompany');const record=inMemoryWebsiteConfigs.find(row=>row.company_id===company);return record?{...record}:null;
 }
-
-export async function upsertWebsiteConfig(
-  data: Partial<DbWebsiteConfig> & { company_id: string }
-): Promise<DbWebsiteConfig> {
-  const id = data.id || `web_${data.company_id}`;
-  const now = new Date().toISOString();
-
-  const updatedConfig: DbWebsiteConfig = {
-    id,
-    company_id: data.company_id,
-    subdomain: data.subdomain || data.company_id.replace(/^comp_/, ''),
-    primary_color: data.primary_color || '#4f46e5',
-    secondary_color: data.secondary_color || '#06b6d4',
-    tagline: data.tagline || 'Autonomous AI Growth Engine & Local SEO Authority',
-    hero_title: data.hero_title || 'Official Services Hub',
-    hero_subtitle: data.hero_subtitle || 'Trusted professional solutions serving clients with guaranteed satisfaction.',
-    meta_description: data.meta_description || 'Official storefront and local SEO hub.',
-    keywords: data.keywords || 'local seo, marketing, services',
-    google_analytics_id: data.google_analytics_id,
-    custom_header_html: data.custom_header_html,
-    enable_whatsapp_cta: data.enable_whatsapp_cta !== undefined ? data.enable_whatsapp_cta : true,
-    enable_direct_call_cta: data.enable_direct_call_cta !== undefined ? data.enable_direct_call_cta : true,
-    enable_inquiry_form: data.enable_inquiry_form !== undefined ? data.enable_inquiry_form : true,
-    pages_json: data.pages_json,
-    created_at: now,
-    updated_at: now,
-  };
-
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query(
-        `INSERT INTO website_configs (
-          id, company_id, subdomain, primary_color, secondary_color,
-          tagline, hero_title, hero_subtitle, meta_description, keywords,
-          google_analytics_id, custom_header_html, enable_whatsapp_cta,
-          enable_direct_call_cta, enable_inquiry_form, pages_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          subdomain = VALUES(subdomain),
-          primary_color = VALUES(primary_color),
-          secondary_color = VALUES(secondary_color),
-          tagline = VALUES(tagline),
-          hero_title = VALUES(hero_title),
-          hero_subtitle = VALUES(hero_subtitle),
-          meta_description = VALUES(meta_description),
-          keywords = VALUES(keywords),
-          google_analytics_id = VALUES(google_analytics_id),
-          custom_header_html = VALUES(custom_header_html),
-          enable_whatsapp_cta = VALUES(enable_whatsapp_cta),
-          enable_direct_call_cta = VALUES(enable_direct_call_cta),
-          enable_inquiry_form = VALUES(enable_inquiry_form),
-          pages_json = VALUES(pages_json)`,
-        [
-          updatedConfig.id,
-          updatedConfig.company_id,
-          updatedConfig.subdomain,
-          updatedConfig.primary_color,
-          updatedConfig.secondary_color,
-          updatedConfig.tagline || null,
-          updatedConfig.hero_title || null,
-          updatedConfig.hero_subtitle || null,
-          updatedConfig.meta_description || null,
-          updatedConfig.keywords || null,
-          updatedConfig.google_analytics_id || null,
-          updatedConfig.custom_header_html || null,
-          updatedConfig.enable_whatsapp_cta ? 1 : 0,
-          updatedConfig.enable_direct_call_cta ? 1 : 0,
-          updatedConfig.enable_inquiry_form ? 1 : 0,
-          updatedConfig.pages_json || null,
-        ]
-      );
-    }
-  } catch (err: any) {
-    handleDbError('upsertWebsiteConfig', err);
-  }
-
-  assertNotProductionFallback('upsertWebsiteConfig');
-  const existingIdx = inMemoryWebsiteConfigs.findIndex((c) => c.company_id === updatedConfig.company_id);
-  if (existingIdx >= 0) {
-    inMemoryWebsiteConfigs[existingIdx] = updatedConfig;
-  } else {
-    inMemoryWebsiteConfigs.push(updatedConfig);
-  }
-
-  return updatedConfig;
+export async function upsertWebsiteConfig(data:Partial<DbWebsiteConfig>&{company_id:string}):Promise<DbWebsiteConfig>{
+ const {company_id,...input}=data;
+ try{const db=await getDbPool();if(db)return await saveWebsiteConfigSql(db,company_id,input);}catch(error){if(error instanceof WebsiteError)throw error;handleDbError('upsertWebsiteConfig',error);}
+ assertNotProductionFallback('upsertWebsiteConfig');const patch=websiteConfigPatch.parse(input);const existing=inMemoryWebsiteConfigs.find(row=>row.company_id===company_id);const now=new Date().toISOString();
+ const saved:DbWebsiteConfig={id:'web_'+crypto.createHash('sha256').update(company_id).digest('hex').slice(0,48),company_id,subdomain:company_id,primary_color:'#4f46e5',secondary_color:'#06b6d4',tagline:'',hero_title:'',hero_subtitle:'',meta_description:'',keywords:'',enable_whatsapp_cta:true,enable_direct_call_cta:true,enable_inquiry_form:true,created_at:now,...existing,...patch,updated_at:now};
+ if(existing)Object.assign(existing,saved);else inMemoryWebsiteConfigs.push(saved);return {...saved};
 }
 
 // ---------------- LOCAL SEO RANK OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
 
-export async function saveRankObservations(
-  observationsOrCompanyId: DbRankObservation[] | string,
-  keywordParam?: string,
-  observationsParam?: any[]
-): Promise<void> {
-  let rawList: any[] = [];
-  let companyIdFallback = '';
-  let keywordFallback = '';
-
-  if (typeof observationsOrCompanyId === 'string') {
-    companyIdFallback = observationsOrCompanyId;
-    keywordFallback = keywordParam || '';
-    rawList = Array.isArray(observationsParam) ? observationsParam : [];
-  } else if (Array.isArray(observationsOrCompanyId)) {
-    rawList = observationsOrCompanyId;
-  }
-
-  if (!rawList || rawList.length === 0) return;
-
-  const batchTimestamp = rawList[0]?.timestamp || new Date().toISOString();
-  const observations: DbRankObservation[] = rawList.map((obs: any) => ({
-    id: obs.id || `obs_${crypto.randomUUID().slice(0, 10)}`,
-    company_id: obs.company_id || obs.companyId || companyIdFallback,
-    keyword: obs.keyword || keywordFallback,
-    latitude: Number(obs.latitude ?? obs.lat ?? 0),
-    longitude: Number(obs.longitude ?? obs.lng ?? 0),
-    grid_index: Number(obs.grid_index ?? obs.gridIndex ?? 0),
-    grid_label: obs.grid_label || obs.gridLabel || null,
-    timestamp: obs.timestamp || batchTimestamp,
-    provider: obs.provider || 'dataforseo',
-    position: typeof obs.position === 'number' ? obs.position : null,
-    status: obs.status || 'LIVE',
-    source_evidence: obs.source_evidence || obs.sourceEvidence || null,
-    top_competitors_json: obs.top_competitors_json || (obs.topCompetitors ? JSON.stringify(obs.topCompetitors) : null),
-  }));
-
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const values = observations.map((obs) => [
-        obs.id,
-        obs.company_id,
-        obs.keyword,
-        obs.latitude,
-        obs.longitude,
-        obs.grid_index,
-        obs.grid_label || null,
-        obs.timestamp,
-        obs.provider,
-        obs.position,
-        obs.status,
-        obs.source_evidence || null,
-        obs.top_competitors_json || null,
-      ]);
-
-      await db.query(
-        `INSERT INTO rank_observations (
-          id, company_id, keyword, latitude, longitude,
-          grid_index, grid_label, timestamp, provider,
-          position, status, source_evidence, top_competitors_json
-        ) VALUES ?`,
-        [values]
-      );
-    }
-  } catch (err: any) {
-    handleDbError('saveRankObservations', err);
-  }
-
-  assertNotProductionFallback('saveRankObservations');
-  // Always keep in-memory backup
-  for (const obs of observations) {
-    inMemoryRankObservations.unshift(obs);
-  }
+function observationFailure(error:any):never{
+ if(error instanceof ObservationError)throw error;
+ let code=error?.code==='DATABASE_UNAVAILABLE'?'DATABASE_UNAVAILABLE':'DATABASE_OPERATION_FAILED';
+ if(isProductionDatabaseMode())try{handleDbError('observation',error);}catch(mapped:any){if(mapped?.code==='DATABASE_UNAVAILABLE')code='DATABASE_UNAVAILABLE';}
+ throw Object.assign(new Error('Observation storage unavailable'),{code,status:503});
 }
-
-export async function getLatestKeywordObservations(
-  companyId: string,
-  keyword?: string
-): Promise<DbRankObservation[]> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      if (keyword) {
-        // Find the most recent timestamp for this keyword
-        const [timeRows]: any = await db.query(
-          `SELECT timestamp FROM rank_observations
-           WHERE company_id = ? AND keyword = ?
-           ORDER BY timestamp DESC LIMIT 1`,
-          [companyId, keyword]
-        );
-
-        if (timeRows && timeRows.length > 0) {
-          const latestTime = timeRows[0].timestamp;
-          const [rows]: any = await db.query(
-            `SELECT * FROM rank_observations
-             WHERE company_id = ? AND keyword = ? AND timestamp = ?
-             ORDER BY grid_index ASC`,
-            [companyId, keyword, latestTime]
-          );
-          if (rows && rows.length > 0) {
-            return rows.map((r: any) => ({
-              id: r.id,
-              company_id: r.company_id,
-              keyword: r.keyword,
-              latitude: Number(r.latitude),
-              longitude: Number(r.longitude),
-              grid_index: Number(r.grid_index),
-              grid_label: r.grid_label,
-              timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-              provider: r.provider,
-              position: r.position !== null ? Number(r.position) : null,
-              status: r.status,
-              source_evidence: r.source_evidence,
-              top_competitors_json: r.top_competitors_json,
-            }));
-          }
-        }
-      } else {
-        // Return latest observation per keyword
-        const [rows]: any = await db.query(
-          `SELECT ro.* FROM rank_observations ro
-           INNER JOIN (
-             SELECT keyword, MAX(timestamp) as max_time
-             FROM rank_observations
-             WHERE company_id = ?
-             GROUP BY keyword
-           ) latest ON ro.keyword = latest.keyword AND ro.timestamp = latest.max_time
-           WHERE ro.company_id = ?
-           ORDER BY ro.keyword ASC, ro.grid_index ASC`,
-          [companyId, companyId]
-        );
-        if (rows && rows.length > 0) {
-          return rows.map((r: any) => ({
-            id: r.id,
-            company_id: r.company_id,
-            keyword: r.keyword,
-            latitude: Number(r.latitude),
-            longitude: Number(r.longitude),
-            grid_index: Number(r.grid_index),
-            grid_label: r.grid_label,
-            timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-            provider: r.provider,
-            position: r.position !== null ? Number(r.position) : null,
-            status: r.status,
-            source_evidence: r.source_evidence,
-            top_competitors_json: r.top_competitors_json,
-          }));
-        }
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getLatestKeywordObservations', err);
-  }
-
-  assertNotProductionFallback('getLatestKeywordObservations');
-  // In-memory fallback
-  if (keyword) {
-    const matching = inMemoryRankObservations.filter(
-      (o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase()
-    );
-    if (matching.length === 0) return [];
-
-    const gridMap = new Map<number, DbRankObservation>();
-    for (const obs of matching) {
-      if (!gridMap.has(obs.grid_index)) {
-        gridMap.set(obs.grid_index, obs);
-      }
-    }
-    return Array.from(gridMap.values()).sort((a, b) => a.grid_index - b.grid_index);
-  }
-
-  const map = new Map<string, DbRankObservation>();
-  const allCompanyObs = inMemoryRankObservations
-    .filter((o) => o.company_id === companyId)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-  for (const obs of allCompanyObs) {
-    map.set(`${obs.keyword}_${obs.grid_index}`, obs);
-  }
-  return Array.from(map.values());
+export async function saveRankObservations(source:DbRankObservation[]|string,keyword?:string,rows?:any[]):Promise<void>{
+ const records=normalizeRanks(typeof source==='string'?rows:source,typeof source==='string'?source:undefined,keyword);if(!records.length)return;
+ try{const db=await getDbPool();if(db){await saveRanksSql(db,records);return;}}catch(error){observationFailure(error);}
+ assertNotProductionFallback('saveRankObservations');
+ for(const row of records){const existing=inMemoryRankObservations.find(old=>old.id===row.id);if(existing&&JSON.stringify(existing)!==JSON.stringify(row))throw new ObservationError('OBSERVATION_IDENTITY_CONFLICT',409);}
+ for(const row of records)if(!inMemoryRankObservations.some(old=>old.id===row.id))inMemoryRankObservations.unshift({...row});
 }
-
-export async function getKeywordObservationHistory(
-  companyId: string,
-  keyword: string,
-  limit = 50
-): Promise<DbRankObservation[]> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        `SELECT * FROM rank_observations
-         WHERE company_id = ? AND keyword = ?
-         ORDER BY timestamp DESC, grid_index ASC
-         LIMIT ?`,
-        [companyId, keyword, limit]
-      );
-      if (rows && rows.length > 0) {
-        return rows.map((r: any) => ({
-          id: r.id,
-          company_id: r.company_id,
-          keyword: r.keyword,
-          latitude: Number(r.latitude),
-          longitude: Number(r.longitude),
-          grid_index: Number(r.grid_index),
-          grid_label: r.grid_label,
-          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-          provider: r.provider,
-          position: r.position !== null ? Number(r.position) : null,
-          status: r.status,
-          source_evidence: r.source_evidence,
-          top_competitors_json: r.top_competitors_json,
-        }));
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getKeywordObservationHistory', err);
-  }
-
-  assertNotProductionFallback('getKeywordObservationHistory');
-  return inMemoryRankObservations
-    .filter((o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase())
-    .slice(0, limit);
+function memoryLatestRanks(company:string,keyword?:string){
+ const rows=inMemoryRankObservations.filter(row=>row.company_id===company&&(keyword===undefined||row.keyword.toLowerCase()===keyword.toLowerCase())).sort((a,b)=>b.timestamp.localeCompare(a.timestamp)||b.id.localeCompare(a.id));
+ const latest=new Map<string,string>(),points=new Map<string,DbRankObservation>();for(const row of rows){const word=row.keyword.toLowerCase();if(!latest.has(word))latest.set(word,row.timestamp);if(latest.get(word)!==row.timestamp)continue;const key=JSON.stringify([word,row.grid_index]);if(!points.has(key))points.set(key,row);}
+ return [...points.values()].sort((a,b)=>a.keyword.localeCompare(b.keyword)||a.grid_index-b.grid_index).map(row=>({...row}));
 }
-
-export async function calculateHistoricalTrend(
-  companyId: string,
-  keyword: string,
-  currentRank: number | null
-): Promise<{ previousRank: number | null; diff: number | null; historyCount: number }> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      // Get distinct timestamps for this keyword
-      const [timeRows]: any = await db.query(
-        `SELECT DISTINCT timestamp FROM rank_observations
-         WHERE company_id = ? AND keyword = ?
-         ORDER BY timestamp DESC LIMIT 5`,
-        [companyId, keyword]
-      );
-
-      if (timeRows && timeRows.length > 1) {
-        const prevTimestamp = timeRows[1].timestamp;
-        const [prevRows]: any = await db.query(
-          `SELECT position, grid_index FROM rank_observations
-           WHERE company_id = ? AND keyword = ? AND timestamp = ?`,
-          [companyId, keyword, prevTimestamp]
-        );
-
-        const centerObs = prevRows?.find((r: any) => r.grid_index === 4) || prevRows?.[0];
-        const prevRank = centerObs && centerObs.position !== null ? Number(centerObs.position) : null;
-
-        let diff: number | null = null;
-        if (typeof currentRank === 'number' && typeof prevRank === 'number') {
-          diff = prevRank - currentRank; // positive means improved
-        }
-
-        return {
-          previousRank: prevRank,
-          diff,
-          historyCount: timeRows.length,
-        };
-      }
-    }
-  } catch (err: any) {
-    handleDbError('calculateHistoricalTrend', err);
-  }
-
-  assertNotProductionFallback('calculateHistoricalTrend');
-  // In-memory fallback
-  const matching = inMemoryRankObservations.filter(
-    (o) => o.company_id === companyId && o.keyword.toLowerCase() === keyword.toLowerCase()
-  );
-  const timestamps = Array.from(new Set(matching.map((m) => m.timestamp))).sort((a, b) => b.localeCompare(a));
-
-  if (timestamps.length > 1) {
-    const prevTime = timestamps[1];
-    const prevObs = matching.filter((m) => m.timestamp === prevTime);
-    const centerObs = prevObs.find((o) => o.grid_index === 4) || prevObs[0];
-    const prevRank = centerObs && centerObs.position !== null ? centerObs.position : null;
-
-    let diff: number | null = null;
-    if (typeof currentRank === 'number' && typeof prevRank === 'number') {
-      diff = prevRank - currentRank;
-    }
-
-    return {
-      previousRank: prevRank,
-      diff,
-      historyCount: timestamps.length,
-    };
-  }
-
-  return {
-    previousRank: null,
-    diff: null,
-    historyCount: timestamps.length,
-  };
+export async function getLatestKeywordObservations(company:string,keyword?:string):Promise<DbRankObservation[]>{
+ try{const db=await getDbPool();if(db)return await readRanksSql(db,company,keyword);}catch(error){observationFailure(error);}
+ assertNotProductionFallback('getLatestKeywordObservations');return memoryLatestRanks(company,keyword);
 }
-
-// ---------------- COMPETITOR OBSERVATIONS & HISTORICAL PERSISTENCE ---------------- //
-
-export async function saveCompetitorObservation(obs: DbCompetitorObservation): Promise<void> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query(
-        `INSERT INTO competitor_observations 
-         (id, company_id, competitor_id, name, place_id, address, rating, reviews_count, photos_count, posts_per_week, rank_position, provider, timestamp, status, raw_payload)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE 
-           name = VALUES(name),
-           place_id = VALUES(place_id),
-           address = VALUES(address),
-           rating = VALUES(rating),
-           reviews_count = VALUES(reviews_count),
-           photos_count = VALUES(photos_count),
-           posts_per_week = VALUES(posts_per_week),
-           rank_position = VALUES(rank_position),
-           provider = VALUES(provider),
-           status = VALUES(status),
-           raw_payload = VALUES(raw_payload)`,
-        [
-          obs.id,
-          obs.company_id,
-          obs.competitor_id,
-          obs.name,
-          obs.place_id || null,
-          obs.address || null,
-          obs.rating !== null && obs.rating !== undefined ? Number(obs.rating) : null,
-          obs.reviews_count !== null && obs.reviews_count !== undefined ? Number(obs.reviews_count) : null,
-          obs.photos_count !== null && obs.photos_count !== undefined ? Number(obs.photos_count) : null,
-          obs.posts_per_week !== null && obs.posts_per_week !== undefined ? Number(obs.posts_per_week) : null,
-          obs.rank_position !== null && obs.rank_position !== undefined ? Number(obs.rank_position) : null,
-          obs.provider,
-          obs.timestamp ? new Date(obs.timestamp) : new Date(),
-          obs.status,
-          obs.raw_payload || null,
-        ]
-      );
-      return;
-    }
-  } catch (err: any) {
-    handleDbError('saveCompetitorObservation', err);
-  }
-
-  assertNotProductionFallback('saveCompetitorObservation');
-  // In-memory update
-  const existingIdx = inMemoryCompetitorObservations.findIndex((o) => o.id === obs.id);
-  if (existingIdx >= 0) {
-    inMemoryCompetitorObservations[existingIdx] = { ...obs };
-  } else {
-    inMemoryCompetitorObservations.unshift({ ...obs });
-  }
+export async function getKeywordObservationHistory(company:string,keyword:string,limit=50):Promise<DbRankObservation[]>{
+ observationLimit(limit);try{const db=await getDbPool();if(db)return await readRanksSql(db,company,keyword,limit);}catch(error){observationFailure(error);}
+ assertNotProductionFallback('getKeywordObservationHistory');return inMemoryRankObservations.filter(row=>row.company_id===company&&row.keyword.toLowerCase()===keyword.toLowerCase()).sort((a,b)=>b.timestamp.localeCompare(a.timestamp)||a.grid_index-b.grid_index||b.id.localeCompare(a.id)).slice(0,limit).map(row=>({...row}));
 }
-
-export async function saveCompetitorObservations(observations: DbCompetitorObservation[]): Promise<void> {
-  if (!observations || observations.length === 0) return;
-  for (const obs of observations) {
-    await saveCompetitorObservation(obs);
-  }
+export async function calculateHistoricalTrend(company:string,keyword:string,current:number|null):Promise<{previousRank:number|null;diff:number|null;historyCount:number}>{
+ try{const db=await getDbPool();if(db)return await rankTrendSql(db,company,keyword,current);}catch(error){observationFailure(error);}
+ assertNotProductionFallback('calculateHistoricalTrend');const rows=inMemoryRankObservations.filter(row=>row.company_id===company&&row.keyword.toLowerCase()===keyword.toLowerCase()).sort((a,b)=>b.timestamp.localeCompare(a.timestamp)||b.id.localeCompare(a.id));
+ const times=[...new Set(rows.map(row=>row.timestamp))].slice(0,5),empty={previousRank:null,diff:null,historyCount:times.length};if(times.length<2)return empty;
+ const latest=rows.find(row=>row.timestamp===times[0]&&row.grid_index===4),previous=rows.find(row=>row.timestamp===times[1]&&row.grid_index===4);
+ if(!latest||!previous||![latest,previous].every(row=>['LIVE','VERIFIED'].includes(row.status))||latest.provider!==previous.provider||latest.latitude!==previous.latitude||latest.longitude!==previous.longitude||latest.position!==current)return empty;
+ return {previousRank:previous.position,diff:previous.position!==null&&current!==null?previous.position-current:null,historyCount:times.length};
 }
-
-export async function getCompetitorObservationHistory(
-  companyId: string,
-  competitorId: string,
-  limit = 50
-): Promise<DbCompetitorObservation[]> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        `SELECT * FROM competitor_observations 
-         WHERE company_id = ? AND competitor_id = ? 
-         ORDER BY timestamp DESC 
-         LIMIT ?`,
-        [companyId, competitorId, limit]
-      );
-
-      if (rows && rows.length > 0) {
-        return rows.map((r: any) => ({
-          id: r.id,
-          company_id: r.company_id,
-          competitor_id: r.competitor_id,
-          name: r.name,
-          place_id: r.place_id,
-          address: r.address,
-          rating: r.rating !== null ? Number(r.rating) : null,
-          reviews_count: r.reviews_count !== null ? Number(r.reviews_count) : null,
-          photos_count: r.photos_count !== null ? Number(r.photos_count) : null,
-          posts_per_week: r.posts_per_week !== null ? Number(r.posts_per_week) : null,
-          rank_position: r.rank_position !== null ? Number(r.rank_position) : null,
-          provider: r.provider,
-          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-          status: r.status,
-          raw_payload: r.raw_payload,
-        }));
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getCompetitorObservationHistory', err);
-  }
-
-  assertNotProductionFallback('getCompetitorObservationHistory');
-  // In-memory fallback
-  return inMemoryCompetitorObservations
-    .filter((o) => o.company_id === companyId && o.competitor_id === competitorId)
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    .slice(0, limit);
+export async function saveCompetitorObservation(input:DbCompetitorObservation):Promise<void>{
+ const row=normalizeCompetitor(input);try{const db=await getDbPool();if(db){await saveCompetitorSql(db,row);return;}}catch(error){observationFailure(error);}
+ assertNotProductionFallback('saveCompetitorObservation');const existing=inMemoryCompetitorObservations.find(old=>old.id===row.id);if(existing&&JSON.stringify(existing)!==JSON.stringify(row))throw new ObservationError('OBSERVATION_IDENTITY_CONFLICT',409);if(!existing)inMemoryCompetitorObservations.unshift({...row});
 }
-
-export async function getLatestCompetitorObservations(companyId: string): Promise<DbCompetitorObservation[]> {
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query(
-        `SELECT co.* FROM competitor_observations co
-         INNER JOIN (
-           SELECT competitor_id, MAX(timestamp) AS max_timestamp
-           FROM competitor_observations
-           WHERE company_id = ?
-           GROUP BY competitor_id
-         ) latest ON co.competitor_id = latest.competitor_id AND co.timestamp = latest.max_timestamp
-         WHERE co.company_id = ?`,
-        [companyId, companyId]
-      );
-
-      if (rows && rows.length > 0) {
-        return rows.map((r: any) => ({
-          id: r.id,
-          company_id: r.company_id,
-          competitor_id: r.competitor_id,
-          name: r.name,
-          place_id: r.place_id,
-          address: r.address,
-          rating: r.rating !== null ? Number(r.rating) : null,
-          reviews_count: r.reviews_count !== null ? Number(r.reviews_count) : null,
-          photos_count: r.photos_count !== null ? Number(r.photos_count) : null,
-          posts_per_week: r.posts_per_week !== null ? Number(r.posts_per_week) : null,
-          rank_position: r.rank_position !== null ? Number(r.rank_position) : null,
-          provider: r.provider,
-          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-          status: r.status,
-          raw_payload: r.raw_payload,
-        }));
-      }
-    }
-  } catch (err: any) {
-    handleDbError('getLatestCompetitorObservations', err);
-  }
-
-  assertNotProductionFallback('getLatestCompetitorObservations');
-  // In-memory fallback
-  const map = new Map<string, DbCompetitorObservation>();
-  const matching = inMemoryCompetitorObservations
-    .filter((o) => o.company_id === companyId)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-  for (const obs of matching) {
-    map.set(obs.competitor_id, obs);
-  }
-  return Array.from(map.values());
+export async function saveCompetitorObservations(rows:DbCompetitorObservation[]):Promise<void>{for(const row of rows)await saveCompetitorObservation(row);}
+export async function getCompetitorObservationHistory(company:string,competitor:string,limit=50):Promise<DbCompetitorObservation[]>{
+ observationLimit(limit);try{const db=await getDbPool();if(db)return await readCompetitorsSql(db,company,competitor,limit);}catch(error){observationFailure(error);}
+ assertNotProductionFallback('getCompetitorObservationHistory');return inMemoryCompetitorObservations.filter(row=>row.company_id===company&&row.competitor_id===competitor).sort((a,b)=>b.timestamp.localeCompare(a.timestamp)||b.id.localeCompare(a.id)).slice(0,limit).map(row=>({...row}));
 }
-
-export async function getCompetitorHistoricalBaseline(
-  companyId: string,
-  competitorId: string
-): Promise<{ latest: DbCompetitorObservation | null; current: DbCompetitorObservation | null; previous: DbCompetitorObservation | null }> {
-  try {
-    const history = await getCompetitorObservationHistory(companyId, competitorId, 5);
-    if (history.length >= 2) {
-      return {
-        latest: history[0],
-        current: history[0],
-        previous: history[1],
-      };
-    } else if (history.length === 1) {
-      return {
-        latest: history[0],
-        current: history[0],
-        previous: null,
-      };
-    }
-  } catch (err: any) {
-    handleDbError('getCompetitorHistoricalBaseline', err);
-  }
-
-  assertNotProductionFallback('getCompetitorHistoricalBaseline');
-  return {
-    latest: null,
-    current: null,
-    previous: null,
-  };
+export async function getLatestCompetitorObservations(company:string):Promise<DbCompetitorObservation[]>{
+ try{const db=await getDbPool();if(db)return await readCompetitorsSql(db,company);}catch(error){observationFailure(error);}
+ assertNotProductionFallback('getLatestCompetitorObservations');const map=new Map<string,DbCompetitorObservation>();for(const row of [...inMemoryCompetitorObservations].sort((a,b)=>b.timestamp.localeCompare(a.timestamp)||b.id.localeCompare(a.id)))if(row.company_id===company&&!map.has(row.competitor_id))map.set(row.competitor_id,row);return [...map.values()].map(row=>({...row}));
+}
+export async function getCompetitorHistoricalBaseline(company:string,competitor:string):Promise<{latest:DbCompetitorObservation|null;current:DbCompetitorObservation|null;previous:DbCompetitorObservation|null}>{
+ const history=await getCompetitorObservationHistory(company,competitor,5);return {latest:history[0]??null,current:history[0]??null,previous:history[1]??null};
 }
 
 // ---------------- AUTONOMOUS GOVERNANCE & EXECUTION QUERIES ---------------- //
@@ -4643,7 +3254,7 @@ export async function createAutonomousRecommendation(
       await db.query(
         `INSERT INTO autonomous_recommendations 
         (id, company_id, observation, evidence_ids, source, timestamp, recommended_action, action_type, action_payload, affected_metric, confidence, risk, approval_requirement, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))`,
         [
           fullRec.id,
           fullRec.company_id,
@@ -4659,9 +3270,10 @@ export async function createAutonomousRecommendation(
           fullRec.risk,
           fullRec.approval_requirement,
           fullRec.status,
-          fullRec.created_at,
+          Date.parse(fullRec.created_at)/1000,
         ]
       );
+      return fullRec;
     }
   } catch (err: any) {
     handleDbError('createAutonomousRecommendation', err);
@@ -4680,10 +3292,10 @@ export async function getAutonomousRecommendationsByCompany(
     const db = await getDbPool();
     if (db) {
       const [rows]: any = await db.query(
-        'SELECT * FROM autonomous_recommendations WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
+        'SELECT autonomous_recommendations.*, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms FROM autonomous_recommendations WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
         [companyId, limit]
       );
-      if (rows && rows.length > 0) {
+      if (rows) {
         return rows.map((r: any) => ({
           id: r.id,
           company_id: r.company_id,
@@ -4699,7 +3311,7 @@ export async function getAutonomousRecommendationsByCompany(
           risk: r.risk,
           approval_requirement: r.approval_requirement,
           status: r.status,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: r.created_at_ms != null ? new Date(Number(r.created_at_ms)).toISOString() : r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
         }));
       }
     }
@@ -4720,7 +3332,8 @@ export async function updateAutonomousRecommendationStatus(
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query('UPDATE autonomous_recommendations SET status = ? WHERE id = ?', [status, id]);
+      const [result]:any=await db.query('UPDATE autonomous_recommendations SET status = ? WHERE id = ?', [status, id]);
+      return result.affectedRows > 0;
     }
   } catch (err: any) {
     handleDbError('updateAutonomousRecommendationStatus', err);
@@ -4762,7 +3375,7 @@ export async function createAutonomousAction(
       await db.query(
         `INSERT INTO autonomous_actions 
         (id, company_id, recommendation_id, action_type, payload, source_evidence, approval_status, execution_state, provider_response, verification_state, error, executed_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))`,
         [
           fullAction.id,
           fullAction.company_id,
@@ -4776,9 +3389,10 @@ export async function createAutonomousAction(
           fullAction.verification_state,
           fullAction.error,
           fullAction.executed_at,
-          fullAction.created_at,
+          Date.parse(fullAction.created_at)/1000,
         ]
       );
+      return fullAction;
     }
   } catch (err: any) {
     handleDbError('createAutonomousAction', err);
@@ -4797,10 +3411,10 @@ export async function getAutonomousActionsByCompany(
     const db = await getDbPool();
     if (db) {
       const [rows]: any = await db.query(
-        'SELECT * FROM autonomous_actions WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
+        'SELECT autonomous_actions.*, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms FROM autonomous_actions WHERE company_id = ? ORDER BY created_at DESC LIMIT ?',
         [companyId, limit]
       );
-      if (rows && rows.length > 0) {
+      if (rows) {
         return rows.map((r: any) => ({
           id: r.id,
           company_id: r.company_id,
@@ -4814,7 +3428,7 @@ export async function getAutonomousActionsByCompany(
           verification_state: r.verification_state,
           error: r.error,
           executed_at: r.executed_at,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: r.created_at_ms != null ? new Date(Number(r.created_at_ms)).toISOString() : r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
         }));
       }
     }
@@ -4832,7 +3446,7 @@ export async function getAutonomousActionById(id: string): Promise<DbAutonomousA
   try {
     const db = await getDbPool();
     if (db) {
-      const [rows]: any = await db.query('SELECT * FROM autonomous_actions WHERE id = ? LIMIT 1', [id]);
+      const [rows]: any = await db.query('SELECT autonomous_actions.*, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms FROM autonomous_actions WHERE id = ? LIMIT 1', [id]);
       if (rows && rows.length > 0) {
         const r = rows[0];
         return {
@@ -4848,9 +3462,10 @@ export async function getAutonomousActionById(id: string): Promise<DbAutonomousA
           verification_state: r.verification_state,
           error: r.error,
           executed_at: r.executed_at,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: r.created_at_ms != null ? new Date(Number(r.created_at_ms)).toISOString() : r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
         };
       }
+      return null;
     }
   } catch (err: any) {
     handleDbError('getAutonomousActionById', err);
@@ -4899,6 +3514,7 @@ export async function updateAutonomousAction(
         values.push(id);
         await db.query(`UPDATE autonomous_actions SET ${setClauses.join(', ')} WHERE id = ?`, values);
       }
+      return await getAutonomousActionById(id);
     }
   } catch (err: any) {
     handleDbError('updateAutonomousAction', err);
@@ -4933,7 +3549,7 @@ export async function recordAutonomousAuditLog(
     if (db) {
       await db.query(
         `INSERT INTO autonomous_audit_logs (id, company_id, action_id, actor, event_type, details, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))`,
         [
           fullLog.id,
           fullLog.company_id,
@@ -4941,9 +3557,10 @@ export async function recordAutonomousAuditLog(
           fullLog.actor,
           fullLog.event_type,
           fullLog.details ? JSON.stringify(fullLog.details) : null,
-          fullLog.timestamp,
+          Date.parse(fullLog.timestamp)/1000,
         ]
       );
+      return fullLog;
     }
   } catch (err: any) {
     handleDbError('recordAutonomousAuditLog', err);
@@ -4962,10 +3579,10 @@ export async function getAutonomousAuditLogsByCompany(
     const db = await getDbPool();
     if (db) {
       const [rows]: any = await db.query(
-        'SELECT * FROM autonomous_audit_logs WHERE company_id = ? ORDER BY timestamp DESC LIMIT ?',
+        'SELECT autonomous_audit_logs.*, UNIX_TIMESTAMP(timestamp)*1000 AS timestamp_ms FROM autonomous_audit_logs WHERE company_id = ? ORDER BY timestamp DESC LIMIT ?',
         [companyId, limit]
       );
-      if (rows && rows.length > 0) {
+      if (rows) {
         return rows.map((r: any) => ({
           id: r.id,
           company_id: r.company_id,
@@ -4973,7 +3590,7 @@ export async function getAutonomousAuditLogsByCompany(
           actor: r.actor,
           event_type: r.event_type,
           details: typeof r.details === 'string' ? JSON.parse(r.details) : r.details,
-          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          timestamp: r.timestamp_ms != null ? new Date(Number(r.timestamp_ms)).toISOString() : r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
         }));
       }
     }
@@ -4996,10 +3613,12 @@ export async function enqueueJob(options: {
   idempotency_key?: string;
   scheduled_for?: string;
   max_attempts?: number;
+  requested_by?: string;
 }): Promise<DbJobQueue> {
   const scheduledTime = options.scheduled_for || new Date().toISOString();
   const maxAttempts = options.max_attempts || 3;
   const newJob: DbJobQueue = {
+    requested_by: options.requested_by,
     id: `jq_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
     company_id: options.company_id,
     job_type: options.job_type,
@@ -5016,36 +3635,7 @@ export async function enqueueJob(options: {
   try {
     const db = await getDbPool();
     if (db) {
-      // Idempotency check: if an idempotency key was supplied, check if job already exists
-      if (options.idempotency_key) {
-        const [existing]: any = await db.query(
-          'SELECT * FROM job_queue WHERE company_id = ? AND idempotency_key = ? LIMIT 1',
-          [options.company_id, options.idempotency_key]
-        );
-        if (existing && existing.length > 0) {
-          const row = existing[0];
-          return {
-            ...row,
-            payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-            result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
-          };
-        }
-      }
-
-      await db.query(
-        `INSERT INTO job_queue (id, company_id, job_type, payload, status, attempts, max_attempts, idempotency_key, scheduled_for)
-         VALUES (?, ?, ?, ?, 'QUEUED', 0, ?, ?, ?)`,
-        [
-          newJob.id,
-          newJob.company_id,
-          newJob.job_type,
-          JSON.stringify(newJob.payload),
-          newJob.max_attempts,
-          newJob.idempotency_key,
-          newJob.scheduled_for,
-        ]
-      );
-      return newJob;
+      return await enqueueSqlJob(db, newJob);
     }
   } catch (err: any) {
     handleDbError('enqueueJob', err);
@@ -5072,46 +3662,7 @@ export async function claimNextJob(
   try {
     const db = await getDbPool();
     if (db) {
-      // Lease timeout threshold: if worker crashed, lease expires after 5 minutes
-      let typeClause = '';
-      const params: any[] = [];
-      if (supportedTypes && supportedTypes.length > 0) {
-        typeClause = `AND job_type IN (${supportedTypes.map(() => '?').join(', ')})`;
-        params.push(...supportedTypes);
-      }
-
-      // Find runnable job with lease timeout
-      const [candidates]: any = await db.query(
-        `SELECT id FROM job_queue 
-         WHERE (status IN ('QUEUED', 'RETRY_WAIT') AND scheduled_for <= NOW())
-            OR (status = 'RUNNING' AND locked_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-         ${typeClause}
-         ORDER BY scheduled_for ASC
-         LIMIT 1
-         FOR UPDATE`,
-        params
-      );
-
-      if (candidates && candidates.length > 0) {
-        const jobId = candidates[0].id;
-        await db.query(
-          `UPDATE job_queue 
-           SET status = 'RUNNING', locked_at = NOW(), locked_by = ?, attempts = attempts + 1, updated_at = NOW()
-           WHERE id = ?`,
-          [workerId, jobId]
-        );
-
-        const [claimed]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
-        if (claimed && claimed.length > 0) {
-          const row = claimed[0];
-          return {
-            ...row,
-            payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-            result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
-          };
-        }
-      }
-      return null;
+      return await claimSqlJob(db, workerId, supportedTypes);
     }
   } catch (err: any) {
     handleDbError('claimNextJob', err);
@@ -5120,6 +3671,14 @@ export async function claimNextJob(
   assertNotProductionFallback('claimNextJob');
 
   const nowMs = Date.now();
+  for (const queued of inMemoryJobQueue) {
+    if (supportedTypes?.length && !supportedTypes.includes(queued.job_type)) continue;
+    const due = Date.parse(queued.scheduled_for) <= nowMs;
+    const stalled = queued.status === 'RUNNING' && queued.locked_at && Date.parse(queued.locked_at) < nowMs - 5 * 60 * 1000;
+    if ((queued.attempts-(queued.deferrals || 0)) >= queued.max_attempts && (((queued.status === 'QUEUED' || queued.status === 'RETRY_WAIT') && due) || stalled)) {
+      queued.status = 'FAILED'; queued.error_message = 'ATTEMPTS_EXHAUSTED'; queued.locked_at = null; queued.locked_by = null;
+    }
+  }
   const candidate = inMemoryJobQueue.find((j) => {
     if (supportedTypes && supportedTypes.length > 0 && !supportedTypes.includes(j.job_type)) {
       return false;
@@ -5137,36 +3696,32 @@ export async function claimNextJob(
     candidate.locked_by = workerId;
     candidate.attempts += 1;
     candidate.updated_at = nowIso;
-    return candidate;
+    return { ...candidate };
   }
 
   return null;
 }
 
+export async function renewJobLease(jobId: string, lease: QueueLease): Promise<boolean> {
+  const db = await getDbPool();
+  if (db) return renewSqlJobLease(db, jobId, lease);
+  assertNotProductionFallback('renewJobLease');
+  const job = inMemoryJobQueue.find(j => j.id === jobId);
+  if (!job || !ownsJobLease(job, lease)) return false;
+  job.locked_at = new Date().toISOString();
+  return true;
+}
+
 export async function completeJob(
   jobId: string,
-  result?: Record<string, any>
+  result?: Record<string, any>,
+  lease?: QueueLease
 ): Promise<DbJobQueue | null> {
   const nowIso = new Date().toISOString();
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
-        `UPDATE job_queue 
-         SET status = 'SUCCEEDED', result = ?, locked_at = NULL, locked_by = NULL, error_message = NULL, updated_at = NOW()
-         WHERE id = ?`,
-        [result ? JSON.stringify(result) : null, jobId]
-      );
-      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
-      if (rows && rows.length > 0) {
-        const row = rows[0];
-        return {
-          ...row,
-          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
-        };
-      }
-      return null;
+      return await completeSqlJob(db, jobId, result, lease);
     }
   } catch (err: any) {
     handleDbError('completeJob', err);
@@ -5175,7 +3730,7 @@ export async function completeJob(
   assertNotProductionFallback('completeJob');
 
   const job = inMemoryJobQueue.find((j) => j.id === jobId);
-  if (job) {
+  if (job && ownsJobLease(job, lease)) {
     job.status = 'SUCCEEDED';
     job.result = result || null;
     job.locked_at = null;
@@ -5190,46 +3745,14 @@ export async function completeJob(
 export async function failJob(
   jobId: string,
   errorMessage: string,
-  retryable = true
+  retryable = true,
+  lease?: QueueLease
 ): Promise<DbJobQueue | null> {
   const nowIso = new Date().toISOString();
   try {
     const db = await getDbPool();
     if (db) {
-      const [curr]: any = await db.query('SELECT attempts, max_attempts FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
-      const attempts = curr && curr[0] ? curr[0].attempts : 1;
-      const maxAttempts = curr && curr[0] ? curr[0].max_attempts : 3;
-
-      if (!retryable || attempts >= maxAttempts) {
-        // Dead letter: permanent failure
-        await db.query(
-          `UPDATE job_queue 
-           SET status = 'FAILED', error_message = ?, locked_at = NULL, locked_by = NULL, updated_at = NOW()
-           WHERE id = ?`,
-          [errorMessage, jobId]
-        );
-      } else {
-        // Exponential retry backoff: (attempts * 30) seconds delay
-        await db.query(
-          `UPDATE job_queue 
-           SET status = 'RETRY_WAIT', error_message = ?, 
-               scheduled_for = DATE_ADD(NOW(), INTERVAL (? * 30) SECOND), 
-               locked_at = NULL, locked_by = NULL, updated_at = NOW()
-           WHERE id = ?`,
-          [errorMessage, attempts, jobId]
-        );
-      }
-
-      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
-      if (rows && rows.length > 0) {
-        const row = rows[0];
-        return {
-          ...row,
-          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
-        };
-      }
-      return null;
+      return await failSqlJob(db, jobId, errorMessage, retryable, lease);
     }
   } catch (err: any) {
     handleDbError('failJob', err);
@@ -5238,12 +3761,12 @@ export async function failJob(
   assertNotProductionFallback('failJob');
 
   const job = inMemoryJobQueue.find((j) => j.id === jobId);
-  if (job) {
-    if (!retryable || job.attempts >= job.max_attempts) {
+  if (job && ownsJobLease(job, lease)) {
+    if (!retryable || (job.attempts-(job.deferrals || 0)) >= job.max_attempts) {
       job.status = 'FAILED';
     } else {
       job.status = 'RETRY_WAIT';
-      const backoffSec = job.attempts * 30;
+      const backoffSec = Math.max(1,job.attempts-(job.deferrals || 0)) * 30;
       job.scheduled_for = new Date(Date.now() + backoffSec * 1000).toISOString();
     }
     job.error_message = errorMessage;
@@ -5309,26 +3832,7 @@ export async function cancelJob(jobId: string, companyId?: string): Promise<DbJo
   const nowIso = new Date().toISOString();
   try {
     const db = await getDbPool();
-    if (db) {
-      const whereComp = companyId ? ' AND company_id = ?' : '';
-      const params = companyId ? [jobId, companyId] : [jobId];
-      await db.query(
-        `UPDATE job_queue 
-         SET status = 'CANCELLED', locked_at = NULL, locked_by = NULL, updated_at = NOW()
-         WHERE id = ? AND status IN ('QUEUED', 'RETRY_WAIT') ${whereComp}`,
-        params
-      );
-      const [rows]: any = await db.query('SELECT * FROM job_queue WHERE id = ? LIMIT 1', [jobId]);
-      if (rows && rows.length > 0) {
-        const row = rows[0];
-        return {
-          ...row,
-          payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-          result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
-        };
-      }
-      return null;
-    }
+    if (db) return await cancelSqlJob(db, jobId, companyId);
   } catch (err: any) {
     handleDbError('cancelJob', err);
   }
@@ -5385,3 +3889,14 @@ export async function getPendingJobsCount(companyId?: string): Promise<{ queued:
 
 
 
+
+export async function deferJob(id:string,reason:PauseReason,lease?:QueueLease):Promise<DbJobQueue|null>{
+ if(!PAUSE_REASONS.includes(reason))throw new Error('INVALID_PAUSE_REASON');
+ const pool=await getDbPool();if(pool)return deferSqlJob(pool,id,reason,lease);
+ assertNotProductionFallback('deferJob');
+ const job=inMemoryJobQueue.find(row=>row.id===id);
+ if(!job || !ownsJobLease(job,lease))return null;
+ job.deferrals=(job.deferrals || 0)+(job.status==='RUNNING'?1:0);
+ job.status='RETRY_WAIT';job.scheduled_for=new Date(Date.now()+60000).toISOString();job.error_message=reason;
+ job.locked_at=null;job.locked_by=null;job.updated_at=new Date().toISOString();return {...job};
+}

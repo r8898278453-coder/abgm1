@@ -1,7 +1,13 @@
+import {publishingExecutionBlock} from './publishingExecutionControls';
+import type {PauseReason} from './queueSql';
+import { scheduledPostKey } from './scheduledPublishing';
+import { isScheduledTimePassed } from './scheduleTime';
 import {
   claimNextJob,
+  renewJobLease,
   completeJob,
   failJob,
+  deferJob,
   getCompanyById,
   getPostById,
   getCompanyReviews,
@@ -13,7 +19,7 @@ import {
 } from './db';
 import { executePublishingJob } from './publishingEngine';
 import { isGlobalEmergencyStopActive } from './autonomousEngine';
-import { generate3x3GridCoordinates, resolveRankProvider } from './localSeoProvider';
+import { generate3x3GridCoordinates, resolveRankProvider, resolveCenterCoordinates } from './localSeoProvider';
 import { resolveCompetitorProvider } from './competitorProvider';
 import { buildStructuredEvidence, generateDeterministicSummary } from './aiExecutiveSummary';
 
@@ -38,54 +44,109 @@ export interface QueueTickSummary {
  * Executes a single claimed job according to its registered job_type.
  * Guarantees zero false completion: never marks a job succeeded if provider or operation failed.
  */
-export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
+// Persistence seam permits deterministic failure/recovery contract tests without a live DB.
+export async function executeJob(
+  job: DbJobQueue,
+  persistence: {
+    saveRankObservations: typeof saveRankObservations;
+    saveCompetitorObservation: typeof saveCompetitorObservation;
+  } = { saveRankObservations, saveCompetitorObservation }
+): Promise<JobExecutionResult> {
   const { id: jobId, job_type: jobType, company_id: companyId, payload } = job;
 
-  // Emergency kill switch safety gate
-  if (isGlobalEmergencyStopActive()) {
-    console.warn(`[JobQueue] Job ${jobId} execution BLOCKED: Global Emergency Kill Switch is ACTIVE.`);
-    await failJob(jobId, 'BLOCKED_BY_GLOBAL_EMERGENCY_STOP', true);
-    return {
-      jobId,
-      jobType,
-      status: 'SKIPPED',
-      error: 'Global emergency stop active',
-    };
-  }
+  const lease = job.status === 'RUNNING' && job.locked_by ? { workerId: job.locked_by, attempt: job.attempts } : undefined;
+  let leaseLost = false;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  const complete = async (id: string, result?: Record<string, any>) => {
+    if (leaseLost) throw new Error('JOB_LEASE_LOST');
+    const updated = await completeJob(id, result, lease);
+    if (!updated) throw new Error('JOB_LEASE_LOST');
+    return updated;
+  };
+  const fail = async (id: string, error: string, retryable = true) => {
+    if (leaseLost) throw new Error('JOB_LEASE_LOST');
+    const updated = await failJob(id, error, retryable, lease);
+    if (!updated) throw new Error('JOB_LEASE_LOST');
+    return updated;
+  };
 
   try {
+    if (lease) {
+      if (!await renewJobLease(jobId, lease)) throw new Error('JOB_LEASE_LOST');
+      let renewing = false;
+      heartbeat = setInterval(async () => {
+        if (renewing || leaseLost) return;
+        renewing = true;
+        try { leaseLost = !await renewJobLease(jobId, lease); }
+        catch { leaseLost = true; }
+        finally { renewing = false; }
+      }, 60_000);
+      heartbeat.unref();
+    }
+    const defer=async(reason:PauseReason)=>{
+      if(leaseLost || !await deferJob(jobId,reason,lease))throw new Error('JOB_LEASE_LOST');
+      return {jobId,jobType,status:'SKIPPED' as const,error:reason};
+    };
+    if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     switch (jobType) {
       case 'publishing': {
         const postId = payload?.postId;
         if (!postId) {
-          await failJob(jobId, 'INVALID_PAYLOAD: Missing postId for publishing job', false);
+          await fail(jobId, 'INVALID_PAYLOAD: Missing postId for publishing job', false);
           return { jobId, jobType, status: 'FAILED', error: 'Missing postId' };
         }
         const post = await getPostById(postId);
         if (!post) {
-          await failJob(jobId, `POST_NOT_FOUND: Post ${postId} does not exist`, false);
+          await fail(jobId, `POST_NOT_FOUND: Post ${postId} does not exist`, false);
           return { jobId, jobType, status: 'FAILED', error: 'Post not found' };
         }
 
-        const publishResult = await executePublishingJob(post);
+        if (post.company_id !== companyId) {
+          await fail(jobId, 'TENANT_MISMATCH: Post does not belong to job company', false);
+          return { jobId, jobType, status: 'FAILED', error: 'Post does not belong to job company' };
+        }
+
+        if (payload.scheduleOccurrence) {
+          const guardError = payload.scheduleOccurrence !== scheduledPostKey(post) ? 'SCHEDULE_CHANGED'
+            : post.status !== 'scheduled' && post.status !== 'published' ? 'POST_NOT_SCHEDULED'
+            : !isScheduledTimePassed(post.scheduled_date, post.scheduled_time, post.time_slot) ? 'SCHEDULE_NOT_DUE' : null;
+          if (guardError) {
+            await fail(jobId, guardError, false);
+            return { jobId, jobType, status: 'FAILED', error: guardError };
+          }
+        }
+
+        const pause=await publishingExecutionBlock(companyId,'automatic',post.platforms?.length?post.platforms:[post.channel || 'google']);if(pause)return await defer(pause);
+        const publishResult = await executePublishingJob(post,{executionMode:'automatic'});
+        if(publishResult.deferredReason)return await defer(publishResult.deferredReason);
         if (publishResult.overallStatus === 'PUBLISHED' || publishResult.overallStatus === 'SKIPPED_ALREADY_PUBLISHED') {
-          await completeJob(jobId, publishResult);
+          await complete(jobId, publishResult);
           return { jobId, jobType, status: 'SUCCEEDED', result: publishResult };
         } else {
-          const isRetryable = publishResult.platformResults.some((r) => r.errorType === 'RETRYABLE');
-          await failJob(jobId, publishResult.message || 'Publishing failed', isRetryable);
+          const isRetryable = !publishResult.platformResults.some(r => r.status === 'UNKNOWN') && publishResult.platformResults.some(r => r.errorType === 'RETRYABLE');
+          await fail(jobId, publishResult.message || 'Publishing failed', isRetryable);
           return { jobId, jobType, status: 'FAILED', error: publishResult.message };
         }
       }
 
       case 'seo_scan': {
         const keyword = payload?.keyword;
-        const centerLat = Number(payload?.centerLat) || 19.033;
-        const centerLng = Number(payload?.centerLng) || 73.0297;
-        const city = payload?.city || 'Navi Mumbai';
+        const city = payload?.city;
+        const hasCoordinates = payload?.centerLat != null || payload?.centerLng != null;
+        const coordinates = hasCoordinates
+          ? (typeof payload.centerLat === 'number' && typeof payload.centerLng === 'number'
+              && Number.isFinite(payload.centerLat) && Number.isFinite(payload.centerLng)
+              && Math.abs(payload.centerLat) <= 90 && Math.abs(payload.centerLng) <= 180
+            ? { lat: payload.centerLat, lng: payload.centerLng } : null)
+          : resolveCenterCoordinates(city);
+        if (!coordinates) {
+          await fail(jobId, 'LOCATION_NOT_RESOLVED: Valid coordinates or a supported city are required', false);
+          return { jobId, jobType, status: 'FAILED', error: 'LOCATION_NOT_RESOLVED' };
+        }
+        const { lat: centerLat, lng: centerLng } = coordinates;
 
         if (!keyword) {
-          await failJob(jobId, 'INVALID_PAYLOAD: Missing keyword for SEO scan', false);
+          await fail(jobId, 'INVALID_PAYLOAD: Missing keyword for SEO scan', false);
           return { jobId, jobType, status: 'FAILED', error: 'Missing keyword' };
         }
 
@@ -108,15 +169,14 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
           creds
         );
 
-        if (scanResult.observations && scanResult.observations.length > 0) {
-          try {
-            await saveRankObservations(companyId, keyword, scanResult.observations);
-          } catch (dbSaveErr) {
-            console.warn('[JobQueue] Non-fatal saveRankObservations warning:', dbSaveErr);
-          }
+        if (!['LIVE', 'VERIFIED'].includes(scanResult.status) || !scanResult.observations?.length) {
+          const error = `SCAN_NOT_COMPLETE: ${scanResult.status}`;
+          await fail(jobId, error, scanResult.status !== 'UNAVAILABLE');
+          return { jobId, jobType, status: 'FAILED', error, result: scanResult };
         }
+        await persistence.saveRankObservations(companyId, keyword, scanResult.observations);
 
-        await completeJob(jobId, scanResult);
+        await complete(jobId, scanResult);
         return { jobId, jobType, status: 'SUCCEEDED', result: scanResult };
       }
 
@@ -126,7 +186,7 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
         const placeId = payload?.placeId;
 
         if (!competitorId || !competitorName) {
-          await failJob(jobId, 'INVALID_PAYLOAD: Missing competitor details', false);
+          await fail(jobId, 'INVALID_PAYLOAD: Missing competitor details', false);
           return { jobId, jobType, status: 'FAILED', error: 'Missing competitor details' };
         }
 
@@ -145,9 +205,12 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
           googleCreds || serpCreds
         );
 
-        if (obsResult) {
-          try {
-            await saveCompetitorObservation({
+        if (!obsResult || !['LIVE', 'VERIFIED'].includes(obsResult.dataClassification)) {
+          const error = `OBSERVATION_UNAVAILABLE: ${obsResult?.dataClassification || 'EMPTY'}`;
+          await fail(jobId, error, false);
+          return { jobId, jobType, status: 'FAILED', error, result: obsResult };
+        }
+        await persistence.saveCompetitorObservation({
               id: obsResult.id || `cobs_${crypto.randomUUID().replace(/-/g, '')}`,
               company_id: companyId,
               competitor_id: competitorId,
@@ -163,13 +226,9 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
               timestamp: obsResult.timestamp || new Date().toISOString(),
               status: (obsResult.dataClassification as any) || 'UNAVAILABLE',
               raw_payload: obsResult.rawPayload ? JSON.stringify(obsResult.rawPayload) : null,
-            });
-          } catch (dbSaveErr) {
-            console.warn('[JobQueue] Non-fatal saveCompetitorObservation warning:', dbSaveErr);
-          }
-        }
+        });
 
-        await completeJob(jobId, obsResult);
+        await complete(jobId, obsResult);
         return { jobId, jobType, status: 'SUCCEEDED', result: obsResult };
       }
 
@@ -187,7 +246,7 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
           company?.city || 'Local Area',
           evidence
         );
-        await completeJob(jobId, {
+        await complete(jobId, {
           summary,
           evidenceCounts: { reviews: reviews.length, leads: leads.length },
         });
@@ -199,7 +258,7 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
         const leads = await getAllLeads(companyId);
         const lead = leads.find((l) => l.id === leadId);
         if (!lead) {
-          await failJob(jobId, `LEAD_NOT_FOUND: Lead ${leadId} not found`, false);
+          await fail(jobId, `LEAD_NOT_FOUND: Lead ${leadId} not found`, false);
           return { jobId, jobType, status: 'FAILED', error: 'Lead not found' };
         }
         const outcome = {
@@ -209,20 +268,24 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
           nurtureAction: lead.stage === 'new' ? 'SEND_WELCOME_WHATSAPP' : 'FOLLOW_UP_REMINDER',
           evaluatedAt: new Date().toISOString(),
         };
-        await completeJob(jobId, outcome);
+        await complete(jobId, outcome);
         return { jobId, jobType, status: 'SUCCEEDED', result: outcome };
       }
 
       default: {
         console.warn(`[JobQueue] Unknown job type encountered: ${jobType}`);
-        await failJob(jobId, `UNSUPPORTED_JOB_TYPE: ${jobType}`, false);
+        await fail(jobId, `UNSUPPORTED_JOB_TYPE: ${jobType}`, false);
         return { jobId, jobType, status: 'FAILED', error: `Unsupported job type: ${jobType}` };
       }
     }
   } catch (err: any) {
     console.error(`[JobQueue] Error executing job ${jobId}:`, err?.message);
-    await failJob(jobId, err?.message || 'Unexpected job execution error', true);
+    if (err?.message !== 'JOB_LEASE_LOST') {
+      await failJob(jobId, err?.message || 'Unexpected job execution error', true, lease);
+    }
     return { jobId, jobType, status: 'FAILED', error: err?.message };
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
   }
 }
 
@@ -232,7 +295,8 @@ export async function executeJob(job: DbJobQueue): Promise<JobExecutionResult> {
  */
 export async function tickJobQueue(
   workerId = `worker_${process.pid}_${Math.random().toString(36).substring(2, 7)}`,
-  batchSize = 5
+  batchSize = 5,
+  canStart: () => boolean = () => true
 ): Promise<QueueTickSummary> {
   const summary: QueueTickSummary = {
     workerId,
@@ -244,6 +308,7 @@ export async function tickJobQueue(
   };
 
   for (let i = 0; i < batchSize; i++) {
+    if (!canStart()) break;
     const job = await claimNextJob(workerId);
     if (!job) break; // No more due jobs in queue
 

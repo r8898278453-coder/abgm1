@@ -1,0 +1,37 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P00-03",
+    "P01-02",
+    "P01-05",
+    "P01-06",
+    "P01-09"
+  ],
+  "status": "in_progress",
+  "sequential_batches": 6,
+  "migration": "025_message_delivery_receipts",
+  "canonical_tables": 47,
+  "scope": "Signed bounded batched webhook, unique exact sender tenant mapping, durable receipt evidence/read projection, atomic inbound lead+marker, autonomous WhatsApp request owner and truthful Google review read-back verification; credential-isolated sequential default test runner.",
+  "validation": {
+    "default_programs": 67,
+    "default_suite": "passed67 sequential programs with inherited production credentials excluded",
+    "typescript": "passed final",
+    "build": "passed final; existing bundle-size warning remains",
+    "sql": "passed actual MariaDB10.11 through025/repeat0; missing sender/exact uniqueness readiness,8-way receipt/inbound dedupe, rollback/legacy ownership, early receipts/read precedence/conflict and sender/tenant isolation; autonomous action replay/input conflict/UNKNOWN hold",
+    "browser": "passed full extended Chromium: CRM and autonomous stored-status receipt cards, retry keys and workspace/cancellation isolation",
+    "diff_check": "passed",
+    "tracker": "93 unique task IDs; all dependency references valid;5 validated/9 in_progress/1 blocked/78 planned"
+  },
+  "limits": [
+    "no production deploy/migration/customer send",
+    "no receipt-based UNKNOWN release or automatic resend",
+    "legacy NULL sender intentionally uncorrelated; unmatched/ambiguous events not durable remediation inbox",
+    "not unified inbox/conversation consolidation/reply sequence stopping or full append-only action ledger",
+    "inbound tenant notification remains post-commit best-effort, not durable outbox",
+    "Google remote write/local action settlement not durable atomic claim; GOOGLE_PUBLISHED here is acceptance without read-back",
+    "daily report still distinguishes logical requests/API acceptance; receipt totals not added",
+    "multiple Meta apps with distinct webhook secrets require explicit app registry",
+    "hosting prerequisite and complete phase gates remain pending; no status promotion"
+  ],
+  "production_changes": false
+}

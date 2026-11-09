@@ -1,3 +1,5 @@
+import {generatedText,contentSchema} from '../../shared/aiGeneration';
+import {z} from 'zod';
 import { getStoredToken } from './authService';
 import { API_BASE_URL } from '../config/apiConfig';
 
@@ -30,89 +32,55 @@ function getAiHeaders(): Record<string, string> {
   return headers;
 }
 
+async function requestAi(path:string,params:unknown,signal?:AbortSignal):Promise<unknown>{
+ try{
+  const response=await fetch(`${API_BASE_URL}${path}`,{method:'POST',headers:getAiHeaders(),body:JSON.stringify(params),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(10000)]):AbortSignal.timeout(10000)});
+  if(!response.ok)throw new Error(response.status===429?'AI rate limit reached. Please retry later.':response.status===401?'Sign in to use AI generation.':'AI generation unavailable. Please retry later.');
+  return await response.json();
+ }catch(error){if(signal?.aborted)throw error;throw new Error(error instanceof Error&&['AI rate limit reached. Please retry later.','Sign in to use AI generation.'].includes(error.message)?error.message:'AI generation unavailable. Please retry later.');}
+}
+
 export async function askAiChat(params: {
   message: string;
+  companyId?:string;
   context?: any;
   businessName?: string;
   category?: string;
   language?: string;
 }): Promise<string> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
-      method: 'POST',
-      headers: getAiHeaders(),
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (res.status === 429) {
-      const data = await res.json().catch(() => null);
-      return data?.error || '⚠️ AI rate limit reached (max 20 requests/minute). Please wait a moment before sending more messages.';
-    }
-
-    if (res.status === 401) {
-      return '🔒 Please sign in to your Aaditech account to use LocalPulse AI.';
-    }
-
-    if (res.ok) {
-      const data: ChatResponse = await res.json();
-      if (data.reply) return data.reply;
-    }
-  } catch {
-    // Graceful fallback without noisy logs
-  }
-  return `LocalPulse AI Response: Based on current metrics, your Google profile visibility in Sector 17 is strong at #2. Prioritize approving the 4 review drafts and publishing the weekend offer to maintain top rank!`;
+  const parsed=z.object({reply:generatedText}).safeParse(await requestAi('/api/ai/chat',params));
+  if(!parsed.success)throw new Error('AI assistant returned an invalid response.');
+  return parsed.data.reply;
 }
 
 export async function chatWithMarketingAgent(
   message: string,
-  context?: { businessName?: string; category?: string; location?: string }
+  context?: { companyId?:string;businessName?: string; category?: string; location?: string }
 ): Promise<string> {
   return askAiChat({
     message,
+    companyId:context?.companyId,
     businessName: context?.businessName,
     category: context?.category,
   });
 }
 
 export async function generateReviewReply(params: {
+  companyId?:string;
   reviewText: string;
   rating: number;
   reviewerName: string;
   tone?: string;
   language?: string;
   businessName?: string;
-}): Promise<string> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/ai/reply-review`, {
-      method: 'POST',
-      headers: getAiHeaders(),
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (res.status === 429) {
-      return '⚠️ AI rate limit reached. Please wait a moment before generating another reply.';
-    }
-
-    if (res.status === 401) {
-      return '🔒 Please log in to generate AI review replies.';
-    }
-
-    if (res.ok) {
-      const data: ReviewReplyResponse = await res.json();
-      if (data.replyText) return data.replyText;
-    }
-  } catch {
-    // Graceful fallback without noisy logs
-  }
-
-  return params.rating >= 4
-    ? `Thank you so much, ${params.reviewerName}! We are delighted that you had a great experience with our team at ${params.businessName || 'our store'}. Looking forward to assisting you again!`
-    : `Hello ${params.reviewerName}, thank you for your candid feedback. We deeply value customer satisfaction and regret that we missed the mark. Please reach out to our desk directly so we can resolve this promptly for you.`;
+},signal?:AbortSignal): Promise<string> {
+  const parsed=z.object({replyText:generatedText}).safeParse(await requestAi('/api/ai/reply-review',params,signal));
+  if(!parsed.success)throw new Error('AI reply returned an invalid response.');
+  return parsed.data.replyText;
 }
 
 export interface MarketingContentParams {
+  companyId?:string;
   businessName?: string;
   category?: string;
   contentType?: string;
@@ -128,52 +96,11 @@ export interface MarketingContentParams {
 }
 
 export async function generateMarketingContent(
-  params: MarketingContentParams
+  params: MarketingContentParams,signal?:AbortSignal
 ): Promise<ContentGenerationResponse> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/ai/generate-content`, {
-      method: 'POST',
-      headers: getAiHeaders(),
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (res.status === 429) {
-      const err = await res.json().catch(() => null);
-      return {
-        headline: '⚠️ AI Rate Limit Reached',
-        caption: err?.error || 'Rate limit reached for AI generation. Please wait a minute before generating new posts.',
-        callToAction: 'Wait a moment & retry',
-        hashtags: ['#RateLimitNotice'],
-      };
-    }
-
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Graceful fallback without noisy logs
-  }
-
-  const name = params.businessName || 'Our Business';
-  const cat = params.category || 'Services';
-  const loc = params.city ? ` in ${params.city}` : '';
-  const off = params.offer || `Special Offer on ${cat}`;
-  const web = params.website ? ` Visit ${params.website} or reach` : ' Reach';
-
-  return {
-    headline: `⚡ Exclusive ${off} at ${name}!`,
-    caption: `Looking for top-quality ${cat}${loc}? 🌟 At ${name}, we are committed to delivering excellence, friendly service, and dedicated support.${web} out to us today!`,
-    callToAction: 'Message Us on WhatsApp',
-    hashtags: [
-      `#${name.replace(/[^a-zA-Z0-9]/g, '')}`,
-      `#${cat.replace(/[^a-zA-Z0-9]/g, '')}`,
-      '#SpecialOffer',
-      '#LocalBusiness',
-      '#TrustedService',
-    ],
-    googlePostSnippet: `Limited-time offer from ${name}: Premium ${cat}${loc}. Contact us today to claim this special promotion!`,
-  };
+  const parsed=contentSchema.safeParse(await requestAi('/api/ai/generate-content',params,signal));
+  if(!parsed.success)throw new Error('AI content returned an invalid response.');
+  return parsed.data;
 }
 
 export interface KnowledgeQueryPayload {

@@ -1,0 +1,25 @@
+{
+  "date_ist": "2026-11-03",
+  "scope": "bounded process-local Meta verification admission",
+  "limits": {
+    "active_per_workspace": 1,
+    "admitted_attempts_per_rolling_minute": 6,
+    "tracked_workspaces_per_process": 1000
+  },
+  "validation": {
+    "unit": "concurrency, separate workspaces, rolling expiry, capacity, active retention, idempotent release",
+    "http": "parallel rejection, rate exhaustion, failure release, no service call on429",
+    "browser": "429 feedback and prior-success clearing; workspace regressions",
+    "default_programs": 47,
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "browser_attempts": "Initial browser attempt timed out on an unstable/detached element; subsequent updated browser run including explicit429 assertion passed. No timing fix claimed."
+  },
+  "schema_change": false,
+  "production_changes": false,
+  "pending": [
+    "distributed quota across processes and restarts",
+    "live Meta permission acceptance",
+    "verified resolution and replay"
+  ]
+}

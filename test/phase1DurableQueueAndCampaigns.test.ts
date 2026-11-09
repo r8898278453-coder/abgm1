@@ -99,7 +99,7 @@ async function main() {
 
   await runTest('completeJob transitions status to SUCCEEDED and releases worker lock', async () => {
     const resultData = { rankFound: 3, nodesScanned: 9 };
-    const completed = await completeJob(testJobId, resultData);
+    const completed = await completeJob(testJobId, resultData, { workerId: 'worker_node_alpha', attempt: 1 });
 
     assert.ok(completed, 'Job must exist');
     assert.strictEqual(completed.status, 'SUCCEEDED');
@@ -120,7 +120,7 @@ async function main() {
     await claimNextJob('worker_retry_test', ['publishing']);
 
     // Fail attempt 1
-    const failed = await failJob(retryJob.id, 'Network timeout connecting to Meta Graph API', true);
+    const failed = await failJob(retryJob.id, 'Network timeout connecting to Meta Graph API', true, { workerId: 'worker_retry_test', attempt: 1 });
     assert.ok(failed);
     assert.strictEqual(failed.status, 'RETRY_WAIT', 'First transient failure must set RETRY_WAIT');
     assert.strictEqual(failed.locked_by, null, 'Lock must be released on failure');
@@ -139,7 +139,7 @@ async function main() {
     await claimNextJob('worker_dead_test', ['publishing']);
 
     // Fail attempt 1
-    const dead = await failJob(deadJob.id, 'Permanent 401 Unauthorized', false);
+    const dead = await failJob(deadJob.id, 'Permanent 401 Unauthorized', false, { workerId: 'worker_dead_test', attempt: 1 });
     assert.ok(dead);
     assert.strictEqual(dead.status, 'FAILED', 'Exhausted or non-retryable job must transition to FAILED');
   });
@@ -257,11 +257,16 @@ async function main() {
     assert.ok(summary.timestamp);
   });
 
-  await runTest('runSchedulerTick coordinates auto-publishing and durable queue without errors', async () => {
+  await runTest('runSchedulerTick reports unavailable storage without volatile dispatch', async () => {
     const tickResult = await runSchedulerTick();
+    assert.equal(tickResult.available,false);
+    assert.equal(tickResult.status,'UNAVAILABLE');
     assert.ok(tickResult.timestamp);
     assert.ok(tickResult.autoPublish);
     assert.ok(tickResult.queue);
+    assert.equal(tickResult.budget.mode, 'cooperative');
+    assert.equal(tickResult.budget.limitMs, 20000);
+    assert.ok(Array.isArray(tickResult.budget.deferredStages));
   });
 
   console.log('\n========================================================================');

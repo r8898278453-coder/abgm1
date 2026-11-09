@@ -1,8 +1,9 @@
+import {verifyMigrationSourceIntegrity} from './migrationSourceIntegrity';
 import dotenv from 'dotenv';
 dotenv.config();
 
 import { getDbPool } from '../db';
-import { runMigrations } from '../migrator';
+import { runMigrations,validateRegisteredMigrations } from '../migrator';
 
 async function main() {
   console.log('====================================================');
@@ -10,6 +11,8 @@ async function main() {
   console.log('====================================================');
 
   try {
+    await verifyMigrationSourceIntegrity();
+    validateRegisteredMigrations();
     const pool = await getDbPool();
     if (!pool) {
       console.error('FATAL: Database pool unavailable. Please verify DB_HOST, DB_NAME, DB_USER, DB_PASSWORD.');

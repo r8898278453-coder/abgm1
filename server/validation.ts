@@ -1,3 +1,4 @@
+import {LEAD_STAGES} from '../shared/leadStages';
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 
@@ -172,18 +173,17 @@ export const createLeadSchema = z.object({
     .default(''),
   company_id: z.string().trim().max(64).optional(),
   companyId: z.string().trim().max(64).optional(),
-}).transform((data) => ({
+}).refine(data=>!data.company_id||!data.companyId||data.company_id===data.companyId,{message:'Workspace aliases conflict'}).transform((data) => ({
   ...data,
   company_id: data.company_id || data.companyId,
 }));
 
 // 4. Update Lead Stage Schema
-export const updateLeadStageSchema = z.object({
-  stage: z.enum(['new', 'contacted', 'qualified', 'quotation', 'won', 'lost']),
-});
+export const updateLeadStageSchema=z.object({stage:z.enum(LEAD_STAGES),companyId:z.string().trim().min(1).max(64).optional(),expectedStage:z.enum(LEAD_STAGES).optional()}).strict();
 
 // 5. Review Reply Schema
 export const replyReviewSchema = z.object({
+  companyId:z.string().trim().min(1).max(64).optional(),
   replyText: z
     .string()
     .trim()
@@ -216,8 +216,10 @@ export const createReviewSchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional().default('positive'),
   topic: z.string().trim().max(128).optional(),
   source: z.enum(['google', 'facebook', 'justdial', 'manual']).optional().default('manual'),
-  company_id: z.string().trim().max(64).optional(),
-});
+  company_id: z.string().trim().min(1).max(64).optional(),
+  companyId:z.string().trim().min(1).max(64).optional(),
+  is_operational_issue:z.boolean().optional(),
+}).refine(data=>!data.companyId||!data.company_id||data.companyId===data.company_id,{message:'Workspace aliases conflict'});
 
 // 7. Create Company Schema
 export const createCompanySchema = z.object({
@@ -249,11 +251,17 @@ export const createPostSchema = z.object({
     .trim()
     .max(64)
     .default('google'),
+  platforms: z.array(z.string().trim().min(1).max(64)).min(1).max(10).optional(),
+  companyId: z.string().trim().min(1).max(64).optional(),
+  video_url: z.string().trim().max(2048).optional(),
   caption: z
     .string()
     .trim()
     .min(3, 'Caption must be at least 3 characters')
     .max(5000),
+  cta:z.string().trim().max(255).optional(),
+  time_slot:z.string().trim().max(64).optional(),
+  reel_script:z.array(z.object({scene:z.string().max(2000),visual:z.string().max(10000),audio:z.string().max(10000)})).max(30).optional(),
   headline: z.string().trim().max(255).optional(),
   title: z.string().trim().max(255).optional(),
   type: z.string().trim().max(64).optional().default('offer'),
@@ -262,13 +270,13 @@ export const createPostSchema = z.object({
     .enum(['draft', 'pending_approval', 'scheduled'])
     .optional()
     .default('scheduled'),
-  scheduled_time: z.string().trim().max(64).optional().default('Immediate'),
+  scheduled_time: z.string().trim().max(64).optional(),
   scheduled_date: z.string().trim().max(64).optional(),
   hashtags: z.union([z.string(), z.array(z.string())]).optional(),
   campaign_id: z.string().trim().max(64).optional(),
   campaignId: z.string().trim().max(64).optional(),
   company_id: z.string().trim().max(64).optional(),
-});
+}).refine(value => !value.companyId || !value.company_id || value.companyId === value.company_id, {message:'Conflicting company aliases',path:['companyId']});
 
 // 8. Razorpay Payment Verification Schema (Signature strictly required)
 export const verifyRazorpayPaymentSchema = z.object({
@@ -295,6 +303,7 @@ export const verifyRazorpayPaymentSchema = z.object({
 
 // 9. AI Content Studio Generation Schema (requires businessName and category)
 export const generateAiContentSchema = z.object({
+  companyId:z.string().trim().min(1).max(64).optional(),
   businessName: z
     .string()
     .trim()
@@ -330,6 +339,7 @@ export const rankScanSchema = z.object({
 
 // 13. WhatsApp Send Message Schema
 export const whatsappSendSchema = z.object({
+  requestKey:z.string().regex(/^[a-f0-9]{64}$/),
   to: z
     .string()
     .trim()
@@ -348,7 +358,8 @@ export const whatsappSendSchema = z.object({
 
 // 14. WhatsApp Broadcast Campaign Schema
 export const whatsappBroadcastSchema = z.object({
-  recipients: z.array(z.union([z.string(), z.object({ phone: z.string(), name: z.string().optional() })])).min(1, 'At least one recipient is required'),
+  requestKey:z.string().regex(/^[a-f0-9]{64}$/),
+  recipients: z.array(z.union([z.string().trim().min(6).max(32), z.object({ phone: z.string().trim().min(6).max(32), name: z.string().trim().max(128).optional() })])).min(1, 'At least one recipient is required').max(100,'At most 100 recipients per request'),
   message: z.string().trim().max(4096).optional(),
   templateName: z.string().trim().max(128).optional(),
   languageCode: z.string().trim().max(16).optional().default('en_US'),
@@ -369,10 +380,11 @@ export const metaPublishSchema = z.object({
   caption: z.string().trim().max(5000).optional(),
   imageUrl: z.string().trim().max(2048).optional(),
   videoUrl: z.string().trim().max(2048).optional(),
-  platforms: z.array(z.enum(['facebook', 'instagram', 'whatsapp', 'google'])).optional().default(['facebook', 'instagram']),
-  companyId: z.string().trim().max(64).optional(),
-  postId: z.string().trim().max(64).optional(),
-});
+  platforms: z.array(z.enum(['facebook', 'instagram'])).min(1).max(2).refine(values => new Set(values).size === values.length),
+  companyId: z.string().trim().min(1).max(64),
+  postId: z.string().trim().min(1).max(64),
+  expectedVersion:z.string().regex(/^[a-f0-9]{64}$/),
+}).strict();
 
 // 16. Invoice Creation Schema
 export const createInvoiceSchema = z.object({

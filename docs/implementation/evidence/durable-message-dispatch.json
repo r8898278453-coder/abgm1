@@ -1,0 +1,31 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P01-02",
+    "P01-05",
+    "P01-06"
+  ],
+  "status": "in_progress",
+  "migration": "024_message_dispatch_intents",
+  "canonical_tables": 46,
+  "scope": "Durable WhatsApp continuation: forward024 message_dispatch_intents (46 canonical tables), transactional request/sender fingerprint claim with private token and initial actor, cached acceptance/no UNKNOWN takeover, safe paused/rejected explicit retry and fenced settlement. Direct single/broadcast APIs require requestKey; broadcast derives per-recipient keys and rejects duplicate normalized phones. Canonical client identity persists metadata-only in actor/client session storage; storage denial blocks sends. Owner-only no-store status API/CRM card exposes no body/recipient/hash/token. Evidence: durable-message-dispatch.json. Message accountability extension: daily report/dashboard/CSV/existing morning digest include initial request records and terminal API acceptance in selected IST day, plus separately current IN_PROGRESS/UNKNOWN backlog. Migration024 adds company/date and company/state/date indexes. Counts are logical request records, not provider attempts/delivery; no new sender. Evidence: durable-message-dispatch.json.",
+  "validation": {
+    "default_programs": 64,
+    "default_suite": "64 programs passed; final acknowledgement-mismatch guard also passed targeted status/identity test",
+    "typescript": "passed final",
+    "build": "passed final with existing chunk-size warning",
+    "sql": "Actual MariaDB10.11 through024/repeat0 passed:8 contenders one provider owner, cached acceptance, payload conflict, key ordering, tenant/privacy, pause retry, rollback and settlement no replay; report indexes/IST count boundaries/timezone passed",
+    "browser": "Full extended Chromium suite passed: stored UNKNOWN card, retry keys reused for same A payload and isolated for B, daily request/API-acceptance counters and existing CSV/workspace flows. Initial exact sidebar selector matched a dynamic badge incorrectly; corrected before successful rerun.",
+    "report_sql": "Actual MariaDB nonzero request/acceptance/current backlog, exact IST boundary, empty/foreign scope and alternate session timezone passed",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "no receipt/delivery proof or automatic UNKNOWN release",
+    "not full append-only attempt ledger or universal semantic dedupe",
+    "direct manual single/broadcast only; existing post claims remain separate, autonomous path migration pending",
+    "session storage required; different explicit intents/tabs may create distinct sends",
+    "full phase gates/hosting acceptance pending"
+  ],
+  "production_changes": false,
+  "sequential_batches": 4
+}

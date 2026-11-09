@@ -713,7 +713,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                     <div key={obs.id || idx} className="p-3.5 bg-white hover:bg-slate-50 transition space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <DataStatusBadge status={obs.status || 'VERIFIED'} />
+                          <DataStatusBadge status={obs.status || 'UNAVAILABLE'} />
                           <span className="font-bold text-slate-800">
                             Provider: <code className="text-indigo-600">{obs.provider}</code>
                           </span>

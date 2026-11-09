@@ -1,0 +1,32 @@
+{
+  "scope": "canonical publishing engine only",
+  "migration": "013_publishing_dispatch_claims",
+  "schema": "READY",
+  "historical_001_to_012_changed": false,
+  "default_regression_programs": 42,
+  "typescript": "passed",
+  "build": "passed",
+  "real_mariadb": "passed",
+  "concurrent_claimants": 8,
+  "owners_acquired": 1,
+  "checks": [
+    "stored post/workspace scope",
+    "wrong/stale token cannot settle",
+    "known failure permits new owner",
+    "completed claim blocks replay",
+    "crash/stale claim stays UNKNOWN without takeover",
+    "claim and content final status atomic rollback",
+    "ownership gates before retry/channel/Instagram second step"
+  ],
+  "legacy_meta_direct_route_protected": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "legacy Meta endpoint conversion",
+    "audited UNKNOWN reconciliation/replay",
+    "write/provider deadlines",
+    "durable phase fairness",
+    "approval/version edit fencing",
+    "Hostinger acceptance"
+  ]
+}

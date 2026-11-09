@@ -1,0 +1,39 @@
+{
+  "scope": "disposable local MariaDB, no production data",
+  "results": [
+    {
+      "schema_verification": "MIGRATION_REQUIRED",
+      "missingIndexes": [
+        "leads.idx_leads_company",
+        "leads.idx_leads_stage",
+        "reviews.idx_rev_company",
+        "reviews.idx_rev_rating",
+        "reviews.idx_rev_source",
+        "content_posts.idx_cp_company",
+        "content_posts.idx_cp_status",
+        "custom_domains.idx_custom_domains_domain",
+        "custom_domains.idx_custom_domains_company"
+      ],
+      "missingConstraints": [
+        "companies.public_form_token",
+        "custom_domains.domain"
+      ]
+    },
+    {
+      "engine": "10.11.19-MariaDB-ubu2204",
+      "fresh_schema_001_to_005": "passed",
+      "upgrade_006": "passed",
+      "repeat_upgrade": "passed",
+      "concurrent_workers": 12,
+      "single_claim": "passed",
+      "type_filter": "passed",
+      "expired_lease_recovery": "passed",
+      "rollback": "passed",
+      "production_access": false
+    }
+  ],
+  "schema_ready": false,
+  "lease_fencing": "pending",
+  "historical_migrations_changed": false,
+  "runner_cleanup": "passed"
+}

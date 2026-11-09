@@ -1,0 +1,45 @@
+import {runWhatsAppBroadcast} from '../server/whatsAppBroadcast';
+import {summarizeWhatsAppOutcomes} from '../shared/whatsAppOutcomes';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+assert.deepEqual(summarizeWhatsAppOutcomes([{success:true,messageId:'id'},{success:false,status:'UNKNOWN'},{success:false,status:'NOT_ATTEMPTED'}]),{acceptedCount:1,rejectedCount:0,pausedCount:0,notAttemptedCount:1,unknownCount:1,status:'PARTIAL'});
+let broadcastCalls=0;
+const batch=await runWhatsAppBroadcast(['9999999999','9999999998','9999999997'],async()=>{broadcastCalls++;return broadcastCalls===1?{success:true,messageId:'fixture'}:{success:false,status:'UNKNOWN'};});assert.equal(broadcastCalls,2);assert.equal(batch.acceptedCount,1);assert.equal(batch.unknownCount,1);assert.equal(batch.notAttemptedCount,1);
+const pausedBatch=await runWhatsAppBroadcast(['9999999999','9999999998'],async()=>({success:false,status:'PAUSED'}));assert.equal(pausedBatch.pausedCount,1);assert.equal(pausedBatch.notAttemptedCount,1);
+const budget=await runWhatsAppBroadcast(['9999999999'],async()=>{throw new Error('Must not dispatch');},()=>false);assert.equal(budget.notAttemptedCount,1);
+const privateResponse=await runWhatsAppBroadcast(['9999999999'],async()=>({success:true,messageId:'fixture',rawResponse:{secret:'private-provider-body'}} as any));assert.ok(!JSON.stringify(privateResponse).includes('private-provider'));
+const original=process.cwd(),dir=fs.mkdtempSync(path.join(os.tmpdir(),'outbound-stop-'));const originalFetch=globalThis.fetch,originalKey=process.env.RESEND_API_KEY;
+process.chdir(dir);
+try{
+ const {whatsappBroadcastSchema}=await import('../server/validation');
+ assert.equal(whatsappBroadcastSchema.safeParse({requestKey:'a'.repeat(64),recipients:Array(101).fill('919999999999'),message:'fixture'}).success,false);
+ assert.equal(whatsappBroadcastSchema.safeParse({requestKey:'a'.repeat(64),recipients:['x'.repeat(1000)],message:'fixture'}).success,false);
+ const stop=await import('../server/executionStop');
+ const meta=await import('../server/metaWhatsAppService');
+ const {sendTenantTelegram}=await import('../server/tenantNotifications');
+ const {sendTransactionalEmail,sendPasswordResetEmail}=await import('../server/emailService');
+ const {sendTelegramPushAlert}=await import('../server/db');
+ let calls=0;globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({id:'fixture-id',messages:[{id:'wamid.fixture'}]}),{status:200});};
+ const creds={configured:true,phoneNumberId:'fixture',accessToken:'fixture',wabaId:'',appSecret:'',webhookSecret:''};
+ stop.setGlobalEmergencyStop(true);
+ assert.equal((await meta.sendWhatsAppCloudMessage(creds,{to:'919999999999',message:'fixture'})).status,'PAUSED');
+ assert.equal((await meta.publishToFacebookPage({pageId:'fixture',accessToken:'fixture',message:'fixture'})).status,'PAUSED');
+ assert.equal((await meta.publishToInstagram({instagramId:'fixture',accessToken:'fixture',imageUrl:'https://example.invalid/image.png',caption:'fixture'})).status,'PAUSED');
+ const integration={company_id:'A',provider:'telegram_bot',status:'connected',credentials:{botToken:'123:fixture',chatId:'-1001'}};
+ assert.equal(await sendTenantTelegram('A','fixture',{getCompanyIntegration:async()=>integration,fetch:globalThis.fetch}),false);
+ assert.equal(await sendTelegramPushAlert('fixture'),false);
+ process.env.RESEND_API_KEY='fixture';assert.equal((await sendTransactionalEmail({to:'fixture@example.invalid',subject:'fixture',html:'fixture'})).code,'EXECUTION_PAUSED');assert.equal(calls,0);
+ assert.equal((await sendPasswordResetEmail({email:'fixture@example.invalid'},'https://example.invalid/reset')).success,true);assert.equal(calls,1);
+ stop.setGlobalEmergencyStop(false);
+ assert.equal((await meta.sendWhatsAppCloudMessage(creds,{to:'919999999999',message:'fixture'})).status,'API_ACCEPTED');
+ for(const status of [200,400,500]){globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({}),{status});};assert.equal((await meta.sendWhatsAppCloudMessage(creds,{to:'919999999999',message:'fixture'})).status,status===400?'REJECTED':'UNKNOWN');}
+ globalThis.fetch=async()=>{throw new Error('private-token');};assert.equal((await meta.sendWhatsAppCloudMessage(creds,{to:'919999999999',message:'fixture'})).status,'UNKNOWN');
+ let igCalls=0;globalThis.fetch=async()=>{igCalls++;stop.setGlobalEmergencyStop(true);return new Response(JSON.stringify({id:'container-fixture'}));};
+ assert.equal((await meta.publishToInstagram({instagramId:'fixture',accessToken:'fixture',imageUrl:'https://example.invalid/image.png',caption:'fixture'})).status,'PAUSED');assert.equal(igCalls,1);
+ stop.setGlobalEmergencyStop(false);let telegramCalls=0;
+ assert.equal(await sendTenantTelegram('A','fixture',{getCompanyIntegration:async()=>{stop.setGlobalEmergencyStop(true);return integration;},fetch:async()=>{telegramCalls++;throw new Error('must not send');}}),false);assert.equal(telegramCalls,0);
+ fs.writeFileSync(path.join(dir,'uploads','.emergency_stop.json'),'corrupt');assert.equal((await meta.sendWhatsAppCloudMessage(creds,{to:'919999999999',message:'fixture'})).status,'PAUSED');
+ console.log('Outbound boundaries: global/corrupt stop prevents Meta/WhatsApp/Telegram/email dispatch; IG second step and post-lookup stop fenced; password recovery remains available; WhatsApp acceptance/rejection/UNKNOWN distinct.');
+}finally{process.chdir(original);globalThis.fetch=originalFetch;if(originalKey===undefined)delete process.env.RESEND_API_KEY;else process.env.RESEND_API_KEY=originalKey;fs.rmSync(dir,{recursive:true,force:true});}

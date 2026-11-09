@@ -1,0 +1,12 @@
+import React,{useState,useEffect,useRef} from 'react';
+import {apiRequest} from '../services/authService';
+export const MessageDispatchStatus:React.FC<{companyId:string;requestKey:string}>=({companyId,requestKey})=>{
+ const [state,setState]=useState<{status:string;providerId:string|null;delivery:string;receiptCount:number;conflicting:boolean}|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);const request=useRef<AbortController|null>(null);
+ const load=async()=>{request.current?.abort();const controller=new AbortController();request.current=controller;setState(null);setError('');setBusy(true);
+  try{const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/message-dispatch/${requestKey}`,{signal:controller.signal});if(controller.signal.aborted)return;
+   if(response.success!==true||response.companyId!==companyId||!['IN_PROGRESS','API_ACCEPTED','REJECTED','PAUSED','UNKNOWN'].includes(response.dispatch?.status))throw new Error();if(!['UNOBSERVED','SENT','DELIVERED','READ','FAILED'].includes(response.dispatch.delivery)||!Number.isSafeInteger(response.dispatch.receiptCount)||response.dispatch.receiptCount<0||typeof response.dispatch.conflicting!=='boolean')throw new Error();if(response.dispatch.status==='API_ACCEPTED'&&(typeof response.dispatch.providerId!=='string'||!response.dispatch.providerId.trim()))throw new Error();setState(response.dispatch);
+  }catch{if(!controller.signal.aborted)setError('Stored dispatch status unavailable. Check before retrying.');}finally{if(!controller.signal.aborted)setBusy(false);}
+ };
+ useEffect(()=>{void load();return()=>request.current?.abort();},[companyId,requestKey]);
+ return <section aria-label="Stored message dispatch" className="border rounded-xl p-3 text-xs space-y-2"><p>Message request: <code>{requestKey}</code></p><button disabled={busy} onClick={()=>void load()}>Refresh dispatch status</button>{error&&<p role="alert">{error}</p>}{state&&<><p>Stored state: {state.status}</p>{state.providerId&&<p>Provider message ID: {state.providerId}</p>}<p>Provider receipt: {state.delivery} ({state.receiptCount} recorded events)</p>{state.conflicting&&<p role="alert">Conflicting failure and delivery receipts recorded. Review provider evidence.</p>}<p>Unobserved means no matching receipt has been recorded. API acceptance is not delivery. In-progress or unknown requests must be reviewed before another send.</p></>}</section>;
+}

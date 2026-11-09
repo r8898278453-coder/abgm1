@@ -1,0 +1,30 @@
+{
+  "scope": "bounded scheduled notification SQL summaries",
+  "default_regression_programs": 39,
+  "typescript": "passed",
+  "build": "passed",
+  "mariadb": "passed",
+  "schema_changes": false,
+  "digest_result_sets": 4,
+  "reminder_result_sets": 2,
+  "sample_limit_each": 1,
+  "review_excerpt_characters": 110,
+  "checks": [
+    "half-open reporting window",
+    "future and missing canonical timestamp treatment",
+    "valid rating ranges and null semantics",
+    "replied/whitespace and exact-age boundary",
+    "tenant isolation",
+    "50KB review never returned in full",
+    "UTC and IST DB sessions identical",
+    "concurrent write snapshot consistency"
+  ],
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "database scan/query deadline controls",
+    "hard tick budget/cancellation",
+    "audited reconciliation/replay",
+    "full daily report model"
+  ]
+}

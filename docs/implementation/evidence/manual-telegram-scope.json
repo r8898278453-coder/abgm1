@@ -1,0 +1,29 @@
+{
+  "scope": "manual tenant Telegram notification",
+  "regression_programs": 36,
+  "typescript": "passed",
+  "build": "passed",
+  "browser": "passed",
+  "http": [
+    "authentication",
+    "explicit workspace authorization",
+    "message and scope validation",
+    "recipient override rejection",
+    "unconfirmed delivery502",
+    "generic errors"
+  ],
+  "browser_cases": [
+    "selected client sent in request",
+    "client switch clears drafts and feedback",
+    "late client-A delivery does not appear in B",
+    "unconfirmed B send shows failure",
+    "confirmed B send shows success"
+  ],
+  "external_transport": "mocked",
+  "production_changes": false,
+  "pending": [
+    "durable notification catch-up",
+    "manual-send idempotency and ambiguity reconciliation",
+    "remaining legacy global alert review"
+  ]
+}

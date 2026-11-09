@@ -1,0 +1,36 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P01-02",
+    "P01-05",
+    "P01-08",
+    "P01-09",
+    "P05-10"
+  ],
+  "status": "in_progress",
+  "sequential_batches": 6,
+  "schema_target": "025",
+  "canonical_tables": 47,
+  "migration_added": false,
+  "production_changes": false,
+  "validation": {
+    "default_programs": 70,
+    "default_suite": "passed70 isolated programs; final scope/evidence/partial-persistence additions passed targeted tests",
+    "typescript": "passed final",
+    "build": "passed final; existing chunk-size warning",
+    "http": "passed auth/alias/scope/no-store/partial outcome and foreign result rejection; final legacy raw metrics/token and unexpected-field privacy projection passed",
+    "provider_fixtures": "mocked only; tenant/account preflight, command restrictions, post-lookup stop, verified/accepted/unknown/rejected, safe metric parsing, partial persistence and fixed-origin pagination",
+    "browser": "passed final extended Chromium including campaign partial counts, request owner, pending A\u2192B isolation, failed-read vs empty/reload and legacy false-provider-badge suppression",
+    "sql": "not rerun; no SQL/schema changes",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "not budget/audience optimization or verified business outcomes",
+    "status writes lack durable per-action claim/fenced settlement and need reconciliation on uncertainty",
+    "read sync is bounded synchronous; no durable cursor/crawler for large accounts",
+    "full currency/attribution/internal CRUD/link/storefront and agency daily-ledger fanout remain open",
+    "Graph API/account permissions and hosting activation unverified; billing excluded",
+    "legacy stored raw metrics retained; only API exposure is removed, production cleanup remains explicit"
+  ],
+  "tracker_status_changes": false
+}

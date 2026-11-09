@@ -1,0 +1,27 @@
+{
+  "scope": "scheduler tenant notifications and HTTP authorization",
+  "default_regression_programs": 35,
+  "typescript": "passed",
+  "canonical_build": "passed",
+  "transport": "mocked only",
+  "verified": [
+    "two-client Telegram destinations",
+    "missing/foreign/disconnected integration fail closed",
+    "no global notification fallback",
+    "HTTP/body/message/chat acknowledgment",
+    "network error redaction",
+    "half-open report window excludes future timestamps",
+    "ambiguous relative review dates skipped",
+    "cron header/admin required on both aliases",
+    "query secret and absent dedicated secret denied",
+    "tick failure redacted"
+  ],
+  "production_changes": false,
+  "external_messages": false,
+  "pending": [
+    "durable digest/reminder occurrences and catch-up",
+    "ambiguous delivery reconciliation",
+    "manual Telegram endpoint review",
+    "daily reconciled report and client timezones"
+  ]
+}

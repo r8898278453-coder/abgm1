@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import {newCompanyProfile} from '../services/newCompanyProfile';
+import React, { useState, useRef } from 'react';
 import { Building2, Sparkles, MapPin, Globe, Phone, Tag, CheckCircle2, ArrowRight, X } from 'lucide-react';
-import { createCompanyApi, saveCompanyData } from '../services/authService';
-import { CompanyRecord, BusinessProfile } from '../types';
-import { calculateGrowthIntelligenceScore, toGrowthScorePayload } from '../services/growthScoreEngine';
+import { createCompanyApi, saveCompanyData, fetchCompanyData, ApiRequestError } from '../services/authService';
+import { CompanyRecord } from '../types';
 
 interface CreateCompanyModalProps {
   isOpen: boolean;
@@ -32,10 +32,12 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState(CATEGORY_PRESETS[0]);
-  const [city, setCity] = useState('Thane');
-  const [phone, setPhone] = useState('+91 ');
+  const [city, setCity] = useState('');
+  const [phone, setPhone] = useState('');
   const [website, setWebsite] = useState('');
   const [googlePlaceId, setGooglePlaceId] = useState('');
+  const pendingCompany=useRef<CompanyRecord|null>(null),operation=useRef(false);
+  const [creationUnconfirmed,setCreationUnconfirmed]=useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +45,7 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(operation.current||creationUnconfirmed)return;
     setError(null);
 
     if (!name.trim()) {
@@ -50,9 +53,10 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
       return;
     }
 
-    setLoading(true);
+    operation.current=true;setLoading(true);
+    const requestedCreation=!pendingCompany.current;
     try {
-      const company = await createCompanyApi({
+      const company = pendingCompany.current || await createCompanyApi({
         name: name.trim(),
         category,
         city: city.trim(),
@@ -61,81 +65,22 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         google_place_id: googlePlaceId.trim() || undefined,
       });
 
+      pendingCompany.current=company;
       // Clean initial profile data for this specific company
-      const profileData: BusinessProfile = {
-        id: `biz_${company.id}`,
-        name: name.trim(),
-        category,
-        subCategory: category,
-        address: `${city.trim()}, India`,
-        city: city.trim(),
-        state: 'Maharashtra',
-        country: 'India',
-        phone: phone.trim() || '',
-        email: '',
-        website: website.trim() || '',
-        whatsapp: phone.trim() || '',
-        description: '',
-        services: [category],
-        products: [],
-        priceRange: '',
-        openingHours: '',
-        serviceAreas: [city.trim()],
-        brandKit: {
-          logoUrl: '',
-          primaryColor: '#4f46e5',
-          secondaryColor: '#0f172a',
-          fontFamily: 'Plus Jakarta Sans',
-          tagline: '',
-          brandTone: '',
-          preferredLanguage: 'English',
-        },
-        connectedAccounts: {
-          googleBusiness: Boolean(googlePlaceId.trim()),
-          metaFacebook: false,
-          metaInstagram: false,
-          whatsappBusiness: false,
-          telegramBot: false,
-          website: Boolean(website.trim()),
-        },
-      };
+      const profileData=newCompanyProfile(company,{category,city,phone,website});
 
-      const initialPayload = {
-        growth_score: {
-          overall: null,
-          status: 'UNAVAILABLE' as const,
-          statusLabel: 'GROWTH SCORE UNAVAILABLE',
-          insufficientDataReason: 'No verified marketing signals available. Connect Google Profile, run local SEO rank scans, or log customer reviews.',
-          breakdown: {
-            googleProfile: null,
-            localSeo: null,
-            reviews: null,
-            socialMedia: null,
-            content: null,
-            website: null,
-            customerEngagement: null,
-          },
-          telemetry: [],
-          timestamp: new Date().toISOString(),
-        },
-        business: profileData,
-        audit_items: [],
-        keywords: [],
-        competitors: [],
-        reviews: [],
-        posts: [],
-        leads: [],
-        campaigns: [],
-        autonomous_actions: [],
-      };
+      const initialPayload={business:profileData};
 
-      await saveCompanyData(company.id, initialPayload);
-      onCompanyCreated(company);
+      pendingCompany.current=company;
+      const snapshot=await fetchCompanyData(company.id);
+      await saveCompanyData(company.id, initialPayload,snapshot.version);
+      onCompanyCreated(company);pendingCompany.current=null;
       if (onClose) onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create company profile.');
+      if(requestedCreation&&!pendingCompany.current&&!(err instanceof ApiRequestError&&[400,401,403,422,429].includes(err.status)))setCreationUnconfirmed(true);
+      setError(pendingCompany.current?'Company created; setup save unconfirmed. Retry will use the same company.':err.message||'Company creation unconfirmed. Reload companies before retrying.');
     } finally {
-      setLoading(false);
+      operation.current=false;setLoading(false);
     }
   };
 
@@ -171,6 +116,7 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
 
         {/* Body Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {creationUnconfirmed&&<button type="button" onClick={()=>window.location.reload()} className="text-amber-300 text-sm">Reload company list before retrying</button>}
           {error && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
               {error}
@@ -280,7 +226,7 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={loading}
+                disabled={loading||creationUnconfirmed}
                 className="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 Cancel
@@ -288,7 +234,7 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
             )}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading||creationUnconfirmed}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
             >
               {loading ? (

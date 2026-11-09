@@ -1,0 +1,25 @@
+{
+  "date_ist": "2026-11-04",
+  "migration": "none; requires existing023",
+  "canonical_tables": 45,
+  "default_programs": 56,
+  "validation": {
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "default_suite": "passed",
+    "sql": "MariaDB through023/repeat0; nonzero admissions and controls, exact IST bounds, timezone/privacy/empty scope",
+    "browser": "Full workspace rerun passed including nonzero admission/control counts and CSV download. Initial run timed out in existing publishing-review scenario after new report scenarios passed; rerun completed.",
+    "diff_check": "passed"
+  },
+  "scope": [
+    "daily API/dashboard and existing morning digest admission/control counts",
+    "whitelisted numeric CSV export from displayed snapshot",
+    "no-store report response"
+  ],
+  "limits": [
+    "not delivery or revenue proof",
+    "current backlog is not historical",
+    "full business reconciliation/agency rollup pending"
+  ],
+  "production_changes": false
+}

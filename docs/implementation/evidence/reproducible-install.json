@@ -1,0 +1,13 @@
+{
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "fresh_npm_ci": "passed",
+  "installed_packages": 502,
+  "resolved_version_changes": 0,
+  "clean_typecheck": "passed",
+  "clean_build": "passed",
+  "clean_full_test_programs": 27,
+  "clean_full_suite": "passed",
+  "production_db_accessed": false,
+  "lock_sha256": "b766e1d1ceee9a30546abc51cd120c995e19c4800ad37660a1d3d16ec4a8a384"
+}

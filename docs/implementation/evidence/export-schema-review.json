@@ -1,0 +1,78 @@
+{
+  "source": "user-provided SQL export; snapshot, not live DB verification",
+  "table_count": 31,
+  "tables": [
+    "autonomous_actions",
+    "autonomous_audit_logs",
+    "autonomous_recommendations",
+    "bga_inspections",
+    "bga_logs",
+    "bga_reports",
+    "business_profile",
+    "companies",
+    "company_assets",
+    "company_integrations",
+    "company_profiles_data",
+    "competitor_observations",
+    "content_posts",
+    "content_theme_history",
+    "custom_domains",
+    "external_ad_campaigns",
+    "google_profile_cache",
+    "internal_campaigns",
+    "invoices",
+    "leads",
+    "password_reset_tokens",
+    "processed_webhook_events",
+    "publishing_records",
+    "rank_observations",
+    "reviews",
+    "schema_migrations",
+    "schema_migrations_lock",
+    "subscriptions",
+    "system_settings",
+    "users",
+    "website_configs"
+  ],
+  "migration_ledger_comparison": [
+    {
+      "name": "001_core_multi_tenant_schema",
+      "success": true,
+      "matches_tsx": true,
+      "matches_bundle": false
+    },
+    {
+      "name": "002_integrations_and_billing_schema",
+      "success": true,
+      "matches_tsx": true,
+      "matches_bundle": false
+    },
+    {
+      "name": "003_websites_and_seo_telemetry_schema",
+      "success": true,
+      "matches_tsx": true,
+      "matches_bundle": false
+    },
+    {
+      "name": "004_publishing_campaigns_and_autonomous_schema",
+      "success": true,
+      "matches_tsx": true,
+      "matches_bundle": false
+    },
+    {
+      "name": "005_system_settings_and_metadata_schema",
+      "success": true,
+      "matches_tsx": true,
+      "matches_bundle": false
+    }
+  ],
+  "pending_repository_migrations": [
+    "006_durable_job_queue_and_campaign_binding"
+  ],
+  "queue_binding": {
+    "job_queue_present": false,
+    "content_posts_campaign_id": false
+  },
+  "customer_data_saved_in_evidence": false,
+  "sql_executed": false
+}

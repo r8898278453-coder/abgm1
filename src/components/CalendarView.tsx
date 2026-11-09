@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import {nextMonthPlanDates,createContentDraftPlan,type PlanResult} from '../../shared/contentPlan';
+import {generateMarketingContent} from '../services/aiService';
+import React, { useState, useEffect,useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Sparkles,
@@ -19,7 +21,7 @@ import {
   Image as ImageIcon,
   Film,
 } from 'lucide-react';
-import { ContentPost } from '../types';
+import { ContentPost,BusinessProfile } from '../types';
 import {
   createContentPostApi,
   updatePostStatusApi,
@@ -29,6 +31,7 @@ import {
 
 interface CalendarViewProps {
   posts: ContentPost[];
+  business:BusinessProfile;
   companyId?: string;
   onNavigate: (tab: any) => void;
   onUpdatePostStatus?: (postId: string) => void;
@@ -37,13 +40,16 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  posts,
+  posts,business,
   companyId,
   onNavigate,
   onUpdatePostStatus,
   onDeletePost,
   onAddNewPost,
 }) => {
+  const mounted=useRef(true),planRequest=useRef<AbortController|null>(null);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;planRequest.current?.abort();};},[]);
+  const [planResults,setPlanResults]=useState<PlanResult[]>([]);
   const [localPosts, setLocalPosts] = useState<ContentPost[]>(posts || []);
   const [selectedPlatform, setSelectedPlatform] = useState<'all' | 'google' | 'instagram' | 'whatsapp'>('all');
   const [isPlanning, setIsPlanning] = useState(false);
@@ -57,21 +63,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setLocalPosts(posts || []);
   }, [posts]);
 
-  // Generate a reactive 30-day schedule array
-  const [items, setItems] = useState([
-    { day: 'Mon, Sep 1', platform: 'google', title: 'Weekly Diagnostic Slot Announcement', time: '10:00 AM', status: 'published' },
-    { day: 'Wed, Sep 3', platform: 'instagram', title: 'Reel: Slow MacBook SSD Fix', time: '05:30 PM', status: 'published' },
-    { day: 'Fri, Sep 5', platform: 'google', title: 'Weekend 30-Min Fast Diagnostic Offer', time: '11:00 AM', status: 'scheduled' },
-    { day: 'Sat, Sep 6', platform: 'whatsapp', title: 'Broadcast: Student Upgrade Concession', time: '12:00 PM', status: 'scheduled' },
-    { day: 'Mon, Sep 8', platform: 'google', title: 'FAQ: Liquid Spill Emergency Steps', time: '10:30 AM', status: 'draft' },
-    { day: 'Wed, Sep 10', platform: 'instagram', title: 'Before & After: Gaming Rig Dust Cleaning', time: '06:00 PM', status: 'draft' },
-    { day: 'Fri, Sep 12', platform: 'google', title: 'Ganesh Chaturthi Festive Tech Offer', time: '09:30 AM', status: 'draft' },
-    { day: 'Sat, Sep 13', platform: 'whatsapp', title: 'Festive VIP Priority Booking Link', time: '11:00 AM', status: 'draft' },
-    { day: 'Tue, Sep 16', platform: 'instagram', title: 'Customer Story: Saved 45k on Motherboard', time: '04:00 PM', status: 'draft' },
-    { day: 'Fri, Sep 19', platform: 'google', title: 'Original Chargers & Batteries Stock Update', time: '11:30 AM', status: 'draft' },
-  ]);
-
   const handlePublishPost = async (postId: string) => {
+    const previousPostsVersion=localPosts.find(p=>p.id===postId)?.sourceVersion;
+    if(!previousPostsVersion){setActionError('Reload the stored post before publishing.');return;}
     const previous = [...localPosts];
     // Optimistic UI state: set to publishing while state machine executes
     setLocalPosts((prev) =>
@@ -81,7 +75,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setActionError(null);
 
     try {
-      const resp = await publishContentPostApi(postId, companyId);
+      const resp = await publishContentPostApi(postId, companyId,undefined,previousPostsVersion);
       if (resp.success && resp.result?.overallStatus === 'PUBLISHED') {
         setLocalPosts((prev) =>
           prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
@@ -96,12 +90,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         setActionError(`⚠️ Provider state unknown: ${resp.result?.message || 'Network timeout while publishing'}`);
       } else {
         const errorMsg = resp.result?.message || resp.error || 'Provider rejected publishing request';
-        setLocalPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, status: 'failed' as const } : p))
-        );
+        if(resp.result)setLocalPosts((prev)=>prev.map(p=>p.id===postId?{...p,status:(resp.result.finalPostStatus || 'failed') as ContentPost['status']}:p));
+        else setLocalPosts(previous);
         setActionError(`Failed to publish post: ${errorMsg}`);
       }
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to execute publishing job:', err);
       setLocalPosts(previous);
       setActionError(`Failed to publish post: ${err?.message || 'Server error'}. Status reverted.`);
@@ -115,128 +109,53 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
         if (!window.confirm(`Delete post "${title}" from MySQL database?`)) return;
       }
-    } catch {
-      // In restricted iframe environments where confirm is disabled, proceed
-    }
+    } catch {setActionError('Deletion confirmation unavailable. No post was deleted.');return;}
 
-    const previous = [...localPosts];
-    // Optimistic UI update
-    setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
     setIsDeletingId(postId);
     setActionError(null);
 
     try {
       const ok = await deleteContentPostApi(postId, companyId);
-      if (!ok) throw new Error('Delete failed on server');
+      if(!mounted.current)return;
+      if (!ok) throw new Error('Delete failed or retained publishing history; reload stored posts');
+      setLocalPosts(previous=>previous.filter(post=>post.id!==postId));
       setPlanSuccessToast('✓ Post deleted from MySQL database.');
       setTimeout(() => setPlanSuccessToast(null), 3000);
       onDeletePost?.(postId);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to delete post in MySQL:', err);
-      setLocalPosts(previous);
       setActionError(`Failed to delete post: ${err?.message || 'Server error'}. Post restored.`);
     } finally {
-      setIsDeletingId(null);
+      if(mounted.current)setIsDeletingId(null);
     }
   };
 
-  const handlePlanNextMonth = async () => {
-    setIsPlanning(true);
-    setActionError(null);
-
-    const plannedMilestones: Array<{
-      title: string;
-      type: ContentPost['type'];
-      platforms: ('google' | 'facebook' | 'instagram' | 'whatsapp')[];
-      headline: string;
-      caption: string;
-      scheduledDate: string;
-      timeSlot: string;
-    }> = [
-      {
-        title: 'Navratri Special Corporate Laptop Health Check',
-        type: 'offer',
-        platforms: ['google'],
-        headline: '🌟 Navratri Corporate Tech Checkup: Free Sanitization & 25% Off SSDs',
-        caption: 'Keep your team machines humming during festive demand. On-site pickup & 4-hour turnaround for corporate offices across Navi Mumbai.',
-        scheduledDate: '2026-09-22',
-        timeSlot: '10:00 AM',
-      },
-      {
-        title: 'Reel: Why Free Antivirus Fails Small Businesses',
-        type: 'educational',
-        platforms: ['instagram'],
-        headline: '🛡️ Is Free Antivirus Actually Costing You Sensitive Customer Data?',
-        caption: 'Watch how ransomware sneaks past free browser extensions. Secure your business workstations before festive peak!',
-        scheduledDate: '2026-09-24',
-        timeSlot: '05:00 PM',
-      },
-      {
-        title: 'VIP Alert: Flash Screen Replacement Voucher (20% Off)',
-        type: 'offer',
-        platforms: ['whatsapp'],
-        headline: '⚡ VIP WhatsApp Flash: 20% Off Original Screen Replacements',
-        caption: 'Exclusive 48-hour voucher for saved contacts. Genuine parts, ultrasonic cleaning, 90-day written warranty included.',
-        scheduledDate: '2026-09-26',
-        timeSlot: '11:30 AM',
-      },
-    ];
-
-    try {
-      // Save newly planned milestones directly to MySQL
-      for (const item of plannedMilestones) {
-        try {
-          const created = await createContentPostApi({
-            ...item,
-            companyId,
-            status: 'scheduled',
-          });
-          if (created) {
-            setLocalPosts((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
-            onAddNewPost?.(created);
-          }
-        } catch (e) {
-          console.warn('Could not auto-insert planned post into MySQL:', e);
-        }
-      }
-
-      setItems([
-        { day: 'Mon, Sep 1', platform: 'google', title: 'Weekly Diagnostic Slot Announcement', time: '10:00 AM', status: 'published' },
-        { day: 'Wed, Sep 3', platform: 'instagram', title: 'Reel: Slow MacBook SSD Fix', time: '05:30 PM', status: 'published' },
-        { day: 'Fri, Sep 5', platform: 'google', title: 'Weekend 30-Min Fast Diagnostic Offer', time: '11:00 AM', status: 'scheduled' },
-        { day: 'Sat, Sep 6', platform: 'whatsapp', title: 'Broadcast: Student Upgrade Concession', time: '12:00 PM', status: 'scheduled' },
-        { day: 'Mon, Sep 8', platform: 'google', title: 'FAQ: Liquid Spill Emergency Steps', time: '10:30 AM', status: 'scheduled' },
-        { day: 'Wed, Sep 10', platform: 'instagram', title: 'Before & After: Gaming Rig Dust Cleaning', time: '06:00 PM', status: 'scheduled' },
-        { day: 'Fri, Sep 12', platform: 'google', title: 'Ganesh Chaturthi Festive Tech Offer', time: '09:30 AM', status: 'scheduled' },
-        { day: 'Sat, Sep 13', platform: 'whatsapp', title: 'Festive VIP Priority Booking Link', time: '11:00 AM', status: 'scheduled' },
-        { day: 'Tue, Sep 16', platform: 'instagram', title: 'Customer Story: Saved 45k on Motherboard', time: '04:00 PM', status: 'scheduled' },
-        { day: 'Fri, Sep 19', platform: 'google', title: 'Original Chargers & Batteries Stock Update', time: '11:30 AM', status: 'scheduled' },
-        { day: 'Mon, Sep 22', platform: 'google', title: 'Navratri Special Corporate Laptop Health Check', time: '10:00 AM', status: 'scheduled' },
-        { day: 'Wed, Sep 24', platform: 'instagram', title: 'Reel: Why Free Antivirus Fails Small Businesses', time: '05:00 PM', status: 'scheduled' },
-        { day: 'Fri, Sep 26', platform: 'whatsapp', title: 'VIP Alert: Flash Screen Replacement Voucher (20% Off)', time: '11:30 AM', status: 'scheduled' },
-        { day: 'Sun, Sep 28', platform: 'google', title: 'Dussehra Mega Upgrade Offer & Zero EMI options', time: '09:00 AM', status: 'scheduled' },
-        { day: 'Wed, Oct 1', platform: 'instagram', title: 'Video: Data Recovery Demo from Dead Hard Drive', time: '06:30 PM', status: 'scheduled' },
-        { day: 'Sat, Oct 4', platform: 'google', title: 'Diwali Pre-Booking for SME Annual Maintenance AMC', time: '10:30 AM', status: 'scheduled' },
-        { day: 'Tue, Oct 7', platform: 'whatsapp', title: 'Diwali Greetings & Client Appreciation Tech Voucher', time: '12:00 PM', status: 'scheduled' },
-      ]);
-      setPlanSuccessToast('✨ AI Content Engine planned 30 days of balanced content and saved posts to MySQL!');
-      setTimeout(() => setPlanSuccessToast(null), 6000);
-    } catch (err: any) {
-      console.error('Failed to plan month:', err);
-      setActionError(`Planning error: ${err?.message || 'Server error'}`);
-    } finally {
-      setIsPlanning(false);
-    }
+  const handlePlanNextMonth=async()=>{
+    if(!companyId||isPlanning)return;
+    const controller=new AbortController();planRequest.current=controller;setIsPlanning(true);setActionError(null);setPlanResults([]);
+    const platform=selectedPlatform==='all'?'google':selectedPlatform;
+    const dates=nextMonthPlanDates();
+    try{
+      const results=await createContentDraftPlan({dates,signal:controller.signal,
+       generate:async(date,index)=>generateMarketingContent({companyId,businessName:business.name,category:business.category,city:business.city,website:business.website,contentType:'educational',platform,offer:`Draft ${index+1} for ${date}: explain an existing service or answer a customer question. Use only supplied business facts. Do not invent discounts, promises, warranties, testimonials or events.`,brandTone:business.brandKit?.brandTone,language:business.brandKit?.preferredLanguage},controller.signal),
+       save:async(content,date)=>{
+        const created=await createContentPostApi({companyId,title:(content.headline||'Educational draft').slice(0,255),type:'educational',platforms:[platform],caption:content.caption,headline:content.headline,cta:content.callToAction,hashtags:content.hashtags,reelScript:content.reelScript,status:'draft',scheduledDate:date,timeSlot:'11:00 AM'});
+        if(!created)return false;
+        if(mounted.current&&!controller.signal.aborted){setLocalPosts(prev=>[created,...prev.filter(post=>post.id!==created.id)]);onAddNewPost?.(created);}
+        return true;
+       }});
+      if(!mounted.current)return;setPlanResults(results);
+      const saved=results.filter(result=>result.status==='saved').length;setPlanSuccessToast(`${saved} of ${dates.length} AI drafts saved for review. No posts were scheduled or published.`);
+      if(results.some(result=>result.status==='save_unconfirmed'))setActionError('A save was unconfirmed; later items were not started. Refresh stored posts before creating another plan.');
+      else if(results.some(result=>result.status==='generation_failed'))setActionError('Some drafts could not be generated. Check individual results; saved drafts remain available.');
+    }catch{if(mounted.current)setActionError('Draft planning unavailable. Refresh stored posts before retrying.');}
+    finally{if(mounted.current)setIsPlanning(false);}
   };
 
   const filteredPosts = localPosts.filter((post) => {
     if (selectedPlatform === 'all') return true;
     return post.platforms?.some((p) => p.toLowerCase().includes(selectedPlatform));
-  });
-
-  const filteredItems = items.filter((item) => {
-    if (selectedPlatform === 'all') return true;
-    return item.platform === selectedPlatform;
   });
 
   return (
@@ -251,11 +170,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </h1>
             <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
               <Database className="w-3 h-3 text-emerald-600" />
-              MySQL Synced
+              Loaded Post Records
             </span>
           </div>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Auto-balanced publishing schedule factoring in local festivals (Ganesh Utsav, Diwali), seasonality & competitor moves.
+            Review stored posts and create AI drafts using this client’s business context.
           </p>
         </div>
 
@@ -269,7 +188,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </button>
           <button
             onClick={handlePlanNextMonth}
-            disabled={isPlanning}
+            disabled={isPlanning||!companyId||planResults.some(result=>result.status==='save_unconfirmed')}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs w-fit disabled:opacity-50"
           >
             {isPlanning ? (
@@ -277,7 +196,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             ) : (
               <Sparkles className="w-3.5 h-3.5" />
             )}
-            <span>{isPlanning ? 'Saving to MySQL...' : 'Plan Next 30 Days with AI'}</span>
+            <span>{isPlanning ? 'Saving to MySQL...' : 'Create 3 AI Drafts for Next Month'}</span>
           </button>
         </div>
       </div>
@@ -398,7 +317,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       onClick={() => handleDeletePost(post.id, post.title)}
                       disabled={isDeletingId === post.id}
                       className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition ml-0.5 disabled:opacity-50"
-                      title="Delete Post from MySQL"
+                      title="Delete Post from MySQL" aria-label={`Delete stored post ${post.id}`}
                     >
                       <Trash2 className={`w-3.5 h-3.5 ${isDeletingId === post.id ? 'animate-pulse text-rose-500' : ''}`} />
                     </button>
@@ -483,57 +402,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       )}
 
-      {/* 30-Day Master Roster Bento Card */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-          September 2026 Strategic Plan & Local Festivities
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {filteredItems.map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs flex flex-col justify-between space-y-3 hover:border-indigo-300 transition shadow-2xs"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-sm">{item.day}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500 flex items-center gap-1 font-medium">
-                    <Clock className="w-3 h-3 text-slate-400" /> {item.time}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                      item.status === 'published'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : item.status === 'scheduled'
-                        ? 'bg-indigo-100 text-indigo-800'
-                        : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-sm font-semibold text-slate-800">
-                {item.title}
-              </div>
-
-              <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                <span className="text-[11px] text-indigo-700 uppercase font-bold">
-                  Channel: {item.platform}
-                </span>
-                <button
-                  onClick={() => onNavigate('content')}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold"
-                >
-                  Create & Schedule in MySQL →
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <section aria-label="Draft plan results" className="bg-white border border-slate-200 rounded-3xl p-6 space-y-3">
+       <h2 className="font-bold">Next-month draft plan</h2><p className="text-sm text-slate-500">Creates up to three AI drafts for the 1st, 8th and 15th of next month (IST). Review business facts, dates and approvals before scheduling. Saved drafts are not provider delivery.</p>
+       {planResults.length===0?<p>No plan created in this session.</p>:<ul>{planResults.map(result=><li key={result.date}>{result.date} IST — {result.status.replaceAll('_',' ')}</li>)}</ul>}
+      </section>
 
       {/* Full-Screen Creative Preview Modal */}
       {selectedPreviewPost && (

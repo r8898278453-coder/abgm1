@@ -1,3 +1,4 @@
+import {isGlobalEmergencyStopActive} from './executionStop';
 import nodemailer from 'nodemailer';
 
 export interface EmailSendOptions {
@@ -6,6 +7,7 @@ export interface EmailSendOptions {
   html: string;
   text?: string;
   from?: string;
+  purpose?:'security';
 }
 
 export interface EmailSendResult {
@@ -13,7 +15,7 @@ export interface EmailSendResult {
   messageId?: string;
   provider?: string;
   error?: string;
-  code?: 'NOT_CONFIGURED' | 'DELIVERY_FAILED' | 'INVALID_RECIPIENT' | 'RATE_LIMITED' | 'SUCCESS';
+  code?: 'NOT_CONFIGURED' | 'DELIVERY_FAILED' | 'INVALID_RECIPIENT' | 'RATE_LIMITED' | 'SUCCESS' | 'EXECUTION_PAUSED';
 }
 
 export interface EmailProviderConfig {
@@ -107,6 +109,9 @@ export function isEmailServiceConfigured(): boolean {
  * If no provider is configured, returns an explicit error without pretending delivery succeeded.
  */
 export async function sendTransactionalEmail(options: EmailSendOptions): Promise<EmailSendResult> {
+  const blocked=()=>options.purpose!=='security'&&isGlobalEmergencyStopActive();
+  const paused=()=>({success:false as const,code:'EXECUTION_PAUSED' as const,error:'Global execution stop is active'});
+  if(blocked())return paused();
   const config = getEmailProviderConfig();
 
   if (config.provider === 'none') {
@@ -124,6 +129,7 @@ export async function sendTransactionalEmail(options: EmailSendOptions): Promise
   if (config.provider === 'resend') {
     try {
       const apiKey = process.env.RESEND_API_KEY?.trim();
+      if(blocked())return paused();
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -168,6 +174,7 @@ export async function sendTransactionalEmail(options: EmailSendOptions): Promise
   if (config.provider === 'sendgrid') {
     try {
       const apiKey = process.env.SENDGRID_API_KEY?.trim();
+      if(blocked())return paused();
       const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
@@ -216,6 +223,7 @@ export async function sendTransactionalEmail(options: EmailSendOptions): Promise
   if (config.provider === 'postmark') {
     try {
       const serverToken = process.env.POSTMARK_SERVER_TOKEN?.trim();
+      if(blocked())return paused();
       const res = await fetch('https://api.postmarkapp.com/email', {
         method: 'POST',
         headers: {
@@ -273,6 +281,7 @@ export async function sendTransactionalEmail(options: EmailSendOptions): Promise
         },
       });
 
+      if(blocked())return paused();
       const info = await transporter.sendMail({
         from: fromFormatted,
         to: options.to,
@@ -411,6 +420,7 @@ https://bga.aaditechs.in
   `.trim();
 
   return sendTransactionalEmail({
+    purpose:'security',
     to: user.email,
     subject: 'Reset your password - Aaditech Business Growth (ABGA)',
     html,

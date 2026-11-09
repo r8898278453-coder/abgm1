@@ -1,0 +1,30 @@
+{
+  "scope": "publishing outcome uncertainty and scoped destinations",
+  "default_regression_programs": 42,
+  "typescript": "passed",
+  "build": "passed",
+  "focused_provider_tests": "passed",
+  "mariadb_unresolved_evidence_lookup": "passed",
+  "provider_transport": "mocked",
+  "checks": [
+    "timeout/5xx/malformed/no-ID sends once and UNKNOWN",
+    "force and later failed record cannot bypass uncertainty",
+    "queue no retry of unknown provider write",
+    "all-target confirmation needed for whole-post success",
+    "known429 retry remains allowed",
+    "tenant Telegram destination/chat acknowledgment",
+    "no WhatsApp global recipient fallback",
+    "no synthetic confirmed provider ID"
+  ],
+  "schema_changes": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "atomic_cross_process_first_dispatch_claim": false,
+  "pending": [
+    "durable atomic provider claim/fence",
+    "audited UNKNOWN reconciliation/replay",
+    "whole-provider/write-safe deadlines",
+    "server-side statement controls",
+    "Hostinger acceptance"
+  ]
+}

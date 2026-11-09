@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import {reviewCollectionUrl} from '../../shared/reviewCollection';
+import {createReviewQr,printReviewCard} from '../services/reviewQr';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Star,
   MessageSquare,
@@ -42,6 +44,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
   onDeleteReview,
   onRefreshReviews,
 }) => {
+  const mounted=useRef(true);useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const [localReviews, setLocalReviews] = useState<ReviewItem[]>(reviews);
   const [filter, setFilter] = useState<'all' | 'unanswered' | 'negative' | 'positive'>('all');
   const [generatingForId, setGeneratingForId] = useState<string | null>(null);
@@ -69,49 +72,29 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
   const [newContent, setNewContent] = useState('');
   const [newTopic, setNewTopic] = useState('Customer Experience');
   const [newIsOperationalIssue, setNewIsOperationalIssue] = useState(false);
-  const [newSource, setNewSource] = useState<'google' | 'justdial' | 'direct'>('google');
+  const [newSource, setNewSource] = useState<'google' | 'justdial' | 'manual'>('manual');
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const handleDownloadSvg = () => {
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <rect width="400" height="400" rx="32" fill="#0f172a" />
-  <circle cx="200" cy="70" r="28" fill="#4f46e5" />
-  <text x="200" y="78" font-family="system-ui, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle" font-weight="900">★</text>
-  <text x="200" y="130" font-family="system-ui, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle" font-weight="bold">${business.name}</text>
-  <text x="200" y="155" font-family="system-ui, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">Scan with any phone camera to Review on Google</text>
-  <rect x="110" y="180" width="180" height="180" rx="16" fill="#ffffff" />
-  <rect x="130" y="200" width="40" height="40" fill="#4f46e5" />
-  <rect x="230" y="200" width="40" height="40" fill="#4f46e5" />
-  <rect x="130" y="300" width="40" height="40" fill="#4f46e5" />
-  <rect x="190" y="260" width="20" height="20" fill="#0f172a" />
-  <rect x="230" y="300" width="25" height="25" fill="#0f172a" />
-</svg>`;
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${business.name.toLowerCase().replace(/\s+/g, '-')}-google-review-sticker.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const reviewLink=reviewCollectionUrl(business as any);
+  const [qrResult,setQr]=useState<{image:string;svg:string;url:string}|null>(null),[qrError,setQrError]=useState('');
+  const qr=qrResult?.url===reviewLink?qrResult:null;
+  useEffect(()=>{let current=true;setQr(null);setQrError('');setCopiedLink(false);
+    if(reviewLink)void createReviewQr(reviewLink).then(result=>{if(current)setQr({...result,url:reviewLink});}).catch(()=>{if(current)setQrError('QR generation unavailable. Use the configured link instead.');});
+    return()=>{current=false;};
+  },[reviewLink]);
+  const handleDownloadSvg=()=>{
+    if(!qr)return;const url=URL.createObjectURL(new Blob([qr.svg],{type:'image/svg+xml'}));const link=document.createElement('a');link.href=url;link.download='google-review-qr.svg';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
-
-  const reviewLink = (business as any).google_review_url || 
-    ((business as any).googlePlaceId ? `https://search.google.com/local/writereview?placeid=${(business as any).googlePlaceId}` : null);
-
+  const generationRequest=useRef<AbortController|null>(null);
+  useEffect(()=>()=>generationRequest.current?.abort(),[]);
   const handleGenerateReply = async (review: ReviewItem) => {
-    setGeneratingForId(review.id);
-    const reply = await generateReviewReply({
-      reviewText: review.content,
-      rating: review.rating,
-      reviewerName: review.author,
-      tone: selectedTone,
-      language: selectedTone === 'Hinglish' ? 'Hinglish' : 'English',
-      businessName: business.name,
-    });
-    setDraftReplies((prev) => ({ ...prev, [review.id]: reply }));
-    setGeneratingForId(null);
+    generationRequest.current?.abort();const controller=new AbortController();generationRequest.current=controller;
+    setGeneratingForId(review.id);setActionError(null);
+    try{
+      const reply=await generateReviewReply({companyId,reviewText:review.content,rating:review.rating,reviewerName:review.author,tone:selectedTone,language:selectedTone==='Hinglish'?'Hinglish':'English',businessName:business.name},controller.signal);
+      if(!controller.signal.aborted)setDraftReplies(prev=>({...prev,[review.id]:reply}));
+    }catch{if(!controller.signal.aborted)setActionError('AI reply unavailable. Existing draft was kept; retry or write a reply manually.');}
+    finally{if(!controller.signal.aborted)setGeneratingForId(null);}
   };
 
   const handlePublishReply = async (reviewId: string) => {
@@ -119,46 +102,28 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
     if (!text || !text.trim()) return;
 
     const trimmedText = text.trim();
-    const previousReviews = [...localReviews];
-
-    // Optimistic UI update: instantly reflect reply in local state
-    setLocalReviews((prev) =>
-      prev.map((r) =>
-        r.id === reviewId
-          ? {
-              ...r,
-              replied: true,
-              replyText: trimmedText,
-              replyDate: 'Just now',
-            }
-          : r
-      )
-    );
-
-    // Clear draft text
-    const updatedDrafts = { ...draftReplies };
-    delete updatedDrafts[reviewId];
-    setDraftReplies(updatedDrafts);
-
     setIsReplyingId(reviewId);
     setActionError(null);
 
     try {
       const ok = await replyToReviewApi(reviewId, trimmedText, companyId);
+      if(!mounted.current)return;
       if (!ok) {
         throw new Error('Server returned an error when saving reply');
       }
-      setActionSuccess('✓ Review reply published & saved to MySQL database!');
+      setLocalReviews(prev=>prev.map(review=>review.id===reviewId?{...review,replied:true,replyText:trimmedText,replyDate:'Just now'}:review));
+      setDraftReplies(prev=>{const next={...prev};delete next[reviewId];return next;});
+      setActionSuccess('Reply saved to workspace records. Publication on the review provider is not confirmed.');
       setTimeout(() => setActionSuccess(null), 4000);
       onAddReply(reviewId, trimmedText);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to save review reply to MySQL:', err);
-      // Roll back local state change and restore draft
-      setLocalReviews(previousReviews);
+      // Keep the editable draft when persistence is unconfirmed.
       setDraftReplies((prev) => ({ ...prev, [reviewId]: text }));
-      setActionError(`Failed to save review reply to MySQL: ${err?.message || 'Network error'}. Changes rolled back.`);
+      setActionError(`Failed to save review reply to MySQL: ${err?.message || 'Network error'}. Draft kept.`);
     } finally {
-      setIsReplyingId(null);
+      if(mounted.current)setIsReplyingId(null);
     }
   };
 
@@ -182,37 +147,19 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
       replied: false,
     };
 
-    const tempId = `temp_rev_${Date.now()}`;
-    const optimisticReview: ReviewItem = {
-      id: tempId,
-      author: reviewPayload.author!,
-      rating: reviewPayload.rating!,
-      content: reviewPayload.content!,
-      date: reviewPayload.date!,
-      relativeTime: null as any,
-      sentiment: reviewPayload.sentiment!,
-      topic: reviewPayload.topic!,
-      isOperationalIssue: reviewPayload.isOperationalIssue!,
-      replied: false,
-      source: reviewPayload.source!,
-    };
-
-    const previousReviews = [...localReviews];
-    // Optimistic insert into UI
-    setLocalReviews((prev) => [optimisticReview, ...prev]);
-
     try {
       const created = await createReviewApi({
         ...reviewPayload,
         companyId,
       });
 
+      if(!mounted.current)return;
       if (!created || !created.id) {
         throw new Error('Server did not return a valid created review record');
       }
 
-      // Replace optimistic review with server review with real MySQL ID
-      setLocalReviews((prev) => prev.map((r) => (r.id === tempId ? created : r)));
+      // Add only the acknowledged saved record.
+      setLocalReviews((prev) => [created,...prev.filter(review=>review.id!==created.id)]);
       onAddNewReview?.(created);
 
       setIsAddReviewModalOpen(false);
@@ -224,12 +171,12 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
       setActionSuccess(`✓ Review from "${created.author}" created & saved in MySQL (ID: ${created.id})!`);
       setTimeout(() => setActionSuccess(null), 4000);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to create review in MySQL:', err);
-      // Roll back
-      setLocalReviews(previousReviews);
+      // Keep form data available after failure.
       setActionError(`Failed to save review to MySQL: ${err?.message || 'Server error'}. Please try again.`);
     } finally {
-      setSubmittingReview(false);
+      if(mounted.current)setSubmittingReview(false);
     }
   };
 
@@ -241,37 +188,36 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
         }
       }
     } catch {
-      // In restricted iframe environments, proceed safely
+      setActionError('Deletion confirmation unavailable. No record was deleted.');return;
     }
 
-    const previousReviews = [...localReviews];
-    // Optimistic delete
-    setLocalReviews((prev) => prev.filter((r) => r.id !== reviewId));
     setIsDeletingId(reviewId);
     setActionError(null);
 
     try {
       const ok = await deleteReviewApi(reviewId, companyId);
+      if(!mounted.current)return;
       if (!ok) {
         throw new Error('Failed to delete review on server');
       }
+      setLocalReviews(prev=>prev.filter(review=>review.id!==reviewId));
       setActionSuccess('✓ Review deleted from MySQL database successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
       onDeleteReview?.(reviewId);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to delete review from MySQL:', err);
-      // Roll back
-      setLocalReviews(previousReviews);
-      setActionError(`Failed to delete review from MySQL: ${err?.message || 'Server error'}. Review restored.`);
+      // Keep form data available after failure.
+      setActionError(`Failed to delete review from MySQL: ${err?.message || 'Server error'}. Existing record kept.`);
     } finally {
-      setIsDeletingId(null);
+      if(mounted.current)setIsDeletingId(null);
     }
   };
 
   const filteredReviews = localReviews.filter((r) => {
     if (filter === 'all') return true;
     if (filter === 'unanswered') return !r.replied;
-    if (filter === 'negative') return r.rating <= 3;
+    if (filter === 'negative') return r.rating!==null && r.rating>=1 && r.rating <= 3;
     if (filter === 'positive') return r.rating >= 4;
     return true;
   });
@@ -280,7 +226,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
     <div className="space-y-6 pb-12">
       {/* Action Error Banner */}
       {actionError && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in">
+        <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{actionError}</span>
@@ -320,11 +266,11 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
             </h1>
             <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
               <Database className="w-3 h-3 text-emerald-600" />
-              MySQL Live Sync
+              Loaded Review Records
             </span>
           </div>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Centralized multi-platform inbox with sentiment classification, 1-click compliant AI responses & QR generator.
+            Centralized multi-platform inbox with sentiment classification, AI reply drafts for human review & QR generator.
           </p>
         </div>
 
@@ -377,44 +323,19 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
               {/* QR Code preview Bento Tile */}
               <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
                 <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-center mb-4">
-                  {/* Generated clean SVG QR Representation */}
-                  <svg className="w-40 h-40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="100" height="100" fill="white" />
-                    {/* Corner 1 */}
-                    <rect x="10" y="10" width="25" height="25" fill="#0f172a" />
-                    <rect x="15" y="15" width="15" height="15" fill="white" />
-                    <rect x="18" y="18" width="9" height="9" fill="#4f46e5" />
-                    {/* Corner 2 */}
-                    <rect x="65" y="10" width="25" height="25" fill="#0f172a" />
-                    <rect x="70" y="15" width="15" height="15" fill="white" />
-                    <rect x="73" y="18" width="9" height="9" fill="#4f46e5" />
-                    {/* Corner 3 */}
-                    <rect x="10" y="65" width="25" height="25" fill="#0f172a" />
-                    <rect x="15" y="70" width="15" height="15" fill="white" />
-                    <rect x="18" y="73" width="9" height="9" fill="#4f46e5" />
-                    {/* Pattern blocks */}
-                    <rect x="42" y="12" width="6" height="12" fill="#0f172a" />
-                    <rect x="52" y="18" width="6" height="8" fill="#4f46e5" />
-                    <rect x="40" y="40" width="20" height="20" fill="#0f172a" />
-                    <rect x="45" y="45" width="10" height="10" fill="#4f46e5" />
-                    <rect x="68" y="45" width="18" height="6" fill="#0f172a" />
-                    <rect x="72" y="55" width="12" height="12" fill="#4f46e5" />
-                    <rect x="12" y="45" width="15" height="6" fill="#0f172a" />
-                    <rect x="45" y="75" width="12" height="12" fill="#0f172a" />
-                    <rect x="65" y="78" width="20" height="8" fill="#4f46e5" />
-                  </svg>
+                  {qr?<img src={qr.image} alt="Google review collection QR" className="w-40 h-40"/>:<p role="status" className="text-xs">{qrError|| (reviewLink?'Generating review QR…':'Configure a valid Google review link to create a QR.')}</p>}
                 </div>
                 <div className="font-black text-slate-900 text-sm">{business.name}</div>
                 <p className="text-xs text-slate-500 mt-0.5">Scan to leave a Google Review</p>
                 <div className="flex gap-2 mt-4">
                   <button
-                    onClick={() => setIsStandeeModalOpen(true)}
+                    disabled={!qr} onClick={() => setIsStandeeModalOpen(true)}
                     className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs"
                   >
                     <Download className="w-3.5 h-3.5" /> Tabletop Stand PDF
                   </button>
                   <button
-                    onClick={handleDownloadSvg}
+                    disabled={!qr} onClick={handleDownloadSvg}
                     className="bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 transition"
                   >
                     Sticker SVG
@@ -426,7 +347,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
               <div className="space-y-4">
                 <h3 className="font-bold text-slate-900 text-base">Direct Customer Outreach Channels</h3>
                 <p className="text-xs text-slate-500">
-                  Send compliant, one-touch review requests to customers right after a completed service.
+                  Prepare review links and request text to customers right after a completed service.
                 </p>
 
                 {/* Direct Link */}
@@ -442,9 +363,8 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                       />
                       <button
                         onClick={() => {
-                          navigator.clipboard?.writeText(reviewLink);
-                          setCopiedLink(true);
-                          setTimeout(() => setCopiedLink(false), 2000);
+                          if(!navigator.clipboard){setActionError('Clipboard unavailable. Select and copy the link manually.');return;}
+                          void navigator.clipboard.writeText(reviewLink).then(()=>{setCopiedLink(true);setTimeout(()=>setCopiedLink(false),2000);}).catch(()=>setActionError('Copy failed. Select and copy the link manually.'));
                         }}
                         className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5 font-bold shadow-2xs"
                       >
@@ -454,7 +374,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                     </div>
                   ) : (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800">
-                      Google Review shortlink is available after connecting Google Places ID in Integrations.
+                      Configure a valid Google review URL or Place ID in Integrations. This does not verify provider authorization.
                     </div>
                   )}
                 </div>
@@ -463,7 +383,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
                   <div className="flex items-center justify-between text-slate-900 font-bold">
                     <span>WhatsApp Review Request Template</span>
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">High Conversion</span>
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Editable template</span>
                   </div>
                   <p className="text-slate-600 italic bg-white p-3 rounded-xl border border-slate-200 text-[11px] leading-relaxed shadow-2xs">
                     "Hi [Customer Name]! 😊 Thank you for choosing {business.name || 'our business'}. Your satisfaction is our priority. If you have 20 seconds, please share your experience on Google Maps{reviewLink ? ` here: ${reviewLink}` : ''} — Team {business.name || 'our business'}"
@@ -520,7 +440,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                   filter === 'negative' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 bg-slate-50 border border-slate-200'
                 }`}
               >
-                ≤ 3 Stars ({reviews.filter((r) => r.rating <= 3).length})
+                ≤ 3 Stars ({reviews.filter((r) => r.rating!==null && r.rating>=1 && r.rating <= 3).length})
               </button>
             </div>
           </div>
@@ -535,12 +455,12 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 <div className="font-bold text-slate-900 text-sm">No Reviews Found</div>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   {reviews.length === 0
-                    ? 'No reviews logged yet. Share your Google review QR Standee with customers to collect authentic 5-star customer reviews.'
+                    ? 'No reviews logged yet. Share your Google review QR Standee with customers to collect honest customer reviews.'
                     : 'No reviews match the current filter selection.'}
                 </p>
                 {reviews.length === 0 && (
                   <button
-                    onClick={() => setIsStandeeModalOpen(true)}
+                    disabled={!qr} onClick={() => setIsStandeeModalOpen(true)}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition shadow-xs inline-flex items-center gap-2"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -571,9 +491,9 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
 
                     <div className="flex items-center gap-2">
                       <div className="flex items-center text-amber-500 text-xs font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
-                        {'★'.repeat(review.rating)}
-                        {'☆'.repeat(5 - review.rating)}
-                        <span className="ml-1 text-slate-700">{review.rating}.0</span>
+                        {review.rating===null?'Unrated':'★'.repeat(review.rating)}
+                        {review.rating!==null&&'☆'.repeat(5 - review.rating)}
+                        <span className="ml-1 text-slate-700">{review.rating===null?'Unavailable':`${review.rating}.0`}</span>
                       </div>
                       {review.isOperationalIssue && (
                         <span className="flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -604,7 +524,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                     <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs space-y-1">
                       <div className="flex items-center justify-between text-emerald-800 font-bold text-[11px]">
                         <span className="flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Published Public Reply
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Saved Reply Record
                         </span>
                         <span className="text-slate-500 font-normal">{review.replyDate}</span>
                       </div>
@@ -655,7 +575,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
                           >
                             <Send className="w-3 h-3" />
-                            {isReplyingId === review.id ? 'Publishing...' : 'Approve & Publish'}
+                            {isReplyingId === review.id ? 'Saving...' : 'Save Reply Record'}
                           </button>
                         </div>
                       </div>
@@ -720,19 +640,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center">
                   <div className="w-32 h-32 bg-slate-900 p-2 rounded-xl flex items-center justify-center shadow-inner">
-                    <svg viewBox="0 0 100 100" className="w-full h-full text-white fill-current">
-                      <rect x="10" y="10" width="30" height="30" fill="#ffffff" />
-                      <rect x="15" y="15" width="20" height="20" fill="#0f172a" />
-                      <rect x="20" y="20" width="10" height="10" fill="#4f46e5" />
-                      <rect x="60" y="10" width="30" height="30" fill="#ffffff" />
-                      <rect x="65" y="15" width="20" height="20" fill="#0f172a" />
-                      <rect x="70" y="20" width="10" height="10" fill="#4f46e5" />
-                      <rect x="10" y="60" width="30" height="30" fill="#ffffff" />
-                      <rect x="15" y="65" width="20" height="20" fill="#0f172a" />
-                      <rect x="20" y="70" width="10" height="10" fill="#4f46e5" />
-                      <rect x="48" y="12" width="6" height="25" fill="#4f46e5" />
-                      <rect x="42" y="42" width="16" height="16" fill="#ffffff" />
-                    </svg>
+                    {qr && <img src={qr.image} alt="Printable Google review QR" className="w-full h-full"/>}
                   </div>
                   <span className="text-[11px] font-bold text-slate-700 mt-2">Scan with Camera or Tap NFC</span>
                 </div>
@@ -751,7 +659,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 Close
               </button>
               <button
-                onClick={() => window.print()}
+                disabled={!qr} onClick={() => {if(qr)try{printReviewCard(qr.image,business.name||'Business');}catch{setActionError('Printing unavailable. Download the QR instead.');}}}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-xs"
               >
                 <Printer className="w-3.5 h-3.5" /> Print / Save PDF
@@ -821,7 +729,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                   >
                     <option value="google">Google Maps (GMB)</option>
                     <option value="justdial">JustDial / IndiaMART</option>
-                    <option value="direct">Direct Customer Feedback</option>
+                    <option value="manual">Direct Customer Feedback</option>
                   </select>
                 </div>
               </div>

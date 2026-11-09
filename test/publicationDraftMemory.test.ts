@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {publicationDraftKey} from '../src/services/publicationDraftMemory';
+const key=await publicationDraftKey('actor','company','private-caption');
+assert.ok(!key.includes('private-caption'));
+assert.equal(key,await publicationDraftKey('actor','company','private-caption'));
+assert.notEqual(key,await publicationDraftKey('other','company','private-caption'));
+assert.notEqual(key,await publicationDraftKey('actor','other','private-caption'));
+assert.notEqual(key,await publicationDraftKey('actor','company','changed-content'));
+await assert.rejects(publicationDraftKey('','company','signature'),/Sign in/);
+console.log('Stable publication intent keys: deterministic across reloads, actor/workspace/content separation and no plaintext content passed.');

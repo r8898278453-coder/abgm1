@@ -1,0 +1,34 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P01-02",
+    "P01-05",
+    "P01-08",
+    "P01-09"
+  ],
+  "status": "in_progress",
+  "sequential_batches": 5,
+  "scope": "Five sequential P01 batches: real next-month AI draft planning with per-item outcomes/no fake calendar, confirmed content CRUD/retained publishing evidence and saved-field repair; scoped expected-stage CRM updates/no duplicate writes or false send/create success, tenant lead notifications; authoritative owner-validated row collections/no JSON resurrection or fabricated intent85; pre-provider AI workspace access guard and selected-client context. Evidence: phase01-content-crm-isolation.json. Fifth sequential batch: autonomous controls are workspace-keyed, backend state is required before mutation, unconfirmed writes require reload, approve\u2192execute chain stops on client switch. Strict single boolean command validates actor/admin/scope before effects; failed/missing SQL persistence cannot return success. Header/safety navigation no longer fakes control writes. Removed root approval callback that fabricated review replies/first-post publication and replaced lifecycle progress ticks with reference-only state. Evidence: phase01-content-crm-isolation.json.",
+  "validation": {
+    "default_programs": 62,
+    "default_suite": "62 chained programs passed; new autonomous-control and AI-scope HTTP programs also passed targeted runs",
+    "sql": "Disposable MariaDB10.11 READY through023/repeat0; foreign/missing/published/unknown/claimed content retention, deletion once;8 competing expected-stage updates single winner and stale rejection",
+    "browser": "Full extended Chromium rerun passed all five batches. Initial fifth-batch run had an exact sidebar selector mismatch caused by dynamic status badge; selector corrected and rerun passed. Unconfirmed control ack disables mutation, failed read blocks execution, client switch after approval prevents follow-up execute.",
+    "typescript": "passed final",
+    "build": "passed final with existing chunk-size warning",
+    "controls_http": "Strict single command/boolean, auth/admin/client validation before effects, private error redaction and no persistence false-success passed",
+    "tracker": "93 unique IDs and valid dependency references checked",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "P00 hosting prerequisite and phase gates remain incomplete",
+    "no live production migration/deployment/provider/customer send",
+    "no generic content/lead create idempotency after lost acknowledgement",
+    "expected-stage comparison is not revision/ABA-proof",
+    "saved drafts are not scheduled campaigns or delivery",
+    "broader execution policies and ledger reconciliation pending",
+    "Autonomous control booleans have no revision CAS; global stop remains file-scoped",
+    "Autonomous approval/rejection audit atomicity remains pending"
+  ],
+  "production_changes": false
+}

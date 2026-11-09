@@ -1,0 +1,27 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "020_queue_pause_deferrals",
+  "canonical_tables": 42,
+  "scope": [
+    "durable pre-work pause deferral",
+    "separate retry budget credit from monotonic ownership generation",
+    "same-job resume after controls recover",
+    "transactional pause ledger/outbox and visible reason"
+  ],
+  "validation": {
+    "default_programs": 54,
+    "unit": "six pauses at max_attempts1 then one provider send; stale same-worker deferral/completion rejection; global deferral/cancel; actual failure exhaustion",
+    "sql": "MariaDB10.11 READY through020/repeat0; missing-column gate and legacy preservation; concurrent single defer, stale owner fencing, resume, ledger/outbox rollback, real execution budget",
+    "browser": "paused reason and Claim2 visible; full workspace isolation suite passed",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "requires future worker tick; up to60s poll delay",
+    "only pre-work pause credit; crash before commit may consume budget",
+    "no revival of terminal/policy-denied or ambiguous/post-claim work",
+    "distributed/scoped stop storage and quota reservations pending"
+  ],
+  "production_changes": false
+}

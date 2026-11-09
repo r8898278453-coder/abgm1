@@ -1,3 +1,5 @@
+import {resolveWhatsAppTenant} from './whatsAppTenant';
+import {isGlobalEmergencyStopActive} from './executionStop';
 import crypto from 'crypto';
 import {
   getCompanyIntegration,
@@ -57,6 +59,7 @@ export interface FacebookPublishOptions {
 }
 
 export interface InstagramPublishOptions {
+  canPublish?: () => Promise<boolean>;
   instagramId: string;
   accessToken: string;
   caption: string;
@@ -177,7 +180,7 @@ export async function findCompanyByWhatsAppIdentifier(identifiers: {
   phoneNumberId?: string;
   wabaId?: string;
   displayPhoneNumber?: string;
-}): Promise<string | null> {
+}, requireDurable = false): Promise<string | null> {
   const { phoneNumberId, wabaId, displayPhoneNumber } = identifiers;
   if (!phoneNumberId && !wabaId && !displayPhoneNumber) {
     return null;
@@ -186,20 +189,11 @@ export async function findCompanyByWhatsAppIdentifier(identifiers: {
   try {
     const { getCompanyIntegrationsByProvider } = await import('./db');
     if (typeof getCompanyIntegrationsByProvider === 'function') {
-      const integrations = await getCompanyIntegrationsByProvider('whatsapp_cloud');
-      for (const integ of integrations) {
-        const creds = integ.credentials || {};
-        if (
-          (phoneNumberId && creds.phoneNumberId && String(creds.phoneNumberId).trim() === phoneNumberId.trim()) ||
-          (wabaId && creds.wabaId && String(creds.wabaId).trim() === wabaId.trim()) ||
-          (displayPhoneNumber && creds.displayPhoneNumber && String(creds.displayPhoneNumber).replace(/[^0-9]/g, '') === displayPhoneNumber.replace(/[^0-9]/g, ''))
-        ) {
-          return integ.company_id;
-        }
-      }
+      const integrations = await getCompanyIntegrationsByProvider('whatsapp_cloud', requireDurable);
+      return resolveWhatsAppTenant(integrations,phoneNumberId?.trim(),wabaId?.trim());
     }
   } catch (err) {
-    console.warn('[findCompanyByWhatsAppIdentifier] Error querying company integrations:', err);
+    throw new Error('WhatsApp tenant lookup unavailable');
   }
 
   // Strict rule: If not matched to any registered tenant integration, return null (UNMAPPED_PROVIDER)
@@ -295,6 +289,7 @@ export async function publishToFacebookPage(options: FacebookPublishOptions): Pr
   status?: string;
   id?: string;
   error?: string;
+  httpStatus?: number;
 }> {
   const { pageId, accessToken, message, imageUrl } = options;
 
@@ -318,6 +313,7 @@ export async function publishToFacebookPage(options: FacebookPublishOptions): Pr
       };
     }
 
+    if(isGlobalEmergencyStopActive())return {success:false,status:'PAUSED',error:'Global execution stop is active'};
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -326,19 +322,20 @@ export async function publishToFacebookPage(options: FacebookPublishOptions): Pr
     });
 
     const data = await res.json();
-    if (res.ok && (data.id || data.post_id)) {
-      const fbId = data.id || data.post_id;
+    const fbId = data.id || data.post_id;
+    if (res.ok && typeof fbId === 'string' && fbId.trim()) {
       return { success: true, id: fbId };
     }
 
     return {
       success: false,
-      error: data.error?.message || `Facebook Graph API error (status ${res.status})`,
+      error: res.ok ? 'Unconfirmed Facebook provider acknowledgment' : (data.error?.message || `Facebook Graph API error (status ${res.status})`),
+      httpStatus: res.status,
     };
   } catch (err: any) {
     return {
       success: false,
-      error: err?.message || 'Network timeout connecting to Facebook Graph API',
+      error: 'Network or unconfirmed Facebook provider response',
     };
   }
 }
@@ -353,6 +350,7 @@ export async function publishToInstagram(options: InstagramPublishOptions): Prom
   status?: string;
   id?: string;
   error?: string;
+  httpStatus?: number;
 }> {
   const { instagramId, accessToken, caption, imageUrl, videoUrl } = options;
 
@@ -378,6 +376,7 @@ export async function publishToInstagram(options: InstagramPublishOptions): Prom
       containerPayload.image_url = imageUrl;
     }
 
+    if(isGlobalEmergencyStopActive())return {success:false,status:'PAUSED',error:'Global execution stop is active'};
     const containerRes = await fetch(`https://graph.facebook.com/v21.0/${instagramId}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -386,16 +385,19 @@ export async function publishToInstagram(options: InstagramPublishOptions): Prom
     });
 
     const containerData = await containerRes.json();
-    if (!containerRes.ok || !containerData.id) {
+    if (!containerRes.ok || typeof containerData.id !== 'string' || !containerData.id.trim()) {
       return {
         success: false,
-        error: containerData.error?.message || 'Failed to initialize Instagram media container',
+        error: containerRes.ok ? 'Unconfirmed Instagram container acknowledgment' : (containerData.error?.message || 'Failed to initialize Instagram media container'),
+        httpStatus: containerRes.status,
       };
     }
 
     const creationId = containerData.id;
 
     // Step 2: Publish Media Container
+    if (options.canPublish && !await options.canPublish()) return {success:false,error:'Unconfirmed publishing ownership; reconciliation required'};
+    if(isGlobalEmergencyStopActive())return {success:false,status:'PAUSED',error:'Global execution stop is active'};
     const publishRes = await fetch(`https://graph.facebook.com/v21.0/${instagramId}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -407,25 +409,26 @@ export async function publishToInstagram(options: InstagramPublishOptions): Prom
     });
 
     const publishData = await publishRes.json();
-    if (publishRes.ok && publishData.id) {
+    if (publishRes.ok && typeof publishData.id === 'string' && publishData.id.trim()) {
       return { success: true, id: publishData.id };
     }
 
     return {
       success: false,
-      error: publishData.error?.message || 'Failed to finalize Instagram media container publish',
+      error: publishRes.ok ? 'Unconfirmed Instagram publish acknowledgment' : (publishData.error?.message || 'Failed to finalize Instagram media container publish'),
+      httpStatus: publishRes.status,
     };
   } catch (err: any) {
     return {
       success: false,
-      error: err?.message || 'Network timeout connecting to Instagram Graph API',
+      error: 'Network or unconfirmed Instagram provider response',
     };
   }
 }
 
 /**
  * Sends a WhatsApp Cloud Message via Meta Graph API v21.0.
- * Enforces verified provider delivery and returns confirmed message ID.
+ * Confirms API acceptance only; delivery requires later provider receipt evidence.
  */
 export async function sendWhatsAppCloudMessage(
   creds: WhatsAppCredentials,
@@ -435,6 +438,7 @@ export async function sendWhatsAppCloudMessage(
   status?: string;
   messageId?: string;
   error?: string;
+  httpStatus?: number;
   rawResponse?: any;
 }> {
   if (!creds || !creds.configured || !creds.phoneNumberId || !creds.accessToken) {
@@ -497,6 +501,7 @@ export async function sendWhatsAppCloudMessage(
   }
 
   try {
+    if(isGlobalEmergencyStopActive())return {success:false,status:'PAUSED',error:'Global execution stop is active'};
     const waRes = await fetch(`https://graph.facebook.com/v21.0/${creds.phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
@@ -508,10 +513,11 @@ export async function sendWhatsAppCloudMessage(
     });
 
     const waData = await waRes.json();
-    if (waRes.ok && waData.messages && waData.messages.length > 0) {
+    if (waRes.ok && typeof waData.messages?.[0]?.id === 'string' && waData.messages[0].id.trim()) {
       const messageId = waData.messages[0].id;
       return {
         success: true,
+        status:'API_ACCEPTED',
         messageId,
         rawResponse: waData,
       };
@@ -519,13 +525,16 @@ export async function sendWhatsAppCloudMessage(
 
     return {
       success: false,
-      error: waData.error?.message || `Meta Cloud API rejected message (status ${waRes.status})`,
+      status:waRes.ok||waRes.status>=500||waData.messages?.[0]?.id?'UNKNOWN':'REJECTED',
+      error: waRes.ok ? 'Unconfirmed WhatsApp provider acknowledgment' : (waData.error?.message || `Meta Cloud API rejected message (status ${waRes.status})`),
+      httpStatus: waRes.status,
       rawResponse: waData,
     };
   } catch (err: any) {
     return {
       success: false,
-      error: err?.message || 'Network timeout connecting to Meta Graph API',
+      status:'UNKNOWN',
+      error: 'Network or unconfirmed Meta provider response',
     };
   }
 }

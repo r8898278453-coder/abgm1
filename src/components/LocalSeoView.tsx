@@ -35,43 +35,6 @@ interface LocalSeoViewProps {
   isScanning?: boolean;
 }
 
-const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  thane: { lat: 19.2183, lng: 72.9781 },
-  mumbai: { lat: 19.076, lng: 72.8777 },
-  'navi mumbai': { lat: 19.033, lng: 73.0297 },
-  pune: { lat: 18.5204, lng: 73.8567 },
-  delhi: { lat: 28.7041, lng: 77.1025 },
-  bangalore: { lat: 12.9716, lng: 77.5946 },
-  bengaluru: { lat: 12.9716, lng: 77.5946 },
-  hyderabad: { lat: 17.385, lng: 78.4867 },
-};
-
-function fallback9Grid(city: string) {
-  const norm = city.toLowerCase().trim();
-  const center = CITY_COORDS[norm] || CITY_COORDS.thane;
-  const latDelta = 3.5 / 111.32;
-  const lngDelta = 3.5 / (111.32 * Math.cos((center.lat * Math.PI) / 180));
-
-  const offsets = [
-    { label: 'NW (-3.5km, +3.5km)', dLat: latDelta, dLng: -lngDelta },
-    { label: 'N (0km, +3.5km)', dLat: latDelta, dLng: 0 },
-    { label: 'NE (+3.5km, +3.5km)', dLat: latDelta, dLng: lngDelta },
-    { label: 'W (-3.5km, 0km)', dLat: 0, dLng: -lngDelta },
-    { label: 'Center (0km, 0km)', dLat: 0, dLng: 0 },
-    { label: 'E (+3.5km, 0km)', dLat: 0, dLng: lngDelta },
-    { label: 'SW (-3.5km, -3.5km)', dLat: -latDelta, dLng: -lngDelta },
-    { label: 'S (0km, -3.5km)', dLat: -latDelta, dLng: 0 },
-    { label: 'SE (+3.5km, -3.5km)', dLat: -latDelta, dLng: lngDelta },
-  ];
-
-  return offsets.map((o, idx) => ({
-    gridIndex: idx,
-    label: o.label,
-    lat: Number((center.lat + o.dLat).toFixed(6)),
-    lng: Number((center.lng + o.dLng).toFixed(6)),
-  }));
-}
-
 export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
   keywords = [],
   onAddKeyword,
@@ -146,38 +109,17 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     return <DataStatusBadge status={classification || 'UNAVAILABLE'} />;
   };
 
-  // Build the 9 nodes for the 3x3 visualizer
-  const gridCoords = fallback9Grid(city);
-  const observationsList: Array<{
-    gridIndex: number;
-    label: string;
-    lat: number;
-    lng: number;
-    position: number | null;
-    status: string;
-    evidence?: string;
-  }> = gridCoords.map((c, idx) => {
-    const matchedObs = selectedKw?.observations?.find((o) => o.gridIndex === idx);
-    if (matchedObs) {
-      return {
-        gridIndex: idx,
-        label: matchedObs.gridLabel || c.label,
-        lat: matchedObs.latitude,
-        lng: matchedObs.longitude,
-        position: matchedObs.position,
-        status: matchedObs.status,
-        evidence: matchedObs.sourceEvidence,
-      };
-    }
-    // Check fallback gridRankings dictionary
-    const posVal = selectedKw?.gridRankings?.[`node_${idx}`];
+  // Only persisted observations establish coordinates and per-node results.
+  const observationsList = ['North-west', 'North', 'North-east', 'West', 'Centre', 'East', 'South-west', 'South', 'South-east'].map((label, gridIndex) => {
+    const observation = selectedKw?.observations?.find(item => item.gridIndex === gridIndex);
     return {
-      gridIndex: idx,
-      label: c.label,
-      lat: c.lat,
-      lng: c.lng,
-      position: typeof posVal === 'number' && posVal > 0 ? posVal : null,
-      status: selectedKw?.dataClassification || 'UNAVAILABLE',
+      gridIndex,
+      label: observation?.gridLabel || label,
+      lat: observation?.latitude ?? null,
+      lng: observation?.longitude ?? null,
+      position: observation?.position ?? null,
+      status: observation?.status || 'UNAVAILABLE',
+      evidence: observation?.sourceEvidence,
     };
   });
 
@@ -313,7 +255,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
               <div className="text-right">
                 <div className="text-[10px] text-slate-400 uppercase font-semibold">Center Position</div>
                 <div className="text-base font-black text-slate-900">
-                  {selectedKw.rank ? `#${selectedKw.rank}` : <span className="text-slate-400 font-normal">Unranked</span>}
+                  {selectedKw.rank ? `#${selectedKw.rank}` : <span className="text-slate-400 font-normal">{observationsList[4].status === 'LIVE' || observationsList[4].status === 'VERIFIED' ? 'Unranked' : 'N/A'}</span>}
                 </div>
               </div>
               <button
@@ -333,15 +275,15 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
                 <Layers className="w-4 h-4 text-indigo-600" />
-                <span>3x3 Geographic Radius Matrix (9 Points • 3.5 km Radius)</span>
+                <span>3x3 Geographic Observation Matrix</span>
               </div>
-              <span className="text-[11px] text-slate-400">Centered at {city}</span>
+              <span className="text-[11px] text-slate-400">Client location: {city}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {observationsList.map((obs) => {
                 const isCenter = obs.gridIndex === 4;
-                const isRanked = typeof obs.position === 'number' && obs.position > 0;
+                const isRanked = ['LIVE', 'VERIFIED'].includes(obs.status) && typeof obs.position === 'number' && obs.position > 0;
                 const isTop3 = isRanked && (obs.position as number) <= 3;
                 const isTop10 = isRanked && (obs.position as number) <= 10;
 
@@ -366,7 +308,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                         </div>
                         <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
                           <Globe className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                          <span>{obs.lat.toFixed(4)}°, {obs.lng.toFixed(4)}°</span>
+                          <span>{obs.lat !== null && obs.lng !== null && Number.isFinite(obs.lat) && Number.isFinite(obs.lng) ? `${obs.lat.toFixed(4)}°, ${obs.lng.toFixed(4)}°` : 'Coordinates unavailable'}</span>
                         </div>
                       </div>
 
@@ -377,7 +319,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                           </div>
                         ) : (
                           <div className="text-xs font-semibold text-slate-400 mt-1">
-                            {obs.status === 'UNAVAILABLE' ? 'N/A' : 'Unranked'}
+                            {['LIVE', 'VERIFIED'].includes(obs.status) ? 'Unranked' : 'N/A'}
                           </div>
                         )}
                       </div>
@@ -475,7 +417,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {keywords.map((kw) => {
-                const diff = typeof kw.diff === 'number' ? kw.diff : (kw.previousRank && kw.rank ? kw.previousRank - kw.rank : 0);
+                const diff = typeof kw.diff === 'number' && Number.isFinite(kw.diff) ? kw.diff : null;
                 const isSelected = selectedKw?.id === kw.id;
                 return (
                   <tr
@@ -495,7 +437,9 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                       {getClassificationBadge(kw.dataClassification)}
                     </td>
                     <td className="p-3">
-                      {diff > 0 ? (
+                      {diff === null ? (
+                        <span className="text-slate-400 text-xs">No comparable baseline</span>
+                      ) : diff > 0 ? (
                         <span className="text-emerald-700 flex items-center gap-1 font-bold">
                           <ArrowUp className="w-3 h-3" /> +{diff} spots
                         </span>

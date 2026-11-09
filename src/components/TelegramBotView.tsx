@@ -1,3 +1,4 @@
+import { PLATFORM_TIME_ZONE } from '../../shared/platformTime';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
@@ -23,6 +24,7 @@ import { sendTelegramNotifyApi } from '../services/authService';
 
 interface TelegramBotViewProps {
   business: BusinessProfile;
+  companyId?: string;
   onNavigate: (tab: any) => void;
 }
 
@@ -35,13 +37,13 @@ interface TelegramMessage {
   isProactive?: boolean;
 }
 
-export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNavigate }) => {
+export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, companyId, onNavigate }) => {
   const [messages, setMessages] = useState<TelegramMessage[]>([
     {
       id: 'm1',
       sender: 'bot',
-      time: '09:00 AM',
-      text: `🌅 *Good Morning! Here is your LocalPulse Executive Summary for ${business.name || 'your business'}:*\n\n• *Workspace:* ${business.name || 'Configured'}\n• *Service Area:* ${business.city || 'Local Area'}\n• *Autonomous Engine:* Active\n\n*System Status:* Real-time notifications, review alerts, and daily briefings will appear here as external events occur.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
+      text: `💬 *Marketing assistant for ${business.name || 'your business'}:*\n\n• *Workspace:* ${business.name || 'Configured'}\n• *Service Area:* ${business.city || 'Local Area'}\n• *Assistant:* Ready for your questions\n\n*Assistant preview:* This chat is not a synced Telegram inbox. Delivery results appear after you send a test alert.`,
       buttons: [
         { label: '📊 View Dashboard', action: 'view_report' },
       ],
@@ -52,7 +54,7 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [testAlertMessage, setTestAlertMessage] = useState(
-    `🔔 Test Alert from ${business.name}: Real-time notification system verified successfully.`
+    `🔔 Test Alert from ${business.name}: Please confirm receipt of this test notification.`
   );
   const [isSendingAlert, setIsSendingAlert] = useState(false);
   const [alertFeedback, setAlertFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -65,17 +67,17 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
   const handleSendTestAlert = async (e?: React.FormEvent, customMsg?: string) => {
     if (e) e.preventDefault();
     const msgToSend = (customMsg || testAlertMessage).trim();
-    if (!msgToSend || isSendingAlert) return;
+    if (!msgToSend || isSendingAlert || !companyId) return;
 
     setIsSendingAlert(true);
     setAlertFeedback(null);
 
     try {
-      const res = await sendTelegramNotifyApi(msgToSend);
-      if (res.success) {
+      const res = await sendTelegramNotifyApi(companyId, msgToSend);
+      if (res.success === true) {
         setAlertFeedback({
           type: 'success',
-          message: '✓ Test alert delivered to your Telegram chat successfully!',
+          message: 'Telegram accepted the test alert. Recipient receipt has not been verified.',
         });
         // Also reflect the dispatched alert in the interactive Telegram simulator feed
         setMessages((prev) => [
@@ -83,15 +85,15 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
           {
             id: `alert_${Date.now()}`,
             sender: 'bot',
-            text: `📢 *DISPATCHED TELEGRAM NOTIFICATION:*\n\n${msgToSend}`,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `📢 *TELEGRAM API ACCEPTED NOTIFICATION:*\n\n${msgToSend}`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
             isProactive: true,
           },
         ]);
       } else {
         setAlertFeedback({
           type: 'error',
-          message: `Delivery failed: ${res.error || 'Check that TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID are configured in server environment.'}`,
+          message: `Delivery failed: ${res.error || 'Check this workspace’s Telegram integration and recipient.'}`,
         });
       }
     } catch (err: any) {
@@ -106,13 +108,13 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     const userMsg: TelegramMessage = {
       id: `u_${Date.now()}`,
       sender: 'user',
       text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -121,7 +123,7 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
 
     try {
       const botReply = await chatWithMarketingAgent(text, {
-        businessName: business.name,
+        companyId, businessName: business.name,
         category: business.category,
         location: business.address,
       });
@@ -130,10 +132,10 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
         id: `b_${Date.now()}`,
         sender: 'bot',
         text: botReply,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
         buttons: [
-          { label: '⚡ Execute Action', action: 'execute' },
-          { label: '✏️ Customize', action: 'customize' },
+          { label: '📊 Open Dashboard', action: 'view_report' },
+          { label: '✏️ Discuss changes', action: 'customize' },
         ],
       };
 
@@ -144,8 +146,8 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
         {
           id: `err_${Date.now()}`,
           sender: 'bot',
-          text: 'I analyzed your request. Ready to deploy changes across Google Business Profile and social feeds.',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: 'Assistant unavailable. Your request was not completed and no publishing action was started.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE }),
         },
       ]);
     } finally {
@@ -154,21 +156,9 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
   };
 
   const handleButtonClick = (action: string) => {
-    if (action === 'reply_review' || action === 'approve_rahul_reply') {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `bot_act_${Date.now()}`,
-          sender: 'bot',
-          text: '✅ Public reply verified & published to Google Maps profile in real-time.',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } else if (action === 'view_report') {
-      onNavigate('dashboard');
-    } else {
-      handleSendMessage(`Execute action: ${action}`);
-    }
+    if (action === 'view_report') onNavigate('dashboard');
+    else if(action === 'customize') void handleSendMessage('Help me refine the previous suggestion. This is a discussion, not permission to publish.');
+    else setMessages(prev=>[...prev,{id:`notice_${Date.now()}`,sender:'bot',text:'No action was executed. Open the relevant workspace module to review and submit changes.',time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',timeZone:PLATFORM_TIME_ZONE})}]);
   };
 
   return (
@@ -181,14 +171,14 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
             Telegram AI Command Center
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Your 24/7 Autonomous Marketing Director in your pocket. Control 80% of operations without opening the dashboard.
+            Ask your marketing assistant questions and test delivery to this workspace’s configured Telegram chat.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Bot Connected: @LocalPulseAI_bot
+            Workspace Telegram test
           </span>
         </div>
       </div>
@@ -204,7 +194,7 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
               <h2 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                 Send Live Telegram Push Alert
                 <span className="text-[10px] font-semibold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-                  POST /api/telegram/notify
+                  Workspace only
                 </span>
               </h2>
               <p className="text-[11px] text-slate-500">
@@ -226,7 +216,7 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
             />
             <button
               type="submit"
-              disabled={!testAlertMessage.trim() || isSendingAlert}
+              disabled={!companyId || !testAlertMessage.trim() || isSendingAlert}
               className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-xs whitespace-nowrap active:scale-95"
             >
               {isSendingAlert ? (
@@ -356,7 +346,7 @@ export const TelegramBotView: React.FC<TelegramBotViewProps> = ({ business, onNa
         {/* Quick Suggestion Chips */}
         <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center gap-2 overflow-x-auto text-[11px] no-scrollbar">
           <button
-            onClick={() => handleSendTestAlert(undefined, `🔔 Test Alert: Marketing audit check triggered for ${business.name} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`)}
+            onClick={() => handleSendTestAlert(undefined, `🔔 Test Alert: Marketing audit check triggered for ${business.name} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: PLATFORM_TIME_ZONE })}.`)}
             className="bg-sky-50 hover:bg-sky-100 text-sky-700 px-3.5 py-1.5 rounded-full whitespace-nowrap border border-sky-200 font-semibold shadow-2xs transition flex items-center gap-1.5 shrink-0"
           >
             <Bell className="w-3 h-3" />

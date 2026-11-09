@@ -39,23 +39,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     targetAudience: business.brandKit?.targetAudience || '',
   });
 
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [auditComplete, setAuditComplete] = useState(false);
-
   if (!isOpen) return null;
 
   const handleNextStep = () => {
-    if (step === 3) {
-      // Step 3 to 4: Trigger 5-Minute Instant Value Audit (Section 72)
-      setIsAuditing(true);
-      setTimeout(() => {
-        setIsAuditing(false);
-        setAuditComplete(true);
-        setStep(4);
-      }, 1200);
-    } else if (step < 4) {
-      setStep((prev) => (prev + 1) as any);
-    } else {
+    if (step < 4) setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4);
+    else {
       // Finish onboarding
       onComplete({
         ...business,
@@ -76,7 +64,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-label="Business setup" aria-modal="true" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-slate-900 text-white p-6 flex items-center justify-between">
@@ -89,11 +77,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <h2 className="text-lg font-black tracking-tight">
               {step === 1 && '1. Business Identity & Profile'}
               {step === 2 && '2. Brand Tone & Language Preferences'}
-              {step === 3 && '3. Connected Accounts Verification'}
-              {step === 4 && '4. Instant First-Value Growth Audit Ready!'}
+              {step === 3 && '3. Saved Account Configuration'}
+              {step === 4 && '4. Review Setup'}
             </h2>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-xl transition">
+          <button aria-label="Close business setup" onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-xl transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -203,14 +191,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           {step === 3 && (
             <div className="space-y-3">
               <p className="text-slate-600">
-                Connected accounts authorization and integration status:
+                Saved profile flags only. These do not verify credentials, permissions or delivery. Check Settings &gt; Integrations before activating provider work.
               </p>
               <div className="space-y-2">
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className={`w-4 h-4 ${business.connectedAccounts?.googleBusiness ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <div>
-                      <strong className="text-slate-900">Google Places / Business:</strong> {business.name || 'Your Business'}
+                      <strong className="text-slate-900">Google Business profile flag:</strong> {business.name || 'Your Business'}
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
@@ -218,7 +206,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       ? 'text-emerald-700 bg-emerald-100'
                       : 'text-slate-600 bg-slate-200'
                   }`}>
-                    {business.connectedAccounts?.googleBusiness ? 'Connected' : 'Not Configured'}
+                    {business.connectedAccounts?.googleBusiness ? 'Marked configured — unverified' : 'Not marked configured'}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
@@ -233,7 +221,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       ? 'text-emerald-700 bg-emerald-100'
                       : 'text-slate-600 bg-slate-200'
                   }`}>
-                    {business.connectedAccounts?.whatsappBusiness ? 'Connected' : 'Not Configured'}
+                    {business.connectedAccounts?.whatsappBusiness ? 'Marked configured — unverified' : 'Not marked configured'}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
@@ -248,7 +236,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       ? 'text-emerald-700 bg-emerald-100'
                       : 'text-slate-600 bg-slate-200'
                   }`}>
-                    {business.connectedAccounts?.telegramBot ? 'Connected' : 'Not Configured'}
+                    {business.connectedAccounts?.telegramBot ? 'Marked configured — unverified' : 'Not marked configured'}
                   </span>
                 </div>
               </div>
@@ -261,10 +249,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <ShieldCheck className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold text-indigo-950 text-sm">
-                    Workspace Initialized: {formData.name || 'Business'}
+                    Profile ready to save: {formData.name || 'Business'}
                   </h4>
                   <p className="text-indigo-800 text-xs mt-1">
-                    Setup complete for {formData.city || 'your area'}. Connect your live providers in Settings &gt; Integrations to begin streaming verified real-time metrics.
+                    Review profile details for {formData.city || 'your area'}. Finishing saves profile details through the workspace flow; no provider audit, scan or campaign has run.
                   </p>
                 </div>
               </div>
@@ -272,15 +260,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <div className="space-y-2">
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <span>1. Local 3-Pack Rank Radar</span>
-                  <span className="text-indigo-600 font-bold">Ready to Scan</span>
+                  <span className="text-indigo-600 font-bold">Not scanned</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <span>2. Multi-Channel Content Studio</span>
-                  <span className="text-indigo-600 font-bold">Ready</span>
+                  <span className="text-indigo-600 font-bold">Not generated</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <span>3. Inbound Lead Pipeline & CRM</span>
-                  <span className="text-indigo-600 font-bold">Active</span>
+                  <span className="text-indigo-600 font-bold">No campaign started</span>
                 </div>
               </div>
             </div>
@@ -303,9 +291,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             onClick={handleNextStep}
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
           >
-            {isAuditing ? (
-              'Analyzing Business...'
-            ) : step === 4 ? (
+            {step === 4 ? (
               'Enter Command Hub'
             ) : (
               <>

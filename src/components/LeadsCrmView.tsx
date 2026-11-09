@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import {MessageDispatchStatus} from './MessageDispatchStatus';
+import {LEAD_STAGES} from '../../shared/leadStages';
+import React, { useState,useRef,useEffect } from 'react';
 import {
   Contact2,
   Sparkles,
@@ -29,7 +31,7 @@ import {
 
 interface LeadsCrmViewProps {
   leads: LeadItem[];
-  onUpdateLeadStage: (leadId: string, stage: LeadItem['stage']) => void;
+  onUpdateLeadStage: (leadId: string, stage: LeadItem['stage']) => Promise<void>;
   onLeadAdded?: (newLead: LeadItem) => void;
   companyId?: string;
 }
@@ -40,21 +42,21 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
   onLeadAdded,
   companyId,
 }) => {
+  const mounted=useRef(true);useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
+  const [updatingStage,setUpdatingStage]=useState(false),[manualWhatsAppLink,setManualWhatsAppLink]=useState<string|null>(null);
+  const [dispatchKey,setDispatchKey]=useState<string|null>(null);
   const [selectedLead, setSelectedLead] = useState<LeadItem | undefined>(leads[0]);
   const [replyDraft, setReplyDraft] = useState(leads[0]?.aiSuggestedReply || '');
   const [filterStage, setFilterStage] = useState<string>('all');
   const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
   const [dispatchError, setDispatchError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if ((!selectedLead || !leads.some((l) => l.id === selectedLead.id)) && leads.length > 0) {
-      setSelectedLead(leads[0]);
-      setReplyDraft(leads[0]?.aiSuggestedReply || '');
-    } else if (leads.length === 0) {
-      setSelectedLead(undefined);
-      setReplyDraft('');
-    }
-  }, [leads]);
+  React.useEffect(()=>{setSelectedLead(current=>leads.find(lead=>lead.id===current?.id)||leads[0]);},[leads]);
+  const changeStage=async(id:string,stage:LeadItem['stage'])=>{
+    if(updatingStage)return;setUpdatingStage(true);setDispatchError(null);
+    try{await onUpdateLeadStage(id,stage);}catch{if(mounted.current)setDispatchError('Lead stage update not confirmed. Existing stage kept; refresh before retrying.');}
+    finally{if(mounted.current)setUpdatingStage(false);}
+  };
 
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [newLeadName, setNewLeadName] = useState('');
@@ -73,10 +75,10 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
   const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string | null>(null);
   const [copiedPayLink, setCopiedPayLink] = useState(false);
 
-  const stages: LeadItem['stage'][] = ['new', 'contacted', 'qualified', 'opportunity', 'quotation', 'won', 'lost'];
+  const stages=LEAD_STAGES;
 
   const handleSelectLead = (lead: LeadItem) => {
-    setSelectedLead(lead);
+    setSelectedLead(lead);setManualWhatsAppLink(null);setDispatchKey(null);
     setReplyDraft(lead.aiSuggestedReply || '');
     setGeneratedPaymentLink(null);
   };
@@ -88,6 +90,8 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
     }
 
     const messageText = replyDraft || lead.aiSuggestedReply || '';
+    if(!companyId){setDispatchError('Select a workspace before sending.');return;}
+    setManualWhatsAppLink(null);setDispatchError(null);
     setIsSendingWhatsApp(true);
 
     try {
@@ -98,33 +102,16 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
         companyId,
       });
 
-      if (res.success && res.method === 'meta_cloud_api') {
-        setDispatchNotice(`✓ Dispatched via Meta WhatsApp Cloud API (Message ID: ${res.messageId}) to ${cleanPhone}! Stage set to Contacted.`);
-      } else if (res.waLink) {
-        window.open(res.waLink, '_blank', 'noopener,noreferrer');
-        setDispatchNotice(`✓ WhatsApp opened with personalized quotation for ${lead.name} (${lead.phone}). Stage set to Contacted.`);
-      } else {
-        const fallbackUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
-        window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
-        setDispatchNotice(`✓ WhatsApp opened for ${lead.name}. Stage set to Contacted.`);
-      }
-
-      // Update state to contacted
-      if (lead.stage === 'new') {
-        onUpdateLeadStage(lead.id, 'contacted');
-        apiRequest(`/api/leads/${lead.id}/stage`, {
-          method: 'PATCH',
-          body: JSON.stringify({ stage: 'contacted' }),
-        }).catch(() => {});
-      }
-    } catch (err: any) {
-      const fallbackUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
-      setDispatchNotice(`✓ WhatsApp direct link opened for ${lead.name}.`);
-    } finally {
-      setIsSendingWhatsApp(false);
-      setTimeout(() => setDispatchNotice(null), 8000);
-    }
+      if(!mounted.current)return;
+      if(res.requestKey)setDispatchKey(res.requestKey);
+      if(res.success===true&&res.method==='meta_cloud_api'&&res.messageId){
+        setDispatchNotice(`WhatsApp API accepted message ${res.messageId}. Recipient delivery is not verified.`);
+      }else if(res.method==='wa_link'&&res.waLink){
+        setManualWhatsAppLink(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`);
+        setDispatchNotice('Manual WhatsApp draft prepared. Opening a draft does not confirm sending or change lead stage.');
+      }else setDispatchError('WhatsApp dispatch unconfirmed. Check provider history before retrying; lead stage was kept.');
+    }catch{if(mounted.current)setDispatchError('WhatsApp dispatch unconfirmed. Check provider history before retrying.');}
+    finally{if(mounted.current)setIsSendingWhatsApp(false);}
   };
 
   const handleCreateLeadPaymentLink = async () => {
@@ -170,8 +157,8 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
         name: newLeadName,
         company: newLeadCompany || 'Direct Client',
         phone: newLeadPhone,
-        service: newLeadService || 'Custom Web / Mobile App Development',
-        budget: newLeadBudget || '₹25,000 - ₹50,000',
+        service: newLeadService || 'Inquiry',
+        budget: newLeadBudget || '',
         source: 'bga.aaditechs.in Direct',
       };
 
@@ -180,66 +167,15 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
         body: JSON.stringify(payload),
       });
 
-      if (data && data.lead) {
-        const createdLead: LeadItem = {
-          id: data.lead.id,
-          name: data.lead.name,
-          phone: data.lead.phone,
-          serviceRequested: data.lead.service,
-          date: 'Just now',
-          source: 'Website',
-          intentScore: data.lead.intent_score,
-          stage: 'new',
-          notes: data.lead.company,
-          aiSuggestedReply: data.lead.ai_suggested_reply,
-        };
-        setSelectedLead(createdLead);
-        setReplyDraft(createdLead.aiSuggestedReply);
-        if (onLeadAdded) {
-          onLeadAdded(createdLead);
-        }
-        setIsAddLeadModalOpen(false);
-        setNewLeadName('');
-        setNewLeadCompany('');
-        setNewLeadPhone('');
-        setNewLeadService('');
-        setNewLeadBudget('');
-        setDispatchNotice(`✓ New lead successfully recorded in Database & notified on Telegram!`);
-
-        // Check if WhatsApp integration is active for this company and auto-dispatch suggested reply
-        const leadPhone = data.lead.phone;
-        const suggestedReply = data.lead.ai_suggested_reply || data.lead.aiSuggestedReply;
-        if (leadPhone && suggestedReply) {
-          getWhatsAppStatusApi(companyId)
-            .then(async (status) => {
-              if (status?.configured) {
-                const waRes = await sendWhatsAppMessageApi({
-                  to: leadPhone,
-                  message: suggestedReply,
-                  companyId,
-                });
-                if (waRes?.success) {
-                  onUpdateLeadStage(data.lead.id, 'contacted');
-                  apiRequest(`/api/leads/${data.lead.id}/stage`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ stage: 'contacted' }),
-                  }).catch(() => {});
-                  setDispatchNotice(
-                    `✓ Lead recorded, notified on Telegram, & automated WhatsApp reply dispatched to ${leadPhone}!`
-                  );
-                }
-              }
-            })
-            .catch(() => {
-              // Skip silently if WhatsApp check or send fails
-            });
-        }
-      }
-    } catch {
-      setDispatchNotice(`✓ Lead logged into active pipeline.`);
-      setIsAddLeadModalOpen(false);
+      if(!mounted.current)return;
+      if(data.success!==true||!data.lead?.id||data.lead.company_id!==companyId)throw new Error('Unconfirmed lead');
+      const createdLead:LeadItem={id:data.lead.id,name:data.lead.name,phone:data.lead.phone,serviceRequested:data.lead.service,date:'Just now',source:data.lead.source||'Manual',intentScore:data.lead.intent_score,stage:data.lead.stage||'new',notes:data.lead.notes||'',aiSuggestedReply:data.lead.ai_suggested_reply||''};
+      setSelectedLead(createdLead);setDispatchKey(null);setReplyDraft(createdLead.aiSuggestedReply);onLeadAdded?.(createdLead);setIsAddLeadModalOpen(false);
+      setNewLeadName('');setNewLeadCompany('');setNewLeadPhone('');setNewLeadService('');setNewLeadBudget('');
+      setDispatchNotice('Lead saved to workspace records. Customer messaging requires an explicit send action.');
+    }catch{if(mounted.current)setDispatchError('Lead creation not confirmed. Form kept; refresh the pipeline before retrying.');
     } finally {
-      setIsSubmittingLead(false);
+      if(mounted.current)setIsSubmittingLead(false);
     }
   };
 
@@ -250,6 +186,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      {companyId&&dispatchKey&&<MessageDispatchStatus key={`${companyId}:${dispatchKey}`} companyId={companyId} requestKey={dispatchKey}/>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -258,7 +195,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
             Unified Lead CRM & AI Sales Assistant
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Omni-channel customer inbox with automated intent scoring, WhatsApp instant quotes & follow-up reminders.
+            Review saved client leads, update their pipeline stage and explicitly prepare or send messages.
           </p>
         </div>
 
@@ -272,6 +209,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
       </div>
 
       {/* WhatsApp Dispatch Notice Banner */}
+      {manualWhatsAppLink && <a href={manualWhatsAppLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600">Open WhatsApp draft</a>}
       {dispatchNotice && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-bold animate-in fade-in shadow-xs">
           <div className="flex items-center gap-2">
@@ -289,7 +227,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
 
       {/* Error Banner */}
       {dispatchError && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-900 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-bold animate-in fade-in shadow-xs">
+        <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-900 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-bold animate-in fade-in shadow-xs">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
             <span>{dispatchError}</span>
@@ -376,7 +314,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
                               : 'bg-slate-200 text-slate-700'
                           }`}
                         >
-                          Intent: {lead.intentScore}%
+                          Intent: {lead.intentScore===null?'Unavailable':`${lead.intentScore}%`}
                         </span>
                         <div className="text-[10px] text-slate-400 uppercase font-bold mt-1">
                           Stage: {lead.stage}
@@ -417,7 +355,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
                   <span className="text-slate-500 font-bold">Stage:</span>
                   <select
                     value={selectedLead.stage}
-                    onChange={(e) => onUpdateLeadStage(selectedLead.id, e.target.value as any)}
+                    aria-label="Lead stage" disabled={updatingStage} onChange={(e) => void changeStage(selectedLead.id, e.target.value as any)}
                     className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 uppercase focus:outline-none focus:border-indigo-500 shadow-2xs"
                   >
                     {stages.map((s) => (
@@ -613,7 +551,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
                   disabled={isSubmittingLead}
                   className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition flex items-center gap-2 shadow-xs disabled:opacity-50"
                 >
-                  {isSubmittingLead ? 'Saving...' : 'Save & Trigger AI Pitch'}
+                  {isSubmittingLead ? 'Saving...' : 'Save Lead Record'}
                 </button>
               </div>
             </form>

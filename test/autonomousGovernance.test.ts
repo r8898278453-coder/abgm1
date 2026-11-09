@@ -203,15 +203,17 @@ async function runTests() {
   });
 
   assert.strictEqual(reviewExecResult.status, 'EXECUTED');
-  assert.strictEqual(reviewExecResult.verificationState, 'verified');
-  assert.ok(reviewExecResult.providerResponse?.verified, 'Provider response must confirm verification');
+  assert.strictEqual(reviewExecResult.verificationState, 'unverified');
+  assert.equal(reviewExecResult.providerResponse?.publication,'LOCAL_ONLY');
+  assert.equal(reviewExecResult.providerResponse?.localSaved,true);
+  assert.equal(reviewExecResult.providerResponse?.verified,false,'Local save is not provider publication verification');
 
   // Verify DB updated
   const updatedAction = await getAutonomousActionById(reviewAction.id);
   assert.strictEqual(updatedAction?.execution_state, 'executed');
-  assert.strictEqual(updatedAction?.verification_state, 'verified');
+  assert.strictEqual(updatedAction?.verification_state, 'unverified');
 
-  console.log('  ✅ Test 6 Passed: Verified review reply execution confirmed and recorded.');
+  console.log('  ✅ Test 6 Passed: Local review reply saved without provider verification claim.');
 
   // --------------------------------------------------------------------------
   // TEST 7: Idempotency Enforcement (Never Re-execute Executed Actions)

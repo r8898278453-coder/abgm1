@@ -1,0 +1,29 @@
+{
+  "scope": "disposable MariaDB notification batching",
+  "migration": "011_notification_dispatch_cursors",
+  "schema": "READY",
+  "historical_001_to_010_changed": false,
+  "runtime_clients_per_kind_per_tick": 2,
+  "default_regression_programs": 39,
+  "typescript": "passed",
+  "build": "passed",
+  "sql_checks": [
+    "three concurrent batches cover six clients without overlap",
+    "restart continues stored cursor",
+    "independent notification-kind cursors",
+    "wrap without duplicates",
+    "new client discovered below cursor",
+    "disconnected and missing integrations excluded",
+    "cursor failure rolls transaction back",
+    "internal max10 batch validation"
+  ],
+  "fixed_timezone": "Asia/Kolkata",
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "hard tick deadline",
+    "bounded post admission scan",
+    "bounded per-client record reads",
+    "operator reconciliation and replay audit"
+  ]
+}

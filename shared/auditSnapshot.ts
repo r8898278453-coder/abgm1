@@ -1,0 +1,4 @@
+import {z} from 'zod';
+export const auditEvidenceSchema=z.object({id:z.string().min(1).max(128),title:z.string().min(1),category:z.enum(['google','seo','reviews','social','content','website']),severity:z.enum(['critical','important','recommended','good']),evidence:z.string(),recommendation:z.string(),impact:z.string(),actionText:z.string(),resolved:z.boolean(),status:z.string(),timestamp:z.string(),source:z.string().optional(),issue:z.string().optional(),remediationType:z.enum(['automated','manual']).optional(),benchmark:z.object({claim:z.string(),source:z.string(),date:z.string(),population:z.string(),methodology:z.string()}).optional()});
+export const auditSnapshotSchema=z.object({success:z.literal(true),companyId:z.string(),auditItems:z.array(auditEvidenceSchema).max(200),timestamp:z.string()});
+export type AuditEvidence=z.infer<typeof auditEvidenceSchema>;

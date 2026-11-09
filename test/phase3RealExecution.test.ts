@@ -1,3 +1,4 @@
+import {saveCompanyDataPayload} from '../server/db';
 import assert from 'assert';
 import crypto from 'crypto';
 import {
@@ -61,6 +62,7 @@ async function runPhase3AcceptanceTests() {
   // TEST 1: Publish Failure / Provider Unavailable (No fake success)
   // =========================================================================
   console.log('Test 1: Publish Failure / Provider Unavailable');
+  await saveCompanyDataPayload(testCompanyId,{engine_settings:{approvalSettings:{googlePosts:'auto',socialPosts:'auto',promotionalOffers:'auto'}}});
   const unconfiguredPost = await createContentPost({
     company_id: testCompanyId,
     title: 'Unconfigured Test Post',
@@ -109,7 +111,7 @@ async function runPhase3AcceptanceTests() {
 
   const timeoutErr = classifyProviderError('ETIMEDOUT connecting to provider');
   assert.strictEqual(timeoutErr.errorType, 'TIMEOUT_UNKNOWN', 'Timeouts must be classified TIMEOUT_UNKNOWN');
-  assert.strictEqual(timeoutErr.isRetryable, true, 'Timeouts are retryable');
+  assert.strictEqual(timeoutErr.isRetryable, false, 'Unconfirmed writes require reconciliation before retry');
   console.log('  ✅ Test 3 Passed: Error classification distinguishes permanent vs retryable provider states.');
 
   // =========================================================================

@@ -1,0 +1,43 @@
+import {LEGACY_MIGRATION_IDENTITIES} from '../server/migrations/identities';
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {createRequire} from 'node:module';
+import {mkdtemp,mkdir,rm,cp,copyFile,appendFile,readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {defineSqlMigration} from '../server/migrations/manifestV1';
+import {MIGRATIONS,computeMigrationChecksum,runMigrations} from '../server/migrator';
+import {migrationIdentity,validateMigrationRegistry,inspectMigrationLedger} from '../server/migrationIdentity';
+import {verifyMigrationSourceIntegrity} from '../server/scripts/migrationSourceIntegrity';
+assert.equal((await verifyMigrationSourceIntegrity()).legacyIdentities,29);assert.ok(Object.isFrozen(LEGACY_MIGRATION_IDENTITIES)&&Object.values(LEGACY_MIGRATION_IDENTITIES).every(Object.isFrozen));
+const plan={name:'030_manifest_fixture',preflight:[{sql:'SELECT id FROM fixture WHERE invalid=1',code:'MIGRATION_FIXTURE_CONFLICT'}],statements:['CREATE TABLE IF NOT EXISTS fixture(id INT)','INSERT INTO fixture(id) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM fixture)']};
+const definition=defineSqlMigration(plan),checksum=computeMigrationChecksum(definition);
+assert.equal(checksum,computeMigrationChecksum(defineSqlMigration({statements:[...plan.statements],name:plan.name,preflight:plan.preflight.map(step=>({code:step.code,sql:step.sql}))})));
+for(const changed of [{...plan,name:'030_other_fixture'},{...plan,statements:[...plan.statements].reverse()},{...plan,statements:[plan.statements[0]+' ',plan.statements[1]]},{...plan,preflight:[{...plan.preflight[0],code:'MIGRATION_OTHER_CONFLICT'}]}])assert.notEqual(computeMigrationChecksum(defineSqlMigration(changed)),checksum);
+assert.equal(definition.up.toString(),defineSqlMigration({...plan,statements:['SELECT 2']}).up.toString());
+assert.throws(()=>computeMigrationChecksum({...definition}),/MANIFEST_REQUIRED/);
+assert.throws(()=>computeMigrationChecksum({name:plan.name,up:async()=>{},checksum} as any),/MANIFEST_REQUIRED/);
+assert.throws(()=>migrationIdentity(definition,MIGRATIONS,{[plan.name]:'0'.repeat(64)}),/BUILD_MISMATCH/);
+for(const invalid of [{...plan,name:'029_not_forward'},{...plan,name:'invalid'},{...plan,statements:[]},{...plan,statements:Array(1)},{...plan,preflight:Array(1)},{...plan,preflight:[{sql:'DELETE FROM fixture',code:'MIGRATION_INVALID'}]},{...plan,preflight:null},{...plan,up:()=>{}}])assert.throws(()=>defineSqlMigration(invalid as any));
+assert.ok(Object.isFrozen(definition)&&Object.isFrozen(definition.up)&&Object.isFrozen(MIGRATIONS)&&MIGRATIONS.every(m=>Object.isFrozen(m)&&Object.isFrozen(m.up)));
+const statements:string[]=[];let released=0,acquired=0,conflict=false;
+const connection={query:async(sql:string)=>{statements.push(sql);return [conflict&&sql.startsWith('SELECT')?[{private:'hidden-row'}]:[]];},release:()=>released++};
+const pool={getConnection:async()=>{acquired++;return connection;}} as any;
+plan.statements[0]='SELECT changed';plan.preflight[0].sql='SELECT changed';await definition.up(pool);assert.equal(acquired,1);assert.equal(released,1);assert.equal(statements[0],'SELECT id FROM fixture WHERE invalid=1');assert.ok(statements[1].startsWith('CREATE TABLE'));
+conflict=true;statements.length=0;await assert.rejects(definition.up(pool),/^Error: MIGRATION_FIXTURE_CONFLICT$/);assert.equal(statements.length,1);assert.equal(released,2);
+const ledger=MIGRATIONS.slice(0,2).map(m=>({migration_name:m.name,checksum:computeMigrationChecksum(m),success:1}));assert.equal(inspectMigrationLedger(ledger,MIGRATIONS).size,2);
+try{inspectMigrationLedger([{...ledger[0],checksum:''}],MIGRATIONS);assert.fail('Invalid ledger accepted');}catch(error:any){assert.equal(error.code,'MIGRATION_LEDGER_INVALID');}
+for(const rows of [null,[{...ledger[0],checksum:''}],[{...ledger[0],success:0}],[ledger[0],ledger[0]],[{migration_name:'030_future',checksum:'0'.repeat(64),success:1}],[ledger[1]]])assert.throws(()=>inspectMigrationLedger(rows,MIGRATIONS),/MIGRATION_LEDGER_/);
+for(const registry of [Array(29),[...MIGRATIONS].reverse(),[...MIGRATIONS,MIGRATIONS[28]]])assert.throws(()=>validateMigrationRegistry(registry,computeMigrationChecksum),/REGISTRY_INVALID/);
+let opened=0;await assert.rejects(runMigrations({getConnection:async()=>{opened++;throw new Error('must not open');}} as any,[...MIGRATIONS,{name:'030_fake_callback',up:async()=>{}}]),/MANIFEST_REQUIRED/);assert.equal(opened,0);
+await mkdir('node_modules/.cache',{recursive:true});const directory=await mkdtemp(path.resolve('node_modules/.cache/manifest-'));
+try{
+ const output=path.join(directory,'minified.cjs');await build({stdin:{contents:"export {defineSqlMigration} from './server/migrations/manifestV1';export {computeMigrationChecksum,MIGRATIONS} from './server/migrator';",resolveDir:process.cwd()},bundle:true,minify:true,platform:'node',format:'cjs',packages:'external',outfile:output,define:{__MIGRATION_SOURCE_CHECKSUMS__:JSON.stringify(Object.fromEntries(MIGRATIONS.map(m=>[m.name,computeMigrationChecksum(m)])))}});
+ const compiled=createRequire(import.meta.url)(output);const canonical={name:'030_manifest_fixture',preflight:[{sql:'SELECT id FROM fixture WHERE invalid=1',code:'MIGRATION_FIXTURE_CONFLICT'}],statements:['CREATE TABLE IF NOT EXISTS fixture(id INT)','INSERT INTO fixture(id) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM fixture)']};
+ const compiledDefinition=compiled.defineSqlMigration(canonical);assert.equal(compiled.computeMigrationChecksum(compiledDefinition),checksum);assert.notEqual(compiledDefinition.up.toString(),definition.up.toString());assert.deepEqual(compiled.MIGRATIONS.map(compiled.computeMigrationChecksum),MIGRATIONS.map(computeMigrationChecksum));
+ assert.throws(()=>compiled.computeMigrationChecksum({...compiled.MIGRATIONS[0],up:async()=>{}}),/LEGACY_MODIFIED/);
+ const root=path.join(directory,'source');await mkdir(path.join(root,'server'),{recursive:true});await cp('server/migrations',path.join(root,'server/migrations'),{recursive:true});await copyFile('server/migrator.ts',path.join(root,'server/migrator.ts'));await appendFile(path.join(root,'server/migrator.ts'),'\n// unrelated registry caller edit\n');await verifyMigrationSourceIntegrity(root);
+ const legacy=path.join(root,'server/migrations/029_public_lead_intakes.ts');await appendFile(legacy,'\n// historical helper edit\n');await assert.rejects(verifyMigrationSourceIntegrity(root),/MIGRATION_SOURCE_MODIFIED/);await copyFile('server/migrations/029_public_lead_intakes.ts',legacy);
+ const inline=path.join(root,'server/migrator.ts');await writeFile(inline,(await readFile(inline,'utf8')).replace('CREATE TABLE IF NOT EXISTS users','CREATE TABLE IF NOT EXISTS changed_users'));await assert.rejects(verifyMigrationSourceIntegrity(root),/MIGRATION_SOURCE_MODIFIED/);await copyFile('server/migrator.ts',inline);
+ await appendFile(path.join(root,'server/migrations/manifestV1.ts'),'\n// changing released semantics is forbidden\n');await assert.rejects(verifyMigrationSourceIntegrity(root),/MIGRATION_EXECUTOR_MODIFIED/);
+ console.log('Migration manifests: immutable data identities survive minification, legacy29/source/executor edits rejected, registry preflight before SQL, strict ledger failures/gaps/ahead detection, pinned execution session and preflight-before-write privacy passed.');
+}finally{await rm(directory,{recursive:true,force:true});}

@@ -1,0 +1,30 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "022_publication_scoped_controls",
+  "canonical_tables": 44,
+  "scope": [
+    "SQL workspace/channel publication stops",
+    "CAS version and transactional actor audit",
+    "combined five-second scope/automatic-control snapshot",
+    "manual/automatic canonical publishing and pre-work queue deferral",
+    "dashboard confirmed save and stale-client isolation"
+  ],
+  "validation": {
+    "default_programs": 56,
+    "sql": "MariaDB10.11 READY through022/repeat0; missing column gate,8-way CAS single winner, workspace/channel/client isolation, stale resume denial, actor-audit rollback, corrupt state rejection, combined manual/automatic gate",
+    "browser": "save/actor metadata, conflict requires reload, late authorized A save cannot affect B, returning A reads committed state, unavailable read disables saves; existing suite passed",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "diff_check": "passed",
+    "final_browser": "Passed after shared contract/higher-version acknowledgment guard; conflict/reload, committed late A save isolation, unavailable-read recovery and full workspace suite",
+    "final_checks": "56 default programs, final scoped schema/gate SQL rehearsal, TypeScript/build and diff passed"
+  },
+  "limits": [
+    "canonical publication engine only",
+    "cooperative boundary checks do not cancel remote calls in flight",
+    "global stop still filesystem-scoped; agency SQL scope/quotas/peer roles pending",
+    "latest control metadata UI only; full control-history/report fanout pending",
+    "all workers must run updated code; live hosting acceptance pending"
+  ],
+  "production_changes": false
+}

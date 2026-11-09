@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import {formatPlatformDateTime} from '../../shared/platformTime';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Sparkles,
   Image as ImageIcon,
@@ -38,6 +39,7 @@ import { BusinessProfile, ContentPost, CompanyAsset, SocialTemplate } from '../t
 import { generateMarketingContent } from '../services/aiService';
 import {
   createContentPostApi,
+  apiRequest,
   updatePostStatusApi,
   publishContentPostApi,
   deleteContentPostApi,
@@ -58,6 +60,7 @@ interface ContentStudioViewProps {
   companyId?: string;
   onAddNewPost: (post: ContentPost) => void;
   onPublishPost?: (postId: string) => void;
+  onRefreshPosts?: (postId:string)=>void;
   onDeletePost?: (postId: string) => void;
   onNavigate: (tab: any) => void;
   onUpdateBusiness?: (updated: BusinessProfile) => void;
@@ -69,11 +72,28 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   companyId,
   onAddNewPost,
   onPublishPost,
+  onRefreshPosts,
   onDeletePost,
   onNavigate,
   onUpdateBusiness,
 }) => {
+  const mounted=useRef(true);useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const [localPosts, setLocalPosts] = useState<ContentPost[]>(posts);
+  const [scheduleEdits,setScheduleEdits]=useState<Record<string,{date:string;time:string}>>({});
+  const [workflowHistories,setWorkflowHistories]=useState<Record<string,{history:any[];nextBefore:string|null}>>({});
+  const historyGeneration=useRef(0);
+  const [historyBusy,setHistoryBusy]=useState<string|null>(null);
+  const loadWorkflowHistory=async(postId:string,before?:string)=>{
+    if(!companyId || historyBusy)return;const generation=historyGeneration.current;setHistoryBusy(postId);setPostActionError(null);
+    try{
+      const result=await apiRequest<{success:boolean;history:any[];nextBefore:string|null}>(`/api/companies/${encodeURIComponent(companyId)}/posts/${encodeURIComponent(postId)}/workflow-history${before?`?before=${encodeURIComponent(before)}`:''}`);
+      if(generation!==historyGeneration.current)return;
+      if(!result.success || !Array.isArray(result.history))throw new Error('History acknowledgment unavailable');
+      setWorkflowHistories(previous=>({...previous,[postId]:{history:before?[...(previous[postId]?.history || []),...result.history]:result.history,nextBefore:result.nextBefore}}));
+    }catch(error){if(generation===historyGeneration.current)setPostActionError(error instanceof Error?error.message:'Workflow history unavailable');}
+    finally{setHistoryBusy(null);}
+  };
+
   const [contentType, setContentType] = useState<'offer' | 'festival' | 'service' | 'educational'>('offer');
   const [targetPlatform, setTargetPlatform] = useState<'google' | 'instagram' | 'whatsapp'>('google');
   const [language, setLanguage] = useState<
@@ -178,6 +198,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       const fetched = await fetchCompanyAssetsApi(effectiveCompanyId);
       setAssets(fetched);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.warn('[loadCompanyAssets] Failed to load assets:', err?.message);
     } finally {
       setIsLoadingAssets(false);
@@ -236,6 +257,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         }
       }
     } catch (err: any) {
+      if(!mounted.current)return;
       setAssetActionError(err?.message || 'Failed to upload asset. Please try again.');
     } finally {
       setIsUploadingAsset(false);
@@ -248,9 +270,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
         if (!window.confirm('Delete this asset from your brand media library?')) return;
       }
-    } catch {
-      // In restricted iframe environments, proceed safely
-    }
+    } catch {setPostActionError('Deletion confirmation unavailable. No post was deleted.');return;}
     setIsDeletingAssetId(assetId);
     setAssetActionError(null);
     setAssetSuccessMessage(null);
@@ -270,6 +290,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         return prev;
       });
     } catch (err: any) {
+      if(!mounted.current)return;
       setAssetActionError(err?.message || 'Failed to delete asset.');
     } finally {
       setIsDeletingAssetId(null);
@@ -385,6 +406,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         setTimeout(() => setScheduleSuccessToast(null), 4000);
       }
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to render creative:', err);
       setPostActionError(`Creative rendering error: ${err?.message || 'Server error'}`);
     } finally {
@@ -456,6 +478,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         }
       }, 2000);
     } catch (err: any) {
+      if(!mounted.current)return;
       setIsRenderingReel(false);
       setReelRenderError(err?.message || 'Failed to start video rendering job.');
     }
@@ -483,15 +506,20 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       // Re-render creative with new brand colors
       handleRenderCreative(selectedTemplateId);
     } catch (err: any) {
+      if(!mounted.current)return;
       setAssetActionError(`Failed to save brand kit: ${err?.message || 'Error'}`);
     } finally {
       setIsSavingBrandKit(false);
     }
   };
 
+  const generationRequest=useRef<AbortController|null>(null);
+  useEffect(()=>()=>generationRequest.current?.abort(),[]);
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    const result = await generateMarketingContent({
+    generationRequest.current?.abort();const controller=new AbortController();generationRequest.current=controller;
+    setIsGenerating(true);setPostActionError(null);
+    try{
+    const result = await generateMarketingContent({companyId,
       businessName: business.name,
       category: business.category,
       contentType,
@@ -504,7 +532,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       brandTone: business.brandKit?.brandTone || '',
       tagline: business.brandKit?.tagline || '',
       preferredLanguage: business.brandKit?.preferredLanguage || language,
-    });
+    },controller.signal);
+    if(controller.signal.aborted)return;
 
     if (result) {
       const newHeadline = result.headline || generatedPost.headline;
@@ -526,7 +555,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       setReelJob(null);
       setReelRenderError(null);
     }
-    setIsGenerating(false);
+    }catch{if(!controller.signal.aborted)setPostActionError('AI generation unavailable. Existing draft was kept; retry or edit it manually.');}
+    finally{if(!controller.signal.aborted)setIsGenerating(false);}
   };
 
   const handleSchedulePost = async () => {
@@ -543,32 +573,11 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       hashtags: generatedPost.hashtags || [],
       imageUrl: generatedPost.imageUrl || 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=600&q=80',
       videoUrl: renderedReelUrl || undefined,
-      status: 'scheduled',
+      status: 'pending_approval',
       scheduledDate: scheduleDate,
       timeSlot: scheduleTimeSlot,
       reelScript: generatedPost.reelScript,
     };
-
-    const tempId = `temp_post_${Date.now()}`;
-    const optimisticPost: ContentPost = {
-      id: tempId,
-      title: postPayload.title!,
-      type: postPayload.type!,
-      platforms: postPayload.platforms!,
-      headline: postPayload.headline!,
-      caption: postPayload.caption!,
-      cta: postPayload.cta!,
-      hashtags: postPayload.hashtags!,
-      imageUrl: postPayload.imageUrl!,
-      videoUrl: postPayload.videoUrl,
-      status: 'scheduled',
-      scheduledDate: postPayload.scheduledDate!,
-      timeSlot: postPayload.timeSlot!,
-      reelScript: postPayload.reelScript,
-    };
-
-    const previousPosts = [...localPosts];
-    setLocalPosts((prev) => [optimisticPost, ...prev]);
 
     try {
       const created = await createContentPostApi({
@@ -576,25 +585,42 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         companyId,
       });
 
+      if(!mounted.current)return;
       if (!created || !created.id) {
         throw new Error('Server did not return a valid post record');
       }
 
-      setLocalPosts((prev) => prev.map((p) => (p.id === tempId ? created : p)));
+      setLocalPosts((prev) => [created,...prev.filter(post=>post.id!==created.id)]);
       onAddNewPost(created);
-      setScheduleSuccessToast(`✓ Post "${created.title}" scheduled & saved to MySQL database (ID: ${created.id})!`);
+      setScheduleSuccessToast(`✓ Post "${created.title}" saved awaiting approval in workspace records (ID: ${created.id})!`);
       setTimeout(() => setScheduleSuccessToast(null), 5000);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to create content post in MySQL:', err);
       // Roll back
-      setLocalPosts(previousPosts);
       setPostActionError(`Failed to save post to MySQL: ${err?.message || 'Server error'}. Changes rolled back.`);
     } finally {
-      setIsSavingPost(false);
+      if(mounted.current)setIsSavingPost(false);
     }
   };
 
+  const handleWorkflow=async(post:ContentPost,status:'draft'|'pending_approval'|'scheduled',schedule?:{date:string;time:string})=>{
+    if(!companyId || !post.sourceVersion || isPublishingId)return;
+    setIsPublishingId(post.id);setPostActionError(null);
+    try{
+      const result=await apiRequest<{success:boolean;status:ContentPost['status'];sourceVersion:string}>(`/api/content-posts/${encodeURIComponent(post.id)}/status`,{method:'PATCH',body:JSON.stringify({companyId,status,expectedVersion:post.sourceVersion,...(schedule?{schedule}:{})})});
+      if(!result.success || !result.sourceVersion)throw new Error('Status change unconfirmed; reload before retrying');
+      setLocalPosts(previous=>previous.map(row=>row.id===post.id?{...row,status:result.status,sourceVersion:result.sourceVersion,...(schedule?{scheduledDate:schedule.date,timeSlot:schedule.time}:{})}:row));
+      historyGeneration.current++;
+      setWorkflowHistories(previous=>{const next={...previous};delete next[post.id];return next;});
+      await onRefreshPosts?.(post.id);
+    }catch(error){setPostActionError(error instanceof Error?error.message:'Approval change unconfirmed');}
+    finally{setIsPublishingId(null);}
+  };
+
   const handlePublishPost = async (postId: string) => {
+    const previousPostsVersion=localPosts.find(p=>p.id===postId)?.sourceVersion;
+    if(!previousPostsVersion){setPostActionError('Reload the stored post before publishing.');return;}
     const previousPosts = [...localPosts];
     // Optimistic status update: set to publishing while state machine executes
     setLocalPosts((prev) =>
@@ -604,7 +630,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
     setPostActionError(null);
 
     try {
-      const resp = await publishContentPostApi(postId, companyId);
+      const resp = await publishContentPostApi(postId, companyId,undefined,previousPostsVersion);
       if (resp.success && resp.result?.overallStatus === 'PUBLISHED') {
         setLocalPosts((prev) =>
           prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
@@ -619,12 +645,12 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         setPostActionError(`⚠️ Provider state unknown: ${resp.result?.message || 'Network timeout while publishing'}`);
       } else {
         const errorMsg = resp.result?.message || resp.error || 'Provider rejected publishing request';
-        setLocalPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, status: 'failed' as const } : p))
-        );
+        if(resp.result)setLocalPosts((prev)=>prev.map(p=>p.id===postId?{...p,status:(resp.result.finalPostStatus || 'failed') as ContentPost['status']}:p));
+        else setLocalPosts(previousPosts);
         setPostActionError(`Failed to publish post: ${errorMsg}`);
       }
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to publish post:', err);
       // Roll back
       setLocalPosts(previousPosts);
@@ -639,31 +665,28 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
         if (!window.confirm(`Delete post "${postTitle}" from MySQL database?`)) return;
       }
-    } catch {
-      // In restricted iframe environments, proceed safely
-    }
+    } catch {setPostActionError('Deletion confirmation unavailable. No post was deleted.');return;}
 
-    const previousPosts = [...localPosts];
-    // Optimistic deletion
-    setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
     setIsDeletingId(postId);
     setPostActionError(null);
 
     try {
       const ok = await deleteContentPostApi(postId, companyId);
+      if(!mounted.current)return;
       if (!ok) {
         throw new Error('Failed to delete post on server');
       }
+      setLocalPosts(previous=>previous.filter(post=>post.id!==postId));
       setScheduleSuccessToast('✓ Post deleted from MySQL database.');
       setTimeout(() => setScheduleSuccessToast(null), 3000);
       onDeletePost?.(postId);
     } catch (err: any) {
+      if(!mounted.current)return;
       console.error('Failed to delete post from MySQL:', err);
       // Roll back
-      setLocalPosts(previousPosts);
       setPostActionError(`Failed to delete post from MySQL: ${err?.message || 'Server error'}. Post restored.`);
     } finally {
-      setIsDeletingId(null);
+      if(mounted.current)setIsDeletingId(null);
     }
   };
 
@@ -934,8 +957,20 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                       </div>
                     </div>
 
+                    <div className="text-xs space-y-2">
+                      <button disabled={historyBusy===post.id} onClick={()=>void loadWorkflowHistory(post.id)} className="text-indigo-700">Approval history</button>
+                      {workflowHistories[post.id] && <><ul aria-label={`Approval history ${post.id}`}>{workflowHistories[post.id].history.map(row=><li key={row.id}>{row.change_kind}: {row.from_status} → {row.to_status} · Actor {row.actor_id} · {formatPlatformDateTime(row.recordedAtMs)}{row.schedule_after && <span> · New schedule: {row.schedule_after.date} {row.schedule_after.time} IST</span>}</li>)}</ul>{workflowHistories[post.id].history.length===0 && <p>No approval changes recorded.</p>}{workflowHistories[post.id].nextBefore && <button disabled={historyBusy===post.id} onClick={()=>void loadWorkflowHistory(post.id,workflowHistories[post.id].nextBefore!)}>Older approval changes</button>}</>}
+                      {['draft','pending_approval','scheduled','failed'].includes(post.status) && <div>
+                        <label>Schedule date (IST)<input aria-label={`Schedule date ${post.id}`} type="date" value={scheduleEdits[post.id]?.date || ''} onChange={event=>setScheduleEdits(previous=>({...previous,[post.id]:{date:event.target.value,time:previous[post.id]?.time || ''}}))}/></label>
+                        <label>Time (IST)<input aria-label={`Schedule time ${post.id}`} type="time" value={scheduleEdits[post.id]?.time || ''} onChange={event=>setScheduleEdits(previous=>({...previous,[post.id]:{date:previous[post.id]?.date || '',time:event.target.value}}))}/></label>
+                        <button disabled={!post.sourceVersion || !!isPublishingId || !scheduleEdits[post.id]?.date || !scheduleEdits[post.id]?.time} onClick={()=>void handleWorkflow(post,'pending_approval',scheduleEdits[post.id])}>Reschedule for approval</button>
+                        <p>Schedule changes return this post to approval and do not publish it.</p>
+                      </div>}
+                    </div>
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                       <span className="text-[10px] text-slate-400 font-mono">ID: {post.id}</span>
+                      {['draft','pending_approval','scheduled','failed'].includes(post.status) && <button disabled={!post.sourceVersion || !!isPublishingId} onClick={()=>void handleWorkflow(post,['draft','failed'].includes(post.status)?'pending_approval':post.status==='pending_approval'?'scheduled':'draft')} className="text-xs font-semibold text-indigo-700 disabled:opacity-50">{['draft','failed'].includes(post.status)?'Request approval':post.status==='pending_approval'?'Approve for scheduled publishing':'Return to draft'}</button>}
+                      {post.status==='scheduled' && <button disabled={!post.sourceVersion || !!isPublishingId} onClick={()=>void handleWorkflow(post,'pending_approval')} className="text-xs text-indigo-700 disabled:opacity-50">Request reapproval</button>}
                       {post.status === 'scheduled' && (
                         <button
                           onClick={() => handlePublishPost(post.id)}
@@ -1537,7 +1572,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                     ) : (
                       <Send className="w-3 h-3" />
                     )}
-                    <span>{isSavingPost ? 'Saving to MySQL...' : 'Save to MySQL'}</span>
+                    <span>{isSavingPost ? 'Saving to MySQL...' : 'Save for Approval'}</span>
                   </button>
                 </div>
               </div>

@@ -37,7 +37,7 @@ interface HeaderProps {
   onOpenOnboarding?: () => void;
   isLiveMode?: boolean;
   onOpenResetModal?: () => void;
-  saveStatus?: 'idle' | 'saving' | 'saved';
+  saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   // Multi-Company & Auth Props
   user?: AuthUser | null;
   companies?: CompanyRecord[];
@@ -96,14 +96,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
             <span>
-              <strong>EMERGENCY STOP ACTIVE:</strong> All scheduled posts, autonomous review replies, and outbound WhatsApp messages have been paused.
+              <strong>EMERGENCY STOP ACTIVE:</strong> New work at protected execution boundaries is paused; in-flight requests may complete.
             </span>
           </div>
           <button
             onClick={() => setIsEmergencyPaused(false)}
             className="bg-white text-rose-700 px-3 py-1 rounded-xl text-xs font-bold hover:bg-rose-50 transition shadow-xs"
           >
-            Resume Automations
+            Review execution controls
           </button>
         </div>
       )}
@@ -131,6 +131,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="hidden sm:inline">Saving to server...</span>
                   <span className="sm:hidden">Saving...</span>
                 </span>
+              )}
+              {saveStatus === 'error' && (
+                <span role="status" className="text-xs font-semibold text-rose-700">Not saved — reload workspace before saving.</span>
               )}
               {saveStatus === 'saved' && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
@@ -209,17 +212,17 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Right Controls: Autopilot, Emergency Stop, User Session */}
+        {/* Right Controls: Autopilot, Execution controls, User Session */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Setup Wizard Button */}
           {onOpenOnboarding && (
             <button
               onClick={onOpenOnboarding}
               className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition shadow-xs"
-              title="5-Minute Business Setup & First-Value Audit Wizard"
+              title="Business Setup Wizard"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Audit Wizard</span>
+              <span>Setup Wizard</span>
             </button>
           )}
 
@@ -235,10 +238,10 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Zap className={`w-3.5 h-3.5 ${isAutopilotOn ? 'text-emerald-600 fill-emerald-600' : ''}`} />
             <span className="hidden sm:inline">Autopilot:</span>
-            <span>{isAutopilotOn ? 'ON' : 'OFF'}</span>
+            <span>{isAutopilotOn ? 'Enabled · manage' : 'Manage'}</span>
           </button>
 
-          {/* Emergency Stop Button */}
+          {/* Execution controls Button */}
           <button
             onClick={() => setIsEmergencyPaused(!isEmergencyPaused)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs ${
@@ -248,7 +251,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isEmergencyPaused ? 'Resume' : 'Pause All'}</span>
+            <span className="hidden sm:inline">Execution controls</span>
           </button>
 
           {/* Logged-in User Profile & Logout */}

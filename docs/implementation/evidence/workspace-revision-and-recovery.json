@@ -1,0 +1,35 @@
+{
+  "date_ist": "2026-11-05",
+  "tasks": [
+    "P01-02",
+    "P01-05",
+    "P01-09",
+    "P02-03",
+    "P02-04"
+  ],
+  "status": "in_progress",
+  "sequential_batches": 6,
+  "migration": "026_company_profile_revision",
+  "canonical_tables": 47,
+  "historical_migrations_changed": false,
+  "production_changes": false,
+  "validation": {
+    "default_programs": 71,
+    "default_suite": "passed71 isolated programs; final profile/factory cases also passed targeted run",
+    "typescript": "passed final",
+    "build": "passed final; existing bundle-size warning",
+    "sql": "passed actual MariaDB10.11 fresh001\u2013026/upgrade005\u2013026 metadata parity/repeat0, missing revision readiness,8-way one-winner create race, stale retention/next increment, tenant scope, rollback and uint64 exhaustion",
+    "browser_workspace": "passed full mocked Chromium including other-writer conflict, no blind retry, reload recovery, A\u2192B\u2192A in-flight save/cache/logout/denial flows",
+    "browser_company": "passed dedicated mocked Chromium: known company reused after setup failure, next creation reset, malformed creation ack paused and reload found stored row",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "all writers must use/increment revision; mixed old versions/direct SQL bypass CAS",
+    "revision covers profile JSON, not all business tables/agency membership",
+    "separate provider effects/observation rows may precede a later profile conflict",
+    "no automatic rebase/merge; reload discards unconfirmed local edits",
+    "company creation recovery fence is not durable cross-tab/session idempotency",
+    "full typed workspace extraction, other phase/hosting acceptance and ledger reconciliation remain open; billing excluded"
+  ],
+  "tracker_status_changes": false
+}

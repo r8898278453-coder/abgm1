@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import {formatPlatformDateTime} from '../../shared/platformTime';
+import {platformDateKey} from '../../shared/dailyWorkReport';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Layers,
   TrendingUp,
@@ -50,20 +52,23 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   companyId,
   posts = [],
 }) => {
+  const mounted=useRef(true),syncOperation=useRef(false);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const [activeTab, setActiveTab] = useState<'internal' | 'external_ads' | 'attribution'>('internal');
   const [internalCampaigns, setInternalCampaigns] = useState<InternalCampaign[]>([]);
   const [externalCampaigns, setExternalCampaigns] = useState<ExternalAdCampaign[]>([]);
+  const [loadError,setLoadError]=useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [feedbackToast, setFeedbackToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // New Internal Campaign Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newCampName, setNewCampName] = useState('Diwali SME Corporate IT & Laptop AMC Special');
-  const [newCampObjective, setNewCampObjective] = useState('Acquire 50+ corporate AMC client contracts in Vashi & Belapur');
-  const [newCampBudget, setNewCampBudget] = useState(6000);
-  const [newCampStartDate, setNewCampStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newCampEndDate, setNewCampEndDate] = useState(new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0]);
+  const [newCampName, setNewCampName] = useState('');
+  const [newCampObjective, setNewCampObjective] = useState('');
+  const [newCampBudget, setNewCampBudget] = useState(0);
+  const [newCampStartDate, setNewCampStartDate] = useState(platformDateKey());
+  const [newCampEndDate, setNewCampEndDate] = useState(platformDateKey(Date.now()+30*86400000));
   const [newCampChannels, setNewCampChannels] = useState<string[]>(['Google Business', 'Instagram Reels', 'WhatsApp']);
 
   // Link Campaign Modal State
@@ -78,20 +83,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   const [attributionData, setAttributionData] = useState<RevenueAttributionResult | null>(null);
 
   const loadData = async () => {
-    setLoading(true);
+    setLoading(true);setLoadError(false);
     try {
       const [internalRes, externalRes, attrRes] = await Promise.all([
         getInternalCampaignsApi(companyId),
         getExternalAdCampaignsApi(companyId),
         fetchRevenueAttributionApi(companyId),
       ]);
+      if(!mounted.current)return;
       setInternalCampaigns(internalRes);
       setExternalCampaigns(externalRes);
       setAttributionData(attrRes);
     } catch (err: any) {
-      console.error('Failed to load campaigns data:', err);
+      if(mounted.current){setLoadError(true);setFeedbackToast({type:'error',message:'Campaign data unavailable. Reload before making changes.'});}
     } finally {
-      setLoading(false);
+      if(mounted.current)setLoading(false);
     }
   };
 
@@ -100,36 +106,23 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   }, [companyId]);
 
   const handleSyncExternal = async (provider = 'meta_ads') => {
-    setSyncing(true);
-    setFeedbackToast({ type: 'info', message: `Syncing with verified provider (${provider.replace('_', ' ').toUpperCase()})...` });
-    try {
-      const res = await syncExternalAdCampaignsApi(companyId, provider);
-      if (res.success && res.syncResult) {
-        setFeedbackToast({
-          type: 'success',
-          message: `✓ Sync complete! Synced ${res.syncResult.syncedCampaignsCount || 0} ad campaigns from ${res.syncResult.provider}.`,
-        });
-        const updatedExternal = await getExternalAdCampaignsApi(companyId);
-        setExternalCampaigns(updatedExternal);
-      } else {
-        setFeedbackToast({
-          type: 'error',
-          message: res.syncResult?.error || res.error || 'Provider sync failed or credentials missing.',
-        });
-      }
-    } catch (err: any) {
-      setFeedbackToast({
-        type: 'error',
-        message: err?.message || 'Sync error occurred.',
-      });
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setFeedbackToast(null), 5000);
-    }
+    if(!companyId||syncOperation.current)return;
+    syncOperation.current=true;setSyncing(true);
+    setFeedbackToast({type:'info',message:'Reading campaign records from the configured provider...'});
+    try{
+      const response=await syncExternalAdCampaignsApi(companyId,provider);
+      if(!mounted.current)return;
+      const result=response.syncResult;
+      if(response.companyId!==companyId||!result||!['SUCCESS','PARTIAL','PROVIDER_ERROR','NOT_CONFIGURED'].includes(result.status)||!Number.isSafeInteger(result.campaignsCount)||result.campaignsCount<0)throw new Error('Sync acknowledgement unavailable');
+      setFeedbackToast({type:result.status==='SUCCESS'?'success':'error',message:result.message||'Campaign sync incomplete. Reload stored data before retrying.'});
+      const records=await getExternalAdCampaignsApi(companyId);if(mounted.current)setExternalCampaigns(records);
+    }catch{if(mounted.current)setFeedbackToast({type:'error',message:'Campaign sync unconfirmed. Reload stored data before retrying.'});}
+    finally{syncOperation.current=false;if(mounted.current)setSyncing(false);}
   };
 
   const handleCreateInternalCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(loading||loadError||!companyId)return;
     if (!newCampName.trim()) return;
 
     try {
@@ -572,7 +565,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             <div>
               <strong className="text-white block font-bold">Data Integrity & Anti-Fabrication Rule:</strong>
               <p className="text-slate-300 mt-0.5 leading-relaxed">
-                Ad reach, clicks, spend, and conversions are pulled directly from verified ad provider APIs (e.g. Meta Ads API v19.0). If conversion tracking or revenue attribution is unavailable from the provider, the system preserves honest <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">UNAVAILABLE</span> telemetry rather than guessing numbers.
+                Ad reach, clicks, spend, and conversions are pulled directly from verified ad provider APIs (e.g. Meta Ads API v21.0). If conversion tracking or revenue attribution is unavailable from the provider, the system preserves honest <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">UNAVAILABLE</span> telemetry rather than guessing numbers.
               </p>
             </div>
           </div>
@@ -581,7 +574,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             <div className="p-8 text-center text-xs text-slate-400 bg-white rounded-3xl border border-slate-200">
               Loading external ad telemetry...
             </div>
-          ) : externalCampaigns.length === 0 ? (
+          ) : loadError ? (<div role="alert">Campaign records unavailable. <button onClick={()=>void loadData()}>Reload campaign records</button></div>) : externalCampaigns.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
               <p className="text-xs text-slate-500 font-medium">No external ad campaigns synced yet.</p>
               <p className="text-[11px] text-slate-400 max-w-md mx-auto">
@@ -622,7 +615,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                           </span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400">
-                          ID: {ad.externalCampaignId} • Provider: {ad.provider} • Fetched: {new Date(ad.fetchedAt).toLocaleString()}
+                          ID: {ad.externalCampaignId} • Provider: {ad.provider} • Fetched: {ad.fetchedAt?formatPlatformDateTime(ad.fetchedAt):'Time unavailable'}
                         </span>
                       </div>
                     </div>

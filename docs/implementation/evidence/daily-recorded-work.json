@@ -1,0 +1,31 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "021_daily_work_report_indexes",
+  "canonical_tables": 42,
+  "scope": [
+    "daily recorded queue/workflow activity",
+    "separately labelled current backlog",
+    "authenticated metadata-only report API and dashboard",
+    "previous-day work summary in existing morning tenant digest"
+  ],
+  "validation": {
+    "default_programs": 55,
+    "sql": "READY through021/repeat0; exact half-open IST bounds, distinct repeated-event counts, tenant/privacy/empty data, UNKNOWN+stale claim backlog, alternate DB session timezone and equivalent-index reuse",
+    "http": "auth/workspace, strict date/query/default day, redacted503",
+    "digest": "previous full IST day, formatted recorded counts/current backlog, no fake zero on failure, budget gate prevents read",
+    "browser": "date change, unavailable clears counts, recovery, late old-client response ignored; existing workspace suite passed",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "diff_check": "passed",
+    "final_checks": "55-program suite passed; final stale-claim SQL fixture, TypeScript/build and diff passed; browser card isolation passed"
+  },
+  "limits": [
+    "queue/workflow coverage only; no full direct-provider/CRM/revenue reconciliation",
+    "current backlog is not a historical day-end snapshot",
+    "counts overlap; today remains partial",
+    "all-client rollup/immutable report snapshots/additional channels pending",
+    "live hosting/integration acceptance pending",
+    "Work subsection shares the existing daily occurrence; an unavailable subsection is not separately resent after digest delivery"
+  ],
+  "production_changes": false
+}

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { latestNotificationDue } from '../server/notificationOccurrences';
+const time = Date.parse;
+assert.equal(latestNotificationDue('daily_digest', time('2026-11-03T02:29:59Z')), time('2026-11-02T02:30:00Z'));
+assert.equal(latestNotificationDue('daily_digest', time('2026-11-03T02:30:00Z')), time('2026-11-03T02:30:00Z'));
+assert.equal(latestNotificationDue('daily_digest', time('2026-11-03T12:00:00Z')), time('2026-11-03T02:30:00Z'));
+assert.equal(latestNotificationDue('review_reminder', time('2026-11-03T05:29:59Z')), time('2026-11-03T04:30:00Z'));
+assert.equal(latestNotificationDue('review_reminder', time('2026-11-03T05:30:00Z')), time('2026-11-03T05:30:00Z'));
+assert.throws(() => latestNotificationDue('daily_digest', NaN));
+console.log('Notification occurrence cutoffs: IST08:00 daily and hourly boundaries, delayed ticks and invalid clock passed.');

@@ -1,38 +1,26 @@
+import {claimDispatcherTick,checkpointDispatcherStage,settleDispatcherTick} from './dispatcherStore';
+import {runDispatcherCycle,dispatcherSummary} from './dispatcherCycle';
+import { createWorkBudget, type WorkGate } from './workBudget';
+import { getDigestSummary, getReviewReminderSummary, getDailyWorkDigest } from './notificationSummaryService';
+import { getScheduledPostBatch } from './scheduledPostBatchService';
+import { getNotificationCompanyBatch } from './notificationBatchService';
+import { PLATFORM_TIME_ZONE } from '../shared/platformTime';
+import { sendScheduledNotification } from './scheduledNotifications';
+import { latestNotificationDue } from './notificationOccurrences';
+import { admitScheduledPosts } from './scheduledPublishing';
+import { processInternalActionFeed } from './actionFeedService';
 /**
- * ============================================================================
- * ARCHITECTURAL NOTICE: IN-PROCESS BACKGROUND AUTOMATION SCHEDULER
- * ============================================================================
- * IMPORTANT: This scheduler runs as an in-process cron daemon within the single
- * Node.js Express server process. It functions reliably as long as this single
- * Node.js instance stays active and running.
- *
- * HORIZONTAL SCALING & MULTI-REPLICA DEPLOYMENT WARNING:
- * If this application is ever deployed across multiple server instances,
- * load-balanced containers, or auto-scaled Cloud Run / Kubernetes replicas,
- * this in-process scheduler will cause duplicate task execution across nodes.
- *
- * In such multi-instance environments, these scheduled cron jobs MUST be moved
- * to a dedicated distributed task queue architecture (such as BullMQ + Redis,
- * Temporal, or GCP Cloud Tasks / Cloud Scheduler) using a distributed-locking
- * or leader-election mechanism (such as Redlock or database lock tables)
- * to guarantee strict at-most-once execution across instances.
- * ============================================================================
+ * Internal and external ticks share durable queue admission/execution for posts.
+ * Digests/reminders use persisted latest-due occurrences with conservative UNKNOWN
+ * outcomes after uncertain dispatch. Provider reconciliation and report UI remain pending.
  */
 
 import cron, { ScheduledTask } from 'node-cron';
 import {
-  getAllScheduledPosts,
-  updateContentPostStatus,
-  getAllCompanies,
-  getAllLeads,
-  getCompanyReviews,
-  sendTelegramPushAlert,
+  getDbPool,
+  enqueueJob,
   getCompanyById,
-  getCompanyIntegration,
-  DbContentPost,
-  DbCompany,
 } from './db';
-import { executePublishingJob } from './publishingEngine';
 import { isGlobalEmergencyStopActive } from './autonomousEngine';
 
 // Global registration guard for development hot-reloads and container lifecycles
@@ -70,256 +58,57 @@ const schedulerStatus: SchedulerStatus = {
  * Evaluates whether a post's scheduled date and time has passed.
  * Supports ISO strings, YYYY-MM-DD dates, and standard 12/24-hour time strings.
  */
-export function isScheduledTimePassed(
-  scheduledDate?: string | null,
-  scheduledTime?: string | null,
-  timeSlot?: string | null
-): boolean {
-  if (!scheduledDate || typeof scheduledDate !== 'string') return false;
+export { isScheduledTimePassed } from './scheduleTime';
 
-  const now = Date.now();
-  const trimmedDate = scheduledDate.trim();
-
-  // 1. Direct ISO / Datetime strings with time components (e.g. 2026-09-13T10:00:00.000Z or 2026-09-13 14:00:00)
-  if (trimmedDate.includes('T') || (trimmedDate.includes(':') && trimmedDate.includes(' '))) {
-    const parsedIso = Date.parse(trimmedDate);
-    if (!isNaN(parsedIso)) {
-      return parsedIso <= now;
-    }
-  }
-
-  // 2. Date in YYYY-MM-DD format
-  const dateMatch = trimmedDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (dateMatch) {
-    const year = parseInt(dateMatch[1], 10);
-    const month = parseInt(dateMatch[2], 10) - 1;
-    const day = parseInt(dateMatch[3], 10);
-
-    const rawTime = (scheduledTime || timeSlot || '').trim();
-    let hours = 0;
-    let minutes = 0;
-    let seconds = 0;
-    let hasTimeComponent = false;
-
-    if (rawTime.includes(':')) {
-      const ampmMatch = rawTime.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
-      if (ampmMatch) {
-        hasTimeComponent = true;
-        let h = parseInt(ampmMatch[1], 10);
-        minutes = parseInt(ampmMatch[2], 10);
-        seconds = ampmMatch[3] ? parseInt(ampmMatch[3], 10) : 0;
-        const ampm = ampmMatch[4]?.toUpperCase();
-        if (ampm === 'PM' && h < 12) h += 12;
-        if (ampm === 'AM' && h === 12) h = 0;
-        hours = h;
-      }
-    }
-
-    if (hasTimeComponent) {
-      const targetTime = new Date(year, month, day, hours, minutes, seconds).getTime();
-      return targetTime <= now;
-    } else {
-      // If only date is specified with no time:
-      // If the scheduled day is before today's calendar day, it has definitely passed.
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const scheduledDay = new Date(year, month, day, 0, 0, 0);
-      return scheduledDay.getTime() < today.getTime();
-    }
-  }
-
-  // 3. Fallback generic date parser
-  const genericParsed = Date.parse(trimmedDate);
-  if (!isNaN(genericParsed)) {
-    return genericParsed <= now;
-  }
-
-  return false;
-}
-
-/**
- * JOB A: Auto-publish scheduled content posts.
- * Runs every 5 minutes. Finds content_posts with status='scheduled' whose
- * scheduled_date has passed, flips them to status='published', and sends a
- * Telegram notification confirming auto-publish.
- */
-export async function runAutoPublishJob(): Promise<{
-  processed: number;
-  publishedCount: number;
-  publishedPosts: Array<{ id: string; title: string; companyId: string }>;
-}> {
-  const timestamp = new Date().toISOString();
-  schedulerStatus.lastPublishRun = timestamp;
-  console.log(`[Scheduler:AutoPublish] [${timestamp}] Checking scheduled content posts...`);
-
-  if (isGlobalEmergencyStopActive()) {
-    console.warn('[Scheduler:AutoPublish] Auto-publishing skipped: Global Emergency Kill Switch is ACTIVE.');
-    return {
-      processed: 0,
-      publishedCount: 0,
-      publishedPosts: [],
-    };
-  }
-
-  const scheduledPosts = await getAllScheduledPosts();
-  const publishedPosts: Array<{ id: string; title: string; companyId: string }> = [];
-
-  for (const post of scheduledPosts) {
-    if (isScheduledTimePassed(post.scheduled_date, post.scheduled_time, post.time_slot)) {
-      try {
-        // Check tenant autopilot status
-        if (post.company_id) {
-          const comp = await getCompanyById(post.company_id);
-          if (comp && !comp.autopilot_enabled) {
-            console.log(`[Scheduler:AutoPublish] Skipped post ${post.id}: Autopilot is disabled for company ${post.company_id}.`);
-            continue;
-          }
-        }
-
-        // Execute strict publishing state machine: Content -> Job -> Provider API -> Provider Success -> Record -> PUBLISHED
-        const jobResult = await executePublishingJob(post);
-
-        if (jobResult.overallStatus === 'PUBLISHED') {
-          publishedPosts.push({
-            id: post.id,
-            title: post.title || post.caption.slice(0, 40),
-            companyId: post.company_id,
-          });
-
-          schedulerStatus.stats.totalPostsPublished += 1;
-          console.log(
-            `[Scheduler:AutoPublish] Successfully published post "${post.id}" ("${post.title || post.caption.slice(0, 30)}") for company "${post.company_id}". Providers: ${jobResult.message}`
-          );
-
-          // Fetch company details for rich Telegram alert
-          let compName = post.company_id;
-          try {
-            const comp = await getCompanyById(post.company_id);
-            if (comp?.name) compName = comp.name;
-          } catch {}
-
-          const mediaBadge = post.video_url ? '\n🎬 *Format:* 15-Second Remotion MP4 Reel Video' : '';
-          const platforms = Array.isArray(post.platforms) && post.platforms.length > 0
-            ? post.platforms
-            : [post.channel || 'google'];
-
-          const alertMsg = `🚀 *AUTONOMOUS ENGINE: POST PUBLISHED!*
-
-🏢 *Business:* ${compName}
-📝 *Title:* ${post.title || 'Campaign Update'}
-🏷️ *Platforms:* ${platforms.join(', ')}${mediaBadge}
-⏰ *Scheduled For:* ${post.scheduled_date} ${post.scheduled_time || post.time_slot || ''}
-💬 *Caption Preview:* "${post.caption.slice(0, 140)}${post.caption.length > 140 ? '...' : ''}"
-
-⚡ Published autonomously by ABGA Autopilot Engine. Status: ${jobResult.overallStatus}`;
-
-          // Send Telegram alert confirming verified auto-publish
-          sendTelegramPushAlert(alertMsg).catch((err) => {
-            console.warn('[Scheduler:AutoPublish] Telegram alert dispatch notice:', err?.message);
-          });
-        } else if (jobResult.overallStatus === 'SKIPPED_ALREADY_PUBLISHED') {
-          console.log(`[Scheduler:AutoPublish] Post "${post.id}" was already published. Skipped duplicate dispatch.`);
-        } else if (jobResult.overallStatus === 'UNKNOWN') {
-          console.warn(
-            `[Scheduler:AutoPublish] Post "${post.id}" provider status is UNKNOWN (timeout/unconfirmed): ${jobResult.message}. Post marked as UNKNOWN.`
-          );
-        } else {
-          console.warn(
-            `[Scheduler:AutoPublish] Post "${post.id}" failed auto-publish requirements: ${jobResult.message}. Post marked as FAILED.`
-          );
-        }
-      } catch (err: any) {
-        console.error(`[Scheduler:AutoPublish] Failed to execute publishing job for post ${post.id}:`, err?.message);
-      }
-    }
-  }
-
-  console.log(
-    `[Scheduler:AutoPublish] Finished. Examined ${scheduledPosts.length} posts, verified published ${publishedPosts.length}.`
-  );
-
-  return {
-    processed: scheduledPosts.length,
-    publishedCount: publishedPosts.length,
-    publishedPosts,
-  };
+/** Admit overdue scheduled posts to the durable queue; never call providers here. */
+export async function runAutoPublishJob(canStart: WorkGate = () => true) {
+  schedulerStatus.lastPublishRun = new Date().toISOString();
+  const admission = await admitScheduledPosts({ getScheduledPosts: getScheduledPostBatch, getCompanyById, enqueueJob, isStopped: isGlobalEmergencyStopActive, canStart });
+  return admission;
 }
 
 /**
  * JOB B: Compile and send Daily Morning Digest.
  * Runs once daily (e.g. 8:00 AM IST).
  * For each company: compiles new leads count (last 24h), new reviews count (last 24h),
- * and average rating change, and dispatches via sendTelegramPushAlert.
+ * and average rating change, and dispatches to its own configured Telegram recipient.
  */
-export async function runDailyDigestJob(): Promise<{
+export async function runDailyDigestJob(tickTime = Date.now(), canStart: WorkGate = () => true): Promise<{
   companiesProcessed: number;
   digestsSent: number;
+  companiesSelected: number;
+  companiesDeferred: number;
+  failedCompanies: number;
+  readTimeouts: number;
+  workReportsUnavailable:number;
 }> {
   const timestamp = new Date().toISOString();
   schedulerStatus.lastDailyDigestRun = timestamp;
   console.log(`[Scheduler:DailyDigest] [${timestamp}] Generating morning business digests...`);
 
-  const companies = await getAllCompanies();
-  const now = Date.now();
-  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+  const companies = canStart() ? await getNotificationCompanyBatch('daily_digest') : [];
+  const now = latestNotificationDue('daily_digest', tickTime);
+  let workReportsUnavailable=0;
   let digestsSent = 0;
+  let companiesProcessed = 0, failedCompanies = 0, readTimeouts = 0;
 
   for (const comp of companies) {
+    if (!canStart()) break;
+    companiesProcessed++;
     try {
-      // 1. Inbound Leads in last 24h
-      const allLeads = await getAllLeads(comp.id);
-      const recentLeads = allLeads.filter((l) => {
-        if (!l.created_at) return false;
-        const leadTime = new Date(l.created_at).getTime();
-        return !isNaN(leadTime) && (now - leadTime) <= twentyFourHoursMs;
-      });
+      const summary = await getDigestSummary(comp.id, now);
+      const workReport=await getDailyWorkDigest(comp.id,now,canStart);
+      if(!workReport.available && !workReport.deferred)workReportsUnavailable++;
+      if(workReport.readTimedOut)readTimeouts++;
+      const overallAvgRating = summary.averageRating;
+      const ratingDiff = summary.averageRating !== null && summary.olderAverageRating !== null
+        ? summary.averageRating - summary.olderAverageRating : null;
+      const deltaSummary = ratingDiff === null ? 'Comparison unavailable'
+        : ratingDiff > 0.05 ? `+${ratingDiff.toFixed(2)} ★ (Improved)`
+        : ratingDiff < -0.05 ? `${ratingDiff.toFixed(2)} ★ (Decreased)` : 'Stable';
 
-      // 2. Reviews in last 24h and rating statistics
-      const allReviews = await getCompanyReviews(comp.id);
-      const recentReviews = allReviews.filter((r) => {
-        let revTime = r.created_at ? new Date(r.created_at).getTime() : 0;
-        if (!revTime || isNaN(revTime)) {
-          revTime = Date.parse(r.date);
-        }
-        return !isNaN(revTime) && revTime > 0 && (now - revTime) <= twentyFourHoursMs;
-      });
-
-      // Overall average rating (only from reviews with authentic numeric ratings)
-      const ratedReviews = allReviews.filter((r) => typeof r.rating === 'number' && !isNaN(r.rating));
-      const overallAvgRating = ratedReviews.length > 0
-        ? ratedReviews.reduce((sum, r) => sum + Number(r.rating), 0) / ratedReviews.length
-        : 0;
-
-      // Reviews prior to the last 24 hours
-      const olderReviews = allReviews.filter((r) => {
-        let revTime = r.created_at ? new Date(r.created_at).getTime() : 0;
-        if (!revTime || isNaN(revTime)) {
-          revTime = Date.parse(r.date);
-        }
-        return !isNaN(revTime) && revTime > 0 && (now - revTime) > twentyFourHoursMs;
-      });
-
-      const olderRatedReviews = olderReviews.filter((r) => typeof r.rating === 'number' && !isNaN(r.rating));
-      const olderAvgRating = olderRatedReviews.length > 0
-        ? olderRatedReviews.reduce((sum, r) => sum + Number(r.rating), 0) / olderRatedReviews.length
-        : overallAvgRating;
-
-      // Calculate rating delta
-      const ratingDiff = (recentReviews.length > 0 && olderReviews.length > 0)
-        ? (overallAvgRating - olderAvgRating)
-        : 0;
-
-      let deltaSummary = 'Stable';
-      if (ratingDiff > 0.05) {
-        deltaSummary = `+${ratingDiff.toFixed(2)} ★ (Improved)`;
-      } else if (ratingDiff < -0.05) {
-        deltaSummary = `${ratingDiff.toFixed(2)} ★ (Decreased)`;
-      } else if (recentReviews.length > 0) {
-        deltaSummary = 'Unchanged';
-      }
-
-      const dateHeader = new Date().toLocaleDateString('en-IN', {
-        timeZone: 'Asia/Kolkata',
+      const dateHeader = new Date(now).toLocaleDateString('en-IN', {
+        timeZone: PLATFORM_TIME_ZONE,
         weekday: 'long',
         year: 'numeric',
         month: 'short',
@@ -331,31 +120,36 @@ export async function runDailyDigestJob(): Promise<{
 📅 *Date:* ${dateHeader}
 
 📊 *24-Hour Operations Summary:*
-🔥 *New Inbound Leads:* ${recentLeads.length}
-⭐ *New Customer Reviews:* ${recentReviews.length}
-📈 *Average Rating:* ${overallAvgRating > 0 ? `${overallAvgRating.toFixed(1)} ★` : 'No ratings yet'} (${deltaSummary})
+🔥 *New Inbound Leads:* ${summary.recentLeads}
+⭐ *Newly Recorded Reviews:* ${summary.recentReviews}
+📈 *Recorded Average Rating:* ${overallAvgRating !== null ? `${overallAvgRating.toFixed(1)} ★` : 'No ratings yet'} (${deltaSummary})
 🎯 *Local Growth Score:* ${comp.score !== null && comp.score !== undefined ? `${comp.score} / 100` : 'N/A (Pending initial data)'}
 
-${recentLeads.length > 0 ? `💼 *Recent Inquiry:* ${recentLeads[0].name} (${recentLeads[0].service || 'Consultation'})` : 'ℹ️ No new leads in last 24h. Autonomous SEO autopilot is active.'}
-${recentReviews.length > 0 ? `💬 *Latest Review:* ${recentReviews[0].author} gave ${recentReviews[0].rating}★` : ''}
+${summary.leadSample ? `💼 *Recent Inquiry:* ${summary.leadSample.name} (${summary.leadSample.service || 'Consultation'})` : 'ℹ️ No recorded new leads in this reporting window.'}
+${summary.reviewSample ? `💬 *Latest Recorded Review:* ${summary.reviewSample.author} (${summary.reviewSample.rating === null ? 'Unrated' : `${summary.reviewSample.rating}★`})` : ''}
+${summary.missingLeadTime || summary.missingReviewTime ? `⚠️ Excluded from timed counts: ${summary.missingLeadTime} lead(s), ${summary.missingReviewTime} review(s) without a canonical recorded timestamp.` : ''}
+
+${workReport.text}
 
 📱 *Live Dashboard:* https://bga.aaditechs.in`;
 
-      const sent = await sendTelegramPushAlert(digestMessage);
+      const sent = await sendScheduledNotification(comp.id, 'daily_digest', now, digestMessage, canStart);
       if (sent) {
         digestsSent += 1;
         schedulerStatus.stats.totalDailyDigestsSent += 1;
       }
       console.log(`[Scheduler:DailyDigest] Processed digest for "${comp.name}" (sent: ${sent}).`);
     } catch (err: any) {
+      failedCompanies++;
+      if (err?.code === 'READ_ONLY_SQL_TIMEOUT') readTimeouts++;
       console.error(`[Scheduler:DailyDigest] Error generating digest for company "${comp.id}":`, err?.message);
     }
   }
 
   console.log(`[Scheduler:DailyDigest] Completed. Sent ${digestsSent} digests across ${companies.length} companies.`);
   return {
-    companiesProcessed: companies.length,
-    digestsSent,
+    companiesProcessed, companiesSelected: companies.length, companiesDeferred: companies.length - companiesProcessed, failedCompanies, readTimeouts,
+    digestsSent,workReportsUnavailable,
   };
 }
 
@@ -366,71 +160,48 @@ ${recentReviews.length > 0 ? `💬 *Latest Review:* ${recentReviews[0].author} g
  * and sends a single batched Telegram reminder per company listing how many reviews
  * still need a reply.
  */
-export async function runHourlyReviewReminderJob(): Promise<{
+export async function runHourlyReviewReminderJob(tickTime = Date.now(), canStart: WorkGate = () => true): Promise<{
   companiesChecked: number;
   remindersSent: number;
   totalPendingReviews: number;
+  companiesSelected: number;
+  companiesDeferred: number;
+  failedCompanies: number;
+  readTimeouts: number;
 }> {
   const timestamp = new Date().toISOString();
   schedulerStatus.lastHourlyReminderRun = timestamp;
   console.log(`[Scheduler:HourlyReviewReminder] [${timestamp}] Checking unanswered reviews older than 24h...`);
 
-  const companies = await getAllCompanies();
-  const now = Date.now();
-  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+  const companies = canStart() ? await getNotificationCompanyBatch('review_reminder') : [];
+  const now = latestNotificationDue('review_reminder', tickTime);
   let remindersSent = 0;
+  let companiesChecked = 0, failedCompanies = 0, readTimeouts = 0;
   let totalPendingReviews = 0;
 
   for (const comp of companies) {
+    if (!canStart()) break;
+    companiesChecked++;
     try {
-      const reviews = await getCompanyReviews(comp.id);
-
-      const unrepliedOlderThan24h = reviews.filter((r) => {
-        const hasReply = Boolean(r.replied) || Boolean(r.reply_text && r.reply_text.trim().length > 0);
-        if (hasReply) return false;
-
-        let revTime = 0;
-        if (r.created_at) {
-          revTime = new Date(r.created_at).getTime();
-        }
-        if (!revTime || isNaN(revTime)) {
-          revTime = Date.parse(r.date);
-        }
-
-        if (isNaN(revTime) || revTime === 0) {
-          // Check relative time strings like "2 days ago", "1 week ago", "3 weeks ago"
-          const dateStr = (r.relative_time || r.date || '').toLowerCase();
-          if (
-            dateStr.includes('day') ||
-            dateStr.includes('week') ||
-            dateStr.includes('month') ||
-            dateStr.includes('year')
-          ) {
-            return true;
-          }
-          return false;
-        }
-
-        return (now - revTime) > twentyFourHoursMs;
-      });
-
-      if (unrepliedOlderThan24h.length > 0) {
-        totalPendingReviews += unrepliedOlderThan24h.length;
-        const lowestRating = Math.min(...unrepliedOlderThan24h.map((r) => Number(r.rating) || 5));
-        const sampleReview = unrepliedOlderThan24h[0];
-        const count = unrepliedOlderThan24h.length;
+      const summary = await getReviewReminderSummary(comp.id, now);
+      if (summary.pendingReviews > 0 && summary.sample) {
+        totalPendingReviews += summary.pendingReviews;
+        const lowestRating = summary.lowestRating;
+        const sampleReview = summary.sample;
+        const count = summary.pendingReviews;
 
         const reminderMsg = `⚠️ *ACTION REQUIRED: UNREPLIED REVIEWS (>24H) — ${comp.name}*
 
 🔔 *${count}* customer review${count > 1 ? 's' : ''} older than 24 hours ${count > 1 ? 'are' : 'is'} awaiting your reply!
-⭐ *Lowest Pending Rating:* ${lowestRating} ★
-👤 *Sample Reviewer:* ${sampleReview.author} (${sampleReview.rating} ★)
-💬 *Excerpt:* "${sampleReview.content ? sampleReview.content.slice(0, 110) + (sampleReview.content.length > 110 ? '...' : '') : 'No review text provided'}"
+⭐ *Lowest Pending Rating:* ${lowestRating === null ? 'Unrated' : `${lowestRating} ★`}
+👤 *Sample Reviewer:* ${sampleReview.author} (${sampleReview.rating === null ? 'Unrated' : `${sampleReview.rating} ★`})
+💬 *Excerpt:* "${sampleReview.excerpt ? sampleReview.excerpt + (sampleReview.truncated ? '…' : '') : 'No review text provided'}"
 
-⚡ Prompt owner replies protect your Google Local 3-Pack rank and conversion rates.
+${summary.missingReviewTime ? `⚠️ ${summary.missingReviewTime} additional unanswered review(s) have no canonical timestamp; age is unknown.` : ''}
+⚡ Review and respond to recorded customer feedback.
 👉 Open https://bga.aaditechs.in/ to generate 1-click AI replies.`;
 
-        const sent = await sendTelegramPushAlert(reminderMsg);
+        const sent = await sendScheduledNotification(comp.id, 'review_reminder', now, reminderMsg, canStart);
         if (sent) {
           remindersSent += 1;
           schedulerStatus.stats.totalHourlyRemindersSent += 1;
@@ -440,6 +211,8 @@ export async function runHourlyReviewReminderJob(): Promise<{
         );
       }
     } catch (err: any) {
+      failedCompanies++;
+      if (err?.code === 'READ_ONLY_SQL_TIMEOUT') readTimeouts++;
       console.error(`[Scheduler:HourlyReviewReminder] Error for company "${comp.id}":`, err?.message);
     }
   }
@@ -449,7 +222,7 @@ export async function runHourlyReviewReminderJob(): Promise<{
   );
 
   return {
-    companiesChecked: companies.length,
+    companiesChecked, companiesSelected: companies.length, companiesDeferred: companies.length - companiesChecked, failedCompanies, readTimeouts,
     remindersSent,
     totalPendingReviews,
   };
@@ -473,40 +246,12 @@ export function startScheduler(): void {
   // Cron: */5 * * * *
   const autoPublishTask = cron.schedule('*/5 * * * *', async () => {
     try {
-      await runAutoPublishJob();
+      await runSchedulerTick();
     } catch (err: any) {
       console.error('[Scheduler:Cron:AutoPublish] Unhandled execution error:', err?.message);
     }
   });
   tasks.push(autoPublishTask);
-
-  // JOB 2: Daily morning digest at 8:00 AM IST (Asia/Kolkata)
-  // Cron: 0 8 * * *
-  const dailyDigestTask = cron.schedule(
-    '0 8 * * *',
-    async () => {
-      try {
-        await runDailyDigestJob();
-      } catch (err: any) {
-        console.error('[Scheduler:Cron:DailyDigest] Unhandled execution error:', err?.message);
-      }
-    },
-    {
-      timezone: 'Asia/Kolkata',
-    }
-  );
-  tasks.push(dailyDigestTask);
-
-  // JOB 3: Hourly review reply reminder
-  // Cron: 0 * * * *
-  const hourlyReminderTask = cron.schedule('0 * * * *', async () => {
-    try {
-      await runHourlyReviewReminderJob();
-    } catch (err: any) {
-      console.error('[Scheduler:Cron:HourlyReminder] Unhandled execution error:', err?.message);
-    }
-  });
-  tasks.push(hourlyReminderTask);
 
   // Mark as started in memory and global scope
   global.__abga_scheduler_started = true;
@@ -517,8 +262,8 @@ export function startScheduler(): void {
   console.log(
     `[Scheduler] ABGA Background Engine initialized successfully with ${tasks.length} active cron jobs:
    • Auto-Publish: Every 5 minutes (*/5 * * * *)
-   • Daily Digest: Daily at 8:00 AM IST (0 8 * * * [Asia/Kolkata])
-   • Review Alerts: Hourly at :00 (0 * * * *)`
+   • Daily Digest: Latest due 8:00 AM IST occurrence through shared tick
+   • Review Alerts: Latest due IST hour through shared tick`
   );
 }
 
@@ -540,7 +285,7 @@ export function stopScheduler(): void {
   console.log('[Scheduler] Background automation engine stopped.');
 }
 
-import { tickJobQueue, QueueTickSummary } from './jobQueueService';
+import { tickJobQueue } from './jobQueueService';
 
 /**
  * Universal Scheduler & Queue Tick.
@@ -548,23 +293,21 @@ import { tickJobQueue, QueueTickSummary } from './jobQueueService';
  * 1. Internal in-process timer
  * 2. External HTTP webhook ping (Hostinger hPanel cron: POST /api/scheduler/tick)
  */
-export async function runSchedulerTick(): Promise<{
-  timestamp: string;
-  autoPublish: any;
-  queue: QueueTickSummary;
-}> {
-  const timestamp = new Date().toISOString();
-  // 1. Process due jobs in persistent job queue
-  const queueResult = await tickJobQueue(`scheduler_${process.pid}`);
-
-  // 2. Process any scheduled posts
-  const autoPublishResult = await runAutoPublishJob();
-
-  return {
-    timestamp,
-    autoPublish: autoPublishResult,
-    queue: queueResult,
-  };
+export async function runSchedulerTick() {
+  const timestamp=new Date().toISOString(),budget=createWorkBudget();
+  const deferred={deferred:true,reason:'DISPATCHER_STORAGE_UNAVAILABLE'};
+  let admittedSlot:string|undefined;
+  const unavailable=()=>({timestamp,available:false,status:'UNAVAILABLE',autoPublish:deferred,queue:deferred,outbox:deferred,notifications:{digest:deferred,reminders:deferred},budget:{...budget.report(),deferredStages:['autoPublish','queue','outbox','digest','reminders']}});
+  try{
+    const pool=await getDbPool();if(!pool)return unavailable();
+    const claim=await claimDispatcherTick(pool);
+    if(!claim)return {timestamp,available:true,status:'EXISTING',budget:{...budget.report(),deferredStages:[]}};
+    admittedSlot=claim.slot;const tickTime=Number(BigInt(claim.slot)*60000n);
+    const stages={autoPublish:(gate:WorkGate)=>runAutoPublishJob(gate),queue:(gate:WorkGate)=>tickJobQueue(`scheduler_${process.pid}`,5,gate),outbox:(gate:WorkGate)=>processInternalActionFeed(gate),digest:(gate:WorkGate)=>runDailyDigestJob(tickTime,gate),reminders:(gate:WorkGate)=>runHourlyReviewReminderJob(tickTime,gate)};
+    const cycle=await runDispatcherCycle(claim.firstGroup,stages,(stage,state)=>checkpointDispatcherStage(pool,claim,stage,state),budget);
+    await settleDispatcherTick(pool,claim,cycle.partial);
+    return {timestamp,available:true,status:cycle.partial?'PARTIAL':'COMPLETED',slot:claim.slot,firstGroup:claim.firstGroup,stageStates:cycle.states,autoPublish:dispatcherSummary(cycle.results.autoPublish),queue:dispatcherSummary(cycle.results.queue),outbox:dispatcherSummary(cycle.results.outbox),notifications:{digest:dispatcherSummary(cycle.results.digest),reminders:dispatcherSummary(cycle.results.reminders)},budget:cycle.budget};
+  }catch{if(!admittedSlot)return unavailable();const unknown={unconfirmed:true,reason:'DISPATCHER_JOURNAL_UNCONFIRMED'};return {timestamp,available:false,status:'UNCONFIRMED',slot:admittedSlot,autoPublish:unknown,queue:unknown,outbox:unknown,notifications:{digest:unknown,reminders:unknown},budget:{...budget.report(),deferredStages:[]}};}
 }
 
 /**

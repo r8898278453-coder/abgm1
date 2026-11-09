@@ -1,0 +1,4 @@
+
+# Immutable migration source artifacts use stable checkout line endings.
+server/migrator.ts text eol=lf
+server/migrations/*.ts text eol=lf

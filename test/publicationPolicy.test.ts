@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {publicationPolicy as policy,publicationNeedsApproval as needs} from '../server/publicationPolicy';
+const social={platforms:['facebook'],type:'service'};
+for(const payload of [null,undefined,'invalid-json',{}, {engine_settings:{approvalSettings:{socialPosts:'unknown'}}}])assert.equal(needs(social,policy('company',payload)),true);
+const auto={engine_settings:{approvalSettings:{socialPosts:'auto',googlePosts:'auto',promotionalOffers:'auto'}}};
+assert.equal(needs(social,policy('company',auto)),false);
+assert.equal(needs({...social,type:'offer'},policy('company',{engine_settings:{approvalSettings:{socialPosts:'auto'}}})),true);
+assert.equal(needs({platforms:['google','facebook']},policy('company',{engine_settings:{approvalSettings:{googlePosts:'auto'}}})),true);
+assert.equal(needs({platforms:['google']},policy('company',{engine_settings:{approvalSettings:{googlePosts:'auto'}}})),false);
+assert.equal(needs({...social,platforms:'not-json'} as any,policy('company',auto)),true);
+assert.notEqual(policy('company',auto).version,policy('other',auto).version);
+assert.equal(policy('company',auto).version,policy('company',{...auto,knowledge_base:{faqs:['unrelated']}}).version);
+assert.notEqual(policy('company',auto).version,policy('company',null).version);
+console.log('Publication policy: missing/malformed fail closed, explicit auto, mixed channels, offer gate, company binding and unrelated profile isolation passed.');

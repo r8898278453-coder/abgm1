@@ -262,6 +262,7 @@ async function runProductionReadinessMatrix() {
   // =========================================================================
   // 6. CONTENT & PUBLISHING MATRIX: Schedule, Render, Canonical Execution Gate
   // =========================================================================
+  await saveCompanyDataPayload(tenantAId,{engine_settings:{approvalSettings:{googlePosts:'auto',socialPosts:'auto',promotionalOffers:'auto'}}});
   console.log('6️⃣  CONTENT & PUBLISHING MATRIX');
   const post = await createContentPost({
     company_id: tenantAId,

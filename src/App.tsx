@@ -1,3 +1,11 @@
+import {workspaceDraft} from './services/workspaceDraft';
+import {canonicalJson} from '../shared/canonicalJson';
+import {createWorkspaceSaver} from './services/workspaceSaver';
+import {PublicationControls} from './components/PublicationControls';
+import {DailyWorkReport} from './components/DailyWorkReport';
+import { PublishingReview } from './components/PublishingReview';
+import { NotificationStatus } from './components/NotificationStatus';
+import { ActionHistory } from './components/ActionHistory';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -49,6 +57,7 @@ import {
   scanKeywordRankApi,
   refreshAllKeywordRanksApi,
   updateLeadStageApi,
+  ApiRequestError,
 } from './services/authService';
 
 import {
@@ -103,7 +112,9 @@ export default function App() {
   const [isAskAiOpen, setIsAskAiOpen] = useState<boolean>(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState<boolean>(false);
   const [isLiveMode, setIsLiveMode] = useState<boolean>(true);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [workspaceLoadState, setWorkspaceLoadState] = useState<'loading' | 'ready' | 'offline' | 'error'>('loading');
+  const [cachedSnapshotAt, setCachedSnapshotAt] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // Core Data States - initialized with empty states and loaded cleanly from server
   const [business, setBusiness] = useState<BusinessProfile>(freshBlankBusiness);
@@ -121,7 +132,7 @@ export default function App() {
   const [approvalSettings, setApprovalSettings] = useState<ApprovalRules>({
     googlePosts: 'approval',
     reviewReplies: 'approval',
-    socialPosts: 'auto',
+    socialPosts: 'approval',
     promotionalOffers: 'approval',
     profileEdits: 'approval',
     analyticsReports: 'auto',
@@ -132,7 +143,12 @@ export default function App() {
   // References for debounced auto-save & concurrency management
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialLoadRef = useRef<boolean>(true);
+  const workspaceBaselineRef=useRef<string|null>(null),workspaceDraftRef=useRef<string|null>(null);
+  const [workspaceSaveEpoch,setWorkspaceSaveEpoch]=useState(0);
   const activeCompanyIdRef = useRef<string | null>(activeCompanyId);
+  const workspaceLoadGenerationRef = useRef(0);
+  const workspaceSaverRef=useRef<ReturnType<typeof createWorkspaceSaver>|null>(null);
+  const [workspaceWritePaused,setWorkspaceWritePaused]=useState(false);
 
   useEffect(() => {
     activeCompanyIdRef.current = activeCompanyId;
@@ -140,8 +156,8 @@ export default function App() {
 
   // Scoped localStorage key helper
   const getCompanyStorageKey = useCallback((companyId: string | null) => {
-    return companyId ? `localpulse_app_state_${companyId}` : 'localpulse_app_state_guest';
-  }, []);
+    return companyId && user?.id ? `localpulse_app_state_${user.id}_${companyId}` : 'localpulse_app_state_guest';
+  }, [user?.id]);
 
   // Verify auth session on mount
   useEffect(() => {
@@ -196,8 +212,13 @@ export default function App() {
 
   // Load isolated company data: Network-first with company-scoped localStorage fallback
   const loadCompanyData = async (comp: CompanyRecord) => {
+    setWorkspaceLoadState('loading');workspaceSaverRef.current=null;setWorkspaceWritePaused(false);
+    setCachedSnapshotAt(null);
+    const generation = ++workspaceLoadGenerationRef.current;
+    activeCompanyIdRef.current = comp.id;
+    const isCurrentLoad = () => workspaceLoadGenerationRef.current === generation && activeCompanyIdRef.current === comp.id;
     setIsLoadingCompanyData(true);
-    isInitialLoadRef.current = true;
+    isInitialLoadRef.current = true;workspaceBaselineRef.current=null;workspaceDraftRef.current=null;
 
     // Clear any pending debounced auto-save from previous company
     if (autoSaveTimerRef.current) {
@@ -206,36 +227,43 @@ export default function App() {
     }
     setSaveStatus('idle');
 
-    setBusiness((prev) => ({
-      ...prev,
-      id: comp.id,
-      name: comp.name,
-      category: comp.category,
-      city: comp.city,
-      phone: comp.phone || prev.phone,
-      website: comp.website || prev.website,
-    }));
+    setKnowledgeDocs([]);
+    setKnowledgeFaqs([]);
+    setReviews([]);
+    setContentPosts([]);
+    setLeads([]);
+    setAuditItems([]);
+    setKeywords([]);
+    setCompetitors([]);
+    setCampaigns([]);
+    setActions([]);
+    setGrowthScore(freshBlankGrowthScore);
+    setIsAutopilotOn(false);
+    setIsHolidayPaused(false);
+    setApprovalSettings({ googlePosts: 'approval', reviewReplies: 'approval', socialPosts: 'approval', promotionalOffers: 'approval', profileEdits: 'approval', analyticsReports: 'auto' });
+    setBusiness({
+      ...freshBlankBusiness,
+      brandKit: { ...freshBlankBusiness.brandKit },
+      connectedAccounts: { ...freshBlankBusiness.connectedAccounts },
+      id: comp.id, name: comp.name, category: comp.category, city: comp.city,
+      phone: comp.phone || '', website: comp.website || '',
+    });
 
     const scopedStorageKey = getCompanyStorageKey(comp.id);
 
     try {
       // Prioritize live network request
-      const [payload, companyReviews, companyPosts, companyLeads] = await Promise.all([
+      const [snapshot, companyReviews, companyPosts, companyLeads] = await Promise.all([
         fetchCompanyData(comp.id),
-        fetchCompanyReviews(comp.id).catch((err) => {
-          console.warn('Failed to load company reviews from MySQL:', err);
-          return null;
-        }),
-        fetchCompanyPosts(comp.id).catch((err) => {
-          console.warn('Failed to load company posts from MySQL:', err);
-          return null;
-        }),
-        fetchCompanyLeads(comp.id).catch((err) => {
-          console.warn('Failed to load company leads from MySQL:', err);
-          return null;
-        }),
+        fetchCompanyReviews(comp.id),
+        fetchCompanyPosts(comp.id),
+        fetchCompanyLeads(comp.id),
       ]);
 
+      if (!isCurrentLoad()) return;
+      const payload=snapshot.data;
+      workspaceSaverRef.current=createWorkspaceSaver(snapshot.version,isCurrentLoad,(data,expected)=>saveCompanyData(comp.id,data,expected));
+      setWorkspaceLoadState('ready');
       const loadedGrowthScore = payload?.growth_score || freshBlankGrowthScore;
       const loadedAuditItems = Array.isArray(payload?.audit_items) ? payload.audit_items : [];
       const loadedKeywords = Array.isArray(payload?.keywords) ? payload.keywords : [];
@@ -243,26 +271,8 @@ export default function App() {
       const loadedCampaigns = Array.isArray(payload?.campaigns) ? payload.campaigns : [];
       const loadedActions = Array.isArray(payload?.autonomous_actions) ? payload.autonomous_actions : [];
 
-      let finalReviews: ReviewItem[] = [];
-      if (companyReviews && Array.isArray(companyReviews) && companyReviews.length > 0) {
-        finalReviews = companyReviews;
-      } else if (payload && Array.isArray(payload.reviews)) {
-        finalReviews = payload.reviews;
-      }
-
-      let finalPosts: ContentPost[] = [];
-      if (companyPosts && Array.isArray(companyPosts) && companyPosts.length > 0) {
-        finalPosts = companyPosts;
-      } else if (payload && Array.isArray(payload.posts)) {
-        finalPosts = payload.posts;
-      }
-
-      let finalLeads: LeadItem[] = [];
-      if (companyLeads && Array.isArray(companyLeads) && companyLeads.length > 0) {
-        finalLeads = companyLeads;
-      } else if (payload && Array.isArray(payload.leads)) {
-        finalLeads = payload.leads;
-      }
+      // Canonical row APIs own these collections, including successful empty results.
+      const finalReviews=companyReviews,finalPosts=companyPosts,finalLeads=companyLeads;
 
       if (payload?.business) {
         setBusiness((prev) => ({
@@ -272,8 +282,8 @@ export default function App() {
           name: comp.name,
           category: comp.category,
           city: comp.city,
-          phone: comp.phone || payload.business.phone || prev.phone,
-          website: comp.website || payload.business.website || prev.website,
+          phone: comp.phone || payload.business.phone || '',
+          website: comp.website || payload.business.website || '',
           brandKit: {
             ...prev.brandKit,
             ...(payload.business.brandKit || {}),
@@ -309,6 +319,7 @@ export default function App() {
         localStorage.setItem(
           scopedStorageKey,
           JSON.stringify({
+            userId: user?.id, companyId: comp.id,
             business: {
               ...comp,
             },
@@ -328,32 +339,27 @@ export default function App() {
         console.warn('Failed to cache server data to company-scoped localStorage:', storageErr);
       }
     } catch (networkErr) {
-      console.warn(`Network load failed for company ${comp.id}, falling back to company-scoped offline cache:`, networkErr);
-      // Offline fallback: ONLY use company-scoped localStorage if the network call fails
-      try {
-        const cachedRaw = localStorage.getItem(scopedStorageKey);
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (cached.business) setBusiness(cached.business);
-          if (cached.growthScore) setGrowthScore(cached.growthScore);
-          if (cached.auditItems) setAuditItems(cached.auditItems);
-          if (cached.keywords) setKeywords(cached.keywords);
-          if (cached.competitors) setCompetitors(cached.competitors);
-          if (cached.campaigns) setCampaigns(cached.campaigns);
-          if (cached.actions) setActions(cached.actions);
-          if (cached.reviews) setReviews(cached.reviews);
-          if (cached.contentPosts) setContentPosts(cached.contentPosts);
-          if (cached.leads) setLeads(cached.leads);
+      if (!isCurrentLoad()) return;
+      setWorkspaceLoadState('error');
+      // An explicit access denial must never fall back to previously cached private data.
+      const denied = networkErr instanceof ApiRequestError && [401, 403, 404].includes(networkErr.status);
+      if (!denied) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(scopedStorageKey) || 'null');
+          if (cached?.userId === user?.id && cached?.companyId === comp.id &&
+              typeof cached.savedAt === 'number' && Number.isFinite(cached.savedAt)) {
+            setCachedSnapshotAt(cached.savedAt);
+            setWorkspaceLoadState('offline');
+          }
+        } catch {
+          // Invalid cache is not a successful load and cannot enable autosave.
         }
-      } catch (cacheErr) {
-        console.error('Failed to parse offline cache for company:', cacheErr);
       }
     } finally {
-      setIsLoadingCompanyData(false);
-      // Settle initial load before allowing auto-save to fire
-      setTimeout(() => {
-        isInitialLoadRef.current = false;
-      }, 600);
+      if (isCurrentLoad()) {
+        setIsLoadingCompanyData(false);
+
+      }
     }
   };
 
@@ -386,17 +392,23 @@ export default function App() {
   };
 
   // User Logout
-  const handleLogout = () => {
+  const handleLogout = (clearSession = true) => {
+    workspaceLoadGenerationRef.current++;workspaceSaverRef.current=null;setWorkspaceWritePaused(false);
+    activeCompanyIdRef.current = null;
+    setKnowledgeDocs([]);
+    setKnowledgeFaqs([]);
+    setIsAutopilotOn(false);
+    setIsHolidayPaused(false);
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-    clearStoredSession();
+    if (clearSession) clearStoredSession();
     setUser(null);
     setCompanies([]);
     setActiveCompanyId(null);
     setIsLoadingCompanyData(false);
-    isInitialLoadRef.current = true;
+    isInitialLoadRef.current = true;workspaceBaselineRef.current=null;workspaceDraftRef.current=null;
     setBusiness(freshBlankBusiness);
     setGrowthScore(freshBlankGrowthScore);
     setAuditItems([]);
@@ -409,52 +421,60 @@ export default function App() {
     setActions([]);
   };
 
-  // Debounced auto-save (1.5s delay) for changes to growth score, audit items, keywords, competitors, campaigns, and autonomous actions
+  // A session change in another tab invalidates this tab's data and pending work.
   useEffect(() => {
-    if (!activeCompanyId || isLoadingCompanyData || isInitialLoadRef.current || !isLiveMode) {
+    const onSessionStorage = (event: StorageEvent) => {
+      if (event.storageArea === localStorage &&
+          (event.key === null || (event.key === 'abga_auth_token' && event.oldValue !== event.newValue))) {
+        handleLogout(false);
+      }
+    };
+    window.addEventListener('storage', onSessionStorage);
+    return () => window.removeEventListener('storage', onSessionStorage);
+  }, []);
+
+  // Debounced editable-profile saves; observed metrics never create profile writes.
+  useEffect(() => {
+    if (!activeCompanyId || isLoadingCompanyData || !isLiveMode || workspaceLoadState !== 'ready' || workspaceWritePaused) {
       return;
     }
+
+    const payload=workspaceDraft({business,keywords,competitors,campaigns,knowledgeDocs,knowledgeFaqs,approvalSettings,isHolidayPaused});
+    const fingerprint=canonicalJson(payload);workspaceDraftRef.current=fingerprint;
+    if(isInitialLoadRef.current||workspaceBaselineRef.current===null){isInitialLoadRef.current=false;workspaceBaselineRef.current=fingerprint;return;}
+    if(fingerprint===workspaceBaselineRef.current){if(!workspaceSaverRef.current?.pendingCount)setSaveStatus(current=>current==='saving'?'idle':current);return;}
+    setSaveStatus('saving');
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
 
     const companyIdToSave = activeCompanyId;
+    const generationToSave = workspaceLoadGenerationRef.current;
+    const isCurrentSave = () => activeCompanyIdRef.current === companyIdToSave &&
+      workspaceLoadGenerationRef.current === generationToSave;
 
     autoSaveTimerRef.current = setTimeout(async () => {
       // Guard against company having switched during the debounce window
-      if (activeCompanyIdRef.current !== companyIdToSave) {
+      if (!isCurrentSave()) {
         return;
       }
 
-      const payload = {
-        business,
-        growth_score: growthScore,
-        audit_items: auditItems,
-        keywords,
-        competitors,
-        campaigns,
-        autonomous_actions: actions,
-        knowledge_base: {
-          documents: knowledgeDocs,
-          faqs: knowledgeFaqs,
-        },
-        engine_settings: {
-          approvalSettings,
-          isAutopilotOn,
-          isHolidayPaused,
-        },
-      };
+
 
       setSaveStatus('saving');
       try {
-        await saveCompanyData(companyIdToSave, payload);
-        setSaveStatus('saved');
+        const saver=workspaceSaverRef.current;if(!saver)throw new Error('Workspace revision unavailable');
+        await saver.enqueue(payload);
+        if (!isCurrentSave()) return;
+        workspaceBaselineRef.current=fingerprint;setWorkspaceSaveEpoch(epoch=>epoch+1);
+        setSaveStatus(workspaceDraftRef.current===fingerprint?'saved':'saving');
         // Update company-scoped localStorage cache
         const scopedStorageKey = getCompanyStorageKey(companyIdToSave);
-        localStorage.setItem(
+        try{localStorage.setItem(
           scopedStorageKey,
           JSON.stringify({
+            userId: user?.id, companyId: companyIdToSave,
             business,
             growthScore,
             auditItems,
@@ -467,13 +487,13 @@ export default function App() {
             leads,
             savedAt: Date.now(),
           })
-        );
+        );}catch{console.warn('Workspace saved; local cache unavailable.');}
         setTimeout(() => {
-          setSaveStatus((current) => (current === 'saved' ? 'idle' : current));
+          if (isCurrentSave()) setSaveStatus((current) => (current === 'saved' ? 'idle' : current));
         }, 2000);
       } catch (err) {
         console.warn(`Auto-save failed for company ${companyIdToSave}:`, err);
-        setSaveStatus('idle');
+        if (isCurrentSave()){setSaveStatus('error');setWorkspaceWritePaused(true);}
       }
     }, 1500);
 
@@ -492,11 +512,19 @@ export default function App() {
     activeCompanyId,
     isLoadingCompanyData,
     isLiveMode,
+    workspaceLoadState,
+    workspaceWritePaused,
+    workspaceSaveEpoch,
     business,
     reviews,
     contentPosts,
     leads,
     getCompanyStorageKey,
+    knowledgeDocs,
+    knowledgeFaqs,
+    approvalSettings,
+    isAutopilotOn,
+    isHolidayPaused,
   ]);
 
   // Factory reset to clean slate for real business onboarding
@@ -536,36 +564,6 @@ export default function App() {
   };
 
   // Handlers for state updates
-  const handleFixAuditItem = (id: string) => {
-    setAuditItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: 'pass' as const, resolved: true } : item))
-    );
-  };
-
-  const handleQuickApproveReviews = () => {
-    const defaultReply = `Thank you for choosing ${business.name || 'our business'}! We appreciate your support and feedback.`;
-    const unreplied = reviews.filter((r) => !r.replied);
-    setReviews((prev) =>
-      prev.map((r) =>
-        !r.replied
-          ? {
-              ...r,
-              replied: true,
-              replyText: defaultReply,
-              replyDate: 'Just now',
-            }
-          : r
-      )
-    );
-    unreplied.forEach(async (r) => {
-      try {
-        await replyToReviewApi(r.id, defaultReply, activeCompanyId || undefined);
-      } catch (err) {
-        console.error('Failed to quick-approve review in MySQL:', err);
-      }
-    });
-  };
-
   const handleAddReviewReply = async (reviewId: string, replyText: string) => {
     setReviews((prev) =>
       prev.map((r) =>
@@ -579,110 +577,41 @@ export default function App() {
           : r
       )
     );
-    try {
-      await replyToReviewApi(reviewId, replyText, activeCompanyId || undefined);
-    } catch (err) {
-      console.error('Failed to save review reply to MySQL:', err);
-    }
+
   };
 
-  const handleAddNewReview = async (review: Partial<ReviewItem>) => {
-    if (review.id && !review.id.startsWith('temp_') && !review.id.startsWith('rev_')) {
-      setReviews((prev) => [review as ReviewItem, ...prev.filter((r) => r.id !== review.id)]);
-      return;
-    }
-
-    const tempId = `rev_${Date.now()}`;
-    const rating = typeof review.rating === 'number' ? review.rating : (review.rating !== undefined && review.rating !== null ? Number(review.rating) : (null as any));
-    const sentiment: 'positive' | 'neutral' | 'negative' =
-      review.sentiment || (typeof rating === 'number' ? (rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative') : 'neutral');
-    const fullReview: ReviewItem = {
-      id: tempId,
-      author: review.author || 'Anonymous Customer',
-      rating,
-      sentiment,
-      content: review.content || '',
-      relativeTime: review.relativeTime || 'Just now',
-      date: review.date || (null as any),
-      replied: false,
-      isOperationalIssue: !!review.isOperationalIssue,
-      topic: review.topic || 'Customer Feedback',
-      source: review.source || 'manual',
-    };
-    setReviews((prev) => [fullReview, ...prev]);
-    try {
-      const created = await createReviewApi({
-        ...fullReview,
-        companyId: activeCompanyId || undefined,
-      });
-      if (created && created.id) {
-        setReviews((prev) => prev.map((r) => (r.id === tempId ? created : r)));
-      }
-    } catch (err) {
-      console.error('Failed to create review in MySQL:', err);
-    }
+  // Callbacks mirror already acknowledged CRUD; the review view owns each request.
+  const handleAddNewReview = (review: Partial<ReviewItem>) => {
+    if(review.id)setReviews(prev=>[review as ReviewItem,...prev.filter(item=>item.id!==review.id)]);
   };
+  const handleDeleteReview = (reviewId:string) => setReviews(prev=>prev.filter(review=>review.id!==reviewId));
 
-  const handleDeleteReview = async (reviewId: string) => {
-    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
-    if (activeCompanyId) {
-      try {
-        await deleteReviewApi(reviewId, activeCompanyId);
-      } catch (err) {
-        console.error('Failed to delete review in MySQL:', err);
-      }
-    }
+  const handleAddNewPost = (post:ContentPost) => setContentPosts(previous=>[post,...previous.filter(item=>item.id!==post.id)]);
+
+  const refreshPublishedPosts=async(_postId:string)=>{
+    const company=activeCompanyId,generation=workspaceLoadGenerationRef.current;if(!company)return;
+    try{const posts=await fetchCompanyPosts(company);if(activeCompanyIdRef.current===company&&workspaceLoadGenerationRef.current===generation)setContentPosts(posts);}
+    catch{if(activeCompanyIdRef.current===company&&workspaceLoadGenerationRef.current===generation)setWorkspaceLoadState('error');}
   };
-
-  const handleAddNewPost = async (post: ContentPost) => {
-    if (post.id && !post.id.startsWith('temp_') && !post.id.startsWith('post_')) {
-      setContentPosts((prev) => [post, ...prev.filter((p) => p.id !== post.id)]);
-      return;
-    }
-
-    setContentPosts((prev) => [post, ...prev]);
-    try {
-      const created = await createContentPostApi({
-        ...post,
-        companyId: activeCompanyId || undefined,
-      });
-      if (created && created.id) {
-        setContentPosts((prev) => prev.map((p) => (p.id === post.id ? created : p)));
-      }
-    } catch (err) {
-      console.error('Failed to save post to MySQL:', err);
-    }
-  };
-
   const handlePublishPost = async (postId: string) => {
-    setContentPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: 'published' as const } : p))
-    );
-    try {
-      await publishContentPostApi(postId, activeCompanyId || undefined);
-    } catch (err) {
-      console.error('Failed to publish post on server:', err);
-    }
+    const company=activeCompanyId;if(!company)return;
+    const version=contentPosts.find(post=>post.id===postId)?.sourceVersion;
+    const result=await publishContentPostApi(postId,company,undefined,version);
+    if(activeCompanyIdRef.current!==company)return;
+    if(!result.success)console.warn('Publishing not confirmed:',result.error || result.result?.message);
+    await refreshPublishedPosts(postId);
   };
 
-  const handleDeletePost = async (postId: string) => {
-    setContentPosts((prev) => prev.filter((p) => p.id !== postId));
-    try {
-      await deleteContentPostApi(postId, activeCompanyId || undefined);
-    } catch (err) {
-      console.error('Failed to delete post on server:', err);
-    }
-  };
+  const handleDeletePost = (postId:string) => setContentPosts(previous=>previous.filter(post=>post.id!==postId));
 
-  const handleUpdateLeadStage = async (leadId: string, stage: LeadItem['stage']) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, stage } : l))
-    );
-    try {
-      await updateLeadStageApi(leadId, stage);
-    } catch (err) {
-      console.error('Failed to update lead stage in database:', err);
-    }
+  const handleUpdateLeadStage=async(leadId:string,stage:LeadItem['stage'])=>{
+    const company=activeCompanyId,generation=workspaceLoadGenerationRef.current;
+    const expectedStage=leads.find(lead=>lead.id===leadId)?.stage;
+    if(!company||!expectedStage)throw new Error('Reload the lead before updating.');
+    const result=await updateLeadStageApi(leadId,stage,company,expectedStage);
+    if(activeCompanyIdRef.current!==company||workspaceLoadGenerationRef.current!==generation)return;
+    if(result.success!==true||result.lead?.id!==leadId||result.lead?.company_id!==company||result.lead.stage!==stage)throw new Error('Lead update unconfirmed. Refresh before retrying.');
+    setLeads(previous=>previous.map(lead=>lead.id===leadId?{...lead,stage}:lead));
   };
 
   const handleAddKeyword = async (newKwText: string) => {
@@ -764,41 +693,7 @@ export default function App() {
   const handleDeleteKeyword = async (kwId: string) => {
     const updatedKeywords = keywords.filter((k) => k.id !== kwId);
     setKeywords(updatedKeywords);
-    if (activeCompanyId) {
-      try {
-        await saveCompanyData(activeCompanyId, {
-          business,
-          keywords: updatedKeywords,
-          competitors,
-        });
-      } catch (err) {
-        console.warn('Failed to persist keyword deletion to MySQL:', err);
-      }
-    }
-  };
 
-  const handleApproveAction = (actionId: string) => {
-    const targetAction = actions.find((a) => a.id === actionId);
-    setActions((prev) =>
-      prev.map((a) => (a.id === actionId ? { ...a, status: 'approved' as const } : a))
-    );
-
-    // If review reply action, mark pending reviews as replied
-    if (targetAction && (targetAction.action.toLowerCase().includes('review') || targetAction.agent.includes('Review'))) {
-      setReviews((prev) =>
-        prev.map((r) =>
-          r.status === 'pending'
-            ? { ...r, status: 'replied', replyText: r.replyText || 'Thank you for choosing our services! We appreciate your trust.' }
-            : r
-        )
-      );
-    }
-    // If content action, promote scheduled post to published
-    if (targetAction && (targetAction.action.toLowerCase().includes('post') || targetAction.agent.includes('Content'))) {
-      setContentPosts((prev) =>
-        prev.map((p, idx) => (idx === 0 && p.status === 'scheduled' ? { ...p, status: 'published' } : p))
-      );
-    }
   };
 
   // Switch to Telegram view if ViewMode is set to telegram
@@ -825,11 +720,11 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         isAutopilotOn={isAutopilotOn}
-        setIsAutopilotOn={setIsAutopilotOn}
+        setIsAutopilotOn={() => setActiveTab('autonomous')}
         notificationsCount={notificationsCount}
         onClearNotifications={() => setNotificationsCount(0)}
         isEmergencyPaused={isEmergencyPaused}
-        setIsEmergencyPaused={setIsEmergencyPaused}
+        setIsEmergencyPaused={() => setActiveTab('autonomous')}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         isLiveMode={isLiveMode}
         onOpenResetModal={() => setIsResetModalOpen(true)}
@@ -869,14 +764,14 @@ export default function App() {
                 <span className="text-2xl">🛑</span>
                 <div>
                   <div className="font-bold text-rose-900 text-sm">Automations Paused via Emergency Stop</div>
-                  <div className="text-xs text-rose-700">Scheduled social posts, review replies & WhatsApp broadcasts are temporarily halted.</div>
+                  <div className="text-xs text-rose-700">New work at protected execution boundaries is paused. In-flight requests may complete; direct channel coverage varies.</div>
                 </div>
               </div>
               <button
-                onClick={() => setIsEmergencyPaused(false)}
+                onClick={() => setActiveTab('autonomous')}
                 className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded-2xl transition shadow-xs"
               >
-                Resume All
+                Review execution controls
               </button>
             </div>
           )}
@@ -921,8 +816,20 @@ export default function App() {
                 </p>
               </div>
             </div>
+          ) : isLiveMode && activeCompanyId && workspaceLoadState !== 'ready' ? (
+            <div role="status" className="bg-white border border-amber-200 rounded-2xl p-6 space-y-3">
+              <h2 className="font-bold">Workspace unavailable — changes are paused</h2>
+              <p>{workspaceLoadState === 'offline' && cachedSnapshotAt
+                ? `A cached snapshot exists from ${new Date(cachedSnapshotAt).toLocaleString()}. Reconnect to view or edit this workspace.`
+                : 'The workspace could not be loaded. Reconnect before making changes.'}</p>
+              <button className="rounded-lg bg-indigo-600 text-white px-4 py-2" onClick={() => {
+                const company = companies.find(c => c.id === activeCompanyId);
+                if (company) void loadCompanyData(company);
+              }}>Retry workspace load</button>
+            </div>
           ) : (
             <>
+              {workspaceWritePaused&&<div role="alert" className="border border-amber-300 rounded-xl p-3 mb-4">Workspace save unconfirmed or conflicting. Automatic saves are paused. Unsaved edits have not been confirmed. <button onClick={()=>{const company=companies.find(c=>c.id===activeCompanyId);if(company)void loadCompanyData(company);}}>Reload workspace before saving</button></div>}
               {/* Active View Router */}
               {viewMode === 'mobile' ? (
                 <MobileAppView
@@ -942,6 +849,7 @@ export default function App() {
               ) : (
                 <>
                   {renderedTab === 'dashboard' && (
+                    <>
                     <DashboardView
                       business={business}
                       growthScore={growthScore}
@@ -950,20 +858,25 @@ export default function App() {
                       posts={contentPosts}
                       leads={leads}
                       onNavigate={setActiveTab}
-                      onQuickApproveReviews={handleQuickApproveReviews}
+
                       onPublishPost={handlePublishPost}
                       unansweredReviews={(reviews || []).filter((r) => !r.replied).length}
                       newLeadsCount={(leads || []).filter((l) => l.stage === 'new').length}
                     />
+                    {activeCompanyId && <PublicationControls key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId} />}
+                    {activeCompanyId && <DailyWorkReport key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId} />}
+                    {activeCompanyId && <ActionHistory key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId} />}
+                    {activeCompanyId && <NotificationStatus key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId} />}
+                    {activeCompanyId && <PublishingReview key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId} />}
+                    </>
                   )}
 
                   {renderedTab === 'audit' && (
                     <AuditView
-                      auditItems={auditItems}
+                      key={`${user?.id}:${activeCompanyId}`}
+                      companyId={activeCompanyId || undefined}
                       growthScore={growthScore}
                       business={business}
-                      onResolveItem={handleFixAuditItem}
-                      onFixItem={handleFixAuditItem}
                       onNavigate={setActiveTab}
                     />
                   )}
@@ -1001,6 +914,7 @@ export default function App() {
 
                   {renderedTab === 'reviews' && (
                     <ReviewsView
+                      key={`${user?.id}:${activeCompanyId}`}
                       reviews={reviews}
                       business={business}
                       companyId={activeCompanyId || undefined}
@@ -1016,11 +930,13 @@ export default function App() {
 
                   {renderedTab === 'content' && (
                     <ContentStudioView
+                      key={`${user?.id}:${activeCompanyId}`}
                       business={business}
                       posts={contentPosts}
                       companyId={activeCompanyId || undefined}
                       onAddNewPost={handleAddNewPost}
-                      onPublishPost={handlePublishPost}
+                      onPublishPost={refreshPublishedPosts}
+                      onRefreshPosts={refreshPublishedPosts}
                       onDeletePost={handleDeletePost}
                       onNavigate={setActiveTab}
                       onUpdateBusiness={setBusiness}
@@ -1029,10 +945,12 @@ export default function App() {
 
                   {renderedTab === 'calendar' && (
                     <CalendarView
+                      business={business}
+                      key={`${user?.id}:${activeCompanyId}`}
                       posts={contentPosts}
                       companyId={activeCompanyId || undefined}
                       onNavigate={setActiveTab}
-                      onUpdatePostStatus={handlePublishPost}
+                      onUpdatePostStatus={refreshPublishedPosts}
                       onDeletePost={handleDeletePost}
                       onAddNewPost={handleAddNewPost}
                     />
@@ -1040,6 +958,7 @@ export default function App() {
 
                   {renderedTab === 'campaigns' && (
                     <CampaignsView
+                      key={`${user?.id}:${activeCompanyId}`}
                       campaigns={campaigns}
                       posts={contentPosts}
                       companyId={activeCompanyId || undefined}
@@ -1052,6 +971,7 @@ export default function App() {
 
               {renderedTab === 'leads' && (
                 <LeadsCrmView
+                  key={`${user?.id}:${activeCompanyId}`}
                   leads={leads}
                   companyId={activeCompanyId || undefined}
                   onLeadAdded={(newLead) => setLeads((prev) => [newLead, ...prev.filter((l) => l.id !== newLead.id)])}
@@ -1061,12 +981,15 @@ export default function App() {
 
               {renderedTab === 'website' && (
                 <WebsiteBuilderView
+                  key={`${user?.id}:${activeCompanyId}`}
                   business={business}
                 />
               )}
 
               {renderedTab === 'telegram' && (
                 <TelegramBotView
+                  key={`${user?.id}:${activeCompanyId}`}
+                  companyId={activeCompanyId || undefined}
                   business={business}
                   onNavigate={setActiveTab}
                 />
@@ -1074,24 +997,21 @@ export default function App() {
 
               {renderedTab === 'autonomous' && (
                 <AutonomousEngineView
+                  key={`${user?.id}:${activeCompanyId}`}
+                  companyId={activeCompanyId || undefined}
                   actions={actions}
                   isAutopilotOn={isAutopilotOn}
                   setIsAutopilotOn={setIsAutopilotOn}
                   isEmergencyPaused={isEmergencyPaused}
                   setIsEmergencyPaused={setIsEmergencyPaused}
-                  onApproveAction={handleApproveAction}
                   approvalSettings={approvalSettings}
                   onUpdateApprovalSettings={setApprovalSettings}
                 />
               )}
 
               {(renderedTab === 'safety' || renderedTab === 'ai_control') && (
-                <TrustSafetyView
-                  isEmergencyPaused={isEmergencyPaused}
-                  setIsEmergencyPaused={setIsEmergencyPaused}
-                  isHolidayPaused={isHolidayPaused}
-                  setIsHolidayPaused={setIsHolidayPaused}
-                />
+                <TrustSafetyView key={`${user?.id}:${activeCompanyId}`} onNavigate={setActiveTab} isPlatformAdmin={!!user?.is_platform_admin} holidayDraft={isHolidayPaused} onHolidayDraftChange={setIsHolidayPaused}/>
+
               )}
 
               {renderedTab === 'agency' && (
@@ -1107,6 +1027,7 @@ export default function App() {
 
               {renderedTab === 'integrations' && (
                 <IntegrationsView
+                  key={`${user?.id}:${activeCompanyId}`}
                   business={business}
                   companyId={activeCompanyId || undefined}
                   onUpdateBusiness={setBusiness}
@@ -1137,6 +1058,7 @@ export default function App() {
 
       {/* 5-Minute Onboarding & Setup Wizard (Section 3 & 72) */}
       <OnboardingModal
+        key={`${user?.id}:${activeCompanyId}:${isOnboardingOpen}`}
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
         business={business}
@@ -1160,6 +1082,7 @@ export default function App() {
       </aside>
 
       <AskAiModal
+        key={`${user?.id}:${activeCompanyId}:${isAskAiOpen}`}
         isOpen={isAskAiOpen}
         onClose={() => setIsAskAiOpen(false)}
         business={business}

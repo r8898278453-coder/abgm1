@@ -81,14 +81,15 @@ const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
  * Resolves center coordinates for a business from its explicit location or city name
  */
 export function resolveCenterCoordinates(city?: string, customLat?: number, customLng?: number): { lat: number; lng: number } | null {
-  if (typeof customLat === 'number' && typeof customLng === 'number' && !isNaN(customLat) && !isNaN(customLng)) {
-    return { lat: customLat, lng: customLng };
+  if(customLat!==undefined||customLng!==undefined){
+    if(typeof customLat!=='number'||typeof customLng!=='number'||!Number.isFinite(customLat)||!Number.isFinite(customLng)||Math.abs(customLat)>90||Math.abs(customLng)>180)return null;
+    return {lat:customLat,lng:customLng};
   }
   const cleanCity = (city || '').toLowerCase().trim();
   if (!cleanCity) return null;
-  for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
-    if (cleanCity.includes(key)) {
-      return coords;
+  for (const [key, coords] of Object.entries(CITY_COORDINATES).sort(([a], [b]) => b.length - a.length)) {
+    if (new RegExp(`(?:^|[^a-z])${key}(?:$|[^a-z])`).test(cleanCity)) {
+      return { ...coords };
     }
   }
   return null;
@@ -98,21 +99,22 @@ export function resolveCenterCoordinates(city?: string, customLat?: number, cust
  * Generates 9 real geographic coordinates for a 3x3 geographical grid around center
  */
 export function generate3x3GridCoordinates(centerLat: number, centerLng: number, radiusKm = 3.5): GeoCoordinate[] {
+  if(!Number.isFinite(centerLat)||!Number.isFinite(centerLng)||!Number.isFinite(radiusKm)||Math.abs(centerLat)>=90||Math.abs(centerLng)>180||radiusKm<=0||radiusKm>100||Math.abs(centerLat)+radiusKm/111.32>90)throw new Error('INVALID_SCAN_GEOMETRY');
   // ~111.32 km per degree latitude
   const dLat = radiusKm / 111.32;
   // Longitude distance depends on latitude
   const dLng = radiusKm / (111.32 * Math.cos(centerLat * (Math.PI / 180)));
 
   const labels = [
-    'Node 1 (NW): North-West Corridor',
-    'Node 2 (N): North Commercial Hub',
-    'Node 3 (NE): North-East Industrial',
-    'Node 4 (W): West Transit Belt',
-    'Node 5 (Center): Business Headquarters',
-    'Node 6 (E): East Market District',
-    'Node 7 (SW): South-West Suburbs',
-    'Node 8 (S): South Metro Corridor',
-    'Node 9 (SE): South-East Tech Corridor',
+    'Node 1 (NW): North-West',
+    'Node 2 (N): North',
+    'Node 3 (NE): North-East',
+    'Node 4 (W): West',
+    'Node 5 (Center): Selected scan centre',
+    'Node 6 (E): East',
+    'Node 7 (SW): South-West',
+    'Node 8 (S): South',
+    'Node 9 (SE): South-East',
   ];
 
   // Grid offsets: [row, col] where row: 1 is North, -1 is South, col: -1 is West, 1 is East
@@ -132,8 +134,12 @@ export function generate3x3GridCoordinates(centerLat: number, centerLng: number,
     gridIndex: idx,
     label: labels[idx],
     lat: Number((centerLat + off.r * dLat).toFixed(6)),
-    lng: Number((centerLng + off.c * dLng).toFixed(6)),
+    lng: Number((((centerLng + off.c * dLng + 540)%360)-180).toFixed(6)),
   }));
+}
+
+function validateScanSamples(context:RankScanContext){
+ if(!Array.isArray(context.coordinates)||context.coordinates.length>9||new Set(context.coordinates.map(point=>point.gridIndex)).size!==context.coordinates.length||context.coordinates.some(point=>!Number.isInteger(point.gridIndex)||point.gridIndex<0||point.gridIndex>8||!Number.isFinite(point.lat)||!Number.isFinite(point.lng)||Math.abs(point.lat)>90||Math.abs(point.lng)>180))throw new Error('INVALID_SCAN_GEOMETRY');
 }
 
 /**
@@ -157,6 +163,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
       throw new Error('DataForSEO API login and password not configured for tenant');
     }
 
+    validateScanSamples(context);
     const authHeader = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
     const nowIso = new Date().toISOString();
     const observations: RankObservation[] = [];
@@ -192,7 +199,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
 
           if (items.length === 0) {
             observations.push({
-              id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+              id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
               companyId: context.companyId,
               keyword: context.keyword,
               latitude: coord.lat,
@@ -234,7 +241,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
           });
 
           observations.push({
-            id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+            id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
             companyId: context.companyId,
             keyword: context.keyword,
             latitude: coord.lat,
@@ -249,7 +256,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
           });
         } else {
           observations.push({
-            id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+            id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
             companyId: context.companyId,
             keyword: context.keyword,
             latitude: coord.lat,
@@ -265,7 +272,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
         }
       } catch (err: any) {
         observations.push({
-          id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+          id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
           companyId: context.companyId,
           keyword: context.keyword,
           latitude: coord.lat,
@@ -276,13 +283,12 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
           provider: this.providerId,
           position: null,
           status: 'FAILED',
-          sourceEvidence: `Network error: ${err?.message}`,
+          sourceEvidence: 'Provider request outcome unavailable',
         });
       }
     }
 
-    const centerObs = observations.find((o) => o.gridIndex === 4) || observations[0];
-    const validPositions = observations.map((o) => o.position).filter((p): p is number => typeof p === 'number');
+    const centerObs = observations.find((o) => o.gridIndex === 4);
     const successCount = observations.filter((o) => o.status === 'LIVE' || o.status === 'VERIFIED').length;
 
     let overallStatus: 'LIVE' | 'PARTIAL' | 'FAILED' = 'FAILED';
@@ -296,7 +302,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
 
     const overallRank = overallStatus === 'FAILED'
       ? null
-      : (centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null));
+      : (centerObs && ['LIVE','VERIFIED'].includes(centerObs.status) ? centerObs.position : null);
 
     return {
       provider: this.providerId,
@@ -332,6 +338,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
       throw new Error('SerpApi API Key not configured for tenant');
     }
 
+    validateScanSamples(context);
     const nowIso = new Date().toISOString();
     const observations: RankObservation[] = [];
     const allCompetitors: Map<string, { name: string; rating: number; reviewsCount: number; position: number }> = new Map();
@@ -353,7 +360,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
 
           if (localResults.length === 0) {
             observations.push({
-              id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+              id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
               companyId: context.companyId,
               keyword: context.keyword,
               latitude: coord.lat,
@@ -395,7 +402,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
           });
 
           observations.push({
-            id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+            id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
             companyId: context.companyId,
             keyword: context.keyword,
             latitude: coord.lat,
@@ -410,7 +417,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
           });
         } else {
           observations.push({
-            id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+            id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
             companyId: context.companyId,
             keyword: context.keyword,
             latitude: coord.lat,
@@ -426,7 +433,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
         }
       } catch (err: any) {
         observations.push({
-          id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+          id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
           companyId: context.companyId,
           keyword: context.keyword,
           latitude: coord.lat,
@@ -437,13 +444,12 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
           provider: this.providerId,
           position: null,
           status: 'FAILED',
-          sourceEvidence: `Network error: ${err?.message}`,
+          sourceEvidence: 'Provider request outcome unavailable',
         });
       }
     }
 
-    const centerObs = observations.find((o) => o.gridIndex === 4) || observations[0];
-    const validPositions = observations.map((o) => o.position).filter((p): p is number => typeof p === 'number');
+    const centerObs = observations.find((o) => o.gridIndex === 4);
     const successCount = observations.filter((o) => o.status === 'LIVE' || o.status === 'VERIFIED').length;
 
     let overallStatus: 'LIVE' | 'PARTIAL' | 'FAILED' = 'FAILED';
@@ -457,7 +463,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
 
     const overallRank = overallStatus === 'FAILED'
       ? null
-      : (centerObs?.position ?? (validPositions.length > 0 ? Math.round(validPositions.reduce((a, b) => a + b, 0) / validPositions.length) : null));
+      : (centerObs && ['LIVE','VERIFIED'].includes(centerObs.status) ? centerObs.position : null);
 
     return {
       provider: this.providerId,
@@ -490,7 +496,7 @@ export class UnconfiguredRankProvider implements ILocalSeoRankProvider {
     const nowIso = new Date().toISOString();
     // Return 9 explicit geographic coordinates with position: null and status: UNAVAILABLE
     const observations: RankObservation[] = context.coordinates.map((coord) => ({
-      id: `obs_${crypto.randomUUID().slice(0, 10)}`,
+      id: `obs_${crypto.randomUUID().replace(/-/g, '')}`,
       companyId: context.companyId,
       keyword: context.keyword,
       latitude: coord.lat,

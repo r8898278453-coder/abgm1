@@ -1,0 +1,29 @@
+{
+  "scope": "disposable local MariaDB 10.11.19",
+  "migration": "009_internal_action_feed",
+  "schema": "READY",
+  "checks": [
+    "four concurrent consumers",
+    "idempotent receipt replay",
+    "tenant feed isolation",
+    "acknowledgment fault rolls receipt and revision back",
+    "expired delivery lease recovery",
+    "scope corruption dead-letter after three attempts",
+    "late source event remains visible after feed cursor",
+    "HTTP auth and workspace scope",
+    "uint64 cursor and bounded limit validation",
+    "unavailable503 and error redaction"
+  ],
+  "default_regression_programs": 32,
+  "typescript": "passed",
+  "build": "passed",
+  "production_changes": false,
+  "external_sends": false,
+  "pending": [
+    "UI/daily reports",
+    "general action adapters",
+    "inbound inbox",
+    "external fanout",
+    "persistent cron occurrence and catch-up"
+  ]
+}

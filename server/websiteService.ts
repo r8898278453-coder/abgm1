@@ -1,100 +1,30 @@
+import {storefrontInquiryScript} from './storefrontInquiryScript';
+import {normalizeWebsiteDomain} from '../shared/website';
 import JSZip from 'jszip';
 import dns from 'dns';
 import { DbCompany, DbWebsiteConfig } from './db';
 
-const dnsPromises = dns.promises;
-
 export interface DnsVerificationResult {
-  verified: boolean;
-  cnameMatches: boolean;
-  aRecordMatches: boolean;
-  txtRecordMatches: boolean;
-  resolvedCnames: string[];
-  resolvedA: string[];
-  resolvedTxt: string[];
-  status: 'active' | 'pending_verification' | 'failed';
-  diagnostics: string;
+ verified:boolean;cnameMatches:boolean;aRecordMatches:boolean;txtRecordMatches:boolean;
+ resolvedCnames:string[];resolvedA:string[];status:'dns_verified'|'pending_verification';
+ sslState:'UNVERIFIED';unavailable:boolean;diagnostics:string;
 }
-
-/**
- * Verify DNS records (CNAME, A Record, TXT verification token) for a custom domain.
- */
-export async function verifyDomainDns(
-  domain: string,
-  expectedCname = 'cname.bga.aaditechs.in',
-  expectedA = '77.37.54.108',
-  expectedTxt?: string
-): Promise<DnsVerificationResult> {
-  const cleanDomain = domain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-
-  let resolvedCnames: string[] = [];
-  let resolvedA: string[] = [];
-  let resolvedTxt: string[] = [];
-  let cnameMatches = false;
-  let aRecordMatches = false;
-  let txtRecordMatches = false;
-
-  try {
-    try {
-      resolvedCnames = await dnsPromises.resolveCname(cleanDomain);
-      cnameMatches = resolvedCnames.some(
-        (c) => c.toLowerCase() === expectedCname.toLowerCase() || c.toLowerCase().includes('aaditechs.in')
-      );
-    } catch {
-      // CNAME resolution might not be present if A record is used on apex domain
-    }
-
-    try {
-      resolvedA = await dnsPromises.resolve4(cleanDomain);
-      aRecordMatches = resolvedA.some((ip) => ip === expectedA || ip === '77.37.54.108');
-    } catch {
-      // A record resolution error
-    }
-
-    try {
-      const txtChunks = await dnsPromises.resolveTxt(cleanDomain);
-      resolvedTxt = txtChunks.map((chunk) => chunk.join(' '));
-      if (expectedTxt) {
-        txtRecordMatches = resolvedTxt.some((t) => t.includes(expectedTxt) || t.includes('bga-site-verification'));
-      }
-    } catch {
-      // TXT resolution error
-    }
-
-    // Determine verification state
-    const isVerified = cnameMatches || aRecordMatches || (expectedTxt ? txtRecordMatches : false);
-
-    let diagnostics = '';
-    if (isVerified) {
-      diagnostics = `DNS verified successfully! Domain resolves to Aaditech Cloud Edge (${cnameMatches ? `CNAME: ${resolvedCnames.join(', ')}` : `A-Record: ${resolvedA.join(', ')}`}). SSL certificate is active.`;
-    } else {
-      diagnostics = `DNS records not yet propagated. Detected A-records: [${resolvedA.join(', ') || 'none'}], CNAMEs: [${resolvedCnames.join(', ') || 'none'}]. Please ensure CNAME points to ${expectedCname} or A-Record points to ${expectedA}.`;
-    }
-
-    return {
-      verified: isVerified,
-      cnameMatches,
-      aRecordMatches,
-      txtRecordMatches,
-      resolvedCnames,
-      resolvedA,
-      resolvedTxt,
-      status: isVerified ? 'active' : 'pending_verification',
-      diagnostics,
-    };
-  } catch (err: any) {
-    return {
-      verified: false,
-      cnameMatches: false,
-      aRecordMatches: false,
-      txtRecordMatches: false,
-      resolvedCnames: [],
-      resolvedA: [],
-      resolvedTxt: [],
-      status: 'failed',
-      diagnostics: `DNS lookup failed: ${err?.message || 'Unknown network error'}. Verify domain spelling and nameservers.`,
-    };
-  }
+/** DNS ownership plus routing observation only. Does not attach a host, provision TLS or prove deployment. */
+export async function verifyDomainDns(domain:string,expectedCname='cname.bga.aaditechs.in',expectedA='77.37.54.108',expectedTxt?:string,resolver:any=new dns.promises.Resolver({timeout:1500,tries:1})):Promise<DnsVerificationResult>{
+ const host=normalizeWebsiteDomain(domain);const expected=expectedCname.toLowerCase().replace(/\.$/,'');
+ const timer=setTimeout(()=>resolver.cancel?.(),2500);
+ try{
+  const results=await Promise.allSettled([resolver.resolveCname(host),resolver.resolve4(host),resolver.resolveTxt(host)]);
+  const values=(i:number):any[]=>results[i].status==='fulfilled'?(results[i] as PromiseFulfilledResult<any[]>).value:[];
+  const absent=(i:number)=>results[i].status==='rejected'&&!['ENODATA','ENOTFOUND'].includes((results[i] as PromiseRejectedResult).reason?.code);
+  const resolvedCnames=values(0).filter(c=>typeof c==='string').slice(0,20),resolvedA=values(1).filter(c=>typeof c==='string').slice(0,20);
+  const cnameMatches=!!expected&&resolvedCnames.some(c=>c.toLowerCase().replace(/\.$/,'')===expected);
+  const aRecordMatches=!!expectedA&&resolvedA.some(ip=>ip===expectedA);
+  const txtRecordMatches=typeof expectedTxt==='string'&&!!expectedTxt&&values(2).some(chunks=>Array.isArray(chunks)&&chunks.join('')===expectedTxt);
+  const verified=txtRecordMatches&&(cnameMatches||aRecordMatches);
+  const unavailable=!verified&&(absent(2)||!(cnameMatches||aRecordMatches)&&(absent(0)||absent(1)));
+  return {verified,cnameMatches,aRecordMatches,txtRecordMatches,resolvedCnames,resolvedA,status:verified?'dns_verified':'pending_verification',sslState:'UNVERIFIED',unavailable,diagnostics:unavailable?'DNS lookup unavailable; existing saved evidence was not changed.':verified?'Ownership TXT and exact routing target observed. Hosting attachment, deployment and TLS remain unverified.':'Both the exact ownership TXT and a configured routing target must match. Hosting attachment and TLS remain unverified.'};
+ }finally{clearTimeout(timer);resolver.cancel?.();}
 }
 
 /**
@@ -129,7 +59,8 @@ export function escapeAttribute(str: any): string {
 export function generateStorefrontHtml(
   company: DbCompany,
   config?: DbWebsiteConfig | null,
-  pageId = 'main'
+  pageId = 'main',
+  leadEndpoint = '/api/public/leads'
 ): string {
   const rawCompanyName = company.name || 'Business Excellence';
   const rawCategory = company.category || 'Professional Services';
@@ -138,8 +69,8 @@ export function generateStorefrontHtml(
   const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
   const rawWebsite = company.website || '';
   const rawAddress = (company as any).address || '';
-  const primaryColor = escapeAttribute(config?.primary_color || '#4f46e5');
-  const secondaryColor = escapeAttribute(config?.secondary_color || '#06b6d4');
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(config?.primary_color||'') ? config!.primary_color : '#4f46e5';
+  const secondaryColor = /^#[0-9a-fA-F]{6}$/.test(config?.secondary_color||'') ? config!.secondary_color : '#06b6d4';
   
   const companyName = escapeHtml(rawCompanyName);
   const category = escapeHtml(rawCategory);
@@ -153,8 +84,8 @@ export function generateStorefrontHtml(
   const heroSubtitle = escapeHtml(
     config?.hero_subtitle ||
     (rawCity
-      ? `Professional solutions serving clients across ${rawCity} with verified customer support.`
-      : `Professional solutions with verified customer support.`)
+      ? `Professional solutions serving clients across ${rawCity} Contact the business for service details.`
+      : `Professional solutions Contact the business for service details.`)
   );
   const metaDesc = escapeAttribute(
     config?.meta_description ||
@@ -181,27 +112,27 @@ export function generateStorefrontHtml(
   }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
   const citySubtitle = rawCity ? ` in ${city}` : '';
-  const phoneCta = rawPhone
+  const phoneCta = rawPhone && config?.enable_direct_call_cta !== false
     ? `<a href="tel:${escapeAttribute(rawPhone)}" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition border border-slate-200">
           <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
           <span>${phone}</span>
         </a>`
     : '';
 
-  const whatsappCta = cleanPhone
+  const whatsappCta = cleanPhone && config?.enable_whatsapp_cta !== false
     ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Namaste ${rawCompanyName}! I am interested in your ${rawCategory}.`)}" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
           <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
           <span>WhatsApp Chat</span>
         </a>`
     : '';
 
-  const heroWhatsAppButton = cleanPhone
+  const heroWhatsAppButton = cleanPhone && config?.enable_whatsapp_cta !== false
     ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${rawCompanyName}! I would like to check service availability${rawCity ? ` in ${rawCity}` : ''}.`)}" target="_blank" class="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md transition flex items-center gap-2">
           <span>Chat on WhatsApp</span>
         </a>`
     : '';
 
-  const floatingWhatsApp = cleanPhone
+  const floatingWhatsApp = cleanPhone && config?.enable_whatsapp_cta !== false
     ? `<a href="https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hello ${rawCompanyName}! I am browsing your website and have an inquiry.`)}" target="_blank" class="fixed bottom-6 right-6 z-50 bg-emerald-600 hover:bg-emerald-700 text-white p-3.5 rounded-full shadow-lg transition transform hover:scale-110 flex items-center justify-center border-2 border-white" title="Chat on WhatsApp">
     <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.95.811 2.796.811 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.768-5.767zm9.969 5.828c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.819-1.236l-5.181 1.359 1.382-5.048c-.895-1.503-1.382-3.238-1.382-5.075 0-5.518 4.482-10 10-10s10 4.482 10 10z"/></svg>
   </a>`
@@ -234,6 +165,7 @@ export function generateStorefrontHtml(
   <meta property="og:description" content="${metaDesc}">
   <meta property="og:site_name" content="${companyName}">
   
+  ${/^G-[A-Z0-9]{4,32}$/.test(config?.google_analytics_id||'') ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${config!.google_analytics_id}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(config!.google_analytics_id)});</script>` : ''}
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${heroTitle}">
@@ -307,9 +239,9 @@ export function generateStorefrontHtml(
       </p>
 
       <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <a href="#inquiry-section" class="px-6 py-3.5 bg-brandPrimary hover:opacity-90 text-white font-black text-sm rounded-2xl shadow-md transition transform hover:-translate-y-0.5">
+        ${config?.enable_inquiry_form !== false && company.public_form_token ? `<a href="#inquiry-section" class="px-6 py-3.5 bg-brandPrimary hover:opacity-90 text-white font-black text-sm rounded-2xl shadow-md transition transform hover:-translate-y-0.5">
           Request Consultation
-        </a>
+        </a>` : ''}
         ${heroWhatsAppButton}
       </div>
     </div>
@@ -321,7 +253,7 @@ export function generateStorefrontHtml(
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
         <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">⚡</div>
         <h3 class="font-black text-slate-900 text-base">Direct Communication</h3>
-        <p class="text-xs text-slate-600 leading-relaxed">Connect directly with verified representatives${citySubtitle}. Clear deliverables and fast turnaround.</p>
+        <p class="text-xs text-slate-600 leading-relaxed">Connect directly with the business${citySubtitle}. Clear deliverables and fast turnaround.</p>
       </div>
 
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
@@ -339,6 +271,7 @@ export function generateStorefrontHtml(
   </section>
 
   <!-- Lead Capture Inquiry Section -->
+  ${config?.enable_inquiry_form !== false && company.public_form_token ? `
   <section id="inquiry-section" class="py-12 px-4 bg-white border-y border-slate-200">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="text-center space-y-2">
@@ -350,28 +283,28 @@ export function generateStorefrontHtml(
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Your Full Name *</label>
-            <input type="text" id="leadName" required placeholder="Full Name" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="leadName" maxlength="128" required placeholder="Full Name" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number (WhatsApp) *</label>
-            <input type="tel" id="leadPhone" required placeholder="Phone Number" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="tel" id="leadPhone" maxlength="64" required placeholder="Phone Number" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
-            <input type="email" id="leadEmail" placeholder="Email Address" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="email" id="leadEmail" maxlength="191" placeholder="Email Address" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Service Required</label>
-            <input type="text" id="leadService" placeholder="${category}" value="${category}" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="leadService" maxlength="191" placeholder="${category}" value="${category}" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Project Details / Message</label>
-          <textarea id="leadMessage" rows="3" placeholder="Describe your project or questions..." class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+          <textarea id="leadMessage" maxlength="12000" rows="3" placeholder="Describe your project or questions..." class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
         </div>
 
         <button type="submit" id="submitBtn" class="w-full py-3.5 bg-brandPrimary hover:opacity-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-md flex items-center justify-center gap-2">
@@ -380,49 +313,12 @@ export function generateStorefrontHtml(
         <div id="formFeedback" class="text-xs text-center font-bold hidden"></div>
       </form>
 
-      <script>
-        document.getElementById('leadForm').addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const btn = document.getElementById('submitBtn');
-          const feedback = document.getElementById('formFeedback');
-          btn.disabled = true;
-          btn.innerHTML = 'Submitting...';
-
-          const payload = {
-            publicFormToken: '${escapeAttribute(company.public_form_token || '')}',
-            name: document.getElementById('leadName').value,
-            phone: document.getElementById('leadPhone').value,
-            email: document.getElementById('leadEmail').value,
-            service: document.getElementById('leadService').value,
-            notes: document.getElementById('leadMessage').value,
-            source: 'Website Storefront (${escapeAttribute(pageId)})',
-          };
-
-          try {
-            const res = await fetch('/api/public/leads', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.success || res.ok) {
-              feedback.className = 'text-xs text-center font-bold text-emerald-600 block p-3 bg-emerald-50 rounded-xl border border-emerald-200';
-              feedback.innerText = 'Thank you! Your inquiry has been submitted successfully.';
-              document.getElementById('leadForm').reset();
-            } else {
-              throw new Error(data.message || 'Failed to submit inquiry');
-            }
-          } catch (err) {
-            feedback.className = 'text-xs text-center font-bold text-emerald-600 block p-3 bg-emerald-50 rounded-xl border border-emerald-200';
-            feedback.innerText = 'Thank you! Your inquiry has been recorded.';
-          } finally {
-            btn.disabled = false;
-            btn.innerText = 'Submit Inquiry';
-          }
-        });
-      </script>
+      <button type="button" id="checkInquiryReceipt" hidden>Check inquiry receipt</button>
+      <button type="button" id="newInquiry" hidden>Start a new inquiry</button>
+      <script>${storefrontInquiryScript(company.public_form_token||'','Website Storefront ('+(['main','local-seo','instant-inquiry'].includes(pageId)?pageId:'main')+')',leadEndpoint)}</script>
     </div>
   </section>
+  ` : ''}
 
   <!-- Location & Footer -->
   <footer class="bg-slate-900 text-slate-400 text-xs py-12 px-4 mt-auto">
@@ -434,7 +330,7 @@ export function generateStorefrontHtml(
       </div>
       ${locationSection}
       <div class="space-y-2 text-right sm:text-right">
-        ${cleanPhone ? `
+        ${cleanPhone && config?.enable_whatsapp_cta !== false ? `
         <div class="font-bold text-white uppercase text-[11px] tracking-wider mb-2">Direct Contact</div>
         <a href="https://wa.me/${cleanPhone}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs">
           Open WhatsApp Direct
@@ -459,18 +355,19 @@ export async function generateStaticExportZip(
   config?: DbWebsiteConfig | null,
   targetDomain = 'bga.aaditechs.in'
 ): Promise<Buffer> {
+  targetDomain=normalizeWebsiteDomain(targetDomain);
   const zip = new JSZip();
 
   // 1. Main index.html
-  const mainHtml = generateStorefrontHtml(company, config, 'main');
+  const mainHtml = generateStorefrontHtml(company, config, 'main', 'https://bga.aaditechs.in/api/public/leads');
   zip.file('index.html', mainHtml);
 
   // 2. Local SEO Hub landing page
-  const localSeoHtml = generateStorefrontHtml(company, config, 'local-seo');
+  const localSeoHtml = generateStorefrontHtml(company, config, 'local-seo', 'https://bga.aaditechs.in/api/public/leads');
   zip.file('local-seo.html', localSeoHtml);
 
   // 3. Instant consultation page
-  const instantInquiryHtml = generateStorefrontHtml(company, config, 'instant-inquiry');
+  const instantInquiryHtml = generateStorefrontHtml(company, config, 'instant-inquiry', 'https://bga.aaditechs.in/api/public/leads');
   zip.file('instant-inquiry.html', instantInquiryHtml);
 
   // 4. XML Sitemap
@@ -559,11 +456,11 @@ Sitemap: https://${targetDomain}/sitemap.xml
   // 9. Deployment README
   const readmeMd = `# Static Website Bundle for ${company.name} (${targetDomain})
 
-This zip package contains the production static build for **${company.name}**, pre-configured with:
+This zip package contains a static website package for **${company.name}**, pre-configured with:
 - Semantic JSON-LD Schema.org markup (LocalBusiness)
 - Geo-targeted Local SEO landing pages
-- Real Lead Capture Form connecting to Aaditech CRM API
-- Floating WhatsApp click-to-chat button
+- Inquiry form, when enabled and a public form token exists, sends to https://bga.aaditechs.in/api/public/leads. Confirm API availability and cross-origin policy after hosting; an unconfirmed submission never shows success. Regenerate old ZIPs for request-reference/receipt recovery. The page needs HTTPS, Web Crypto and session storage; only receipt metadata is kept in that tab, not contact values. Closing/clearing the tab loses its recovery reference. Legacy forms without a requestId remain non-idempotent.
+- WhatsApp and phone contact links follow saved CTA preferences
 - Fast responsive Tailwind styling
 - Google Search Console XML Sitemap & Robots.txt
 
@@ -573,7 +470,9 @@ This zip package contains the production static build for **${company.name}**, p
 1. Log into your Hostinger control panel or cPanel.
 2. Open **File Manager** -> \`public_html\`.
 3. Upload and extract this zip file into \`public_html\`.
-4. Point your domain's A-Record to your server IP.
+4. Point your domain's A-Record to the correct hosting IP and attach it in the host control panel.
+5. Install and verify HTTPS separately. Platform DNS observations do not provision hosting or TLS.
+6. Test the inquiry API with a controlled test submission before sharing the site. Static subpages use .html paths; preview labels do not configure host rewrites.
 
 ### 2. Netlify
 1. Drag and drop this extracted folder into [app.netlify.com/drop](https://app.netlify.com/drop).

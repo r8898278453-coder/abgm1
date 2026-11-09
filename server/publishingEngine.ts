@@ -1,10 +1,18 @@
+import {publishingExecutionBlock,type PublicationExecutionMode} from './publishingExecutionControls';
+import {publishingSourceVersion} from './publishingSource';
+import { metaPublishingText } from './metaPublishingText';
+import type { PublishingClaim } from './publishingClaims';
 import crypto from 'crypto';
 import {
   DbContentPost,
+  claimPublishingDispatch,
+  ownsPublishingDispatch,
+  settlePublishingDispatch,
   DbPublishingRecord,
   createPublishingRecord,
   updatePublishingRecord,
   getLatestPublishingRecord,
+  getUnconfirmedPublishingEvidence,
   isPostAlreadyPublished,
   getPostById,
   updateContentPostStatus,
@@ -38,6 +46,7 @@ export interface ProviderDispatchResult {
 }
 
 export interface PublishingJobResult {
+  deferredReason?:import('./queueSql').PauseReason;
   postId: string;
   companyId: string;
   status: 'PUBLISHED' | 'FAILED' | 'UNKNOWN' | 'SKIPPED_ALREADY_PUBLISHED' | 'IN_PROGRESS';
@@ -53,7 +62,7 @@ const MAX_DEFAULT_RETRIES = 2; // 1 initial attempt + up to 2 retries for retrya
 /**
  * Classifies an error into PERMANENT, RETRYABLE, or TIMEOUT_UNKNOWN.
  * Permanent errors (4xx, missing credentials, invalid format) MUST NEVER be retried indefinitely.
- * Transient errors (5xx, rate limits 429, network disconnects) MAY be retried with exponential backoff.
+ * Only definite retryable rejections such as429 may be retried; ambiguous writes require reconciliation.
  */
 export function classifyProviderError(
   errOrMsg: any,
@@ -63,6 +72,9 @@ export function classifyProviderError(
     ? errOrMsg
     : errOrMsg?.message || 'Unknown provider error';
   const lower = message.toLowerCase();
+  if (httpStatus === 408 || (httpStatus && httpStatus >= 500 && httpStatus <= 599)) {
+    return { errorType: 'TIMEOUT_UNKNOWN', isRetryable: false, message: 'Provider write outcome unconfirmed; reconciliation required' };
+  }
 
   // 1. Missing credentials / configuration -> PERMANENT
   if (
@@ -80,9 +92,6 @@ export function classifyProviderError(
     if (httpStatus === 429) {
       return { errorType: 'RETRYABLE', isRetryable: true, message: `Rate limited (HTTP 429): ${message}` };
     }
-    if (httpStatus >= 500 && httpStatus <= 599) {
-      return { errorType: 'RETRYABLE', isRetryable: true, message: `Server error (HTTP ${httpStatus}): ${message}` };
-    }
     if (httpStatus >= 400 && httpStatus < 500) {
       return { errorType: 'PERMANENT', isRetryable: false, message: `Client/Auth error (HTTP ${httpStatus}): ${message}` };
     }
@@ -98,9 +107,9 @@ export function classifyProviderError(
     lower.includes('aborted') ||
     lower.includes('aborterror') ||
     lower.includes('econnreset') ||
-    lower.includes('socket hang up')
+    lower.includes('socket hang up') || lower.includes('fetch failed') || lower.includes('network') || lower.includes('unconfirmed')
   ) {
-    return { errorType: 'TIMEOUT_UNKNOWN', isRetryable: true, message: `Network timeout / unconfirmed response: ${message}` };
+    return { errorType: 'TIMEOUT_UNKNOWN', isRetryable: false, message: 'Provider write outcome unconfirmed; reconciliation required' };
   }
 
   // 4. Authentication / OAuth / Permission errors -> PERMANENT
@@ -123,34 +132,25 @@ export function classifyProviderError(
 /**
  * Sends a Telegram notification push if configured.
  */
-async function sendTelegramAlert(message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
-  const chatId = process.env.TELEGRAM_CHAT_ID?.trim();
-  if (!botToken || !chatId) {
-    return { success: false, error: 'Telegram bot token or chat ID not configured' };
-  }
-
+async function sendTelegramAlert(companyId: string, message: string, canDispatch: () => Promise<boolean>): Promise<{ success: boolean; messageId?: string; error?: string; httpStatus?: number }> {
+  const integration = await getCompanyIntegration(companyId, 'telegram_bot');
+  const botToken = integration?.credentials?.botToken;
+  const chatId = integration?.credentials?.chatId;
+  if (!integration || integration.company_id !== companyId || integration.status !== 'connected' ||
+      typeof botToken !== 'string' || !/^\d+:[A-Za-z0-9_-]+$/.test(botToken) ||
+      typeof chatId !== 'string' || !/^-?\d+$/.test(chatId)) return { success: false, error: 'NOT_CONFIGURED: Workspace Telegram integration and recipient required' };
+  if (!await canDispatch()) return {success:false,error:'Unconfirmed publishing ownership; reconciliation required'};
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false,
-      }),
-      signal: AbortSignal.timeout(8000),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message }), signal: AbortSignal.timeout(8000),
     });
-
     const data = await res.json();
-    if (res.ok && data.ok && data.result?.message_id) {
+    if (res.ok && data.ok === true && Number.isInteger(data.result?.message_id) && String(data.result?.chat?.id) === chatId) {
       return { success: true, messageId: String(data.result.message_id) };
     }
-    return { success: false, error: data.description || `Telegram API error (HTTP ${res.status})` };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Telegram network timeout' };
-  }
+    return { success: false, error: res.ok ? 'Unconfirmed Telegram provider acknowledgment' : (data.description || 'Telegram provider rejection'), httpStatus: res.status };
+  } catch { return { success: false, error: 'Network or unconfirmed Telegram provider response' }; }
 }
 
 /**
@@ -160,22 +160,37 @@ async function dispatchPlatformWithRetry(
   platform: string,
   post: DbContentPost,
   companyId: string,
-  idempotencyKey: string
+  idempotencyKey: string,
+  canDispatch: () => Promise<boolean>,
+  canStart:()=>Promise<boolean>
 ): Promise<ProviderDispatchResult> {
+  const previous = await getUnconfirmedPublishingEvidence(post.id, platform);
+  if (previous && previous.company_id !== companyId) throw new Error('PUBLISHING_RECORD_SCOPE_MISMATCH');
+  if (previous && ['UNKNOWN','RETRYING'].includes(previous.status)) {
+    return { platform, success: false, status: 'UNKNOWN', errorType: 'TIMEOUT_UNKNOWN',
+      errorMessage: 'Previous provider attempt is unconfirmed; reconciliation required before resend', attemptsMade: previous.attempt_count };
+  }
+
   // Check if platform is already confirmed published
   const alreadyPublished = await isPostAlreadyPublished(post.id, platform);
   if (alreadyPublished) {
     const existingRec = await getLatestPublishingRecord(post.id, platform);
+    if (!existingRec || existingRec.company_id !== companyId || existingRec.status !== 'PUBLISHED' || typeof existingRec.provider_post_id !== 'string' || !existingRec.provider_post_id.trim()) {
+      return { platform, success: false, status: 'UNKNOWN', errorType: 'TIMEOUT_UNKNOWN',
+        errorMessage: 'Published record requires confirmation reconciliation', attemptsMade: existingRec?.attempt_count || 0 };
+    }
     return {
       platform,
       success: true,
       status: 'PUBLISHED',
-      providerPostId: existingRec?.provider_post_id || 'ALREADY_PUBLISHED',
+      providerPostId: existingRec.provider_post_id,
       attemptsMade: existingRec?.attempt_count || 1,
     };
   }
 
-  // Create or retrieve in-progress publishing record
+  if(!await canStart())return {platform,success:false,status:'FAILED',errorType:'PERMANENT',errorMessage:'Publishing paused before provider attempt',attemptsMade:0};
+
+  // Create attempt record only after unresolved-evidence guards.
   const record = await createPublishingRecord({
     post_id: post.id,
     company_id: companyId,
@@ -193,6 +208,8 @@ async function dispatchPlatformWithRetry(
   let providerSuccess = false;
 
   while (currentAttempt <= MAX_DEFAULT_RETRIES) {
+    if (!await canDispatch()) { lastErrorType = 'TIMEOUT_UNKNOWN'; lastErrorMessage = 'Publishing claim lost; reconciliation required'; break; }
+    if(!await canStart()){lastErrorType='PERMANENT';lastErrorMessage='Publishing paused before provider attempt';break;}
     currentAttempt++;
     await updatePublishingRecord(record.id, { attempt_count: currentAttempt });
 
@@ -205,10 +222,12 @@ async function dispatchPlatformWithRetry(
           break; // Do not retry permanent missing configuration
         }
 
+        if (!await canDispatch()) { lastErrorType = 'TIMEOUT_UNKNOWN'; lastErrorMessage = 'Publishing claim lost; reconciliation required'; break; }
+        if(!await canStart()){lastErrorType='PERMANENT';lastErrorMessage='Publishing paused before provider attempt';break;}
         const fbRes = await publishToFacebookPage({
           pageId: metaCreds.pageId,
           accessToken: metaCreds.accessToken,
-          message: `${post.headline ? post.headline + '\n\n' : ''}${post.caption}\n\n${(post.hashtags || []).join(' ')}`.trim(),
+          message: metaPublishingText(post),
           imageUrl: post.image_url,
         });
 
@@ -217,7 +236,7 @@ async function dispatchPlatformWithRetry(
           providerPostId = fbRes.id;
           break;
         } else {
-          const classified = classifyProviderError(fbRes.error || 'Facebook publishing failed');
+          const classified = classifyProviderError(fbRes.error || 'Facebook publishing failed', fbRes.httpStatus);
           lastErrorType = classified.errorType;
           lastErrorMessage = classified.message;
           if (!classified.isRetryable) break;
@@ -230,10 +249,13 @@ async function dispatchPlatformWithRetry(
           break;
         }
 
+        if (!await canDispatch()) { lastErrorType = 'TIMEOUT_UNKNOWN'; lastErrorMessage = 'Publishing claim lost; reconciliation required'; break; }
+        if(!await canStart()){lastErrorType='PERMANENT';lastErrorMessage='Publishing paused before provider attempt';break;}
         const igRes = await publishToInstagram({
           instagramId: metaCreds.instagramId,
+          canPublish:async()=>await canDispatch() && await canStart(),
           accessToken: metaCreds.accessToken,
-          caption: `${post.headline ? post.headline + '\n\n' : ''}${post.caption}\n\n${(post.hashtags || []).join(' ')}`.trim(),
+          caption: metaPublishingText(post),
           imageUrl: post.image_url,
           videoUrl: post.video_url,
         });
@@ -243,7 +265,7 @@ async function dispatchPlatformWithRetry(
           providerPostId = igRes.id;
           break;
         } else {
-          const classified = classifyProviderError(igRes.error || 'Instagram publishing failed');
+          const classified = classifyProviderError(igRes.error || 'Instagram publishing failed', igRes.httpStatus);
           lastErrorType = classified.errorType;
           lastErrorMessage = classified.message;
           if (!classified.isRetryable) break;
@@ -258,13 +280,15 @@ async function dispatchPlatformWithRetry(
 
         // Broadcast to admin or verified company phone
         const company = await getCompanyById(companyId);
-        const recipientPhone = company?.phone || process.env.WHATSAPP_ADMIN_PHONE || '';
+        const recipientPhone = company?.phone || '';
         if (!recipientPhone) {
           lastErrorType = 'PERMANENT';
           lastErrorMessage = 'No valid recipient phone number configured for WhatsApp broadcast.';
           break;
         }
 
+        if (!await canDispatch()) { lastErrorType = 'TIMEOUT_UNKNOWN'; lastErrorMessage = 'Publishing claim lost; reconciliation required'; break; }
+        if(!await canStart()){lastErrorType='PERMANENT';lastErrorMessage='Publishing paused before provider attempt';break;}
         const waRes = await sendWhatsAppCloudMessage(waCreds, {
           to: recipientPhone,
           message: `📢 *${post.title}*\n\n${post.headline ? '*' + post.headline + '*\n\n' : ''}${post.caption}\n\n${post.cta ? '👉 ' + post.cta : ''}`,
@@ -277,20 +301,20 @@ async function dispatchPlatformWithRetry(
           providerPostId = waRes.messageId;
           break;
         } else {
-          const classified = classifyProviderError(waRes.error || 'WhatsApp delivery failed');
+          const classified = classifyProviderError(waRes.error || 'WhatsApp delivery failed', waRes.httpStatus);
           lastErrorType = classified.errorType;
           lastErrorMessage = classified.message;
           if (!classified.isRetryable) break;
         }
       } else if (platform === 'telegram') {
-        const text = `🚀 <b>[AUTONOMOUS PUBLISHED POST]</b>\n\n<b>Title:</b> ${post.title}\n${post.headline ? '<b>Headline:</b> ' + post.headline + '\n' : ''}\n<b>Caption:</b>\n${post.caption}\n\n<b>Channels:</b> ${(post.platforms || []).join(', ')}`;
-        const tgRes = await sendTelegramAlert(text);
+        const text = `Publishing update\nTitle: ${post.title || ''}\n${post.headline || ''}\n${post.caption}`;
+        const tgRes = await sendTelegramAlert(companyId, text,async()=>await canDispatch() && await canStart());
         if (tgRes.success && tgRes.messageId) {
           providerSuccess = true;
           providerPostId = tgRes.messageId;
           break;
         } else {
-          const classified = classifyProviderError(tgRes.error || 'Telegram alert failed');
+          const classified = classifyProviderError(tgRes.error || 'Telegram alert failed', tgRes.httpStatus);
           lastErrorType = classified.errorType;
           lastErrorMessage = classified.message;
           if (!classified.isRetryable) break;
@@ -373,38 +397,28 @@ async function dispatchPlatformWithRetry(
  * Content -> Publishing Job -> Provider Adapter -> Provider API -> Provider Success -> Publishing Record -> PUBLISHED.
  * 
  * Guarantees:
- * 1. Idempotency: A scheduled post will not publish twice.
- * 2. Strict State: Post is ONLY marked 'published' when provider confirmed success with real ID.
+ * 1. Known published channels are skipped; unconfirmed attempts block blind replay.
+ * 2. Post is marked published only when all requested channels confirm success.
  * 3. Never returns fake success.
  * 4. Retries only for retryable errors.
  */
 export async function executePublishingJob(
   postOrOptions: DbContentPost | { postId: string; companyId?: string; platform?: string; payload?: any; platforms?: string[] },
-  options?: { force?: boolean; triggeredBy?: string }
+  options?: { force?: boolean; triggeredBy?: string; expectedVersion?:string; executionMode?:PublicationExecutionMode }
 ): Promise<PublishingJobResult> {
   let post: DbContentPost;
   if ('postId' in postOrOptions && !('title' in postOrOptions)) {
     const existing = await getPostById(postOrOptions.postId);
     if (existing) {
-      post = {
-        ...existing,
-        platforms: postOrOptions.platform ? [postOrOptions.platform] : (postOrOptions.platforms || existing.platforms),
-        caption: postOrOptions.payload?.caption || existing.caption,
-        headline: postOrOptions.payload?.headline || existing.headline,
-      };
+      post = existing;
+      if((postOrOptions.companyId && postOrOptions.companyId!==post.company_id) ||
+        (postOrOptions.platform && JSON.stringify(post.platforms || [post.channel || 'google'])!==JSON.stringify([postOrOptions.platform])) ||
+        (postOrOptions.platforms && JSON.stringify(postOrOptions.platforms)!==JSON.stringify(post.platforms || [post.channel || 'google'])) ||
+        (postOrOptions.payload && Object.keys(postOrOptions.payload).some(key=>!['caption','headline'].includes(key) || postOrOptions.payload[key]!==post[key as keyof DbContentPost]))) {
+        return {postId:post.id,companyId:post.company_id,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:'Publishing payload must match stored content and targets',executedAt:new Date().toISOString()};
+      }
     } else {
-      const resolvedCompId = postOrOptions.companyId || '';
-      post = {
-        id: postOrOptions.postId,
-        company_id: resolvedCompId,
-        title: 'Publishing Job',
-        type: 'general',
-        platforms: postOrOptions.platform ? [postOrOptions.platform] : (postOrOptions.platforms || ['facebook']),
-        channel: postOrOptions.platform || 'facebook',
-        caption: postOrOptions.payload?.caption || '',
-        headline: postOrOptions.payload?.headline || '',
-        status: 'scheduled',
-      };
+      return {postId:postOrOptions.postId,companyId:postOrOptions.companyId || '',status:'FAILED',overallStatus:'FAILED',finalPostStatus:'failed',platformResults:[],message:'Publishing requires a stored post',executedAt:new Date().toISOString()};
     }
   } else {
     post = postOrOptions as DbContentPost;
@@ -424,6 +438,21 @@ export async function executePublishingJob(
     };
   }
 
+  const storedPost=await getPostById(post.id);
+  if(!storedPost || storedPost.company_id!==companyId) {
+    return {postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:'failed',platformResults:[],
+      message:'Publishing requires a stored post in this workspace',executedAt:new Date().toISOString()};
+  }
+
+  if((options?.expectedVersion && options.expectedVersion!==publishingSourceVersion(storedPost)) || publishingSourceVersion(post)!==publishingSourceVersion(storedPost)){
+    return {postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:storedPost.status,platformResults:[],message:'Stored publishing content changed; reload before dispatch',executedAt:new Date().toISOString()};
+  }
+  post=storedPost;
+  if(post.status==='pending_approval')return {postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:'Approve the stored post before publishing',executedAt:new Date().toISOString()};
+
+  const canStart=async()=>!(await publishingExecutionBlock(companyId,options?.executionMode || 'manual',post.platforms?.length?post.platforms:[post.channel || 'google']));
+  const executionBlock=await publishingExecutionBlock(companyId,options?.executionMode || 'manual',post.platforms?.length?post.platforms:[post.channel || 'google']);
+  if(executionBlock)return {deferredReason:executionBlock,postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:`Publishing blocked: ${executionBlock}`,executedAt:new Date().toISOString()};
   const idempotencyKey = `pub_${post.id}`;
 
   // 1. Check if post is already marked published
@@ -455,8 +484,17 @@ export async function executePublishingJob(
   }
 
   activePublishingLocks.add(post.id);
-
+  let dispatchClaim: PublishingClaim | null = null;
+  let settled = false;
   try {
+    const admission = await claimPublishingDispatch(post.id, companyId,publishingSourceVersion(post));
+    if (!admission.acquired) {
+      const deferredReason=admission.status==='QUOTA_EXHAUSTED'?'PUBLICATION_QUOTA_EXHAUSTED' as const:['PUBLICATION_PAUSED','PUBLICATION_CHANNEL_PAUSED'].includes(admission.status)?admission.status as 'PUBLICATION_PAUSED'|'PUBLICATION_CHANNEL_PAUSED':undefined;
+      const state = (deferredReason || ['SOURCE_CHANGED','APPROVAL_REQUIRED'].includes(admission.status)) ? 'FAILED' : admission.status === 'PUBLISHED' ? 'SKIPPED_ALREADY_PUBLISHED' : admission.status === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'UNKNOWN';
+      return { deferredReason,postId:post.id,companyId,status:state,overallStatus:state,finalPostStatus:post.status,platformResults:[],
+        message:admission.status==='QUOTA_EXHAUSTED'?'Daily publishing admission limit reached. Retry on the next IST day or review the configured limit.':deferredReason?'Publishing paused by workspace/channel controls.':admission.status==='APPROVAL_REQUIRED'?'Approval required for the current content, schedule and publishing policy. Request approval, then approve for scheduled publishing.':'Durable publishing claim blocks duplicate dispatch; inspect current outcome before retrying',executedAt:new Date().toISOString() };
+    }
+    dispatchClaim = admission.claim;
     // Set post status to 'publishing' while in flight
     await updateContentPostStatus(post.id, 'publishing', companyId);
 
@@ -480,7 +518,9 @@ export async function executePublishingJob(
         platform,
         post,
         companyId,
-        `${idempotencyKey}_${platform}`
+        `${idempotencyKey}_${platform}`,
+        () => ownsPublishingDispatch(dispatchClaim!),
+        canStart
       );
       platformResults.push(result);
     }
@@ -493,26 +533,31 @@ export async function executePublishingJob(
     let finalStatus: 'published' | 'failed' | 'unknown' = 'failed';
     let overallJobStatus: 'PUBLISHED' | 'FAILED' | 'UNKNOWN' = 'FAILED';
 
-    if (anySuccess) {
-      finalStatus = 'published';
-      overallJobStatus = 'PUBLISHED';
-    } else if (anyUnknown) {
+    const allSuccess = platformResults.length > 0 && platformResults.every(r => r.status === 'PUBLISHED');
+    if (anyUnknown) {
       finalStatus = 'unknown';
       overallJobStatus = 'UNKNOWN';
-    } else if (allFailed) {
+    } else if (allSuccess) {
+      finalStatus = 'published';
+      overallJobStatus = 'PUBLISHED';
+    } else if (allFailed || anySuccess) {
       finalStatus = 'failed';
       overallJobStatus = 'FAILED';
     }
 
-    // Persist final status to content_posts table
-    await updateContentPostStatus(post.id, finalStatus, companyId);
+    settled = await settlePublishingDispatch(dispatchClaim, overallJobStatus);
+    if (!settled) {
+      return {postId:post.id,companyId,status:'UNKNOWN',overallStatus:'UNKNOWN',finalPostStatus:post.status,platformResults,
+        message:'Publishing claim settlement unconfirmed; provider outcomes require reconciliation',executedAt:new Date().toISOString()};
+    }
+
+    // Claim and content post status were settled atomically by the owner.
 
     const successPlatforms = platformResults.filter((r) => r.status === 'PUBLISHED').map((r) => r.platform);
     const failedPlatforms = platformResults.filter((r) => r.status !== 'PUBLISHED').map((r) => `${r.platform}: ${r.errorMessage || r.status}`);
 
-    const message = anySuccess
-      ? `Successfully published to: ${successPlatforms.join(', ')}.` + (failedPlatforms.length > 0 ? ` Non-critical provider notices: ${failedPlatforms.join('; ')}` : '')
-      : `Publishing failed for all requested channels: ${failedPlatforms.join('; ')}. Post status set to ${finalStatus.toUpperCase()}.`;
+    const message = allSuccess ? `Successfully published to: ${successPlatforms.join(', ')}.`
+      : `${anySuccess ? `Partially published to: ${successPlatforms.join(', ')}. ` : ''}Uncompleted channels: ${failedPlatforms.join('; ')}. Post status ${finalStatus.toUpperCase()}; unconfirmed outcomes require reconciliation.`;
 
     return {
       postId: post.id,
@@ -524,6 +569,9 @@ export async function executePublishingJob(
       message,
       executedAt: new Date().toISOString(),
     };
+  } catch(error) {
+    if(dispatchClaim && !settled) {try {await settlePublishingDispatch(dispatchClaim,'UNKNOWN');} catch { /* durable claim stays blocking */ }}
+    throw error;
   } finally {
     activePublishingLocks.delete(post.id);
   }

@@ -1,0 +1,30 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "018_publication_schedule_history",
+  "canonical_tables": 42,
+  "scope": [
+    "schedule snapshot binding",
+    "transactional reschedule-for-reapproval",
+    "IST canonical creation defaults and legacy datetime parsing",
+    "bounded authenticated history API and Content Studio pagination"
+  ],
+  "validation": {
+    "default_programs": 51,
+    "sql": "MariaDB10.11 READY through018/repeat0; stale schedule claims, before/after metadata, tenant scope,23-row keyset history; populated nullable-sequence recovery retains IDs/timestamps/row count",
+    "browser": "reschedule returns pending without send, reapprove, actor/IST history and older page; full suite passed on rerun",
+    "browser_attempts": "first150s run stalled at existing pending-save fixture; wait made explicitly bounded and rerun passed",
+    "focused": "legacy full datetime/offset/conflicting dates; UTC20:00\u2192next IST date; selected2:30PM preserved; source hash schedule changes",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "final_default_suite": "51 programs passed after final shared schedule normalizer changes",
+    "final_browser": "Passed after adding parent post refresh on approval/reschedule; one-send callback behavior unchanged; history generation ignores obsolete reads after mutation",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "mandatory agency/peer approval policy pending",
+    "no daily-report/action-feed fanout or client approval portal yet",
+    "live hosting SQL engine/window-function support unconfirmed",
+    "no provider-verified reconciliation or production acceptance"
+  ],
+  "production_changes": false
+}

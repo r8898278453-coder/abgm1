@@ -1,0 +1,26 @@
+{
+  "date_ist": "2026-11-04",
+  "migration": "023_publication_admission_limits",
+  "canonical_tables": 45,
+  "default_programs": 56,
+  "scope": [
+    "atomic per-client IST-day publishing admission reservations",
+    "existing versioned controls limit and usage snapshot",
+    "authorized keyset control history and dashboard",
+    "safe pre-claim quota queue deferral"
+  ],
+  "validation": {
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "default_suite": "56 programs passed",
+    "browser": "full workspace suite passed; cap validation/save/disable, history paging/legacy/unavailable recovery",
+    "sql": "MariaDB10.11 through023/repeat0; 8 contenders cap2 admit2, same-post reuse, lower/raise, UNKNOWN, rollback, IST rollover/session timezone,25-entry history pagination"
+  },
+  "limits": [
+    "logical admitted posts only, not requests/delivery/cost/billing",
+    "canonical publisher only; agency-wide budgets and broader actions pending",
+    "failed/UNKNOWN reservations retained; no automatic refund or expiry takeover",
+    "all workers require updated code; production acceptance pending"
+  ],
+  "production_changes": false
+}

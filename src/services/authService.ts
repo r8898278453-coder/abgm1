@@ -1,3 +1,7 @@
+import {validWorkspaceRevision} from '../../shared/workspaceRevision';
+import {isConfirmedMessageAcceptance} from '../../shared/whatsAppOutcomes';
+import {messageRequestKey} from './messageRequestKeys';
+import {validateScopedCollection,boundedRecordedNumber} from '../../shared/scopedCollection';
 import { AuthUser, CompanyRecord, LeadItem, ReviewItem, ContentPost, CompanyAsset, SocialTemplate, InternalCampaign, ExternalAdCampaign } from '../types';
 import { API_BASE_URL } from '../config/apiConfig';
 
@@ -57,6 +61,10 @@ export function setStoredActiveCompanyId(companyId: string) {
   }
 }
 
+export class ApiRequestError extends Error {
+  constructor(message: string, public readonly status: number) { super(message); }
+}
+
 // Fetch helper with Authorization Bearer header
 export async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
@@ -76,10 +84,11 @@ export async function apiRequest<T>(url: string, options: RequestInit = {}): Pro
     headers,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(data.error || `Request failed with status ${response.status}`);
+    throw new ApiRequestError(data?.error || `Request failed with status ${response.status}`, response.status);
   }
+  if (data === null) throw new Error('Invalid server response');
   return data;
 }
 
@@ -163,64 +172,56 @@ export async function createCompanyApi(data: {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  if(res.success!==true||typeof res.company?.id!=='string'||!res.company.id||res.company.id.length>64)throw new Error('Company creation acknowledgement unconfirmed');
   return res.company;
 }
 
-export async function fetchCompanyData(companyId: string): Promise<any | null> {
-  try {
-    const res = await apiRequest<{ success: boolean; company: CompanyRecord; data: any }>(`/api/companies/${companyId}/data`);
-    return res.data || null;
-  } catch (err) {
-    console.warn('Failed to fetch company data:', err);
-    return null;
-  }
+export async function fetchCompanyData(companyId:string):Promise<{data:any;version:string}>{
+  const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/data`);
+  if(response.success!==true||response.companyId!==companyId||response.company?.id!==companyId||!validWorkspaceRevision(response.version))throw new Error('Workspace load/revision unconfirmed');
+  const settings=response.data?.engine_settings;if(settings!==undefined&&(settings===null||typeof settings!=='object'||Array.isArray(settings)||settings.isHolidayPaused!==undefined&&typeof settings.isHolidayPaused!=='boolean'))throw new Error('Workspace execution settings invalid');
+  return {data:response.data||null,version:response.version};
 }
-
-export async function saveCompanyData(companyId: string, payload: any): Promise<boolean> {
-  try {
-    await apiRequest<{ success: boolean }>(`/api/companies/${companyId}/data`, {
-      method: 'PUT',
-      body: JSON.stringify({ data: payload }),
-    });
-    return true;
-  } catch (err) {
-    console.warn('Failed to save company data:', err);
-    return false;
-  }
+export async function saveCompanyData(companyId:string,payload:any,expectedVersion:string):Promise<{version:string}>{
+  if(!validWorkspaceRevision(expectedVersion))throw new Error('Workspace revision unavailable');
+  const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/data`,{method:'PUT',body:JSON.stringify({data:payload,expectedVersion})});
+  if(response.success!==true||response.companyId!==companyId||!validWorkspaceRevision(response.version)||BigInt(response.version)!==BigInt(expectedVersion)+1n)throw new Error('Workspace save acknowledgement unconfirmed');
+  return {version:response.version};
 }
 
 export async function fetchCompanyLeads(companyId?: string): Promise<LeadItem[]> {
   try {
     const url = companyId ? `/api/leads?companyId=${encodeURIComponent(companyId)}` : '/api/leads';
-    const res = await apiRequest<{ success: boolean; leads: any[] }>(url);
-    if (res.success && Array.isArray(res.leads)) {
-      return res.leads.map((l) => ({
+    const res = await apiRequest<{ success: boolean; leads: any[];companyId?:string }>(url);
+    const rows=validateScopedCollection(res,'leads',companyId);
+    if (rows) {
+      return rows.map((l) => ({
         id: l.id,
         name: l.name,
         phone: l.phone,
         serviceRequested: l.service || 'Service Inquiry',
-        date: l.created_at ? new Date(l.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'Recently',
+        date: l.created_at ? new Date(l.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric',timeZone:'Asia/Kolkata' }) : 'Recently',
         source: (l.source?.includes('Google') ? 'Google Maps' : l.source?.includes('WhatsApp') ? 'WhatsApp Direct' : 'Website') as any,
-        intentScore: l.intent_score || 85,
+        intentScore: boundedRecordedNumber(l.intent_score,0,100),
         stage: l.stage || 'new',
         notes: [l.company, l.budget, l.notes].filter(Boolean).join(' • '),
         aiSuggestedReply: l.ai_suggested_reply || '',
       }));
     }
-    return [];
+    throw new Error('Workspace collection unavailable');
   } catch (err) {
     console.warn('Failed to fetch company leads:', err);
-    return [];
+    throw new Error('Workspace collection unavailable');
   }
 }
 
 export async function updateLeadStageApi(
   leadId: string,
-  stage: LeadItem['stage']
+  stage: LeadItem['stage'],companyId?:string,expectedStage?:LeadItem['stage']
 ): Promise<{ success: boolean; lead: any }> {
   return apiRequest<{ success: boolean; lead: any }>(`/api/leads/${encodeURIComponent(leadId)}/stage`, {
     method: 'PATCH',
-    body: JSON.stringify({ stage }),
+    body: JSON.stringify({ stage,companyId,expectedStage }),
   });
 }
 
@@ -229,12 +230,13 @@ export async function updateLeadStageApi(
 export async function fetchCompanyReviews(companyId?: string): Promise<ReviewItem[]> {
   try {
     const url = companyId ? `/api/reviews?companyId=${encodeURIComponent(companyId)}` : '/api/reviews';
-    const res = await apiRequest<{ success: boolean; reviews: any[] }>(url);
-    if (res.success && Array.isArray(res.reviews)) {
-      return res.reviews.map((r) => ({
+    const res = await apiRequest<{ success: boolean; reviews: any[];companyId?:string }>(url);
+    const rows=validateScopedCollection(res,'reviews',companyId);
+    if (rows) {
+      return rows.map((r) => ({
         id: r.id,
         author: r.author || 'Anonymous Customer',
-        rating: typeof r.rating === 'number' ? r.rating : (r.rating !== null && r.rating !== undefined ? Number(r.rating) : (null as any)),
+        rating: boundedRecordedNumber(r.rating,1,5),
         date: r.date || null,
         relativeTime: r.relative_time || (r.date ? undefined : 'Recently'),
         content: r.content || '',
@@ -247,10 +249,10 @@ export async function fetchCompanyReviews(companyId?: string): Promise<ReviewIte
         source: r.source || 'manual',
       }));
     }
-    return [];
+    throw new Error('Workspace collection unavailable');
   } catch (err) {
     console.warn('Failed to fetch company reviews from MySQL:', err);
-    return [];
+    throw new Error('Workspace collection unavailable');
   }
 }
 
@@ -271,7 +273,7 @@ export async function createReviewApi(review: Partial<ReviewItem> & { companyId?
         source: review.source || 'manual',
       }),
     });
-    if (res.success && res.review) {
+    if (res.success === true && typeof res.review?.id==='string' && res.review.id && (!review.companyId || res.review.company_id === review.companyId)) {
       const r = res.review;
       return {
         id: r.id,
@@ -302,7 +304,7 @@ export async function replyToReviewApi(reviewId: string, replyText: string, comp
       method: 'POST',
       body: JSON.stringify({ replyText, companyId }),
     });
-    return Boolean(res.success);
+    return res.success === true;
   } catch (err) {
     console.warn('Failed to save review reply to MySQL:', err);
     return false;
@@ -315,7 +317,7 @@ export async function deleteReviewApi(reviewId: string, companyId?: string): Pro
       ? `/api/reviews/${encodeURIComponent(reviewId)}?companyId=${encodeURIComponent(companyId)}`
       : `/api/reviews/${encodeURIComponent(reviewId)}`;
     const res = await apiRequest<{ success: boolean }>(url, { method: 'DELETE' });
-    return Boolean(res.success);
+    return res.success === true;
   } catch (err) {
     console.warn('Failed to delete review from MySQL:', err);
     return false;
@@ -327,10 +329,12 @@ export async function deleteReviewApi(reviewId: string, companyId?: string): Pro
 export async function fetchCompanyPosts(companyId?: string): Promise<ContentPost[]> {
   try {
     const url = companyId ? `/api/content-posts?companyId=${encodeURIComponent(companyId)}` : '/api/content-posts';
-    const res = await apiRequest<{ success: boolean; posts: any[] }>(url);
-    if (res.success && Array.isArray(res.posts)) {
-      return res.posts.map((p) => ({
+    const res = await apiRequest<{ success: boolean; posts: any[];companyId?:string }>(url);
+    const rows=validateScopedCollection(res,'posts',companyId);
+    if (rows) {
+      return rows.map((p) => ({
         id: p.id,
+        sourceVersion:p.sourceVersion,
         title: p.title || 'Campaign Post',
         type: p.type || 'offer',
         platforms: Array.isArray(p.platforms) ? p.platforms : [p.channel || 'google'],
@@ -346,10 +350,10 @@ export async function fetchCompanyPosts(companyId?: string): Promise<ContentPost
         reelScript: p.reel_script || undefined,
       }));
     }
-    return [];
+    throw new Error('Workspace collection unavailable');
   } catch (err) {
     console.warn('Failed to fetch company content posts from MySQL:', err);
-    return [];
+    throw new Error('Workspace collection unavailable');
   }
 }
 
@@ -374,10 +378,11 @@ export async function createContentPostApi(post: Partial<ContentPost> & { compan
         reel_script: post.reelScript,
       }),
     });
-    if (res.success && res.post) {
+    if (res.success === true && typeof res.post?.id==='string' && res.post.id && (!post.companyId||res.post.company_id===post.companyId)) {
       const p = res.post;
       return {
         id: p.id,
+        sourceVersion:p.sourceVersion,
         title: p.title || 'Campaign Post',
         type: p.type || 'offer',
         platforms: Array.isArray(p.platforms) ? p.platforms : [p.channel || 'google'],
@@ -400,28 +405,30 @@ export async function createContentPostApi(post: Partial<ContentPost> & { compan
   }
 }
 
-export async function updatePostStatusApi(postId: string, status: string, companyId?: string): Promise<boolean> {
+export async function updatePostStatusApi(postId: string, status: string, companyId?: string, expectedVersion?:string): Promise<boolean> {
   try {
     const res = await apiRequest<{ success: boolean }>(`/api/content-posts/${encodeURIComponent(postId)}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status, companyId }),
+      body: JSON.stringify({ status, companyId,expectedVersion }),
     });
-    return Boolean(res.success);
+    return res.success === true;
   } catch (err) {
     console.warn('Failed to update post status in MySQL:', err);
     return false;
   }
 }
 
-export async function publishContentPostApi(postId: string, companyId?: string, force?: boolean): Promise<{ success: boolean; result?: any; error?: string }> {
+export async function publishContentPostApi(postId: string, companyId?: string, force?: boolean,expectedVersion?:string): Promise<{ success: boolean; result?: any; error?: string }> {
+  if(!companyId || !expectedVersion)return {success:false,error:'Reload the stored post before publishing; a current source version is required.'};
   try {
     const res = await apiRequest<{ success: boolean; result?: any; error?: string }>(`/api/content-posts/${encodeURIComponent(postId)}/publish`, {
       method: 'POST',
-      body: JSON.stringify({ companyId, force }),
+      body: JSON.stringify({ companyId, force,expectedVersion }),
     });
     return res;
   } catch (err: any) {
-    return { success: false, error: err?.message || 'Publishing request failed' };
+    if(err instanceof ApiRequestError && err.status<500)return {success:false,error:err.message};
+    return {success:false,result:{overallStatus:'UNKNOWN',message:'Publishing acknowledgment unconfirmed. Inspect the stored post before retrying.'}};
   }
 }
 
@@ -440,7 +447,7 @@ export async function deleteContentPostApi(postId: string, companyId?: string): 
       ? `/api/content-posts/${encodeURIComponent(postId)}?companyId=${encodeURIComponent(companyId)}`
       : `/api/content-posts/${encodeURIComponent(postId)}`;
     const res = await apiRequest<{ success: boolean }>(url, { method: 'DELETE' });
-    return Boolean(res.success);
+    return res.success === true;
   } catch (err) {
     console.warn('Failed to delete content post from MySQL:', err);
     return false;
@@ -559,9 +566,9 @@ export async function deleteInternalCampaignApi(id: string, companyId?: string):
 export async function getExternalAdCampaignsApi(companyId?: string): Promise<ExternalAdCampaign[]> {
   try {
     const url = companyId ? `/api/campaigns/external?company_id=${encodeURIComponent(companyId)}` : '/api/campaigns/external';
-    const res = await apiRequest<{ success: boolean; campaigns: any[] }>(url);
-    if (res.success && Array.isArray(res.campaigns)) {
-      return res.campaigns.map((c) => ({
+    const res = await apiRequest<{ success: boolean; companyId:string; campaigns: any[] }>(url);
+    if (res.success===true && (!companyId||res.companyId===companyId) && Array.isArray(res.campaigns) && res.campaigns.every(c=>c.company_id===res.companyId)) {
+      return validateScopedCollection(res,'campaigns',companyId||res.companyId).map((c) => ({
         id: c.id,
         companyId: c.company_id,
         internalCampaignId: c.internal_campaign_id || null,
@@ -570,30 +577,29 @@ export async function getExternalAdCampaignsApi(companyId?: string): Promise<Ext
         name: c.name,
         status: c.status,
         fetchedAt: c.fetched_at,
-        spend: c.spend !== null ? Number(c.spend) : 'UNAVAILABLE',
-        impressions: c.impressions !== null ? Number(c.impressions) : 'UNAVAILABLE',
-        clicks: c.clicks !== null ? Number(c.clicks) : 'UNAVAILABLE',
-        conversions: c.conversions !== null ? Number(c.conversions) : 'UNAVAILABLE',
+        spend: boundedRecordedNumber(c.spend,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
+        impressions: boundedRecordedNumber(c.impressions,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
+        clicks: boundedRecordedNumber(c.clicks,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
+        conversions: boundedRecordedNumber(c.conversions,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
         conversionTrackingStatus: c.conversion_tracking_status || 'UNAVAILABLE',
-        revenue: c.revenue !== null ? Number(c.revenue) : 'UNAVAILABLE',
+        revenue: boundedRecordedNumber(c.revenue,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
         revenueAttributionStatus: c.revenue_attribution_status || 'UNAVAILABLE',
-        roas: c.roas !== null ? Number(c.roas) : 'UNAVAILABLE',
+        roas: boundedRecordedNumber(c.roas,0,Number.MAX_SAFE_INTEGER) ?? 'UNAVAILABLE',
         rawMetricsJson: c.raw_metrics_json,
       }));
     }
-    return [];
+    throw new Error('External campaign collection unavailable');
   } catch (err) {
-    console.warn('Failed to fetch external ad campaigns:', err);
-    return [];
+    throw new Error('External campaign collection unavailable');
   }
 }
 
 export async function syncExternalAdCampaignsApi(
   companyId?: string,
   provider = 'meta_ads'
-): Promise<{ success: boolean; syncResult?: any; error?: string }> {
+): Promise<{ success: boolean; companyId?:string; syncResult?: any; error?: string }> {
   try {
-    const res = await apiRequest<{ success: boolean; syncResult?: any; error?: string }>('/api/campaigns/external/sync', {
+    const res = await apiRequest<{ success: boolean; companyId?:string; syncResult?: any; error?: string }>('/api/campaigns/external/sync', {
       method: 'POST',
       body: JSON.stringify({ company_id: companyId, provider }),
     });
@@ -623,6 +629,7 @@ export async function linkInternalToExternalCampaignApi(
 // ---------------- WHATSAPP CLOUD & RAZORPAY INTEGRATION SERVICES ---------------- //
 
 export interface WhatsAppSendResult {
+  requestKey?:string;status?:string;
   success: boolean;
   method?: 'meta_cloud_api' | 'wa_link';
   messageId?: string;
@@ -645,21 +652,28 @@ export async function sendWhatsAppMessageApi(payload: {
   caption?: string;
   companyId?: string;
 }): Promise<WhatsAppSendResult> {
+  let intent:Awaited<ReturnType<typeof messageRequestKey>>|undefined;
   try {
+    intent=await messageRequestKey(`${getStoredUser()?.id||'session'}:${payload.companyId||'default'}:sendWhatsAppMessageApi`,payload);
     const res = await apiRequest<WhatsAppSendResult>('/api/whatsapp/send', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({...payload,requestKey:intent.key}),
     });
-    return res;
+    if(res.success===true&&!isConfirmedMessageAcceptance(res,intent.key))return {success:false,status:'UNKNOWN',requestKey:intent.key,error:'Message acknowledgement unconfirmed. Inspect stored request before retrying.'};
+    if(isConfirmedMessageAcceptance(res,intent.key))intent.clear();
+    return {...res,requestKey:intent.key};
   } catch (err: any) {
     return {
-      success: false,
+      success: false,requestKey:intent?.key,
       error: err?.message || 'Failed to dispatch WhatsApp message',
     };
   }
 }
 
 export interface WhatsAppBroadcastResult {
+  status?:string;
+  requestKey?:string;
+  acceptedCount?:number;rejectedCount?:number;unknownCount?:number;pausedCount?:number;notAttemptedCount?:number;
   success: boolean;
   campaignName?: string;
   totalRecipients?: number;
@@ -667,7 +681,7 @@ export interface WhatsAppBroadcastResult {
   failCount?: number;
   configured?: boolean;
   results?: Array<{
-    recipient: string;
+    recipient: string;status?:string;requestKey?:string;
     success: boolean;
     messageId?: string;
     waLink?: string;
@@ -687,15 +701,19 @@ export async function broadcastWhatsAppApi(payload: {
   campaignName?: string;
   companyId?: string;
 }): Promise<WhatsAppBroadcastResult> {
+  let intent:Awaited<ReturnType<typeof messageRequestKey>>|undefined;
   try {
+    intent=await messageRequestKey(`${getStoredUser()?.id||'session'}:${payload.companyId||'default'}:broadcastWhatsAppApi`,payload);
     const res = await apiRequest<WhatsAppBroadcastResult>('/api/whatsapp/broadcast', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({...payload,requestKey:intent.key}),
     });
-    return res;
+    if(res.success===true&&res.requestKey!==intent.key)return {success:false,status:'UNKNOWN',requestKey:intent.key,error:'Broadcast acknowledgement unconfirmed. Inspect request results before retrying.'};
+    if(res.status==='API_ACCEPTED'&&res.requestKey===intent.key)intent.clear();
+    return {...res,requestKey:intent.key};
   } catch (err: any) {
     return {
-      success: false,
+      success: false,requestKey:intent?.key,
       error: err?.message || 'Failed to broadcast WhatsApp campaign',
     };
   }
@@ -723,6 +741,8 @@ export async function getWhatsAppStatusApi(companyId?: string): Promise<{
 
 export interface MetaSocialPublishResult {
   success: boolean;
+  status?: string;
+  postId?: string;
   configured?: boolean;
   message?: string;
   results?: {
@@ -737,9 +757,10 @@ export async function publishToMetaSocialApi(payload: {
   caption?: string;
   imageUrl?: string;
   videoUrl?: string;
-  platforms?: Array<'facebook' | 'instagram' | 'whatsapp' | 'google'>;
-  companyId?: string;
-  postId?: string;
+  platforms: Array<'facebook' | 'instagram'>;
+  companyId: string;
+  postId: string;
+  expectedVersion:string;
 }): Promise<MetaSocialPublishResult> {
   try {
     const res = await apiRequest<MetaSocialPublishResult>('/api/meta/publish-post', {
@@ -750,7 +771,9 @@ export async function publishToMetaSocialApi(payload: {
   } catch (err: any) {
     return {
       success: false,
-      error: err?.message || 'Failed to publish to Meta Social channels',
+      postId: payload.postId,
+      status: err instanceof ApiRequestError && err.status < 500 ? 'FAILED' : 'UNKNOWN',
+      error: err instanceof ApiRequestError && err.status < 500 ? err.message : 'Publishing result unconfirmed. Inspect the stored post before retrying.',
     };
   }
 }
@@ -871,11 +894,11 @@ export interface TelegramNotifyResult {
   error?: string;
 }
 
-export async function sendTelegramNotifyApi(message: string): Promise<TelegramNotifyResult> {
+export async function sendTelegramNotifyApi(companyId: string, message: string): Promise<TelegramNotifyResult> {
   try {
     const res = await apiRequest<TelegramNotifyResult>('/api/telegram/notify', {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ companyId, message }),
     });
     return res;
   } catch (err: any) {
@@ -1210,8 +1233,8 @@ export interface CompanyDomainRecord {
   id: string;
   company_id: string;
   domain: string;
-  status: 'active' | 'pending_verification' | 'failed';
-  ssl_status: 'active' | 'provisioning' | 'expired';
+  status: 'active' | 'dns_verified' | 'pending_verification' | 'failed';
+  ssl_status: 'active' | 'unverified' | 'provisioning' | 'expired';
   cname_target: string;
   a_record_target: string;
   dns_txt_record: string;
@@ -1279,99 +1302,35 @@ export async function fetchRevenueAttributionApi(companyId?: string): Promise<Re
   }
 }
 
-export async function fetchCompanyDomainsApi(companyId: string): Promise<CompanyDomainRecord[]> {
-  try {
-    const res = await apiRequest<{ success: boolean; count: number; domains: CompanyDomainRecord[] }>(
-      `/api/companies/${encodeURIComponent(companyId)}/domains`
-    );
-    return res.domains || [];
-  } catch (err) {
-    console.warn('Failed to fetch domains:', err);
-    return [];
-  }
+function websiteAck<T extends {company_id:string}>(company:string,response:any,key:string):T{
+ if(response.success!==true||response.companyId!==company||!response[key]||response[key].company_id!==company)throw new Error('Website acknowledgement unavailable; reload to confirm state');return response[key];
 }
-
-export async function addCompanyDomainApi(companyId: string, domain: string): Promise<CompanyDomainRecord> {
-  const res = await apiRequest<{ success: boolean; domain: CompanyDomainRecord }>(
-    `/api/companies/${encodeURIComponent(companyId)}/domains`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ domain }),
-    }
-  );
-  return res.domain;
+export async function fetchCompanyDomainsApi(companyId:string,signal?:AbortSignal):Promise<CompanyDomainRecord[]>{
+ const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/domains`,{signal});
+ if(response.success!==true||response.companyId!==companyId||!Array.isArray(response.domains)||response.domains.some((row:any)=>row.company_id!==companyId))throw new Error('Domain data unavailable');return response.domains;
 }
-
-export async function verifyCompanyDomainApi(
-  companyId: string,
-  domainId: string
-): Promise<{ success: boolean; domain: CompanyDomainRecord; verification: any }> {
-  return apiRequest<{ success: boolean; domain: CompanyDomainRecord; verification: any }>(
-    `/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}/verify`,
-    {
-      method: 'POST',
-    }
-  );
+export async function addCompanyDomainApi(companyId:string,domain:string,signal?:AbortSignal):Promise<CompanyDomainRecord>{
+ return websiteAck<CompanyDomainRecord>(companyId,await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/domains`,{method:'POST',body:JSON.stringify({domain}),signal}),'domain');
 }
-
-export async function deleteCompanyDomainApi(companyId: string, domainId: string): Promise<boolean> {
-  const res = await apiRequest<{ success: boolean; message: string }>(
-    `/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}`,
-    {
-      method: 'DELETE',
-    }
-  );
-  return res.success;
+export async function verifyCompanyDomainApi(companyId:string,domainId:string,signal?:AbortSignal):Promise<{success:boolean;domain:CompanyDomainRecord;verification:any}>{
+ const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}/verify`,{method:'POST',signal});websiteAck(companyId,response,'domain');return response;
 }
-
-export async function fetchWebsiteConfigApi(companyId: string): Promise<WebsiteConfigRecord | null> {
-  try {
-    const res = await apiRequest<{ success: boolean; config: WebsiteConfigRecord }>(
-      `/api/companies/${encodeURIComponent(companyId)}/website/config`
-    );
-    return res.config || null;
-  } catch (err) {
-    console.warn('Failed to fetch website config:', err);
-    return null;
-  }
+export async function deleteCompanyDomainApi(companyId:string,domainId:string,signal?:AbortSignal):Promise<boolean>{
+ const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/domains/${encodeURIComponent(domainId)}`,{method:'DELETE',signal});if(response.success!==true||response.companyId!==companyId)throw new Error('Domain removal not confirmed');return true;
 }
-
-export async function saveWebsiteConfigApi(
-  companyId: string,
-  config: Partial<WebsiteConfigRecord>
-): Promise<WebsiteConfigRecord> {
-  const res = await apiRequest<{ success: boolean; config: WebsiteConfigRecord }>(
-    `/api/companies/${encodeURIComponent(companyId)}/website/config`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(config),
-    }
-  );
-  return res.config;
+export async function fetchWebsiteConfigApi(companyId:string,signal?:AbortSignal):Promise<WebsiteConfigRecord|null>{
+ const response=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/website/config`,{signal});
+ if(response.success!==true||response.companyId!==companyId)throw new Error('Website settings unavailable');return response.config===null?null:websiteAck<WebsiteConfigRecord>(companyId,response,'config');
 }
-
-export async function downloadStaticWebsiteZip(companyId: string, domain = 'bga.aaditechs.in'): Promise<void> {
-  const token = getStoredToken();
-  const url = `${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/website/export`;
-  const response = await fetch(url, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to download static website zip package');
-  }
-
-  const blob = await response.blob();
-  const downloadUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = `storefront-${domain.replace(/[^a-z0-9]/gi, '_')}.zip`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(downloadUrl);
+export async function saveWebsiteConfigApi(companyId:string,config:Partial<WebsiteConfigRecord>,signal?:AbortSignal):Promise<WebsiteConfigRecord>{
+ return websiteAck<WebsiteConfigRecord>(companyId,await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/website/config`,{method:'PUT',body:JSON.stringify(config),signal}),'config');
+}
+export async function downloadStaticWebsiteZip(companyId:string,domain='bga.aaditechs.in',options:{signal?:AbortSignal;isCurrent?:()=>boolean}={}):Promise<void>{
+ const token=getStoredToken();const current=()=>!options.signal?.aborted&&(!options.isCurrent||options.isCurrent())&&token===getStoredToken();
+ const response=await fetch(`${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/website/export`,{headers:{...(token?{Authorization:`Bearer ${token}`}:{})},signal:options.signal});
+ if(!response.ok||!response.headers.get('content-type')?.includes('application/zip'))throw new Error('Website download was not confirmed');
+ const blob=await response.blob();if(!current())throw new Error('Website download cancelled after workspace change');
+ const url=window.URL.createObjectURL(blob);const link=document.createElement('a');try{link.href=url;link.download=`storefront-${domain.replace(/[^a-z0-9]/gi,'_')}.zip`;document.body.appendChild(link);if(current())link.click();else throw new Error('Website download cancelled');}finally{link.remove();window.URL.revokeObjectURL(url);}
 }
 
 // ---------------- AUTONOMOUS GOVERNANCE & KILL SWITCH APIS ---------------- //

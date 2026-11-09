@@ -1,0 +1,29 @@
+{
+  "scope": "legacy Meta URL and integration composer canonicalization",
+  "default_regression_programs": 43,
+  "typescript": "passed",
+  "build": "passed",
+  "http_real_publisher_mocked_graph": "passed",
+  "chromium": "passed",
+  "legacy_direct_graph_bypass": false,
+  "checks": [
+    "explicit stored workspace/post required",
+    "stored content/media/target match",
+    "unknown/active outcomes not success",
+    "real publisher replay sends once per saved post",
+    "draft schema preserves workspace/targets/video",
+    "draft-first frontend retry reuses saved ID",
+    "client switch prevents late draft dispatch",
+    "no automatic stock-image fallback"
+  ],
+  "schema_changes": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "pending": [
+    "audited UNKNOWN reconciliation/replay",
+    "reload-safe intent identity and approval versions",
+    "whole-provider/write deadlines",
+    "general manual action ledger adapter",
+    "Hostinger acceptance"
+  ]
+}

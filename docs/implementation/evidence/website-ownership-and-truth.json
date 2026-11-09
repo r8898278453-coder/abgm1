@@ -1,0 +1,66 @@
+{
+  "date_ist": "2026-11-06",
+  "tasks": [
+    "P00-03",
+    "P01-02",
+    "P01-05",
+    "P01-09",
+    "P02-04"
+  ],
+  "phase_status": "incomplete; no task/phase promotion",
+  "sequential_batches": 8,
+  "migration_target": 28,
+  "canonical_tables": 49,
+  "new_migration": false,
+  "historical_migrations_changed": false,
+  "production_changes": false,
+  "closed_gaps": [
+    "request body could override authorized website company_id",
+    "duplicate-key domain/config writes could mutate foreign-owner rows",
+    "confirmed SQL writes and valid misses could fall through to production memory errors",
+    "disjoint config patches could overwrite fields not submitted",
+    "weak substring/suffix DNS matching and routing-only ownership shortcut",
+    "DNS observation falsely certified SSL-active/live hosting",
+    "old-client load/save/download and older-ACK/newer-draft races",
+    "failed reads silently returned empty/null success",
+    "generated inquiry network/server failure falsely reported recorded",
+    "generated CTA flags ignored and unsafe JS-context interpolation",
+    "static-host inquiry endpoint wrongly depended on a local /api"
+  ],
+  "validation": {
+    "default_programs": 76,
+    "default_suite": "passed with inherited production credentials excluded",
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "browser": "passed mocked Chromium: old-client save/download fences, newer draft after older ACK, load-error/reload, exact escaped token, success/rejected/5xx/malformed/network inquiry and false-TLS exclusion; external requests blocked",
+    "sql": "passed disposable MariaDB10.11 fresh001\u2013028/005-upgrade parity/repeat0, restricted production-mode website config/domain races and scoped mutations, stale target/token rejection, owner uniqueness readiness, UTC in -08:00 session and prior queue/dispatcher/action regressions",
+    "uploaded_export": "passed original 40265-byte copy,31 imported tables/5 original ledger identities, READY through028, business rows/ledger preserved, source/bundled replay0",
+    "diff_check": "passed"
+  },
+  "proof_semantics": {
+    "dns": "exact ownership TXT and configured CNAME/A observed with current saved snapshot",
+    "tls": "UNVERIFIED; no HTTPS certificate/host probe",
+    "website_save": "confirmed SQL state; supplied fields only; same-field cross-session last-writer-wins",
+    "form_receipt": "HTTP OK plus success:true plus saved lead ID",
+    "uncertain_form": "retained fields and disabled immediate retry in current page; not durable server idempotency",
+    "static_export": "downloadable template ZIP; not deployment"
+  },
+  "limits": [
+    "live hosting attachment/TLS/routing, Hostinger backup/runtime/cron remain unverified",
+    "old binaries/direct SQL writers bypass new ownership/proof/save contracts; deploy coherently",
+    "unverified domain reservation expiry/reclaim/disputes need future policy",
+    "legacy null TXT challenge requires explicit re-registration",
+    "same-field cross-session website config CAS/release workflow remains future work",
+    "static pages share existing content template; full SEO/page publishing/attribution not completed",
+    "public lead intake lacks durable request idempotency; reload/retry may duplicate uncertain commits",
+    "full shared consent/cost/policy/agency/action-ledger gates remain open",
+    "billing excluded"
+  ],
+  "tracker": {
+    "validated": 7,
+    "blocked": 1,
+    "in_progress": 7,
+    "planned": 78,
+    "total": 93
+  }
+}

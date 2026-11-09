@@ -1,0 +1,35 @@
+{
+  "scope": "read-only reporting SQL snapshot client deadline",
+  "default_timeout_ms": 5000,
+  "default_regression_programs": 41,
+  "typescript": "passed",
+  "build": "passed",
+  "focused_cleanup_tests": "passed",
+  "scheduler_contract": "passed",
+  "real_mariadb": "passed",
+  "checks": [
+    "clean read-only commit/release",
+    "write and multi-statement rejection",
+    "slow SELECT destroys socket",
+    "slow commit never returns partial result",
+    "late pool acquisition released unused",
+    "resumed expired callback cannot query",
+    "failed cleanup discards socket",
+    "real SQL slow aggregate rejects partial summary",
+    "new pool connection ID after timeout",
+    "healthy summary recovery"
+  ],
+  "server_statement_instant_termination_guaranteed": false,
+  "applies_to_side_effecting_jobs": false,
+  "schema_changes": false,
+  "production_changes": false,
+  "actual_messages": false,
+  "tracker_task": "P01-07 in_progress",
+  "pending": [
+    "server-side statement controls",
+    "safe provider/write deadlines",
+    "durable phase priority across replicas/restarts",
+    "audited UNKNOWN reconciliation/replay",
+    "Hostinger execution-limit acceptance"
+  ]
+}

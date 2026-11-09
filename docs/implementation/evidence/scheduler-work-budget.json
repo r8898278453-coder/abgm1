@@ -1,0 +1,29 @@
+{
+  "scope": "local cooperative scheduler budget",
+  "default_regression_programs": 40,
+  "targeted_scheduler_contract": "passed",
+  "typescript": "passed",
+  "build": "passed",
+  "real_mariadb": "passed",
+  "budget_ms": 20000,
+  "mode": "cooperative",
+  "checks": [
+    "monotonic expiry",
+    "explicit deferred-stage response",
+    "admission recheck after lookup",
+    "queue next-claim blocked; active handler settles",
+    "outbox no new acquisition after budget",
+    "real SQL current receipt settles and next delivery stays pending"
+  ],
+  "phase_priority": "best-effort rotating groups per process; publishing admission before queue",
+  "may_overrun_on_active_query_or_provider": true,
+  "production_changes": false,
+  "actual_messages": false,
+  "tracker_task": "P01-07 in_progress",
+  "pending": [
+    "hard SQL/provider cancellation/deadlines",
+    "durable cross-process phase fairness",
+    "audited UNKNOWN reconciliation/replay",
+    "hosting time-limit acceptance"
+  ]
+}

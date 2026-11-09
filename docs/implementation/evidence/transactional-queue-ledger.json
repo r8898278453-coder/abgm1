@@ -1,0 +1,45 @@
+{
+  "scope": "disposable local MariaDB",
+  "migration": "008_queue_action_ledger",
+  "historical_001_to_007_changed": false,
+  "results": [
+    {
+      "schema_verification": "READY"
+    },
+    {
+      "engine": "10.11.19-MariaDB-ubu2204",
+      "fresh_schema_001_to_005": "passed",
+      "upgrade_from_005_through_008": "passed",
+      "duplicate_domain_preflight": "passed",
+      "incorrect_index_columns": "rejected",
+      "equivalent_lead_index_reused": true,
+      "repeat_upgrade": "passed",
+      "concurrent_workers": 12,
+      "single_claim": "passed",
+      "type_filter": "passed",
+      "expired_lease_recovery": "passed",
+      "rollback": "passed",
+      "stale_worker_completion_failure": "rejected",
+      "unfenced_running_update": "rejected",
+      "reused_worker_attempt_fence": "passed",
+      "lease_renewal": "passed",
+      "concurrent_settlement": "single winner",
+      "attempt_exhaustion": "dead letter",
+      "retry_backoff": "passed",
+      "cancelled_state_fence": "passed",
+      "transactional_enqueue_events_outbox": "passed",
+      "outbox_fault_rollback": "passed",
+      "concurrent_enqueue_idempotency": 8,
+      "tenant_key_separation": "passed",
+      "production_access": false
+    }
+  ],
+  "claim_outbox_fault": "transaction rolled back",
+  "settlement_outbox_fault": "transaction rolled back",
+  "scope_mismatch": "rejected; transition rolled back",
+  "actor_spoofing_http": "rejected",
+  "private_payload_copied_to_ledger": false,
+  "outbox_delivery_consumer": "not implemented",
+  "default_regression_programs": 31,
+  "production_changes": false
+}

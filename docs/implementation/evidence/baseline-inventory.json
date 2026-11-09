@@ -1,0 +1,588 @@
+{
+  "revision": "0424dbe52944165b38abe509ecc27a0aeb94e04d",
+  "routes": [
+    {
+      "method": "get",
+      "path_expression": "'/api/health', (req, res) => {",
+      "line": 411
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/auth/register', registerRateLimiter, validateBody(registerSchema), async (req, res) => {",
+      "line": 422
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/auth/login', loginProtectionMiddleware, validateBody(loginSchema), async (req, res) => {",
+      "line": 457
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/auth/forgot-password', forgotPasswordRateLimiter, validateBody(forgotPasswordSchema), async (req, res) => {",
+      "line": 531
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/auth/reset-password', validateBody(resetPasswordSchema), async (req, res) => {",
+      "line": 600
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/auth/me', async (req, res) => {",
+      "line": 657
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies', async (req, res) => {",
+      "line": 732
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies', validateBody(createCompanySchema), async (req, res) => {",
+      "line": 748
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/data', async (req, res) => {",
+      "line": 780
+    },
+    {
+      "method": "put",
+      "path_expression": "'/api/companies/:id/data', async (req, res) => {",
+      "line": 808
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/growth-score', async (req, res) => {",
+      "line": 975
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/growth-score/recalculate', async (req, res) => {",
+      "line": 1077
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/ai/executive-summary', async (req, res) => {",
+      "line": 1147
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/revenue-attribution', async (req, res) => {",
+      "line": 1274
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/revenue-attribution', async (req, res) => {",
+      "line": 1345
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/assets', async (req, res) => {",
+      "line": 1384
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/assets', async (req, res) => {",
+      "line": 1436
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/companies/:id/assets/:assetId', async (req, res) => {",
+      "line": 1464
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/google-profile', async (req, res) => {",
+      "line": 1511
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/google-profile/sync', async (req, res) => {",
+      "line": 1683
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/rank-radar/scan', validateBody(rankScanSchema), async (req, res) => {",
+      "line": 1901
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/rank-radar/refresh-all', async (req, res) => {",
+      "line": 2026
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/keywords/:kw/history', async (req, res) => {",
+      "line": 2091
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/competitors/:competitorId/refresh', async (req, res) => {",
+      "line": 2116
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/competitors/refresh-all', async (req, res) => {",
+      "line": 2234
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/competitors/:competitorId/history', async (req, res) => {",
+      "line": 2352
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/competitors', async (req, res) => {",
+      "line": 2375
+    },
+    {
+      "method": "put",
+      "path_expression": "'/api/companies/:id/competitors/:competitorId', async (req, res) => {",
+      "line": 2487
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/companies/:id/competitors/:competitorId', async (req, res) => {",
+      "line": 2563
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/audit', async (req, res) => {",
+      "line": 2600
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/audit/scan', async (req, res) => {",
+      "line": 2664
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/audit/:auditId/resolve', async (req, res) => {",
+      "line": 2732
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/integrations', async (req, res) => {",
+      "line": 2866
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/integrations/test', async (req, res) => {",
+      "line": 3101
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/integrations/email/test-send', async (req, res) => {",
+      "line": 3542
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/integrations/save', async (req, res) => {",
+      "line": 3624
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/integrations/:provider', async (req, res) => {",
+      "line": 3688
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/reviews', async (req, res) => {",
+      "line": 3715
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/reviews', validateBody(createReviewSchema), async (req, res) => {",
+      "line": 3738
+    },
+    {
+      "method": "post",
+      "path_expression": "['/api/reviews/:id/reply', '/api/reviews/:id/replyText'], validateBody(replyReviewSchema), async (req, res) => {",
+      "line": 3777
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/reviews/:id', async (req, res) => {",
+      "line": 3814
+    },
+    {
+      "method": "get",
+      "path_expression": "['/api/content-posts', '/api/posts'], async (req, res) => {",
+      "line": 3846
+    },
+    {
+      "method": "post",
+      "path_expression": "['/api/content-posts', '/api/posts'], validateBody(createPostSchema), async (req, res) => {",
+      "line": 3869
+    },
+    {
+      "method": "patch",
+      "path_expression": "['/api/content-posts/:id/status', '/api/posts/:id/status'], async (req, res) => {",
+      "line": 3935
+    },
+    {
+      "method": "delete",
+      "path_expression": "['/api/content-posts/:id', '/api/posts/:id'], async (req, res) => {",
+      "line": 3978
+    },
+    {
+      "method": "post",
+      "path_expression": "['/api/content-posts/:id/publish', '/api/posts/:id/publish'], async (req, res) => {",
+      "line": 4008
+    },
+    {
+      "method": "get",
+      "path_expression": "['/api/content-posts/:id/publishing-history', '/api/posts/:id/publishing-history'], async (req, res) => {",
+      "line": 4046
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/campaigns/internal', async (req, res) => {",
+      "line": 4077
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/campaigns/internal', async (req, res) => {",
+      "line": 4100
+    },
+    {
+      "method": "put",
+      "path_expression": "'/api/campaigns/internal/:id', async (req, res) => {",
+      "line": 4140
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/campaigns/internal/:id', async (req, res) => {",
+      "line": 4179
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/campaigns/external', async (req, res) => {",
+      "line": 4203
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/campaigns/external/sync', async (req, res) => {",
+      "line": 4226
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/campaigns/internal/:id/link-external', async (req, res) => {",
+      "line": 4252
+    },
+    {
+      "method": "get",
+      "path_expression": "['/api/companies/:id/campaigns/:campaignId/posts', '/api/campaigns/internal/:campaignId/posts'], async (req, res) => {",
+      "line": 4281
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/chat', aiRateLimiter, async (req, res) => {",
+      "line": 4313
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/reply-review', aiRateLimiter, async (req, res) => {",
+      "line": 4388
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/knowledge/query', aiRateLimiter, async (req, res) => {",
+      "line": 4427
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/generate-content', aiRateLimiter, validateBody(generateAiContentSchema), async (req, res) => {",
+      "line": 4517
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/ai/templates', async (_req, res) => {",
+      "line": 4634
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/templates/palettes', async (req, res) => {",
+      "line": 4644
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/render-creative', aiRateLimiter, async (req, res) => {",
+      "line": 4655
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/ai/render-reel', aiRateLimiter, async (req, res) => {",
+      "line": 4792
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/ai/render-reel/:jobId/status', async (req, res) => {",
+      "line": 4926
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/leads', async (req, res) => {",
+      "line": 4957
+    },
+    {
+      "method": "post",
+      "path_expression": "['/api/public/leads', '/api/public/lead'], leadsRateLimiter, async (req, res) => {",
+      "line": 5008
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/leads', leadsRateLimiter, validateBody(createLeadSchema), async (req, res) => {",
+      "line": 5071
+    },
+    {
+      "method": "patch",
+      "path_expression": "'/api/leads/:id/stage', validateBody(updateLeadStageSchema), async (req, res) => {",
+      "line": 5137
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/whatsapp/status', async (req, res) => {",
+      "line": 5198
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res) => {",
+      "line": 5228
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async (req, res) => {",
+      "line": 5311
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/whatsapp/webhook', (req, res) => {",
+      "line": 5407
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/whatsapp/webhook', async (req, res) => {",
+      "line": 5423
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/meta/status', async (req, res) => {",
+      "line": 5543
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/meta/publish-post', validateBody(metaPublishSchema), async (req, res) => {",
+      "line": 5573
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/razorpay/status', async (req, res) => {",
+      "line": 5688
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/razorpay/create-order', async (req, res) => {",
+      "line": 5705
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/razorpay/verify-payment', validateBody(verifyRazorpayPaymentSchema), async (req, res) => {",
+      "line": 5794
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/razorpay/create-payment-link', async (req, res) => {",
+      "line": 5955
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/razorpay/webhook', async (req, res) => {",
+      "line": 6046
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/invoices', async (req, res) => {",
+      "line": 6195
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/invoices', validateBody(createInvoiceSchema), async (req, res) => {",
+      "line": 6228
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/subscription', async (req, res) => {",
+      "line": 6263
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/subscription/upgrade', validateBody(upgradeSubscriptionSchema), async (req, res) => {",
+      "line": 6305
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/invoices/:id/download', async (req, res) => {",
+      "line": 6383
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/telegram/notify', telegramAlertLimiter, async (req, res) => {",
+      "line": 6473
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/autonomous/status', async (req, res) => {",
+      "line": 6496
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/autonomous/kill-switch', async (req, res) => {",
+      "line": 6534
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/autonomous/run-cycle', async (req, res) => {",
+      "line": 6582
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/autonomous/recommendations', async (req, res) => {",
+      "line": 6611
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/autonomous/actions', async (req, res) => {",
+      "line": 6639
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/autonomous/actions/:id/approve', async (req, res) => {",
+      "line": 6667
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/autonomous/actions/:id/reject', async (req, res) => {",
+      "line": 6715
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/autonomous/actions/:id/execute', async (req, res) => {",
+      "line": 6765
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/autonomous/audit-logs', async (req, res) => {",
+      "line": 6804
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/domains', async (req, res) => {",
+      "line": 6834
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/domains', async (req, res) => {",
+      "line": 6855
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/domains/:domainId/verify', async (req, res) => {",
+      "line": 6887
+    },
+    {
+      "method": "delete",
+      "path_expression": "'/api/companies/:id/domains/:domainId', async (req, res) => {",
+      "line": 6931
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/website/config', async (req, res) => {",
+      "line": 6959
+    },
+    {
+      "method": "put",
+      "path_expression": "'/api/companies/:id/website/config', async (req, res) => {",
+      "line": 6981
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/website/export', async (req, res) => {",
+      "line": 7006
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/website/preview-html', async (req, res) => {",
+      "line": 7036
+    },
+    {
+      "method": "get",
+      "path_expression": "'/storefront/:companyId', async (req, res) => {",
+      "line": 7055
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/health', async (req, res) => {",
+      "line": 7074
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/system/status', (req, res) => {",
+      "line": 7111
+    },
+    {
+      "method": "post",
+      "path_expression": "['/api/scheduler/tick', '/api/cron/tick'], async (req, res) => {",
+      "line": 7129
+    },
+    {
+      "method": "get",
+      "path_expression": "'/api/companies/:id/jobs', async (req, res) => {",
+      "line": 7158
+    },
+    {
+      "method": "post",
+      "path_expression": "'/api/companies/:id/jobs', async (req, res) => {",
+      "line": 7192
+    },
+    {
+      "method": "get",
+      "path_expression": "'*', (req, res) => {",
+      "line": 7305
+    }
+  ],
+  "migration_tables": [
+    "autonomous_actions",
+    "autonomous_audit_logs",
+    "autonomous_recommendations",
+    "business_profile",
+    "companies",
+    "company_assets",
+    "company_integrations",
+    "company_profiles_data",
+    "competitor_observations",
+    "content_posts",
+    "content_theme_history",
+    "custom_domains",
+    "external_ad_campaigns",
+    "google_profile_cache",
+    "internal_campaigns",
+    "invoices",
+    "job_queue",
+    "leads",
+    "password_reset_tokens",
+    "processed_webhook_events",
+    "publishing_records",
+    "rank_observations",
+    "reviews",
+    "schema_migrations",
+    "schema_migrations_lock",
+    "subscriptions",
+    "system_settings",
+    "users",
+    "website_configs"
+  ],
+  "deployed_revision": "unverified",
+  "hosting_capabilities": "unverified"
+}

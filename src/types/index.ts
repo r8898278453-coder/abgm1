@@ -227,6 +227,7 @@ export interface CompetitorData {
 }
 
 export interface ContentPost {
+  sourceVersion?:string;
   id: string;
   company_id?: string;
   companyId?: string;

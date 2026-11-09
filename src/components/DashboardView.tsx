@@ -24,7 +24,6 @@ interface DashboardViewProps {
   posts?: ContentPost[];
   leads?: LeadItem[];
   onNavigate: (tab: any) => void;
-  onQuickApproveReviews?: () => void;
   onPublishPost?: (postId: string) => void;
   unansweredReviews?: number;
   newLeadsCount?: number;
@@ -38,7 +37,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   posts = [],
   leads = [],
   onNavigate = (_tab: any) => {},
-  onQuickApproveReviews = () => {},
   onPublishPost = (_postId: string) => {},
 }) => {
   const safeReviews = reviews || [];
@@ -55,15 +53,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const newLeads = safeLeads.filter((l) => l.stage === 'new').length;
   const contactedLeads = safeLeads.filter((l) => l.stage === 'contacted').length;
   const qualifiedLeads = safeLeads.filter((l) => l.stage === 'qualified').length;
-  const quoteLeads = safeLeads.filter((l) => l.stage === 'proposal' || (l as any).stage === 'quote').length;
+  const quoteLeads = safeLeads.filter((l) => l.stage === 'proposal' || l.stage === 'quotation' || (l as any).stage === 'quote').length;
   const wonLeads = safeLeads.filter((l) => l.stage === 'won').length;
 
   const totalReviews = safeReviews.length;
-  const positiveReviews = safeReviews.filter((r) => r.rating >= 4).length;
-  const positiveSentimentPct = totalReviews > 0 ? Math.round((positiveReviews / totalReviews) * 100) : 0;
-  const avgRating = totalReviews > 0 ? (safeReviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews).toFixed(1) : 'N/A';
+  const ratedReviews=safeReviews.filter(review=>typeof review.rating==='number'&&review.rating>=1&&review.rating<=5);
+  const positiveReviews=ratedReviews.filter(review=>review.rating>=4).length;
+  const positiveSentimentPct=ratedReviews.length?`${Math.round(positiveReviews/ratedReviews.length*100)}%`:'Unavailable';
+  const avgRating=ratedReviews.length?(ratedReviews.reduce((sum,review)=>sum+review.rating,0)/ratedReviews.length).toFixed(1):'N/A';
 
-  const isGoogleConnected = Boolean(business.connectedAccounts?.googleBusiness);
+  // Saved profile flags cannot establish provider metric freshness or authorization.
 
   return (
     <div className="space-y-6 pb-12">
@@ -78,8 +77,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 AI Executive Summary • {business.name || 'Business'}
               </span>
               <DataStatusBadge
-                status={isGoogleConnected ? 'LIVE' : 'CALCULATED'}
-                label={isGoogleConnected ? 'LIVE GOOGLE SYNC' : 'CALCULATED STATS'}
+                status="CALCULATED"
+                label="CALCULATED STATS"
               />
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
@@ -107,7 +106,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {unanswered.length > 0
                 ? `You have ${unanswered.length} customer review${unanswered.length > 1 ? 's' : ''} awaiting response. Quick AI approval is ready to maintain 100% response velocity.`
                 : totalReviews > 0
-                ? `All recorded reviews are currently answered. Reputation health reflects ${positiveSentimentPct}% positive sentiment.`
+                ? `All recorded reviews are currently answered. Reputation health reflects ${positiveSentimentPct} positive sentiment among rated records.`
                 : 'Customer review telemetry is currently unavailable. Connect Google Business Profile to sync customer feedback.'}
               {pendingPost && ` 1 scheduled post ready for publication.`}
             </p>
@@ -117,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Active Inquiries</span>
-                <DataStatusBadge status="VERIFIED" label="VERIFIED CRM" />
+                <DataStatusBadge status="CALCULATED" label="LOADED CRM COUNTS" />
               </div>
               <div className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
                 {totalLeads}
@@ -283,16 +282,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
                 {unanswered.length > 0
-                  ? 'AI has drafted responses embedding localized keywords to maintain 100% response rate.'
-                  : 'Customer sentiment is healthy and all public reviews have verified professional responses.'}
+                  ? 'Review pending records, draft replies and save them after checking.'
+                  : 'No loaded records are marked awaiting reply. Provider publication is not verified here.'}
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-200">
               <button
-                onClick={unanswered.length > 0 ? onQuickApproveReviews : () => onNavigate('reviews')}
+                onClick={() => onNavigate('reviews')}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition text-center shadow-xs"
               >
-                {unanswered.length > 0 ? `Approve & Post ${unanswered.length} Replies` : 'Open Review Manager'}
+                {unanswered.length > 0 ? `Review ${unanswered.length} Pending Replies` : 'Open Review Manager'}
               </button>
             </div>
           </div>
@@ -380,8 +379,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Google Business & Maps Signals
           </h2>
           <DataStatusBadge
-            status={isGoogleConnected ? 'LIVE' : 'UNAVAILABLE'}
-            label={isGoogleConnected ? 'LIVE GOOGLE SYNC' : 'PROVIDER NOT CONNECTED'}
+            status="UNAVAILABLE"
+            label="METRICS NOT VERIFIED"
           />
         </div>
 
@@ -391,11 +390,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Search Views</span>
               <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
+                UNAVAILABLE
               </span>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1">
-              {isGoogleConnected ? '--' : 'UNAVAILABLE'}
+              UNAVAILABLE
             </div>
             <p className="text-[11px] text-slate-500">Queries in {business.city || 'Region'}</p>
           </div>
@@ -405,11 +404,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Maps Visibility</span>
               <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
+                UNAVAILABLE
               </span>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1">
-              {isGoogleConnected ? '--' : 'UNAVAILABLE'}
+              UNAVAILABLE
             </div>
             <p className="text-[11px] text-slate-500">Local map views</p>
           </div>
@@ -433,11 +432,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Directions</span>
               <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
+                UNAVAILABLE
               </span>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
-              <Navigation className="w-5 h-5 text-indigo-600" /> {isGoogleConnected ? '--' : 'UNAVAILABLE'}
+              <Navigation className="w-5 h-5 text-indigo-600" /> UNAVAILABLE
             </div>
             <p className="text-[11px] text-slate-500">Store visits</p>
           </div>
@@ -447,11 +446,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span className="font-semibold">Site Clicks</span>
               <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                {isGoogleConnected ? 'SYNCED' : 'UNAVAILABLE'}
+                UNAVAILABLE
               </span>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 my-1 flex items-center gap-1.5">
-              <Globe className="w-5 h-5 text-indigo-600" /> {isGoogleConnected ? '--' : 'UNAVAILABLE'}
+              <Globe className="w-5 h-5 text-indigo-600" /> UNAVAILABLE
             </div>
             <p className="text-[11px] text-slate-500">Website referrals</p>
           </div>
@@ -466,7 +465,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Unified CRM</span>
-                <DataStatusBadge status="VERIFIED" label="LIVE DATABASE" />
+                <DataStatusBadge status="CALCULATED" label="LOADED RECORDS" />
               </div>
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
@@ -512,7 +511,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex items-center gap-2 font-bold text-slate-900">
                   <span>{safeLeads[0].name}</span>
                   <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                    Intent: {safeLeads[0].intentScore}%
+                    Intent: {safeLeads[0].intentScore===null?'Unavailable':`${safeLeads[0].intentScore}%`}
                   </span>
                 </div>
                 <span className="text-slate-500 font-medium">{safeLeads[0].source}</span>
@@ -568,7 +567,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
               <div className="text-[10px] text-slate-500 font-bold">Sentiment</div>
-              <div className="text-base font-black text-indigo-600 mt-0.5">{positiveSentimentPct}% Positive</div>
+              <div className="text-base font-black text-indigo-600 mt-0.5">{positiveSentimentPct} Positive</div>
             </div>
           </div>
 

@@ -1,0 +1,42 @@
+{
+  "date_ist": "2026-11-06",
+  "tasks": [
+    "P01-07",
+    "P01-08",
+    "P01-09",
+    "P01-02",
+    "P01-05",
+    "P02-04"
+  ],
+  "locally_validated_task": "P01-07",
+  "phase_status": "incomplete; live cron/hosting activation remains pending",
+  "sequential_batches": 7,
+  "migration": "027_dispatcher_journal",
+  "canonical_tables": 49,
+  "historical_migrations_changed": false,
+  "production_changes": false,
+  "validation": {
+    "default_programs": 72,
+    "default_suite": "passed72 isolated programs plus final composed-journal/dirty-state fixtures",
+    "typescript": "passed final",
+    "build": "passed final; existing chunk-size warning",
+    "sql": "passed disposable MariaDB10.11 fresh/005-upgrade through027/repeat0,49-table restricted startup;8 contenders one minute owner, fresh-pool priority/digest replay across+05:30/-08:00, stale owner/corrupt state/fault rollback/private history; sliding first-item-only budgets cover all clients/posts and duplicate windows retain one occurrence effect",
+    "browser_workspace": "passed final extended suite: saved-control navigation, immediate holiday save and in-flight revert/latest draft, malformed settings, prior conflict/client/cache/logout paths",
+    "browser_admin": "passed dedicated mocked history IST/keyset/permission loss/empty state/zero trigger writes",
+    "diff_check": "passed at dispatcher checkpoint; final cumulative check recorded by copied-export evidence"
+  },
+  "tracker": {
+    "validated": 7,
+    "in_progress": 7,
+    "blocked": 1,
+    "planned": 78,
+    "total": 93
+  },
+  "limits": [
+    "local task acceptance is not live Hostinger cron/production activation",
+    "minute admission not a lifetime global mutex; per-action leases/claims remain authoritative",
+    "old binaries/direct metadata writes bypass journal/cursor protocol",
+    "no automatic UNKNOWN resend, retention purge or guaranteed delivery SLA",
+    "broader ledger/shared stops/agency/channel/cost/consent/opt-out remain unfinished; billing excluded"
+  ]
+}

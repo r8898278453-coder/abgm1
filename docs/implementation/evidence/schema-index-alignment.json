@@ -1,0 +1,14 @@
+{
+  "scope": "disposable local MariaDB10.11",
+  "historical_001_to_006_changed": false,
+  "new_migration": "007_schema_index_alignment",
+  "schema_after_upgrade": "READY",
+  "replay": "passed",
+  "duplicate_domain_ownership": "migration rejected before repair",
+  "same_name_wrong_column_index": "MIGRATION_REQUIRED",
+  "equivalent_legacy_lead_index": "retained; duplicate canonical-name index not created",
+  "restored_correct_schema": "READY",
+  "full_regression_programs": 30,
+  "production_applied": false,
+  "worker_fencing": "pending"
+}

@@ -1,0 +1,28 @@
+{
+  "date_ist": "2026-11-03",
+  "migration": "017_publication_workflow_audit",
+  "canonical_tables": 42,
+  "scope": [
+    "atomic actor-audited operator status transitions",
+    "monotonic workflow revision/source binding",
+    "generic publish aliases require viewed source version",
+    "approval controls and refresh-only success callbacks",
+    "readiness validates workflow revision column"
+  ],
+  "validation": {
+    "default_programs": 51,
+    "sql": "MariaDB10.11 READY through017/repeat0; missing-column rejection/recovery;8-way one transition, actor audit, ABA rejection, active/UNKNOWN fence, rollback",
+    "browser": "approval conflict/no state advance; draft\u2192pending\u2192scheduled versions; exactly one publish request despite success callback; existing isolation suite passed after accessible-name selector fix",
+    "typescript": "passed",
+    "build": "passed with existing chunk-size warning",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "owner authorization only; no mandatory agency policy or peer approver roles",
+    "schedule fields not bound to approval snapshot",
+    "generic creation can create scheduled posts",
+    "audit reader/portal/feed fanout pending",
+    "live provider and Hostinger acceptance pending"
+  ],
+  "production_changes": false
+}

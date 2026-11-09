@@ -1,0 +1,13 @@
+{
+  "historical_ledger_rows_verified": 5,
+  "historical_definition_bodies_changed": false,
+  "historical_stored_checksums_changed": false,
+  "source_and_bundle_identity_contract": "passed",
+  "changed_source_identity_detection": "passed",
+  "missing_compiled_identity": "rejected",
+  "compiled_upgrade_005_to_006_contract": "passed",
+  "repeat_upgrade_contract": "no migrations reapplied",
+  "corrupt_ledger_contract": "rejected",
+  "real_mysql_restore_upgrade": "not run",
+  "production_changes": false
+}
