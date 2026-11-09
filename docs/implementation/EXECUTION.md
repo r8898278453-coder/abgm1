@@ -1,3 +1,7 @@
+## Matching knowledge passages — 10 November 2026 IST
+
+Repaired a retrieval evidence gap: long FAQ answers now quote a bounded exact substring around the first answer-side query match instead of always quoting the answer prefix. Citations expose excerptStart/excerptEnd character offsets within the answer/chunk; existing source IDs/hash/version/page remain. UTF16 quote boundaries avoid splitting surrogate pairs. Question-only matches retain the answer prefix. This remains lexical saved-source retrieval, not semantic fact verification. Actual extraction/retrieval fixtures and TypeScript checks pass. No schema or production change; phase/task acceptance counts unchanged. Safe importer, durable ingestion/history and remaining phase gates remain open.
+
 ## Campaign planning and external-sync persistence — 10 November 2026 IST
 
 Continued P01 persistence/client reliability across internal create/update/delete, scoped HTTP contracts, frontend acknowledgements/recovery, and external telemetry upsert. No schema extension beyond the preceding030/51 knowledge target. Historical001–029 sources remain unchanged. See CAMPAIGN_PERSISTENCE.md and evidence/campaign-persistence.json.
