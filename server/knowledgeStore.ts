@@ -18,9 +18,9 @@ export async function storeKnowledgeSource(pool:Pool,company:string,name:string,
   await connection.query('INSERT INTO knowledge_sources(id,company_id,filename,media_type,byte_size,content_sha,content_bytes) VALUES (?,?,?,?,?,?,?)',[id,company,name.trim(),mime,bytes.length,hash,bytes]);await connection.commit();return {id,reused:false};
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
 }
-export async function claimKnowledgeExtraction(pool:Pool,company:string,id:string){
+export async function claimKnowledgeExtraction(pool:Pool,company:string,id:string,expectedVersion?:string){
  const connection=await pool.getConnection();try{await connection.beginTransaction();const [rows]:any=await connection.query(`SELECT *,CAST(revision AS CHAR) version,claimed_at<DATE_SUB(NOW(),INTERVAL 10 MINUTE) stale FROM knowledge_sources WHERE company_id=? AND id=? FOR UPDATE`,[company,id]);
-  if(rows.length!==1)throw new KnowledgeError(404,'SOURCE_NOT_FOUND');const row=rows[0];if(row.extraction_state==='PROCESSING'&&Number(row.stale)!==1)throw new KnowledgeError(409,'EXTRACTION_IN_PROGRESS');
+  if(rows.length!==1)throw new KnowledgeError(404,'SOURCE_NOT_FOUND');const row=rows[0];if(expectedVersion!==undefined&&row.version!==expectedVersion)throw new KnowledgeError(409,'SOURCE_RETRY_CHANGED');if(row.extraction_state==='PROCESSING'&&Number(row.stale)!==1)throw new KnowledgeError(409,'EXTRACTION_IN_PROGRESS');
   if(BigInt(row.version)>=18446744073709551614n)throw new KnowledgeError(409,'SOURCE_REVISION_EXHAUSTED');
   const version=String(BigInt(row.version)+1n);await connection.query("UPDATE knowledge_sources SET extraction_state='PROCESSING',extraction_code=NULL,extracted_text=NULL,chunks_json=NULL,approved_by=NULL,approved_at=NULL,revision=?,claimed_at=NOW() WHERE company_id=? AND id=?",[version,company,id]);await connection.commit();return {filename:row.filename,bytes:Buffer.from(row.content_bytes),version};
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
