@@ -14,6 +14,8 @@ Current reliability continuation: [competitor commands and contract evidence](ev
 
 Latest security/integration checkpoint (10 November 2026 IST): [compatibility and boundaries](AUTH_AND_INTEGRATION_BOUNDARIES.md),86 isolated programs and unchanged schema. Phase gates remain open.
 
+Latest knowledge checkpoint: [private sources and extraction](KNOWLEDGE_SOURCES.md), source schema030/51 and88 isolated programs. P04 foundations are in progress; phase gates remain open.
+
 ## Product outcome
 
 One main agency account manages many client businesses. Each client has isolated source-backed website/PDF knowledge, branding, integrations, marketing and sales workflows. Shared CRM/conversation history connects inquiries and supported outbound to qualification, follow-up, appointments, outcomes and daily accountability. Routine actions run within approved rules; uncertain/sensitive decisions and new spending escalate. Billing expansion is excluded.
@@ -45,3 +47,5 @@ These are dependency subdivisions of the six agreed product workstreams, not a c
 - Tests and live evidence decide completion. Optional provider blockers remain visible and do not block independent reporting work.
 
 No production implementation, source edit, dependency change or deployment was performed while preparing this plan. The user should review product choices; implementation starts with P00-01 when instructed.
+
+Campaign continuation: [CAMPAIGN_PERSISTENCE.md](CAMPAIGN_PERSISTENCE.md) records SQL/HTTP/client recovery fixes and remaining execution gates; phase acceptance is unchanged.

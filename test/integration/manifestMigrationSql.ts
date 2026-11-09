@@ -6,10 +6,11 @@ import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {defineSqlMigration} from '../../server/migrations/manifestV1';
 import {MIGRATIONS,computeMigrationChecksum,runMigrations,verifySchema} from '../../server/migrator';
-/** Fixture only. No030 migration is added to the product registry. */
+/** This additional extension fixture is never registered as a product migration. */
 export async function verifyManifestMigrationSql(pool:Pool){
  assert.equal(process.env.ABGM1_LOCAL_SQL_TESTS,'1');const [identity]:any=await pool.query('SELECT @@hostname hostname,DATABASE() name');assert.equal(identity[0].hostname,process.env.LOCAL_SQL_CONTAINER_ID);assert.ok(identity[0].name.startsWith('abgm1_test_'));
- const plan={name:'030_manifest_fixture',preflight:[{sql:"SELECT id FROM companies WHERE id='manifest-preflight-conflict'",code:'MIGRATION_FIXTURE_CONFLICT'}],statements:["CREATE TABLE IF NOT EXISTS manifest_fixture(id INT PRIMARY KEY,note VARCHAR(64) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci","INSERT IGNORE INTO manifest_fixture(id,note) VALUES(1,'immutable ☃')"]};
+ const fixturePrefix=String(MIGRATIONS.length+1).padStart(3,'0'),fixtureName=fixturePrefix+'_manifest_fixture',futureName=String(MIGRATIONS.length+2).padStart(3,'0')+'_future_fixture';
+ const plan={name:fixtureName,preflight:[{sql:"SELECT id FROM companies WHERE id='manifest-preflight-conflict'",code:'MIGRATION_FIXTURE_CONFLICT'}],statements:["CREATE TABLE IF NOT EXISTS manifest_fixture(id INT PRIMARY KEY,note VARCHAR(64) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci","INSERT IGNORE INTO manifest_fixture(id,note) VALUES(1,'immutable ☃')"]};
  const definition=defineSqlMigration(plan),extended=[...MIGRATIONS,definition];
  await mkdir('node_modules/.cache',{recursive:true});const directory=await mkdtemp(path.resolve('node_modules/.cache/manifest-sql-'));
  try{
@@ -24,10 +25,10 @@ export async function verifyManifestMigrationSql(pool:Pool){
   const [rows]:any=await pool.query('SELECT id,note FROM manifest_fixture');assert.deepEqual(rows,[{id:1,note:'immutable ☃'}]);const ahead=await verifySchema(pool);assert.equal(ahead.status,'DATABASE_SCHEMA_OUTDATED');assert.equal(ahead.connection,'PASS');assert.match(ahead.error!,/MIGRATION_LEDGER_AHEAD/);await assert.rejects(runMigrations(pool),/MIGRATION_LEDGER_AHEAD/);
   const changed=defineSqlMigration({...plan,statements:[...plan.statements,"UPDATE manifest_fixture SET note='must not apply'"]});await assert.rejects(runMigrations(pool,[...MIGRATIONS,changed]),/MIGRATION_CHECKSUM_MISMATCH/);
   await pool.query('UPDATE schema_migrations SET checksum=? WHERE migration_name=?',['',plan.name]);assert.match((await verifySchema(pool,extended)).error!,/MIGRATION_LEDGER_INVALID/);await assert.rejects(runMigrations(pool,extended),/MIGRATION_LEDGER_INVALID/);await pool.query('UPDATE schema_migrations SET checksum=? WHERE migration_name=?',[computeMigrationChecksum(definition),plan.name]);
-  await pool.query("INSERT INTO schema_migrations(migration_name,checksum,success) VALUES ('031_future_fixture',?,0)",['0'.repeat(64)]);assert.match((await verifySchema(pool,extended)).error!,/MIGRATION_LEDGER_FAILED_RECORD/);await assert.rejects(runMigrations(pool,extended),/MIGRATION_LEDGER_FAILED_RECORD/);await pool.query("UPDATE schema_migrations SET success=1 WHERE migration_name='031_future_fixture'");assert.match((await verifySchema(pool,extended)).error!,/MIGRATION_LEDGER_AHEAD/);
+  await pool.query("INSERT INTO schema_migrations(migration_name,checksum,success) VALUES (?,?,0)",[futureName,'0'.repeat(64)]);assert.match((await verifySchema(pool,extended)).error!,/MIGRATION_LEDGER_FAILED_RECORD/);await assert.rejects(runMigrations(pool,extended),/MIGRATION_LEDGER_FAILED_RECORD/);await pool.query("UPDATE schema_migrations SET success=1 WHERE migration_name=?",[futureName]);assert.match((await verifySchema(pool,extended)).error!,/MIGRATION_LEDGER_AHEAD/);
   console.log('Manifest SQL: preflight blocks before DDL, partial-DDL failure leaves no ledger adoption, minified build resumes the same data plan, repeat0, changed plan rejected, old binary/future/failed/blank ledger blocked without false connection failure.');
  }finally{
-  await pool.query("DELETE FROM schema_migrations WHERE migration_name IN ('030_manifest_fixture','031_future_fixture')");await pool.query('DROP TABLE IF EXISTS manifest_fixture');await pool.query("DELETE FROM companies WHERE id='manifest-preflight-conflict'");await rm(directory,{recursive:true,force:true});
+  await pool.query("DELETE FROM schema_migrations WHERE migration_name IN (?,?)",[fixtureName,futureName]);await pool.query('DROP TABLE IF EXISTS manifest_fixture');await pool.query("DELETE FROM companies WHERE id='manifest-preflight-conflict'");await rm(directory,{recursive:true,force:true});
  }
  assert.equal((await verifySchema(pool)).status,'READY');
 }

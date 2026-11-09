@@ -457,35 +457,15 @@ export async function deleteContentPostApi(postId: string, companyId?: string): 
 // ---------------- INTERNAL & EXTERNAL CAMPAIGN SERVICES ---------------- //
 
 export async function getInternalCampaignsApi(companyId?: string): Promise<InternalCampaign[]> {
-  try {
-    const url = companyId ? `/api/campaigns/internal?company_id=${encodeURIComponent(companyId)}` : '/api/campaigns/internal';
-    const res = await apiRequest<{ success: boolean; campaigns: any[] }>(url);
-    if (res.success && Array.isArray(res.campaigns)) {
-      return res.campaigns.map((c) => ({
-        id: c.id,
-        companyId: c.company_id,
-        name: c.name,
-        objective: c.objective,
-        status: c.status,
-        startDate: c.start_date,
-        endDate: c.end_date,
-        plannedBudget: Number(c.planned_budget) || 0,
-        channels: Array.isArray(c.channels) ? c.channels : [],
-        externalCampaignId: c.external_campaign_id || null,
-        createdAt: c.created_at,
-        updatedAt: c.updated_at,
-      }));
-    }
-    return [];
-  } catch (err) {
-    console.warn('Failed to fetch internal campaigns:', err);
-    return [];
-  }
+  if(!companyId)throw new Error('Campaign workspace required');
+  const res=await apiRequest<{success:boolean;companyId:string;campaigns:any[]}>(`/api/campaigns/internal?company_id=${encodeURIComponent(companyId)}`);
+  if(res.success!==true||res.companyId!==companyId||!Array.isArray(res.campaigns)||res.campaigns.some(c=>c.company_id!==companyId))throw new Error('Internal campaign collection unavailable');
+  return validateScopedCollection(res,'campaigns',companyId).map(c=>({id:c.id,companyId:c.company_id,name:c.name,objective:c.objective,status:c.status,startDate:c.start_date,endDate:c.end_date,plannedBudget:Number(c.planned_budget)||0,channels:Array.isArray(c.channels)?c.channels:[],externalCampaignId:c.external_campaign_id||null,createdAt:c.created_at,updatedAt:c.updated_at}));
 }
 
 export async function createInternalCampaignApi(campaign: Partial<InternalCampaign> & { company_id?: string }): Promise<InternalCampaign | null> {
   try {
-    const res = await apiRequest<{ success: boolean; campaign: any }>('/api/campaigns/internal', {
+    const res = await apiRequest<{ success: boolean; companyId:string; campaign: any }>('/api/campaigns/internal', {
       method: 'POST',
       body: JSON.stringify({
         company_id: campaign.companyId || campaign.company_id,
@@ -499,7 +479,7 @@ export async function createInternalCampaignApi(campaign: Partial<InternalCampai
         external_campaign_id: campaign.externalCampaignId,
       }),
     });
-    if (res.success && res.campaign) {
+    if (res.success===true && res.companyId===(campaign.companyId||campaign.company_id) && res.campaign?.company_id===res.companyId && typeof res.campaign.id==='string') {
       const c = res.campaign;
       return {
         id: c.id,
@@ -539,11 +519,11 @@ export async function updateInternalCampaignApi(
     if (updates.channels !== undefined) payload.channels = updates.channels;
     if (updates.externalCampaignId !== undefined) payload.external_campaign_id = updates.externalCampaignId;
 
-    const res = await apiRequest<{ success: boolean }>(`/api/campaigns/internal/${encodeURIComponent(id)}`, {
+    const res = await apiRequest<{ success: boolean; companyId:string; id:string }>(`/api/campaigns/internal/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    return Boolean(res.success);
+    return !!companyId && res.success===true && res.companyId===companyId && res.id===id;
   } catch (err) {
     console.warn('Failed to update internal campaign:', err);
     return false;
@@ -555,8 +535,8 @@ export async function deleteInternalCampaignApi(id: string, companyId?: string):
     const url = companyId
       ? `/api/campaigns/internal/${encodeURIComponent(id)}?company_id=${encodeURIComponent(companyId)}`
       : `/api/campaigns/internal/${encodeURIComponent(id)}`;
-    const res = await apiRequest<{ success: boolean }>(url, { method: 'DELETE' });
-    return Boolean(res.success);
+    const res = await apiRequest<{ success: boolean; companyId:string; id:string }>(url, { method: 'DELETE' });
+    return !!companyId && res.success===true && res.companyId===companyId && res.id===id;
   } catch (err) {
     console.warn('Failed to delete internal campaign:', err);
     return false;
@@ -615,11 +595,11 @@ export async function linkInternalToExternalCampaignApi(
   companyId?: string
 ): Promise<boolean> {
   try {
-    const res = await apiRequest<{ success: boolean }>(`/api/campaigns/internal/${encodeURIComponent(internalId)}/link-external`, {
+    const res = await apiRequest<{ success: boolean; companyId:string; id:string }>(`/api/campaigns/internal/${encodeURIComponent(internalId)}/link-external`, {
       method: 'POST',
       body: JSON.stringify({ external_campaign_id: externalCampaignId, company_id: companyId }),
     });
-    return Boolean(res.success);
+    return !!companyId && res.success===true && res.companyId===companyId && res.id===internalId;
   } catch (err) {
     console.warn('Failed to link internal to external campaign:', err);
     return false;

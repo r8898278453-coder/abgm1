@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+import {listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
+import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk} from '../../shared/knowledge';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Brain,
   FileText,
@@ -40,6 +42,7 @@ export interface FaqItem {
 }
 
 interface KnowledgeBaseViewProps {
+  companyId?:string;
   business: BusinessProfile;
   documents?: DocumentItem[];
   faqs?: FaqItem[];
@@ -51,12 +54,18 @@ const DEFAULT_DOCUMENTS: DocumentItem[] = [];
 const DEFAULT_FAQS: FaqItem[] = [];
 
 export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
-  business,
+  business,companyId,
   documents: propDocs,
   faqs: propFaqs,
   onUpdateDocuments,
   onUpdateFaqs,
 }) => {
+  const mounted=useRef(true),querySequence=useRef(0),sourceSequence=useRef(0),previewSequence=useRef(0);const searchController=useRef<AbortController|null>(null);
+  const [sources,setSources]=useState<KnowledgeSource[]>([]),[sourceError,setSourceError]=useState(''),[sourceBusy,setSourceBusy]=useState(false);
+  const [preview,setPreview]=useState<{source:KnowledgeSource;chunks:KnowledgeChunk[]}|null>(null),[selectedFile,setSelectedFile]=useState<File|null>(null),[citations,setCitations]=useState<any[]>([]);
+  useEffect(()=>{mounted.current=true;const controller=new AbortController(),sequence=++sourceSequence.current;if(companyId)listSources(companyId,controller.signal).then(rows=>{if(mounted.current&&sequence===sourceSequence.current)setSources(rows);}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable. Reload to retry.');});return()=>{mounted.current=false;querySequence.current++;searchController.current?.abort();controller.abort();};},[companyId]);
+  const sourceAction=async(source:KnowledgeSource,command:'approve'|'withdraw'|'retry'|'delete')=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');try{const rows=await sourceCommand(companyId,source,command);if(mounted.current){setSources(rows);setPreview(null);setTestResponse(null);setCitations([]);}}catch{if(mounted.current)setSourceError('Source change unconfirmed. Reload sources before retrying.');}finally{if(mounted.current)setSourceBusy(false);}};
+  const openPreview=async(source:KnowledgeSource)=>{if(!companyId)return;const sequence=++previewSequence.current;try{const result=await previewSource(companyId,source.id);if(mounted.current&&sequence===previewSequence.current)setPreview(result);}catch{if(mounted.current)setSourceError('Source preview unavailable.');}};
   const [localDocs, setLocalDocs] = useState<DocumentItem[]>(propDocs || []);
   const [localFaqs, setLocalFaqs] = useState<FaqItem[]>(propFaqs || []);
 
@@ -91,38 +100,11 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   const [docContent, setDocContent] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleTestFactSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testQuery.trim()) return;
-
-    setIsSearching(true);
-    setTestResponse(null);
-
-    try {
-      const res = await queryKnowledgeBaseApi({
-        query: testQuery.trim(),
-        businessName: business.name,
-        category: business.category,
-        services: business.services,
-        documents: documents.map((d) => ({
-          name: d.name,
-          category: d.category,
-          size: d.size,
-          textContent: d.textContent || d.name,
-        })),
-        faqs: faqs.map((f) => ({
-          question: f.question,
-          answer: f.answer,
-          category: f.category,
-        })),
-      });
-
-      setTestResponse(res.answer || 'Grounded verification completed.');
-    } catch {
-      setTestResponse('Grounded check: Query verified against current business memory.');
-    } finally {
-      setIsSearching(false);
-    }
+  const handleTestFactSearch=async(e:React.FormEvent)=>{
+    e.preventDefault();if(!companyId||!testQuery.trim())return;const sequence=++querySequence.current;searchController.current?.abort();const controller=new AbortController();searchController.current=controller;setIsSearching(true);setTestResponse(null);setCitations([]);
+    try{const result=await queryKnowledgeBaseApi({companyId,query:testQuery.trim()},controller.signal);if(mounted.current&&sequence===querySequence.current){setTestResponse(result.answer+(result.sourceWindowTruncated?'\nSearch is limited to the newest 20 approved sources.':'')+(result.faqWindowTruncated?'\nSearch is limited to the first 200 saved FAQs.':''));setCitations(result.citations);}}
+    catch{if(mounted.current&&sequence===querySequence.current)setTestResponse('Saved-source search unavailable. No facts were verified.');}
+    finally{if(mounted.current&&sequence===querySequence.current)setIsSearching(false);}
   };
 
   const handleSaveFaq = (e: React.FormEvent) => {
@@ -142,46 +124,15 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
     setIsAddFaqOpen(false);
   };
 
-  const handleSaveDocument = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!docName.trim()) return;
-
-    const chunks = Math.max(1, Math.ceil((docContent.length || 200) / 150));
-    const newDoc: DocumentItem = {
-      id: `doc_${Date.now()}`,
-      name: docName.endsWith('.pdf') || docName.endsWith('.docx') || docName.endsWith('.txt')
-        ? docName.trim()
-        : `${docName.trim()}.pdf`,
-      category: docCategory,
-      size: `${(Math.max(0.4, (docContent.length || 500) / 1024 / 200)).toFixed(1)} MB`,
-      uploadedAt: 'Today',
-      status: 'indexed',
-      chunksCount: chunks,
-      textContent: docContent.trim(),
-    };
-
-    updateDocuments([newDoc, ...documents]);
-    setDocName('');
-    setDocContent('');
-    setIsAddDocOpen(false);
+  const handleSaveDocument=async(e:React.FormEvent)=>{
+    e.preventDefault();if(!companyId||sourceBusy)return;
+    const file=selectedFile||new File([docContent],docName.toLowerCase().endsWith('.txt')||docName.toLowerCase().endsWith('.md')?docName:docName.replace(/\.[^.]+$/,'')+'.txt',{type:'text/plain'});
+    if(!file.name.trim()||!file.size||file.size>SOURCE_MAX_BYTES){setSourceError('Provide a supported file or actual text, up to 2 MiB.');return;}
+    sourceSequence.current++;setSourceBusy(true);setSourceError('');try{const rows=await uploadSource(companyId,file);if(mounted.current){setSources(rows);setSelectedFile(null);setDocName('');setDocContent('');setIsAddDocOpen(false);}}
+    catch{if(mounted.current)setSourceError('Upload unconfirmed. Original form retained. Reload sources before retrying.');}
+    finally{if(mounted.current)setSourceBusy(false);}
   };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setDocName(file.name);
-    // If it's a text/markdown file, read content
-    if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        setDocContent((evt.target?.result as string) || '');
-      };
-      reader.readAsText(file);
-    } else {
-      setDocContent(`Document ${file.name} uploaded (${(file.size / (1024 * 1024)).toFixed(2)} MB). Grounded for AI review response, client quotes, and WhatsApp auto-replies.`);
-    }
-  };
+  const handleFileSelect=(e:React.ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];if(!file)return;setSelectedFile(file);setDocName(file.name);setDocContent('');};
 
   return (
     <div className="space-y-6 pb-12">
@@ -190,15 +141,15 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 bg-indigo-500/30 border border-indigo-400/40 text-indigo-200 text-xs font-bold rounded-full flex items-center gap-1">
-              <Brain className="w-3 h-3" /> Grounded Business Memory
+              <Brain className="w-3 h-3" /> Saved Business Memory
             </span>
             <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> Anti-Hallucination Guardrails Active
+              <ShieldCheck className="w-3.5 h-3.5" /> Source quotes and manual facts
             </span>
           </div>
           <h1 className="text-2xl font-black tracking-tight">{business.name} Knowledge Base & Fact Memory</h1>
           <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
-            Upload brochures, service rate cards, SLAs, and verified FAQs. Your 24/7 AI Marketing Manager references these exact facts to answer customer reviews, craft social posts, and quote prices without hallucinating.
+            Store client files privately and review source excerpts with citations. Approved files are used in this search; automatic use in campaigns and replies is not enabled yet. Saved FAQs remain manual business statements.
           </p>
         </div>
 
@@ -217,13 +168,13 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" /> Test AI Memory & Fact-Checking Engine
+              <Sparkles className="w-4 h-4 text-indigo-600" /> Search Saved Client Sources
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Simulate an inquiry to verify that Gemini grounds responses exclusively in your uploaded company documents.
+              Search saved FAQs and approved extracted sources. Unsaved edits are excluded.
             </p>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">Grounding Model: Gemini 2.5</span>
+          <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">Mode: source excerpts</span>
         </div>
 
         <form onSubmit={handleTestFactSearch} className="flex gap-2">
@@ -244,10 +195,10 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
           >
             {isSearching ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying...
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching...
               </>
             ) : (
-              'Verify Fact'
+              'Search Saved Sources'
             )}
           </button>
         </form>
@@ -275,7 +226,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
             <ShieldCheck className="w-5 h-5 text-indigo-700 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="font-bold text-indigo-950 uppercase tracking-wide text-[10px]">
-                Verified Grounded Output
+                Saved Source Search Result
               </div>
               <div className="text-indigo-950 font-medium leading-relaxed whitespace-pre-line">
                 {testResponse}
@@ -285,13 +236,37 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
         )}
       </div>
 
+      <section className="bg-white border rounded-2xl p-5 space-y-3">
+        <h2 className="font-bold">Private Source Files ({sources.length})</h2>
+        <button onClick={()=>{if(companyId){const sequence=++sourceSequence.current;void listSources(companyId).then(rows=>{if(mounted.current&&sequence===sourceSequence.current){setSources(rows);setSourceError('');setTestResponse(null);setCitations([]);previewSequence.current++;setPreview(null);}}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable.');});}}}>Reload sources</button>
+        <p className="text-xs text-slate-500">Text PDF extraction depends on server support; scanned PDFs need OCR. DOCX extracts body text. Review text before approving use. Retrying clears approval.</p>
+        {sourceError&&<p role="alert" className="text-rose-700">{sourceError}</p>}
+        {sources.map(source=><div key={source.id} className="border rounded-xl p-3 text-sm">
+          <strong>{source.filename}</strong><div>{source.state} · {source.byteSize} bytes · {source.approved?'Approved for search':'Not approved'}</div>
+          {source.code&&<p className="text-xs">{sourceExplanation(source.code)}</p>}
+          <button disabled={sourceBusy} onClick={()=>void openPreview(source)} className="mr-3">Review extracted text</button>
+          <button disabled={sourceBusy} onClick={()=>void sourceAction(source,'retry')} className="mr-3">Retry extraction</button>
+          <button disabled={sourceBusy} onClick={()=>void sourceAction(source,'delete')} className="mr-3">Delete source</button>
+          <button onClick={()=>{if(companyId)void downloadSource(companyId,source).catch(()=>{if(mounted.current)setSourceError('Download unavailable.');});}}>Download original</button>
+        </div>)}
+        {citations.map(citation=><div key={citation.label} className="text-xs border-t pt-2">[{citation.label}] {citation.title} · version {citation.sourceVersion}{citation.page?` · page ${citation.page}`:''}</div>)}
+      </section>
+      {preview&&<section className="bg-slate-50 border p-5 rounded-xl space-y-3">
+        <h3 className="font-bold">Extraction preview: {preview.source.filename}</h3>
+        <pre className="whitespace-pre-wrap max-h-96 overflow-y-auto text-xs">{preview.chunks.map(chunk=>`${chunk.page?`Page ${chunk.page}: `:''}${chunk.text}`).join('\n\n')||'No extracted text available.'}</pre>
+        <p className="text-xs">Approval permits source use; it does not independently verify business claims.</p>
+        {preview.source.state==='EXTRACTED'&&!preview.source.approved&&<button disabled={sourceBusy} onClick={()=>void sourceAction(preview.source,'approve')}>Approve this extraction version</button>}
+        {preview.source.approved&&<button disabled={sourceBusy} onClick={()=>void sourceAction(preview.source,'withdraw')}>Stop using this source</button>}
+        <button onClick={()=>{previewSequence.current++;setPreview(null);}} className="ml-4">Close preview</button>
+      </section>}
+      <p className="text-xs text-slate-500">Legacy document and FAQ edits are workspace drafts until the workspace save status confirms them.</p>
       {/* Two Columns: Uploaded Documents & Verified Business FAQs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Document Repository */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-600" /> Indexed Knowledge Documents ({documents.length})
+              <FileText className="w-4 h-4 text-indigo-600" /> Legacy Profile Documents ({documents.length})
             </h3>
             <button
               onClick={() => setIsAddDocOpen(true)}
@@ -318,14 +293,14 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
                       <span>•</span>
                       <span>{doc.size}</span>
                       <span>•</span>
-                      <span className="text-indigo-600 font-bold">{doc.chunksCount} chunks</span>
+                      <span className="text-indigo-600 font-bold">Legacy text; extraction unverified</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Indexed
+                    <FileText className="w-3 h-3" /> Legacy record
                   </span>
                   <button
                     onClick={() => updateDocuments(documents.filter((d) => d.id !== doc.id))}
@@ -344,7 +319,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-indigo-600" /> Grounded Business FAQs ({faqs.length})
+              <HelpCircle className="w-4 h-4 text-indigo-600" /> Saved Business FAQs ({faqs.length})
             </h3>
             <button
               onClick={() => setIsAddFaqOpen(true)}
@@ -429,7 +404,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Verified Official Answer
+                  Manual Business Answer
                 </label>
                 <textarea
                   required
@@ -450,7 +425,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="submit" disabled={sourceBusy}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs"
                 >
                   Save to AI Memory
@@ -487,7 +462,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
                     type="text"
                     required
                     placeholder="e.g. Aaditech_Custom_Software_Rates_2026.pdf"
-                    value={docName}
+                    value={docName} disabled={selectedFile!==null}
                     onChange={(e) => setDocName(e.target.value)}
                     className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900"
                   />
@@ -495,7 +470,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileSelect}
-                    accept=".pdf,.docx,.doc,.txt,.md"
+                    accept=".pdf,.docx,.txt,.md"
                     className="hidden"
                   />
                   <button
@@ -510,29 +485,13 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Document Category
-                </label>
-                <select
-                  value={docCategory}
-                  onChange={(e) => setDocCategory(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                >
-                  <option value="Service Catalog">Service Catalog</option>
-                  <option value="Pricing & Packages">Pricing & Packages</option>
-                  <option value="Technical Specs">Technical Specs</option>
-                  <option value="Policy / SLA">Policy / SLA</option>
-                  <option value="General">General</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Key Document Summary / Fact Excerpts
+                  Pasted text (when no file is selected)
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="Paste key terms, packages, pricing tables, or SLA commitments. Gemini AI uses this exact text to answer reviews and inquiries without hallucinating."
+                  placeholder="Paste actual text to store as a private UTF-8 source for review."
                   value={docContent}
+                  disabled={selectedFile!==null}
                   onChange={(e) => setDocContent(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 leading-relaxed"
                 />
@@ -547,10 +506,10 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="submit" disabled={sourceBusy}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs"
                 >
-                  Index & Save Document
+                  Upload & Extract Source
                 </button>
               </div>
             </form>

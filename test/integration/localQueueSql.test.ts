@@ -88,6 +88,14 @@ try {
   assert.equal((await runMigrations(pool)).appliedCount, 0);
   const schemaReport = await verifySchema(pool);
   assert.equal(schemaReport.status, 'READY', JSON.stringify(schemaReport));
+  await pool.query('ALTER TABLE knowledge_sources DROP INDEX uq_knowledge_company_sha, ADD UNIQUE INDEX uq_knowledge_company_sha(company_id,filename)');
+  assert.ok((await verifySchema(pool)).missingConstraints?.includes('knowledge_sources.uq_knowledge_company_sha'));
+  await pool.query('ALTER TABLE knowledge_sources DROP INDEX uq_knowledge_company_sha, ADD UNIQUE INDEX uq_knowledge_company_sha(company_id,content_sha)');
+  await pool.query('ALTER TABLE knowledge_sources DROP COLUMN extraction_code');
+  assert.ok((await verifySchema(pool)).missingColumns?.includes('knowledge_sources.extraction_code'));
+  await assert.rejects(MIGRATIONS[29].up(pool),/MIGRATION_KNOWLEDGE_TABLE_CONFLICT/);
+  await pool.query('ALTER TABLE knowledge_sources ADD COLUMN extraction_code VARCHAR(64) DEFAULT NULL AFTER extraction_state');
+  assert.equal((await verifySchema(pool)).status,'READY');
   await checkRestrictedRuntime(false);
   await pool.query('ALTER TABLE company_profiles_data DROP COLUMN revision');assert.ok((await verifySchema(pool)).missingColumns?.includes('company_profiles_data.revision'));await MIGRATIONS.find(m=>m.name==='026_company_profile_revision')!.up(pool);assert.equal((await verifySchema(pool)).status,'READY');
   // A full empty-database migration must match the005-upgrade path, not a second schema definition.
@@ -127,7 +135,7 @@ try {
   assert.ok((await verifySchema(pool)).missingConstraints?.includes('website_configs.company_id'));
   await pool.query('ALTER TABLE website_configs ADD UNIQUE INDEX operator_website_owner (company_id)');assert.equal((await verifySchema(pool)).status,'READY');
   const persistenceEnv={...isolatedTestEnvironment(process.env),NODE_ENV:'production',AUTH_SECRET:'synthetic-runtime-authority-secret-not-for-production',DB_HOST:'127.0.0.1',DB_PORT:String(port),DB_NAME:database,DB_USER:runtimeUser,DB_PASSWORD:runtimePassword,ABGM1_LOCAL_SQL_TESTS:'1',LOCAL_SQL_CONTAINER_ID:process.env.LOCAL_SQL_CONTAINER_ID};
-  for(const fixture of ['test/integration/autonomousPersistenceSql.test.ts','test/integration/websitePersistenceSql.test.ts','test/integration/publicLeadSql.test.ts','test/integration/observationPersistenceSql.test.ts','test/integration/competitorCommandsSql.test.ts','test/integration/passwordResetSql.test.ts','test/integration/integrationPersistenceSql.test.ts']){
+  for(const fixture of ['test/integration/autonomousPersistenceSql.test.ts','test/integration/websitePersistenceSql.test.ts','test/integration/publicLeadSql.test.ts','test/integration/observationPersistenceSql.test.ts','test/integration/competitorCommandsSql.test.ts','test/integration/passwordResetSql.test.ts','test/integration/integrationPersistenceSql.test.ts','test/integration/knowledgeSourcesSql.test.ts','test/integration/internalCampaignPersistenceSql.test.ts']){
    let persistenceResult;try{persistenceResult=await promisify(execFile)(process.execPath,['--import','tsx',fixture],{env:persistenceEnv,timeout:30000});}catch(error:any){process.stdout.write(error.stdout||'');throw new Error('Restricted persistence fixture failed');}process.stdout.write(persistenceResult.stdout);
   }
 
@@ -1022,7 +1030,7 @@ try {
   ])await pool.query('INSERT INTO public_lead_intakes(company_id,request_key,input_hash,lead_id,notification_state,created_at,updated_at) VALUES (?,?,?,?,?,FROM_UNIXTIME(?),FROM_UNIXTIME(?))',[company,crypto.createHash('sha256').update(String(id)).digest('hex'),'0'.repeat(64),'report-inquiry-'+id,state,Number(created)/1000,Number(updated)/1000]);
   const dayReport=await readDailyWorkReport(pool,'report-company','2026-11-03');
   assert.deepEqual(dayReport.activity,{completedJobs:1,failedJobs:1,pausedJobs:1,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2});
-  assert.deepEqual(dayReport.backlog,{waitingJobs:1,runningJobs:1,failedJobs:1,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2});
+  assert.deepEqual(dayReport.backlog,{waitingJobs:1,runningJobs:1,failedJobs:1,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0});
   assert.ok(!JSON.stringify(dayReport).includes('private'));
   const emptyDayReport=await readDailyWorkReport(pool,'empty-report-company','2026-11-03');assert.ok(Object.values(emptyDayReport.activity).every(count=>count===0));
   const timezoneDayPool=mysql.createPool({host:'127.0.0.1',port,user:'root',password:'',database,connectionLimit:1});
@@ -1219,7 +1227,7 @@ try {
     console.log('Dispatcher SQL:8 claimants/one minute owner, no duplicate replay, persisted rotation across fresh pool, IST session/DB clock, journal/stale UNKNOWN fencing, private keyset history, corrupt-state rejection and atomic rollback passed.');
   }finally{await nativeClockPool.end();}
 
-  console.log(JSON.stringify({ engine: identity[0].version, fresh_schema_001_to_005: 'passed', upgrade_from_005_through_029: 'passed', duplicate_domain_preflight: 'passed', incorrect_index_columns: 'rejected', equivalent_lead_index_reused: true, repeat_upgrade: 'passed', concurrent_workers: 12, single_claim: 'passed', type_filter: 'passed', expired_lease_recovery: 'passed', rollback: 'passed', stale_worker_completion_failure: 'rejected', unfenced_running_update: 'rejected', reused_worker_attempt_fence: 'passed', lease_renewal: 'passed', concurrent_settlement: 'single winner', attempt_exhaustion: 'dead letter', retry_backoff: 'passed', cancelled_state_fence: 'passed', transactional_enqueue_events_outbox: 'passed', outbox_fault_rollback: 'passed', concurrent_enqueue_idempotency: 8, tenant_key_separation: 'passed', production_access: false }));
+  console.log(JSON.stringify({ engine: identity[0].version, fresh_schema_001_to_005: 'passed', upgrade_from_005_through_030: 'passed', duplicate_domain_preflight: 'passed', incorrect_index_columns: 'rejected', equivalent_lead_index_reused: true, repeat_upgrade: 'passed', concurrent_workers: 12, single_claim: 'passed', type_filter: 'passed', expired_lease_recovery: 'passed', rollback: 'passed', stale_worker_completion_failure: 'rejected', unfenced_running_update: 'rejected', reused_worker_attempt_fence: 'passed', lease_renewal: 'passed', concurrent_settlement: 'single winner', attempt_exhaustion: 'dead letter', retry_backoff: 'passed', cancelled_state_fence: 'passed', transactional_enqueue_events_outbox: 'passed', outbox_fault_rollback: 'passed', concurrent_enqueue_idempotency: 8, tenant_key_separation: 'passed', production_access: false }));
 } finally {
   await pool?.end();
   if (created) await admin.query(`DROP DATABASE ${database}`);

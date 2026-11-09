@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import express from 'express';
+import {registerKnowledgeRoutes} from '../server/knowledgeRoutes';
+let reads=0,fail=false;const pool={query:async(sql:string,args:any[])=>{reads++;assert.equal(args[0],'A');if(fail)throw new Error('private-sql');if(sql.includes('approved_at IS NOT NULL'))return [[]];return [[{id:'s',company_id:'A',filename:'private.txt',content_bytes:Buffer.from('private'),byte_size:7,media_type:'text/plain',content_sha:'hash',extraction_state:'EXTRACTED',extraction_code:'TEXT_EXTRACTED',revision:'2',approved_at:null,created_ms:0}]];}} as any;
+const app=express();app.use(express.json());registerKnowledgeRoutes(app,{auth:async req=>req.headers.authorization?{id:'owner'}:null,access:async(_,company)=>({authorized:company==='A',status:403}),pool:async()=>pool,profile:async()=>({version:'7',data:{knowledge_base:{faqs:[{id:'faq-A',question:'Pricing',answer:'Saved price INR 25000'}]}}}),rateLimit:(_,__,next)=>next()});
+const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+try{
+ const call=async(path:string,status:number,body?:any,auth=true)=>{const response=await fetch(origin+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(auth?{Authorization:'fixture'}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.equal(response.status,status);assert.equal(response.headers.get('cache-control'),'no-store');const data=await response.json();assert.ok(!JSON.stringify(data).includes('private-sql'));return data;};
+ await call('/api/companies/A/knowledge/sources',401,undefined,false);await call('/api/companies/B/knowledge/sources',403);await call('/api/ai/knowledge/query',400,{query:'pricing'});await call('/api/ai/knowledge/query',400,{companyId:'A',query:'pricing',faqs:[{answer:'forged'}]});assert.equal(reads,0);
+ const list=await call('/api/companies/A/knowledge/sources',200);assert.equal(list.sources[0].companyId,'A');assert.ok(!JSON.stringify(list).includes('content_bytes'));
+ const query=await call('/api/ai/knowledge/query',200,{companyId:'A',query:'pricing'});assert.match(query.answer,/25000/);assert.equal(query.citations[0].sourceVersion,'7');await call('/api/ai/knowledge/query',403,{companyId:'B',query:'pricing'});fail=true;await call('/api/companies/A/knowledge/sources',503);
+ console.log('Knowledge HTTP: auth/client checks before reads, explicit saved-source query contract, request-side context rejection, citations/version and private metadata/error boundaries passed.');
+}finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}

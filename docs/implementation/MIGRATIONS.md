@@ -1,6 +1,6 @@
-# Immutable migration authoring — 6 November 2026 IST
+# Immutable migration authoring — 10 November 2026 IST
 
-P00-05 is locally validated. Production schema remains029/50 canonical tables. No dummy030 migration is registered and no production migration has been applied. Native030 examples are disposable test fixtures only.
+P00-05 is locally validated. Current source target is030/51 canonical tables; deployed live schema is unverified.030_private_knowledge_sources is the first real v1 SQL manifest. No production migration has been applied in this continuation. Disposable extension fixtures derive the next registry ID;031 is the next free product ID. See KNOWLEDGE_SOURCES.md for storage/parser and rollout requirements.
 
 ## Historical identities001–029
 
@@ -25,7 +25,7 @@ Define actual future changes with `defineSqlMigration` in manifestV1.ts. There i
 ```ts
 import {defineSqlMigration} from './manifestV1';
 export const migration = defineSqlMigration({
-  name: '030_real_change',
+  name: '031_real_change',
   preflight: [],
   statements: [
     `CREATE TABLE IF NOT EXISTS example_records (

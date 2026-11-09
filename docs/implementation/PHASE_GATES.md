@@ -8,7 +8,7 @@ Snapshot derived from TASKS.csv; MASTER_PLAN.md remains the specification. Local
 | P01 | 4 | 5 | 0 | 1 |
 | P02 | 1 | 0 | 0 | 7 |
 | P03 | 0 | 0 | 0 | 7 |
-| P04 | 0 | 0 | 0 | 9 |
+| P04 | 0 | 3 | 0 | 6 |
 | P05 | 0 | 0 | 0 | 11 |
 | P06 | 0 | 0 | 0 | 8 |
 | P07 | 0 | 0 | 0 | 8 |
@@ -20,13 +20,13 @@ P00 hosting evidence is blocked: no Hostinger account tools are callable in this
 
 P01 has substantial implementation evidence. Its gate still requires broader durable execution policy across all action families, complete action/report reconciliation, remaining source/capability audits and hosting acceptance. Later phase gates are retained. Billing remains excluded.
 
-Current work: competitor transactions, scoped frontend commands and route compatibility guards documented in EXECUTION.md and evidence/competitor-commands-and-contracts.json. Earlier continuation notes below retain their historical evidence. No production publish/deploy/migration was performed.
+Current work: knowledge-source foundations and campaign persistence/client recovery, documented in EXECUTION.md, KNOWLEDGE_SOURCES.md and CAMPAIGN_PERSISTENCE.md. Earlier continuation notes below retain their historical evidence. No production publish/deploy/migration was performed.
 
 Additional P01 continuation: outbound global boundary coverage, truthful WhatsApp outcomes and bounded partial broadcasts; see evidence/outbound-stop-and-outcomes.json. No task/phase gate is promoted solely from this service batch.
 
-Current schema target is029 (50 tables), including durable dispatcher evidence and revision-bound company profile writes. The025 receipt baseline covers: durable requests plus tenant/sender-scoped receipt evidence, atomic inbound lead intake and autonomous WhatsApp ownership. Google review verification and credential-isolated regression follow the same P01 reliability work. See evidence/whatsapp-receipts-and-autonomous-truth.json; earlier durable-message-dispatch.json records its024 baseline. No phase gate promoted from these foundations. Hostinger tool discovery repeated in this continuation returned no callable account tools.
+Current schema target is030 (51 tables), including durable dispatcher evidence and revision-bound company profile writes. The025 receipt baseline covers: durable requests plus tenant/sender-scoped receipt evidence, atomic inbound lead intake and autonomous WhatsApp ownership. Google review verification and credential-isolated regression follow the same P01 reliability work. See evidence/whatsapp-receipts-and-autonomous-truth.json; earlier durable-message-dispatch.json records its024 baseline. No phase gate promoted from these foundations. Hostinger tool discovery repeated in this continuation returned no callable account tools.
 
-P02-04 is locally validated after retiring connection/request/startup schema writers, production READY-only startup, actual restricted-user no-write checks, full fresh/upgrade metadata parity and unchanged source/bundle identities. P02 architecture/security/integration work and earlier phase gates remain open. See evidence/schema-authority-cutover.json. Tracker totals:8 validated,7 in_progress,1 blocked,77 planned (93 unique tasks).
+P02-04 is locally validated after retiring connection/request/startup schema writers, production READY-only startup, actual restricted-user no-write checks, full fresh/upgrade metadata parity and unchanged source/bundle identities. P02 architecture/security/integration work and earlier phase gates remain open. See evidence/schema-authority-cutover.json. Tracker totals:8 validated,10 in_progress,1 blocked,74 planned (93 unique tasks).
 
 Meta Ads P01 continuation: tenant-only credential/account preflight, explicit status change with read-back, bounded partial sync, strict routes/client UI and evidence-qualified badges;70 isolated regression programs and Chromium passed. No phase/task promotion; P05-10 remains planned beyond this early safety foundation. See evidence/meta-ads-isolation-and-outcomes.json.
 
@@ -45,3 +45,7 @@ Migration/baseline continuation: P00-05 locally validated after immutable legacy
 Latest continuation: atomic competitor commands, client revision/request fences and source route-contract guard validated locally.83 isolated programs, native SQL, scoped competitor Chromium and existing workspace recheck passed. No phase promotion. P02 contract/extraction evidence is preparatory; P01-10 remains unaccepted. See API_COMPATIBILITY.md and evidence/competitor-commands-and-contracts.json.
 
 Security/integration continuation:86 isolated programs, native reset concurrency/rollback/rehash race and integration encryption/persistence, integration/workspace Chromium and source/build/route checks pass. Forced re-login compatibility and remaining session/OAuth/network gates documented in AUTH_AND_INTEGRATION_BOUNDARIES.md. P02 evidence remains preparatory; no phase promoted.
+
+Knowledge continuation:030/51 source target and88 isolated programs, native restricted SQL, copied export and knowledge/workspace Chromium verified. P04-01/03/05 are in progress locally; earlier phase prerequisites and P04 acceptance remain open. Tracker:8 validated,10 in_progress,1 blocked,74 planned. See KNOWLEDGE_SOURCES.md. Earlier029 notes retain their historical scope.
+
+Campaign reliability continuation: internal planning truth, scoped mutation acknowledgement/recovery and stable external sync identity verified locally; source target030/51 unchanged. See CAMPAIGN_PERSISTENCE.md and campaign-persistence.json. Phase counts remain8 validated,10 in_progress,1 blocked,74 planned; phase acceptance/hosting remains open.

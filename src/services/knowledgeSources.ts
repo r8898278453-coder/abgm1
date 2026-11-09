@@ -1,0 +1,12 @@
+import {apiRequest,getStoredToken} from './authService';
+import {API_BASE_URL} from '../config/apiConfig';
+import type {KnowledgeSource,KnowledgeChunk} from '../../shared/knowledge';
+const base=(company:string)=>`/api/companies/${encodeURIComponent(company)}/knowledge/sources`;
+function collection(data:any,company:string):KnowledgeSource[]{if(data?.success!==true||data.companyId!==company||!Array.isArray(data.sources)||data.sources.some((row:any)=>row.companyId!==company))throw new Error('Source acknowledgement unconfirmed. Reload source list.');return data.sources;}
+export async function listSources(company:string,signal?:AbortSignal){return collection(await apiRequest(base(company),{signal}),company);}
+export async function uploadSource(company:string,file:File){const form=new FormData();form.append('file',file);const token=getStoredToken();const response=await fetch(API_BASE_URL+base(company),{method:'POST',headers:token?{Authorization:'Bearer '+token}:{},body:form,signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw new Error('Upload unavailable or unconfirmed. Reload sources before retrying.');return collection(data,company);}
+export async function sourceCommand(company:string,source:KnowledgeSource,command:'approve'|'withdraw'|'retry'|'delete'){
+ return collection(await apiRequest(base(company)+'/'+encodeURIComponent(source.id)+(command==='delete'?'':'/'+(command==='withdraw'?'withdraw-approval':command)),{method:command==='delete'?'DELETE':'POST',body:JSON.stringify(command==='retry'?{}:{expectedVersion:source.version})}),company);
+}
+export async function previewSource(company:string,id:string):Promise<{source:KnowledgeSource;chunks:KnowledgeChunk[]}>{const data:any=await apiRequest(base(company)+'/'+encodeURIComponent(id)+'/preview');if(data?.success!==true||data.companyId!==company||data.source?.companyId!==company||data.source.id!==id||!Array.isArray(data.chunks))throw new Error('Preview unavailable');return data;}
+export async function downloadSource(company:string,source:KnowledgeSource){const token=getStoredToken(),response=await fetch(API_BASE_URL+base(company)+'/'+encodeURIComponent(source.id)+'/download',{headers:token?{Authorization:'Bearer '+token}:{},signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('Download unavailable');const blob=await response.blob(),url=URL.createObjectURL(blob);try{const link=document.createElement('a');link.href=url;link.download=source.filename;link.click();}finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}}

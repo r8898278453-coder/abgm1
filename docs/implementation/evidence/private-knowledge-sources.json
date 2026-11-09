@@ -1,0 +1,61 @@
+{
+  "date_ist": "2026-11-10",
+  "tasks": [
+    "P00-03",
+    "P01-02",
+    "P01-05",
+    "P01-09",
+    "P02-04",
+    "P04-01",
+    "P04-03",
+    "P04-05"
+  ],
+  "schema": "030_private_knowledge_sources / 51 tables",
+  "historical_001_to_029_changed": false,
+  "production_changes": false,
+  "phase_gates": "open; no phase acceptance",
+  "batches": [
+    "Private immutable original-byte storage and bounded multipart",
+    "Real TXT/Markdown/DOCX/PDF extraction and OCR gate",
+    "Revision-fenced processing and interrupted-claim recovery",
+    "Private preview/download and approval/withdraw/delete",
+    "Saved-only source citations and explicit abstention",
+    "Scoped UI, retained failed upload and honest legacy labels",
+    "Current source backlog in report/CSV/digest",
+    "Forward manifest/readiness and copied-export compatibility"
+  ],
+  "verified": [
+    "Actual fixture facts extracted with PDF page provenance; no filename/size placeholders",
+    "2MiB upload and parser limits; UTF8/signature/XML/blank/scanned outcomes",
+    "Parser environment excludes DB/auth/provider secrets",
+    "8-way same-byte replay one row and replay at full source-count capacity",
+    "Approval required before search; withdrawal/retry/deletion remove eligibility",
+    "Wrong-client access and stale approval/delete/extraction settlement rejected",
+    "Stale claim recovery and current approval/processing/blocked report counts",
+    "Known-column and ordered unique key readiness; incompatible preflight refuses adoption",
+    "Knowledge review/approval/withdraw/search failure/late-client browser flow"
+  ],
+  "validation": {
+    "default_programs": 88,
+    "typescript": "passed",
+    "build": "passed; existing chunk warning",
+    "native_sql": "Disposable restricted MariaDB10.11.19 fresh/005-upgrade/replay plus real multipart/source lifecycle",
+    "browser": "Knowledge workflow and existing workspace suite; external traffic blocked",
+    "routes": "146 declarations / 28 registrations; no terminal collision",
+    "copied_export": {
+      "original_business_rows": "preserved",
+      "original_ledger_entries": 5,
+      "canonical_tables": 51,
+      "migrations": 30,
+      "source_bundle_repeat_applied": 0
+    }
+  },
+  "remaining": [
+    "Durable ingestion queue/attempt history and full extraction/approval history",
+    "Host Poppler capability, OCR and OS resource/retention acceptance",
+    "Safe website import and legacy migration",
+    "Fact conflict/precedence and automatic review/content/chat/sales consumers",
+    "Semantic retrieval; current newest20 approved sources/first200 saved FAQs window",
+    "Earlier hosting/agency/security and all later phase gates"
+  ]
+}

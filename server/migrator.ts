@@ -1,3 +1,4 @@
+import {privateKnowledgeSources} from './migrations/030_private_knowledge_sources';
 import {migrationIdentity,validateMigrationRegistry,inspectMigrationLedger,MigrationLedgerError} from './migrationIdentity';
 import {createPublicLeadIntakes} from './migrations/029_public_lead_intakes';
 import {repairLegacyExport} from './migrations/028_legacy_export_compatibility';
@@ -62,6 +63,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'knowledge_sources',
   'public_lead_intakes',
   'schema_migrations',
   'schema_migrations_lock',
@@ -116,6 +118,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  knowledge_sources:['PRIMARY','idx_knowledge_company_created','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','idx_public_intake_created','idx_public_intake_notification'],
   dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY','idx_dispatcher_status'],
   company_profiles_data:['PRIMARY'],
@@ -166,6 +169,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  knowledge_sources:['PRIMARY','fk_knowledge_company','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','fk_public_intake_company'],
   dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY'],
   company_profiles_data:['PRIMARY'],
@@ -781,6 +785,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   {name:'027_dispatcher_journal',up:createDispatcherJournal},
   {name:'028_legacy_export_compatibility',up:repairLegacyExport},
   {name:'029_public_lead_intakes',up:createPublicLeadIntakes},
+  privateKnowledgeSources,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1085,8 +1090,8 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const historyNames=new Set(historyColumns.map((row:any)=>row.COLUMN_NAME));
       for(const name of ['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'])if(!historyNames.has(name))missingColumns.push(`publication_workflow_audit.${name}`);
 
-      const [controlColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('publication_execution_controls','publication_control_audit','publication_admission_reservations','message_dispatch_intents','message_delivery_receipts','company_profiles_data','dispatcher_state','dispatcher_ticks','autonomous_actions','reviews','public_lead_intakes')");
-      for(const [table,names] of Object.entries({public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']})){
+      const [controlColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('knowledge_sources','publication_execution_controls','publication_control_audit','publication_admission_reservations','message_dispatch_intents','message_delivery_receipts','company_profiles_data','dispatcher_state','dispatcher_ticks','autonomous_actions','reviews','public_lead_intakes')");
+      for(const [table,names] of Object.entries({knowledge_sources:['id','company_id','filename','media_type','byte_size','content_sha','content_bytes','extraction_state','extraction_code','extracted_text','chunks_json','revision','claimed_at','approved_by','approved_at','created_at','updated_at'],public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']})){
         for(const name of names)if(!controlColumns.some((row:any)=>row.TABLE_NAME===table&&row.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
       }
       const [legacyActionColumns]:any=await conn.query("SELECT COLUMN_NAME,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='autonomous_actions' AND COLUMN_NAME IN ('type','title','description')");

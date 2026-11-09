@@ -1,8 +1,10 @@
-# Copied SQL restore rehearsal — 6 November 2026 IST
+# Copied SQL restore rehearsal — 10 November 2026 IST
 
 This is a local compatibility rehearsal, not a production rollback or disaster-recovery acceptance. The uploaded export stays outside the repository. Never commit SQL dumps, row hashes, credentials or customer records to evidence.
 
-Current continuation additionally verified029_public_lead_intakes (50 canonical tables). The same unchanged export reaches READY, preserves all original business rows and5 ledger identities, and source/bundled replay applies0. See [public-inquiry-recovery.json](evidence/public-inquiry-recovery.json). Earlier028 observations below retain their original evidence scope; this remains a disposable-copy rehearsal rather than a live restore.
+Latest continuation verifies030_private_knowledge_sources (51 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: private-knowledge-sources.json. This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
+
+Previous continuation additionally verified029_public_lead_intakes (50 canonical tables). The same unchanged export reaches READY, preserves all original business rows and5 ledger identities, and source/bundled replay applies0. See [public-inquiry-recovery.json](evidence/public-inquiry-recovery.json). Earlier028 observations below retain their original evidence scope; this remains a disposable-copy rehearsal rather than a live restore.
 
 ## Run the copied-export check
 

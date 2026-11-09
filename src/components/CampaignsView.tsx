@@ -52,7 +52,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   companyId,
   posts = [],
 }) => {
-  const mounted=useRef(true),syncOperation=useRef(false);
+  const mounted=useRef(true),syncOperation=useRef(false),mutation=useRef(false),uncertain=useRef(false),loadRevision=useRef(0);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const [activeTab, setActiveTab] = useState<'internal' | 'external_ads' | 'attribution'>('internal');
   const [internalCampaigns, setInternalCampaigns] = useState<InternalCampaign[]>([]);
@@ -83,21 +83,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   const [attributionData, setAttributionData] = useState<RevenueAttributionResult | null>(null);
 
   const loadData = async () => {
-    setLoading(true);setLoadError(false);
+    const revision=++loadRevision.current;setLoading(true);setLoadError(false);
     try {
       const [internalRes, externalRes, attrRes] = await Promise.all([
         getInternalCampaignsApi(companyId),
         getExternalAdCampaignsApi(companyId),
         fetchRevenueAttributionApi(companyId),
       ]);
-      if(!mounted.current)return;
-      setInternalCampaigns(internalRes);
+      if(!mounted.current||revision!==loadRevision.current)return;
+      uncertain.current=false;setInternalCampaigns(internalRes);
       setExternalCampaigns(externalRes);
       setAttributionData(attrRes);
     } catch (err: any) {
-      if(mounted.current){setLoadError(true);setFeedbackToast({type:'error',message:'Campaign data unavailable. Reload before making changes.'});}
+      if(mounted.current&&revision===loadRevision.current){setLoadError(true);setFeedbackToast({type:'error',message:'Campaign data unavailable. Reload before making changes.'});}
     } finally {
-      if(mounted.current)setLoading(false);
+      if(mounted.current&&revision===loadRevision.current)setLoading(false);
     }
   };
 
@@ -120,79 +120,50 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
     finally{syncOperation.current=false;if(mounted.current)setSyncing(false);}
   };
 
+  const runPlanningMutation = async (work:()=>Promise<void>) => {
+    if(!companyId||loading||loadError||mutation.current||uncertain.current)return;
+    mutation.current=true;
+    try{await work();}catch{
+      if(mounted.current){uncertain.current=true;setLoadError(true);setFeedbackToast({type:'error',message:'Campaign change unconfirmed. Reload stored records before retrying.'});}
+    }finally{mutation.current=false;}
+  };
+
   const handleCreateInternalCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if(loading||loadError||!companyId)return;
-    if (!newCampName.trim()) return;
-
-    try {
-      const created = await createInternalCampaignApi({
-        companyId,
-        name: newCampName,
-        objective: newCampObjective,
-        status: 'active',
-        startDate: newCampStartDate,
-        endDate: newCampEndDate,
-        plannedBudget: newCampBudget,
-        channels: newCampChannels,
-      });
-
-      if (created) {
-        setInternalCampaigns([created, ...internalCampaigns]);
-        setIsModalOpen(false);
-        setFeedbackToast({ type: 'success', message: '✓ Internal marketing campaign created and stored!' });
-      } else {
-        setFeedbackToast({ type: 'error', message: 'Failed to create campaign' });
-      }
-    } catch (err: any) {
-      setFeedbackToast({ type: 'error', message: err?.message || 'Failed to save campaign' });
-    }
-    setTimeout(() => setFeedbackToast(null), 4000);
+    e.preventDefault();if(!newCampName.trim()||!newCampObjective.trim())return;
+    await runPlanningMutation(async()=>{
+      const created=await createInternalCampaignApi({companyId,name:newCampName,objective:newCampObjective,status:'active',startDate:newCampStartDate,endDate:newCampEndDate,plannedBudget:newCampBudget,channels:newCampChannels});
+      if(!mounted.current)return;if(!created)throw new Error('Unconfirmed');
+      setInternalCampaigns(current=>[created,...current]);setIsModalOpen(false);
+      setFeedbackToast({type:'success',message:'Internal planning record saved. This does not launch ads or spend budget.'});
+    });
   };
 
-  const handleToggleStatus = async (camp: InternalCampaign) => {
-    const newStatus = camp.status === 'active' ? 'paused' : 'active';
-    const success = await updateInternalCampaignApi(camp.id, { status: newStatus }, companyId);
-    if (success) {
-      setInternalCampaigns(internalCampaigns.map((c) => (c.id === camp.id ? { ...c, status: newStatus } : c)));
-      setFeedbackToast({ type: 'success', message: `✓ Campaign status updated to ${newStatus}` });
-    } else {
-      setFeedbackToast({ type: 'error', message: 'Failed to update status' });
-    }
-    setTimeout(() => setFeedbackToast(null), 3000);
-  };
+  const handleToggleStatus = async (camp: InternalCampaign) => runPlanningMutation(async()=>{
+    const newStatus=camp.status==='active'?'paused':'active';
+    const saved=await updateInternalCampaignApi(camp.id,{status:newStatus},companyId);
+    if(!mounted.current)return;if(!saved)throw new Error('Unconfirmed');
+    setInternalCampaigns(current=>current.map(c=>c.id===camp.id?{...c,status:newStatus}:c));
+    setFeedbackToast({type:'success',message:`Planning status saved as ${newStatus}. Provider delivery unchanged.`});
+  });
 
-  const handleDeleteCampaign = async (campId: string, name: string) => {
-    try {
-      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-        if (!window.confirm(`Delete internal campaign "${name}"?`)) return;
-      }
-    } catch {}
-
-    const success = await deleteInternalCampaignApi(campId, companyId);
-    if (success) {
-      setInternalCampaigns(internalCampaigns.filter((c) => c.id !== campId));
-      setFeedbackToast({ type: 'success', message: '✓ Internal campaign removed' });
-    } else {
-      setFeedbackToast({ type: 'error', message: 'Failed to delete campaign' });
-    }
-    setTimeout(() => setFeedbackToast(null), 3000);
+  const handleDeleteCampaign = async (campId:string,name:string) => {
+    if(!window.confirm(`Delete internal campaign "${name}"?`))return;
+    await runPlanningMutation(async()=>{
+      const saved=await deleteInternalCampaignApi(campId,companyId);
+      if(!mounted.current)return;if(!saved)throw new Error('Unconfirmed');
+      setInternalCampaigns(current=>current.filter(c=>c.id!==campId));setFeedbackToast({type:'success',message:'Internal planning record removed.'});
+    });
   };
 
   const handleLinkToExternal = async () => {
-    if (!linkingInternalId) return;
-    const extId = selectedExternalId === '__NONE__' || !selectedExternalId ? null : selectedExternalId;
-    const success = await linkInternalToExternalCampaignApi(linkingInternalId, extId, companyId);
-    if (success) {
-      setInternalCampaigns(
-        internalCampaigns.map((c) => (c.id === linkingInternalId ? { ...c, externalCampaignId: extId } : c))
-      );
-      setFeedbackToast({ type: 'success', message: '✓ External ad campaign link updated!' });
-      setLinkingInternalId(null);
-    } else {
-      setFeedbackToast({ type: 'error', message: 'Failed to update campaign link' });
-    }
-    setTimeout(() => setFeedbackToast(null), 3000);
+    if(!linkingInternalId)return;
+    const internalId=linkingInternalId,extId=selectedExternalId==='__NONE__'||!selectedExternalId?null:selectedExternalId;
+    await runPlanningMutation(async()=>{
+      const saved=await linkInternalToExternalCampaignApi(internalId,extId,companyId);
+      if(!mounted.current)return;if(!saved)throw new Error('Unconfirmed');
+      setInternalCampaigns(current=>current.map(c=>c.id===internalId?{...c,externalCampaignId:extId}:c));setLinkingInternalId(null);
+      setFeedbackToast({type:'success',message:'Stored campaign link saved.'});
+    });
   };
 
   // Planned Budget Summary (User-entered / Planned)
@@ -245,6 +216,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      {loadError&&<div role="alert">Campaign records unavailable. <button onClick={()=>void loadData()}>Reload campaign records</button></div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -401,7 +373,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             <div className="p-8 text-center text-xs text-slate-400 bg-white rounded-3xl border border-slate-200">
               Loading initiatives...
             </div>
-          ) : internalCampaigns.length === 0 ? (
+          ) : loadError ? (<p>Reload stored initiatives before making changes.</p>) : internalCampaigns.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
               <p className="text-xs text-slate-500 font-medium">No internal marketing initiatives created yet.</p>
               <button
@@ -574,7 +546,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             <div className="p-8 text-center text-xs text-slate-400 bg-white rounded-3xl border border-slate-200">
               Loading external ad telemetry...
             </div>
-          ) : loadError ? (<div role="alert">Campaign records unavailable. <button onClick={()=>void loadData()}>Reload campaign records</button></div>) : externalCampaigns.length === 0 ? (
+          ) : loadError ? (<p>Reload stored campaign records.</p>) : externalCampaigns.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
               <p className="text-xs text-slate-500 font-medium">No external ad campaigns synced yet.</p>
               <p className="text-[11px] text-slate-400 max-w-md mx-auto">
@@ -861,7 +833,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Initiative Title</label>
                 <input
-                  type="text"
+                  type="text" aria-label="Initiative Title" maxLength={255}
                   value={newCampName}
                   onChange={(e) => setNewCampName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-indigo-600"
@@ -872,7 +844,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Strategic Objective</label>
                 <input
-                  type="text"
+                  type="text" aria-label="Strategic Objective" maxLength={4000}
                   value={newCampObjective}
                   onChange={(e) => setNewCampObjective(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600"
@@ -884,7 +856,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Planned Budget (₹)</label>
                   <input
-                    type="number"
+                    type="number" min={0} max={99999999.99} step="0.01" aria-label="Planned Budget"
                     value={newCampBudget}
                     onChange={(e) => setNewCampBudget(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-indigo-600"

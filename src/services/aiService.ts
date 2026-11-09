@@ -103,62 +103,9 @@ export async function generateMarketingContent(
   return parsed.data;
 }
 
-export interface KnowledgeQueryPayload {
-  query: string;
-  businessName?: string;
-  category?: string;
-  services?: string[];
-  documents?: { name: string; category?: string; size?: string; textContent?: string }[];
-  faqs?: { question: string; answer: string; category?: string }[];
+export interface KnowledgeQueryPayload {companyId:string;query:string;}
+export interface KnowledgeQueryResult {success:boolean;companyId:string;answer:string;isGrounded:boolean;status:'MATCHES'|'NO_MATCH';mode:string;citations:Array<{label:string;title:string;excerpt:string;sourceId:string;sourceVersion:string;page:number|null;contentSha:string}>;sourceWindowTruncated:boolean;faqWindowTruncated?:boolean;}
+export async function queryKnowledgeBaseApi(params:KnowledgeQueryPayload,signal?:AbortSignal):Promise<KnowledgeQueryResult>{
+ const result:any=await requestAi('/api/ai/knowledge/query',params,signal);
+ if(result?.success!==true||result.companyId!==params.companyId||typeof result.answer!=='string'||!['MATCHES','NO_MATCH'].includes(result.status)||!Array.isArray(result.citations))throw new Error('Saved knowledge response unconfirmed.');return result;
 }
-
-export interface KnowledgeQueryResult {
-  success: boolean;
-  answer: string;
-  isGrounded: boolean;
-  error?: string;
-}
-
-export async function queryKnowledgeBaseApi(params: KnowledgeQueryPayload): Promise<KnowledgeQueryResult> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/ai/knowledge/query`, {
-      method: 'POST',
-      headers: getAiHeaders(),
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (res.status === 401) {
-      return {
-        success: false,
-        answer: '🔒 Please log in to your account to query the AI Knowledge Base.',
-        isGrounded: false,
-      };
-    }
-
-    if (res.status === 429) {
-      return {
-        success: false,
-        answer: '⚠️ AI Rate Limit reached. Please wait a moment before running another fact-check query.',
-        isGrounded: false,
-      };
-    }
-
-    if (res.ok) {
-      return await res.json();
-    }
-    const err = await res.json().catch(() => null);
-    return {
-      success: false,
-      answer: err?.error || 'Failed to query knowledge base.',
-      isGrounded: false,
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      answer: err?.message || 'Network error while querying knowledge base.',
-      isGrounded: false,
-    };
-  }
-}
-

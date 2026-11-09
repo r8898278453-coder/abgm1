@@ -998,6 +998,7 @@ export default function App() {
 
               {renderedTab === 'knowledge' && (
                 <KnowledgeBaseView
+                  key={`${user?.id}:${activeCompanyId}`} companyId={activeCompanyId||undefined}
                   business={business}
                   documents={knowledgeDocs}
                   faqs={knowledgeFaqs}

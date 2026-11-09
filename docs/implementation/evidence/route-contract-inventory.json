@@ -32,7 +32,7 @@
     {
       "method": "POST",
       "path": "/api/ai/knowledge/query",
-      "owner": "server.ts"
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
     },
     {
       "method": "POST",
@@ -148,12 +148,12 @@
     {
       "method": "GET",
       "path": "/api/campaigns/internal",
-      "owner": "server.ts"
+      "owner": "server/internalCampaignRoutes.ts#registerInternalCampaignRoutes"
     },
     {
       "method": "POST",
       "path": "/api/campaigns/internal",
-      "owner": "server.ts"
+      "owner": "server/internalCampaignRoutes.ts#registerInternalCampaignRoutes"
     },
     {
       "method": "GET",
@@ -163,17 +163,17 @@
     {
       "method": "DELETE",
       "path": "/api/campaigns/internal/:id",
-      "owner": "server.ts"
+      "owner": "server/internalCampaignRoutes.ts#registerInternalCampaignRoutes"
     },
     {
       "method": "PUT",
       "path": "/api/campaigns/internal/:id",
-      "owner": "server.ts"
+      "owner": "server/internalCampaignRoutes.ts#registerInternalCampaignRoutes"
     },
     {
       "method": "POST",
       "path": "/api/campaigns/internal/:id/link-external",
-      "owner": "server.ts"
+      "owner": "server/internalCampaignRoutes.ts#registerInternalCampaignRoutes"
     },
     {
       "method": "GET",
@@ -384,6 +384,46 @@
       "method": "GET",
       "path": "/api/companies/:id/keywords/:kw/history",
       "owner": "server/observationHistoryRoutes.ts#registerObservationHistoryRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/knowledge/sources",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/sources",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/approve",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/download",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/preview",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/retry",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/withdraw-approval",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
     },
     {
       "method": "GET",
@@ -696,5 +736,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 27
+  "registrationCount": 29
 }

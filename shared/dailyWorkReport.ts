@@ -9,14 +9,14 @@ export function platformDayBounds(date:string):{start:number;end:number}{
 export interface DailyWorkReport{
  date:string;timeZone:'Asia/Kolkata';generatedAt:string;
  activity:{completedJobs:number;failedJobs:number;pausedJobs:number;approvedPosts:number;rescheduledPosts:number;admittedPosts:number;controlChanges:number;messageRequests:number;apiAcceptedMessages:number;websiteInquiries:number;inquiryAlertsAccepted:number};
- backlog:{waitingJobs:number;runningJobs:number;failedJobs:number;pendingApprovals:number;uncertainPublications:number;unconfirmedMessages:number;inquiryAlertsNotAttempted:number;inquiryAlertsUnconfirmed:number};
+ backlog:{waitingJobs:number;runningJobs:number;failedJobs:number;pendingApprovals:number;uncertainPublications:number;unconfirmedMessages:number;inquiryAlertsNotAttempted:number;inquiryAlertsUnconfirmed:number;knowledgeAwaitingApproval:number;knowledgeExtractionRunning:number;knowledgeExtractionBlocked:number};
 }
 
 /** Fixed labels and numeric values only: no provider payloads, captions, actor names or spreadsheet formulas. */
 export function dailyWorkReportCsv(report:DailyWorkReport):string{
  platformDayBounds(report.date);
  if(report.timeZone!=='Asia/Kolkata'||!Number.isFinite(Date.parse(report.generatedAt)))throw new Error('INVALID_REPORT_METADATA');
- const metrics={activity:['completedJobs','failedJobs','pausedJobs','approvedPosts','rescheduledPosts','admittedPosts','controlChanges','messageRequests','apiAcceptedMessages','websiteInquiries','inquiryAlertsAccepted'],backlog:['waitingJobs','runningJobs','failedJobs','pendingApprovals','uncertainPublications','unconfirmedMessages','inquiryAlertsNotAttempted','inquiryAlertsUnconfirmed']} as const;
+ const metrics={activity:['completedJobs','failedJobs','pausedJobs','approvedPosts','rescheduledPosts','admittedPosts','controlChanges','messageRequests','apiAcceptedMessages','websiteInquiries','inquiryAlertsAccepted'],backlog:['waitingJobs','runningJobs','failedJobs','pendingApprovals','uncertainPublications','unconfirmedMessages','inquiryAlertsNotAttempted','inquiryAlertsUnconfirmed','knowledgeAwaitingApproval','knowledgeExtractionRunning','knowledgeExtractionBlocked']} as const;
  const values=(section:keyof typeof metrics)=>metrics[section].map(metric=>{
   const count=(report[section] as unknown as Record<string,number>)[metric];if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');
   return [report.date,report.timeZone,new Date(report.generatedAt).toISOString(),section==='backlog'?'current_backlog':'activity',metric,String(count)];

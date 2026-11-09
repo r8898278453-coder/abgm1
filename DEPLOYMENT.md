@@ -485,3 +485,7 @@ Stop checks are cooperative boundaries, not atomic cancellation of a remote requ
 ## Authentication and integration compatibility checkpoint — 10 November 2026 IST
 
 Before any separately authorized deployment, review docs/implementation/AUTH_AND_INTEGRATION_BOUNDARIES.md. Tokens issued before the password-binding cutover require sign-in again. Deploy authentication changes coherently across all serving processes; an old process retains the old policy. APP_URL must be the intended HTTPS root origin for recovery links. Integration test/save/catalogue/delete clients must send explicit company scope. Saved configuration is no longer represented as verified channel permission. No production changes were performed in preparing this checkpoint.
+
+## Private knowledge source checkpoint — 10 November 2026 IST
+
+Prepared schema030_private_knowledge_sources adds the51st table using immutable SQL manifest v1. Review docs/implementation/KNOWLEDGE_SOURCES.md before separately authorized rollout. Confirm private DB storage/packet capacity, optional pdfinfo/pdftotext capability, parser resource limits and temporary-file cleanup; missing PDF tools are explicitly unsupported. Coordinate frontend/server/schema30 because older binaries reject newer ledger evidence. No production migration, parser installation or deployment was performed here.

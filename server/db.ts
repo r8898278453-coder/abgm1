@@ -1,3 +1,4 @@
+import {updateInternalCampaignSql} from './internalCampaignStore';
 import {isIntegrationSecret} from '../shared/integrationCredentials';
 import {consumePasswordResetSql} from './passwordResetStore';
 import {ObservationError,normalizeRanks,normalizeCompetitor,observationLimit,saveRanksSql,saveCompetitorSql,readRanksSql,readCompetitorsSql,rankTrendSql} from './observationStore';
@@ -2310,14 +2311,16 @@ export async function isPostAlreadyPublished(postId: string, platform?: string):
 
 export async function getInternalCampaigns(companyId?: string): Promise<DbInternalCampaign[]> {
   if (!companyId) return [];
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
-        'SELECT * FROM internal_campaigns WHERE company_id = ? ORDER BY created_at DESC',
+        'SELECT *,UNIX_TIMESTAMP(created_at)*1000 created_ms,UNIX_TIMESTAMP(updated_at)*1000 updated_ms FROM internal_campaigns WHERE company_id = ? ORDER BY created_at DESC',
         [companyId]
       );
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         return rows.map((r: any) => {
           let channels: string[] = [];
           if (r.channels) {
@@ -2338,13 +2341,14 @@ export async function getInternalCampaigns(companyId?: string): Promise<DbIntern
             planned_budget: Number(r.planned_budget) || 0,
             channels,
             external_campaign_id: r.external_campaign_id || null,
-            created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-            updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+            created_at:r.created_ms==null?undefined:new Date(Number(r.created_ms)).toISOString(),
+            updated_at:r.updated_ms==null?undefined:new Date(Number(r.updated_ms)).toISOString(),
           };
         });
       }
     }
   } catch (err: any) {
+    if(connected)throw new Error('CAMPAIGN_STORAGE_UNAVAILABLE');
     handleDbError('getInternalCampaigns', err);
   }
 
@@ -2355,7 +2359,7 @@ export async function getInternalCampaigns(companyId?: string): Promise<DbIntern
 export async function createInternalCampaign(
   data: Omit<DbInternalCampaign, 'id' | 'created_at' | 'updated_at'> & { id?: string }
 ): Promise<DbInternalCampaign> {
-  const id = data.id || `camp_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const id = data.id || `camp_${crypto.randomUUID().replace(/-/g, '')}`;
   const now = new Date().toISOString();
   const campaign: DbInternalCampaign = {
     id,
@@ -2372,12 +2376,14 @@ export async function createInternalCampaign(
     updated_at: now,
   };
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       await db.query(
         `INSERT INTO internal_campaigns (id, company_id, name, objective, status, start_date, end_date, planned_budget, channels, external_campaign_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?))`,
         [
           campaign.id,
           campaign.company_id,
@@ -2389,12 +2395,14 @@ export async function createInternalCampaign(
           campaign.planned_budget,
           JSON.stringify(campaign.channels),
           campaign.external_campaign_id,
-          campaign.created_at,
-          campaign.updated_at,
+          Date.parse(campaign.created_at!)/1000,
+          Date.parse(campaign.updated_at!)/1000,
         ]
       );
+      return campaign;
     }
   } catch (err: any) {
+    if(connected)throw new Error('CAMPAIGN_STORAGE_UNAVAILABLE');
     handleDbError('createInternalCampaign', err);
   }
 
@@ -2403,89 +2411,23 @@ export async function createInternalCampaign(
   return campaign;
 }
 
-export async function updateInternalCampaign(
-  id: string,
-  updates: Partial<DbInternalCampaign>,
-  companyId?: string
-): Promise<boolean> {
-  const now = new Date().toISOString();
-  let dbSuccess = false;
-
-  try {
-    const db = await getDbPool();
-    if (db) {
-      const setClauses: string[] = ['updated_at = ?'];
-      const setValues: any[] = [now];
-
-      if (updates.name !== undefined) {
-        setClauses.push('name = ?');
-        setValues.push(updates.name);
-      }
-      if (updates.objective !== undefined) {
-        setClauses.push('objective = ?');
-        setValues.push(updates.objective);
-      }
-      if (updates.status !== undefined) {
-        setClauses.push('status = ?');
-        setValues.push(updates.status);
-      }
-      if (updates.start_date !== undefined) {
-        setClauses.push('start_date = ?');
-        setValues.push(updates.start_date);
-      }
-      if (updates.end_date !== undefined) {
-        setClauses.push('end_date = ?');
-        setValues.push(updates.end_date);
-      }
-      if (updates.planned_budget !== undefined) {
-        setClauses.push('planned_budget = ?');
-        setValues.push(Number(updates.planned_budget) || 0);
-      }
-      if (updates.channels !== undefined) {
-        setClauses.push('channels = ?');
-        setValues.push(JSON.stringify(updates.channels));
-      }
-      if (updates.external_campaign_id !== undefined) {
-        setClauses.push('external_campaign_id = ?');
-        setValues.push(updates.external_campaign_id);
-      }
-
-      let query = `UPDATE internal_campaigns SET ${setClauses.join(', ')} WHERE id = ?`;
-      setValues.push(id);
-      if (companyId) {
-        query += ' AND company_id = ?';
-        setValues.push(companyId);
-      }
-
-      await db.query(query, setValues);
-      dbSuccess = true;
-    }
-  } catch (err: any) {
-    handleDbError('updateInternalCampaign', err);
-  }
-
-  assertNotProductionFallback('updateInternalCampaign');
-  const existing = inMemoryInternalCampaigns.find((c) => c.id === id && (!companyId || c.company_id === companyId));
-  if (existing) {
-    Object.assign(existing, updates, { updated_at: now });
-    return true;
-  }
-  return dbSuccess;
+export async function updateInternalCampaign(id:string,updates:Partial<DbInternalCampaign>,companyId?:string):Promise<boolean>{
+ if(!companyId)return false;const db=await getDbPool();if(db)return updateInternalCampaignSql(db,id,updates,companyId);
+ assertNotProductionFallback('updateInternalCampaign');const existing=inMemoryInternalCampaigns.find(row=>row.id===id&&row.company_id===companyId);if(!existing)return false;
+ const allowed=['name','objective','status','start_date','end_date','planned_budget','channels','external_campaign_id'];for(const key of allowed)if((updates as any)[key]!==undefined)(existing as any)[key]=(updates as any)[key];existing.updated_at=new Date().toISOString();return true;
 }
 
 export async function deleteInternalCampaign(id: string, companyId?: string): Promise<boolean> {
-  let dbSuccess = false;
+  if(!companyId)return false;
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      if (companyId) {
-        await db.query('DELETE FROM internal_campaigns WHERE id = ? AND company_id = ?', [id, companyId]);
-      } else {
-        await db.query('DELETE FROM internal_campaigns WHERE id = ?', [id]);
-      }
-      dbSuccess = true;
+      connected=true;
+      const [result]:any=await db.query('DELETE FROM internal_campaigns WHERE id=? AND company_id=?',[id,companyId]);return result.affectedRows===1;
     }
   } catch (err: any) {
+    if(connected)throw new Error('CAMPAIGN_STORAGE_UNAVAILABLE');
     handleDbError('deleteInternalCampaign', err);
   }
 
@@ -2495,19 +2437,21 @@ export async function deleteInternalCampaign(id: string, companyId?: string): Pr
     inMemoryInternalCampaigns.splice(idx, 1);
     return true;
   }
-  return dbSuccess;
+  return false;
 }
 
 export async function getExternalAdCampaigns(companyId?: string): Promise<DbExternalAdCampaign[]> {
   if (!companyId) return [];
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
-        'SELECT * FROM external_ad_campaigns WHERE company_id = ? ORDER BY fetched_at DESC, created_at DESC',
+        'SELECT *,UNIX_TIMESTAMP(created_at)*1000 created_ms,UNIX_TIMESTAMP(updated_at)*1000 updated_ms FROM external_ad_campaigns WHERE company_id = ? ORDER BY fetched_at DESC, created_at DESC',
         [companyId]
       );
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         return rows.map((r: any) => ({
           id: r.id,
           company_id: r.company_id,
@@ -2526,12 +2470,13 @@ export async function getExternalAdCampaigns(companyId?: string): Promise<DbExte
           revenue_attribution_status: r.revenue_attribution_status || 'UNAVAILABLE',
           roas: r.roas !== null ? Number(r.roas) : null,
           raw_metrics_json: r.raw_metrics_json || null,
-          created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-          updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+          created_at:r.created_ms==null?undefined:new Date(Number(r.created_ms)).toISOString(),
+          updated_at:r.updated_ms==null?undefined:new Date(Number(r.updated_ms)).toISOString(),
         }));
       }
     }
   } catch (err: any) {
+    if(connected)throw new Error('CAMPAIGN_STORAGE_UNAVAILABLE');
     handleDbError('getExternalAdCampaigns', err);
   }
 
@@ -2542,7 +2487,7 @@ export async function getExternalAdCampaigns(companyId?: string): Promise<DbExte
 export async function upsertExternalAdCampaign(
   campaign: Omit<DbExternalAdCampaign, 'id' | 'created_at' | 'updated_at'> & { id?: string }
 ): Promise<DbExternalAdCampaign> {
-  const id = campaign.id || `extcamp_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const id = `extcamp_${crypto.randomUUID().replace(/-/g, '')}`;
   const now = new Date().toISOString();
 
   const record: DbExternalAdCampaign = {
@@ -2567,16 +2512,26 @@ export async function upsertExternalAdCampaign(
     updated_at: now,
   };
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
+      connected=true;
+      const connection=await db.getConnection();
+      try{
+      await connection.beginTransaction();
+      const [companies]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[record.company_id]);if(companies.length!==1)throw new Error('CAMPAIGN_COMPANY_MISSING');
+      const [existing]:any=await connection.query('SELECT id,internal_campaign_id,fetched_at,UNIX_TIMESTAMP(created_at)*1000 created_ms FROM external_ad_campaigns WHERE company_id=? AND provider=? AND external_campaign_id=? FOR UPDATE',[record.company_id,record.provider,record.external_campaign_id]);
+      if(!Number.isFinite(Date.parse(record.fetched_at!)))throw new Error('CAMPAIGN_FETCH_TIME_INVALID');
+      if(existing.length&&Date.parse(record.fetched_at!)<Date.parse(existing[0].fetched_at))throw new Error('CAMPAIGN_STALE_SYNC');
+      if(existing.length){record.id=existing[0].id;record.internal_campaign_id=existing[0].internal_campaign_id;record.created_at=new Date(Number(existing[0].created_ms)).toISOString();}
+      await connection.query(
         `INSERT INTO external_ad_campaigns (
           id, company_id, internal_campaign_id, provider, external_campaign_id,
           name, status, fetched_at, spend, impressions, clicks, conversions,
           conversion_tracking_status, revenue, revenue_attribution_status, roas,
           raw_metrics_json, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?))
         ON DUPLICATE KEY UPDATE
           name = VALUES(name),
           status = VALUES(status),
@@ -2609,13 +2564,15 @@ export async function upsertExternalAdCampaign(
           record.revenue_attribution_status,
           record.roas,
           record.raw_metrics_json,
-          record.created_at,
-          record.updated_at,
+          Date.parse(record.created_at!)/1000,
+          Date.parse(record.updated_at!)/1000,
         ]
       );
-      return record;
+      await connection.commit();return record;
+      }catch(error){await connection.rollback();throw error;}finally{connection.release();}
     }
   } catch (err: any) {
+    if(connected)throw new Error('CAMPAIGN_STORAGE_UNAVAILABLE');
     handleDbError('upsertExternalAdCampaign', err);
   }
 
@@ -2625,6 +2582,8 @@ export async function upsertExternalAdCampaign(
   );
   if (existingIdx >= 0) {
     record.id = inMemoryExternalAdCampaigns[existingIdx].id;
+    record.created_at = inMemoryExternalAdCampaigns[existingIdx].created_at;
+    record.internal_campaign_id = inMemoryExternalAdCampaigns[existingIdx].internal_campaign_id;
     inMemoryExternalAdCampaigns[existingIdx] = record;
   } else {
     inMemoryExternalAdCampaigns.unshift(record);

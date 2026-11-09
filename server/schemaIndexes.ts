@@ -17,6 +17,7 @@ export function hasEquivalentIndex(rows: IndexRow[], table: string, columns: str
 }
 
 export const INDEX_REQUIREMENTS: Record<string, string[]> = {
+  'knowledge_sources.idx_knowledge_company_created':['company_id','created_at'],
   'public_lead_intakes.idx_public_intake_created':['company_id','created_at'],
   'public_lead_intakes.idx_public_intake_notification':['company_id','notification_state','updated_at'],
   'users.idx_user_email':['email'],'users.idx_user_role':['role'],
@@ -40,6 +41,7 @@ export const INDEX_REQUIREMENTS: Record<string, string[]> = {
   'custom_domains.idx_custom_domains_company': ['company_id'],
 };
 export const UNIQUE_REQUIREMENTS: Record<string, string[]> = {
+  'knowledge_sources.PRIMARY':['id'],'knowledge_sources.uq_knowledge_company_sha':['company_id','content_sha'],
   'public_lead_intakes.PRIMARY':['company_id','request_key'],'public_lead_intakes.uq_public_intake_lead':['lead_id'],
   'website_configs.company_id':['company_id'],
   'dispatcher_state.PRIMARY':['cursor_key'],

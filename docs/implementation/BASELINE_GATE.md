@@ -6,9 +6,9 @@ Status: in progress. P00-05's local migration strategy acceptance is complete; t
 | --- | --- | --- |
 | P00-01 source inventory | Locally validated inventory and corrected defects documented in EXECUTION | Reconcile with actual deployed revision when available |
 | P00-02 hosting/capabilities | Blocked; tool discovery currently exposes no Hostinger account operations | Actual plan/site/runtime/start command, deployed revision, cron/process limits, permissions, private assets and backup/restore evidence |
-| P00-03 regression rebaseline |86 isolated default programs, real disposable SQL, prior copied-export evidence; current mocked observation browser and prior workspace/website suites recorded separately | Hosting-dependent/live capability outcomes and unresolved broader provider/execution coverage remain open |
+| P00-03 regression rebaseline |88 isolated default programs, real disposable SQL, prior copied-export evidence; current mocked observation browser and prior workspace/website suites recorded separately | Hosting-dependent/live capability outcomes and unresolved broader provider/execution coverage remain open |
 | P00-04 reproducible tools | Node24.19.0/npm11.9.0 pins and previous clean npm ci validation | Confirm the actual hosting build/runtime rather than infer compatibility |
-| P00-05 immutable extensions | Locally validated frozen001–029, forward data manifests, strict ledger checks, minified/fresh/upgrade/copied restore | Production release/restore acceptance remains P00/P10 scope |
+| P00-05 immutable extensions | Locally validated frozen001–029, real030 data manifest, strict ledger checks, minified/fresh/upgrade/copied restore through030/51 | Production release/restore acceptance remains P00/P10 scope |
 
 Recorded decisions:
 
@@ -20,3 +20,5 @@ Recorded decisions:
 - Existing source capabilities are not proof of live provider/Hostinger access. Continue isolated implementation/testing where safe; retain unsupported/unverified state for missing live evidence.
 
 Gate closure needs the missing hosting baseline and completion of the P00-03 rebaseline acceptance, followed by an evidence review against current source/runtime/capability contracts. It must not promote later phase gates solely because local tests pass. No production deploy, DB write, provider send, DNS/SSL or account change was performed here.
+
+Latest campaign continuation:89 isolated programs, restricted SQL persistence and scoped campaign Chromium verified; current route inventory146 declarations/29 registrations. Full workspace recheck passes after one FAQ-stage timeout. See CAMPAIGN_PERSISTENCE.md. Hosting and complete phase acceptance remain open.

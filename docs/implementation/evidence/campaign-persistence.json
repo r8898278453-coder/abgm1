@@ -1,0 +1,46 @@
+{
+  "date_ist": "2026-11-10",
+  "tasks": [
+    "P00-03",
+    "P01-02",
+    "P01-05",
+    "P01-09"
+  ],
+  "schema": "030_private_knowledge_sources / 51 tables; campaign batch adds no migration",
+  "production_changes": false,
+  "phase_gates": "open; no phase acceptance",
+  "batches": [
+    "Confirmed internal planning SQL acknowledgements and legitimate empty reads",
+    "Scoped strict planning HTTP contracts and external-link validation",
+    "Merged-period row lock and planning-field-only patch",
+    "Browser draft retention, uncertainty/reload and client completion fences",
+    "Transactional external natural-key identity, timestamp persistence and stale observation fence"
+  ],
+  "verified": [
+    "Actual SQL create/update/delete terminate without memory fallback",
+    "Foreign/missing/unscoped rows cannot acknowledge mutation; valid no-op update succeeds",
+    "One-sided reversed date change rolls back and stored dates remain unchanged",
+    "Exact scoped acknowledgement and strict budget/date/status/field validation",
+    "External replay preserves original creation and internal link; 8 contenders one natural-key row",
+    "Caller-selected row ID cannot overwrite another client; missing company and stale fetch refuse",
+    "Missing provider conversions/revenue/ROAS stay NULL",
+    "Browser read failure differs from empty; failed draft retained; duplicate unknown submission held until reload",
+    "Successful planning acknowledgement does not claim provider launch; late result excluded from next client"
+  ],
+  "validation": {
+    "default_programs": 89,
+    "typescript": "passed",
+    "build": "passed; existing Vite chunk warning",
+    "routes": "146 declarations / 29 registrations; no terminal collision",
+    "native_sql": "Restricted disposable MariaDB10.11.19; full suite plus internal/external campaign persistence; no production access",
+    "browser": "Targeted campaign workflow passed; full workspace recheck passed after initial timeout at existing FAQ stage; external traffic blocked"
+  },
+  "remaining": [
+    "Actual Hostinger deployed revision/runtime/cron/backup evidence",
+    "Full agency roles/location and phase prerequisite acceptance",
+    "Durable internal transport idempotency and comparison revisions across tabs",
+    "Campaign execution model/policy, provider acceptance/canary and attribution",
+    "Knowledge queue/history, safe website import, OCR/fact conflicts and consumer integration",
+    "All subsequent phase acceptance; billing excluded"
+  ]
+}
