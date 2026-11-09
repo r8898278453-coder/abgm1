@@ -1,4 +1,4 @@
-# Phase gate status — 9 November 2026 IST
+# Phase gate status — 10 November 2026 IST
 
 Snapshot derived from TASKS.csv; MASTER_PLAN.md remains the specification. Local foundations are not production acceptance.
 
@@ -43,3 +43,5 @@ Public inquiry continuation:029/50 tables; atomic receipt/lead, current-token re
 Migration/baseline continuation: P00-05 locally validated after immutable legacy29/source guards, compiler-independent030+ SQL manifests, strict ledger evidence, actual partial-DDL/minified recovery and unchanged copied-export replay.79 default programs, TypeScript/build/source command and native SQL passed; db:status/db:verify now use canonical read-only evidence and no unsupported safety claims. No new product migration (029/50 retained). P00-06 is in progress with BASELINE_GATE.md; missing actual hosting/P00-03 acceptance prevents phase closure. Tracker now8 validated,7 in_progress,1 blocked,77 planned. See MIGRATIONS.md and evidence/migration-manifest-and-ledger.json.
 
 Latest continuation: atomic competitor commands, client revision/request fences and source route-contract guard validated locally.83 isolated programs, native SQL, scoped competitor Chromium and existing workspace recheck passed. No phase promotion. P02 contract/extraction evidence is preparatory; P01-10 remains unaccepted. See API_COMPATIBILITY.md and evidence/competitor-commands-and-contracts.json.
+
+Security/integration continuation:86 isolated programs, native reset concurrency/rollback/rehash race and integration encryption/persistence, integration/workspace Chromium and source/build/route checks pass. Forced re-login compatibility and remaining session/OAuth/network gates documented in AUTH_AND_INTEGRATION_BOUNDARIES.md. P02 evidence remains preparatory; no phase promoted.

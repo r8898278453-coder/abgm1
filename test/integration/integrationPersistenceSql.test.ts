@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL identity required');
+const db=await import('../../server/db'),pool=await db.getDbPool();assert.ok(pool);const prefix='integration_'+crypto.randomBytes(8).toString('hex'),a=prefix+'_a',b=prefix+'_b';let stage='identity';
+try{
+ const [identity]:any=await pool.query('SELECT @@hostname hostname');assert.equal(identity[0].hostname,process.env.LOCAL_SQL_CONTAINER_ID);for(const id of [a,b])await pool.query("INSERT INTO companies(id,user_id,name,category,city) VALUES (?,'fixture','Fixture','Fixture','Pune')",[id]);
+ assert.deepEqual(await db.getCompanyIntegrations(a),[]);assert.equal(await db.getCompanyIntegration(a,'transactional_email'),null);
+ stage='save';const first=await db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{smtpPass:'fixture-smtp-password',login:'fixture-api-login',apiKey:'fixture-api-key',fromEmail:'fixture@example.invalid'},config:{provider:'smtp'}});
+ assert.equal(first.last_tested_at,null);assert.equal(first.credentials.smtpPass,'fixture-smtp-password');
+ const [stored]:any=await pool.query('SELECT credentials FROM company_integrations WHERE company_id=?',[a]);const raw=typeof stored[0].credentials==='string'?stored[0].credentials:JSON.stringify(stored[0].credentials);assert.ok(!raw.includes('fixture-smtp-password'));assert.ok(!raw.includes('fixture-api-login'));assert.ok(raw.includes('enc:v1:'));
+ const second=await db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{smtpPass:'replacement-fixture'}});assert.equal(second.id,first.id);assert.equal((await db.getCompanyIntegrations(a)).length,1);assert.equal((await db.getCompanyIntegration(a,'transactional_email'))?.credentials.smtpPass,'replacement-fixture');assert.deepEqual(await db.getCompanyIntegrations(b),[]);
+ stage='missing';await assert.rejects(db.saveCompanyIntegration(prefix+'_missing','transactional_email',{status:'saved',credentials:{apiKey:'fixture'}}));assert.equal(await db.deleteCompanyIntegration(b,'transactional_email'),false);assert.equal(await db.deleteCompanyIntegration(a,'transactional_email'),true);assert.equal(await db.deleteCompanyIntegration(a,'transactional_email'),false);
+ console.log('Integration SQL: confirmed transactional save returns actual stable ID, genuine empty/missing reads, encrypted SMTP/login/API fields, null untested timestamp, tenant isolation, missing workspace refusal and affected-row deletion passed.');
+}catch(error:any){console.log(JSON.stringify({fixture:'integration-persistence',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/integrationPersistenceSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
+finally{for(const id of [a,b]){await pool.query('DELETE FROM company_integrations WHERE company_id=?',[id]);await pool.query('DELETE FROM companies WHERE id=?',[id]);}await pool.end();}

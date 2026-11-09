@@ -1,3 +1,5 @@
+import {isIntegrationSecret} from '../shared/integrationCredentials';
+import {consumePasswordResetSql} from './passwordResetStore';
 import {ObservationError,normalizeRanks,normalizeCompetitor,observationLimit,saveRanksSql,saveCompetitorSql,readRanksSql,readCompetitorsSql,rankTrendSql} from './observationStore';
 import {insertLeadRow} from './leadWriter';
 import {readDomainsSql,readDomainSql,readWebsiteConfigSql,saveWebsiteConfigSql,createDomainSql,saveDomainDnsSql,deleteDomainSql} from './websiteStore';
@@ -566,7 +568,7 @@ export function encryptCredentialsObject(creds: Record<string, any>): Record<str
   const result: Record<string, any> = {};
   for (const [k, v] of Object.entries(creds)) {
     const lower = k.toLowerCase();
-    const isSensitive = lower.includes('token') || lower.includes('secret') || lower.includes('key') || lower.includes('password') || lower.includes('auth');
+    const isSensitive=isIntegrationSecret(k);
     if (isSensitive && typeof v === 'string' && v.trim() && !v.includes('••••')) {
       result[k] = encryptCredential(v.trim());
     } else {
@@ -624,41 +626,16 @@ export function verifyPassword(password: string, hash: string, salt: string): bo
   return false;
 }
 
-export async function upgradeUserPassword(userId: string, newPlainPassword: string): Promise<void> {
-  try {
-    const memUser = inMemoryUsers.find((u) => u.id === userId);
-    let currentHash = memUser?.password_hash;
-    let currentSalt = memUser?.salt;
-
-    const db = await getDbPool();
-    if (db) {
-      const [rows]: any = await db.query('SELECT password_hash, salt FROM users WHERE id = ? LIMIT 1', [userId]);
-      if (rows && rows.length > 0) {
-        currentHash = rows[0].password_hash;
-        currentSalt = rows[0].salt;
-      }
-    }
-
-    if (currentSalt && currentHash) {
-      const expectedPrimary = crypto.pbkdf2Sync(newPlainPassword, currentSalt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString('hex');
-      if (safeTimingCompare(expectedPrimary, currentHash)) {
-        // Already hashed with OWASP 210,000 iterations
-        return;
-      }
-    }
-
-    const { hash, salt } = hashPassword(newPlainPassword);
-    if (db) {
-      await db.query('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?', [hash, salt, userId]);
-    }
-    if (memUser) {
-      memUser.password_hash = hash;
-      memUser.salt = salt;
-    }
-    console.log(`[Security] Upgraded user password hash to OWASP 210,000 iterations for user: ${userId}`);
-  } catch (err: any) {
-    console.warn('[upgradeUserPassword] error:', err?.message);
-  }
+export async function upgradeUserPassword(userId:string,password:string):Promise<void>{
+ const db=await getDbPool();
+ const user=db?await findUserById(userId):inMemoryUsers.find(row=>row.id===userId);
+ if(!user||!verifyPassword(password,user.password_hash,user.salt))return;
+ const primary=crypto.pbkdf2Sync(password,user.salt,PBKDF2_ITERATIONS,PBKDF2_KEYLEN,PBKDF2_DIGEST).toString('hex');
+ if(safeTimingCompare(primary,user.password_hash))return;
+ const previousHash=user.password_hash,previousSalt=user.salt,{hash,salt}=hashPassword(password);
+ if(db){await db.query('UPDATE users SET password_hash=?,salt=? WHERE id=? AND password_hash=? AND salt=?',[hash,salt,userId,previousHash,previousSalt]);return;}
+ assertNotProductionFallback('upgradeUserPassword');
+ if(user.password_hash===previousHash&&user.salt===previousSalt){user.password_hash=hash;user.salt=salt;}
 }
 
 // In-Memory stores for development fallback (no hardcoded backdoor credentials)
@@ -803,9 +780,11 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
 
 export async function findUserByEmail(email: string): Promise<DbUser | null> {
   const cleanEmail = email.toLowerCase().trim();
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query('SELECT * FROM users WHERE email = ? LIMIT 1', [cleanEmail]);
       if (rows && rows.length > 0) {
         const u = rows[0];
@@ -817,6 +796,7 @@ export async function findUserByEmail(email: string): Promise<DbUser | null> {
       return null;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('findUserByEmail', err);
   }
 
@@ -826,9 +806,11 @@ export async function findUserByEmail(email: string): Promise<DbUser | null> {
 }
 
 export async function findUserById(id: string): Promise<DbUser | null> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
       if (rows && rows.length > 0) {
         const u = rows[0];
@@ -840,6 +822,7 @@ export async function findUserById(id: string): Promise<DbUser | null> {
       return null;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('findUserById', err);
   }
 
@@ -872,9 +855,11 @@ export async function createUser(data: {
     created_at: new Date().toISOString(),
   };
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       await db.query(
         'INSERT INTO users (id, email, password_hash, salt, full_name, role, is_platform_admin) VALUES (?, ?, ?, ?, ?, ?, 0)',
         [newUser.id, newUser.email, newUser.password_hash, newUser.salt, newUser.full_name, newUser.role]
@@ -882,6 +867,7 @@ export async function createUser(data: {
       return newUser;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('createUser', err);
   }
 
@@ -890,26 +876,18 @@ export async function createUser(data: {
   return newUser;
 }
 
-export async function updateUserPassword(userId: string, newPlainPassword: string): Promise<boolean> {
-  const { hash, salt } = hashPassword(newPlainPassword);
-  try {
-    const db = await getDbPool();
-    if (db) {
-      await db.query('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?', [hash, salt, userId]);
-      return true;
-    }
-  } catch (err: any) {
-    handleDbError('updateUserPassword', err);
-  }
-
-  assertNotProductionFallback('updateUserPassword');
-  const memUser = inMemoryUsers.find((u) => u.id === userId);
-  if (memUser) {
-    memUser.password_hash = hash;
-    memUser.salt = salt;
-    return true;
-  }
-  return false;
+export async function updateUserPassword(userId:string,password:string):Promise<boolean>{
+ const {hash,salt}=hashPassword(password),db=await getDbPool();
+ if(db){const [result]:any=await db.query('UPDATE users SET password_hash=?,salt=? WHERE id=?',[hash,salt,userId]);return result.affectedRows===1;}
+ assertNotProductionFallback('updateUserPassword');const user=inMemoryUsers.find(row=>row.id===userId);if(!user)return false;user.password_hash=hash;user.salt=salt;return true;
+}
+export async function consumePasswordReset(tokenHash:string,password:string):Promise<{userId:string}|null>{
+ if(!/^[a-f0-9]{64}$/.test(tokenHash)||typeof password!=='string'||password.length<8||password.length>100)throw new Error('RESET_INPUT_INVALID');
+ const db=await getDbPool();if(db)return consumePasswordResetSql(db,tokenHash,()=>hashPassword(password));
+ assertNotProductionFallback('consumePasswordReset');const matches=inMemoryPasswordResetTokens.filter(row=>row.token_hash===tokenHash);
+ if(matches.length!==1)return null;const token=matches[0],user=inMemoryUsers.find(row=>row.id===token.user_id);
+ if(!user||token.used_at||Date.parse(token.expires_at)<=Date.now())return null;
+ const {hash,salt}=hashPassword(password);user.password_hash=hash;user.salt=salt;const now=new Date().toISOString();for(const row of inMemoryPasswordResetTokens)if(row.user_id===user.id&&!row.used_at)row.used_at=now;return {userId:user.id};
 }
 
 export async function createPasswordResetToken(
@@ -922,9 +900,11 @@ export async function createPasswordResetToken(
   const mysqlExpiresAt = expiresAtIso.slice(0, 19).replace('T', ' ');
   const nowIso = new Date().toISOString();
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       await db.query(
         'INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
         [id, userId, tokenHash, mysqlExpiresAt]
@@ -932,6 +912,7 @@ export async function createPasswordResetToken(
       return id;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('createPasswordResetToken', err);
   }
 
@@ -949,11 +930,13 @@ export async function createPasswordResetToken(
 }
 
 export async function findPasswordResetToken(tokenHash: string): Promise<DbPasswordResetToken | null> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
-        'SELECT * FROM password_reset_tokens WHERE token_hash = ? LIMIT 1',
+        "SELECT *,TIMESTAMPDIFF(SECOND,'1970-01-01',expires_at)*1000 expires_ms,TIMESTAMPDIFF(SECOND,'1970-01-01',used_at)*1000 used_ms,UNIX_TIMESTAMP(created_at)*1000 created_ms FROM password_reset_tokens WHERE token_hash = ? LIMIT 1",
         [tokenHash]
       );
       if (rows && rows.length > 0) {
@@ -962,14 +945,15 @@ export async function findPasswordResetToken(tokenHash: string): Promise<DbPassw
           id: r.id,
           user_id: r.user_id,
           token_hash: r.token_hash,
-          expires_at: r.expires_at instanceof Date ? r.expires_at.toISOString() : String(r.expires_at),
-          used_at: r.used_at ? (r.used_at instanceof Date ? r.used_at.toISOString() : String(r.used_at)) : null,
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          expires_at: new Date(Number(r.expires_ms)).toISOString(),
+          used_at: r.used_ms==null?null:new Date(Number(r.used_ms)).toISOString(),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
         };
       }
       return null;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('findPasswordResetToken', err);
   }
 
@@ -983,23 +967,26 @@ export async function markPasswordResetTokenUsed(tokenId: string, userId: string
   const mysqlNow = now.toISOString().slice(0, 19).replace('T', ' ');
   const nowIso = now.toISOString();
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       await db.query(
-        'UPDATE password_reset_tokens SET used_at = ? WHERE id = ? OR (user_id = ? AND used_at IS NULL)',
-        [mysqlNow, tokenId, userId]
+        'UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND (id = ? OR used_at IS NULL)',
+        [userId, tokenId]
       );
       return;
     }
   } catch (err: any) {
+    if(connected)throw new Error('AUTH_STORAGE_UNAVAILABLE');
     handleDbError('markPasswordResetTokenUsed', err);
   }
 
   assertNotProductionFallback('markPasswordResetTokenUsed');
 
   for (const t of inMemoryPasswordResetTokens) {
-    if (t.id === tokenId || (t.user_id === userId && !t.used_at)) {
+    if (t.user_id===userId&&(t.id===tokenId||!t.used_at)) {
       t.used_at = nowIso;
     }
   }
@@ -1309,9 +1296,11 @@ export async function sendTelegramPushAlert(message: string): Promise<boolean> {
 const inMemoryIntegrations: DbIntegration[] = [];
 
 export async function getCompanyIntegrations(companyId: string): Promise<DbIntegration[]> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
         'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE company_id = ?',
         [companyId]
@@ -1326,6 +1315,7 @@ export async function getCompanyIntegrations(companyId: string): Promise<DbInteg
       });
     }
   } catch (err: any) {
+    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     handleDbError('getCompanyIntegrations', err);
   }
 
@@ -1337,9 +1327,11 @@ export async function getCompanyIntegrations(companyId: string): Promise<DbInteg
 }
 
 export async function getCompanyIntegration(companyId: string, provider: string): Promise<DbIntegration | null> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
         'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE company_id = ? AND provider = ? LIMIT 1',
         [companyId, provider]
@@ -1356,6 +1348,7 @@ export async function getCompanyIntegration(companyId: string, provider: string)
       return null;
     }
   } catch (err: any) {
+    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     handleDbError('getCompanyIntegration', err);
   }
 
@@ -1365,9 +1358,11 @@ export async function getCompanyIntegration(companyId: string, provider: string)
 }
 
 export async function getCompanyIntegrationsByProvider(provider: string, requireDurable = false): Promise<DbIntegration[]> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
+      connected=true;
       const [rows]: any = await db.query(
         'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE provider = ?',
         [provider]
@@ -1384,6 +1379,7 @@ export async function getCompanyIntegrationsByProvider(provider: string, require
       }
     }
   } catch (err: any) {
+    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     if (requireDurable) throw new Error('Integration storage unavailable');
     handleDbError('getCompanyIntegrationsByProvider', err);
   }
@@ -1403,7 +1399,7 @@ export async function saveCompanyIntegration(
     status: IntegrationStatus;
     credentials?: Record<string, any>;
     config?: Record<string, any>;
-    last_tested_at?: string;
+    last_tested_at?: string|null;
     last_error?: string | null;
   }
 ): Promise<DbIntegration> {
@@ -1413,10 +1409,13 @@ export async function saveCompanyIntegration(
   const configJson = JSON.stringify(data.config || {});
   const now = new Date().toISOString();
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
+      connected=true;const connection=await db.getConnection();try{
+      await connection.beginTransaction();const [owners]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[companyId]);if(owners.length!==1)throw new Error('Integration workspace unavailable');
+      await connection.query(
         `INSERT INTO company_integrations (id, company_id, provider, status, credentials, config, last_tested_at, last_error)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
@@ -1425,10 +1424,15 @@ export async function saveCompanyIntegration(
            config = VALUES(config),
            last_tested_at = VALUES(last_tested_at),
            last_error = VALUES(last_error)`,
-        [id, companyId, provider, data.status, credsJson, configJson, data.last_tested_at || now, data.last_error || null]
+        [id, companyId, provider, data.status, credsJson, configJson, data.last_tested_at ?? null, data.last_error || null]
       );
+      const [stored]:any=await connection.query('SELECT * FROM company_integrations WHERE company_id=? AND provider=?',[companyId,provider]);if(stored.length!==1)throw new Error('Integration save unconfirmed');
+      const record=stored[0];const raw=typeof record.credentials==='string'?JSON.parse(record.credentials):record.credentials;const config=typeof record.config==='string'?JSON.parse(record.config):record.config;
+      await connection.commit();return {...record,credentials:decryptCredentialsObject(raw||{}),config:config||{}};
+      }catch(error){await connection.rollback();throw error;}finally{connection.release();}
     }
   } catch (err: any) {
+    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     handleDbError('saveCompanyIntegration', err);
   }
 
@@ -1441,7 +1445,7 @@ export async function saveCompanyIntegration(
     status: data.status,
     credentials: encryptedCreds,
     config: data.config || {},
-    last_tested_at: data.last_tested_at || now,
+    last_tested_at: data.last_tested_at ?? null,
     last_error: data.last_error || null,
     updated_at: now,
   };
@@ -1459,13 +1463,16 @@ export async function saveCompanyIntegration(
 }
 
 export async function deleteCompanyIntegration(companyId: string, provider: string): Promise<boolean> {
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query('DELETE FROM company_integrations WHERE company_id = ? AND provider = ?', [companyId, provider]);
-      return true;
+      connected=true;
+      const [result]:any=await db.query('DELETE FROM company_integrations WHERE company_id = ? AND provider = ?', [companyId, provider]);
+      return result.affectedRows===1;
     }
   } catch (err: any) {
+    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     handleDbError('deleteCompanyIntegration', err);
   }
 
@@ -2810,7 +2817,7 @@ export async function getInvoicesByCompany(companyId: string): Promise<DbInvoice
           amount: Number(r.amount),
           gst_amount: Number(r.gst_amount),
           total_amount: Number(r.total_amount),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
         }));
       }
     }
@@ -2839,7 +2846,7 @@ export async function getInvoiceById(invoiceId: string): Promise<DbInvoice | nul
           amount: Number(r.amount),
           gst_amount: Number(r.gst_amount),
           total_amount: Number(r.total_amount),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
         };
       }
     }
@@ -2869,7 +2876,7 @@ export async function getInvoiceByPaymentId(paymentId: string, companyId?: strin
           amount: Number(r.amount),
           gst_amount: Number(r.gst_amount),
           total_amount: Number(r.total_amount),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
         };
       }
     }
@@ -2901,7 +2908,7 @@ export async function getInvoiceByOrderId(orderId: string, companyId?: string): 
           amount: Number(r.amount),
           gst_amount: Number(r.gst_amount),
           total_amount: Number(r.total_amount),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
         };
       }
     }
@@ -3029,7 +3036,7 @@ export async function getSubscriptionByCompany(companyId: string): Promise<DbSub
           amount: Number(r.amount),
           current_period_start: r.current_period_start instanceof Date ? r.current_period_start.toISOString() : String(r.current_period_start),
           current_period_end: r.current_period_end instanceof Date ? r.current_period_end.toISOString() : String(r.current_period_end),
-          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          created_at: new Date(Number(r.created_ms)).toISOString(),
           updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
         };
       }

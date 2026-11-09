@@ -52,7 +52,7 @@ interface IntegrationItem {
   docsUrl?: string;
   requiredFields: RequiredField[];
   connected: boolean;
-  status: 'connected' | 'disconnected' | 'error';
+  status: 'connected' | 'saved' | 'disconnected' | 'error';
   statusText: string;
   lastTestedAt?: string | null;
   lastError?: string | null;
@@ -68,6 +68,9 @@ interface IntegrationsViewProps {
 export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   companyId,
 }) => {
+  const mounted=useRef(true),modalSequence=useRef(0),loadSequence=useRef(0);
+  const [loadError,setLoadError]=useState(false);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;modalSequence.current++;loadSequence.current++;};},[]);
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -124,19 +127,22 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   // Fetch real integration statuses from backend
   const fetchIntegrations = useCallback(async () => {
+    if(!companyId)return;const sequence=++loadSequence.current;
     try {
       setLoading(true);
-      const data = await apiRequest<{ success: boolean; integrations: any[]; systemTelegramConfigured?: boolean }>(
+      const data = await apiRequest<{ success: boolean; companyId:string; integrations: any[]; systemTelegramConfigured?: boolean }>(
         `/api/integrations?companyId=${encodeURIComponent(companyId)}`
       );
-      if (data.success && Array.isArray(data.integrations)) {
+      if(!mounted.current||sequence!==loadSequence.current)return;
+      if (data.success && data.companyId===companyId && Array.isArray(data.integrations)) {
+        setLoadError(false);
         setIntegrations(data.integrations);
         setSystemTelegramActive(Boolean(data.systemTelegramConfigured));
-      }
-    } catch (err) {
-      console.warn('Failed to load integrations:', err);
+      }else throw new Error('Invalid integrations response');
+    } catch {
+      if(mounted.current&&sequence===loadSequence.current){setLoadError(true);setIntegrations([]);}
     } finally {
-      setLoading(false);
+      if(mounted.current&&sequence===loadSequence.current)setLoading(false);
     }
   }, [companyId]);
 
@@ -146,6 +152,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   // Open configuration modal
   const openConfigModal = (item: IntegrationItem) => {
+    modalSequence.current++;setTestingConnection(false);setSavingConnection(false);
     setActiveModalItem(item);
     setTestResult(null);
 
@@ -159,6 +166,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   // Close modal
   const closeModal = () => {
+    modalSequence.current++;
     setActiveModalItem(null);
     setTestResult(null);
     setFormCredentials({});
@@ -166,34 +174,36 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   // Test credentials live against the real provider API
   const handleTestLive = async (itemToTest: IntegrationItem, credsToTest: Record<string, string>) => {
-    setTestingConnection(true);
+    const sequence=modalSequence.current;
+    if(!companyId)return;setTestingConnection(true);
     setTestResult(null);
     try {
       const data = await apiRequest<{ success: boolean; message?: string; error?: string }>('/api/integrations/test', {
         method: 'POST',
         body: JSON.stringify({
-          provider: itemToTest.id,
+          companyId,provider: itemToTest.id,
           credentials: credsToTest,
         }),
       });
+      if(!mounted.current||sequence!==modalSequence.current)return;
       if (data.success) {
         setTestResult({
           success: true,
-          message: data.message || 'Verification successful! Live API responded correctly.',
+          message: data.message || 'Connection check responded; action permissions remain unverified.',
         });
       } else {
         setTestResult({
           success: false,
-          message: data.error || 'Connection failed. Please check credentials and permissions.',
+          message: data.error || data.message || 'Connection failed. Please check credentials and permissions.',
         });
       }
     } catch (err: any) {
-      setTestResult({
+      if(mounted.current&&sequence===modalSequence.current)setTestResult({
         success: false,
         message: err?.message || 'Network error attempting to contact verification endpoint.',
       });
     } finally {
-      setTestingConnection(false);
+      if(mounted.current&&sequence===modalSequence.current)setTestingConnection(false);
     }
   };
 
@@ -201,9 +211,9 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const handleSaveCredentials = async () => {
     if (!activeModalItem) return;
 
-    setSavingConnection(true);
+    const sequence=modalSequence.current;setSavingConnection(true);
     try {
-      const data = await apiRequest<{ success: boolean; message?: string; error?: string }>('/api/integrations/save', {
+      const data = await apiRequest<{ success: boolean;companyId:string; message?: string; error?: string }>('/api/integrations/save', {
         method: 'POST',
         body: JSON.stringify({
           companyId,
@@ -211,9 +221,10 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
           credentials: formCredentials,
         }),
       });
-      if (data.success) {
+      if(!mounted.current||sequence!==modalSequence.current)return;
+      if (data.success&&data.companyId===companyId) {
         await fetchIntegrations();
-        closeModal();
+        if(mounted.current&&sequence===modalSequence.current)closeModal();
       } else {
         setTestResult({
           success: false,
@@ -221,12 +232,12 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         });
       }
     } catch (err: any) {
-      setTestResult({
+      if(mounted.current&&sequence===modalSequence.current)setTestResult({
         success: false,
         message: err?.message || 'Error communicating with database server.',
       });
     } finally {
-      setSavingConnection(false);
+      if(mounted.current&&sequence===modalSequence.current)setSavingConnection(false);
     }
   };
 
@@ -483,7 +494,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               <Plug className="w-3 h-3 text-indigo-400" /> Multi-Tenant API Hub
             </span>
             <span className="text-xs text-slate-300 font-semibold">
-              {loading ? 'Checking...' : `${connectedCount} of ${integrations.length} Active`}
+              {loading ? 'Checking...' : `${integrations.length} integration options`}
             </span>
           </div>
           <h1 className="text-2xl font-black tracking-tight">API Integrations & Webhook Connectors</h1>
@@ -508,7 +519,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                 {connectedCount > 0 ? 'Production Gateway Ready' : 'Setup Required'}
               </div>
               <div className="text-[10px] text-slate-400">
-                {systemTelegramActive ? 'System Telegram Active' : 'Zero Fake Demo Fallbacks'}
+                {systemTelegramActive ? 'Server alert transport configured' : 'Client-scoped configuration'}
               </div>
             </div>
           </div>
@@ -531,11 +542,12 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         </div>
       )}
 
+      {loadError&&<div role="alert" className="p-4 text-rose-700">Integration metadata unavailable. Reload to retry.</div>}
       {/* Grid of Real Integrations */}
       {loading && integrations.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
-          <p className="text-sm font-semibold text-slate-700">Connecting to API Gateway & Verifying Credentials...</p>
+          <p className="text-sm font-semibold text-slate-700">Loading saved client integration metadata...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -589,9 +601,9 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                       }`}
                     >
                       <Key className="w-3 h-3" />
-                      {item.connected ? 'Manage Keys' : 'Configure API'}
+                      {item.status==='saved'||item.connected ? 'Manage Keys' : 'Configure API'}
                     </button>
-                    {item.connected && (
+                    {(item.status==='saved'||item.status==='error'||item.connected) && (
                       <button
                         onClick={() => handleDisconnect(item.id)}
                         title="Disconnect and remove credentials"
@@ -629,7 +641,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               {/* Bottom Verification Details */}
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div className="flex items-center gap-2">
-                  <span>Last Live Check:</span>
+                  <span>Recorded Check:</span>
                   <strong className="text-slate-700 font-medium">
                     {item.lastTestedAt ? new Date(item.lastTestedAt).toLocaleTimeString() : 'Not Tested'}
                   </strong>
@@ -730,7 +742,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">{activeModalItem.name}</h3>
-                  <p className="text-xs text-slate-500">Enter your official API credentials to establish live sync.</p>
+                  <p className="text-xs text-slate-500">Save client credentials. Connection checks and action permissions are separate.</p>
                 </div>
               </div>
               <button
@@ -802,7 +814,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 )}
                 <div>
-                  <div className="font-bold">{testResult.success ? 'API Verification Passed' : 'Verification Failed'}</div>
+                  <div className="font-bold">{testResult.success ? 'Connection Check Result' : 'Check Unavailable'}</div>
                   <div className="mt-0.5 text-[11px] leading-relaxed">{testResult.message}</div>
                 </div>
               </div>
@@ -843,7 +855,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   ) : (
                     <Check className="w-3.5 h-3.5" />
                   )}
-                  {savingConnection ? 'Saving...' : 'Save & Activate'}
+                  {savingConnection ? 'Saving...' : 'Save Credentials'}
                 </button>
               </div>
             </div>

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {resolveIntegrationInput,explicitIntegrationCompany} from '../server/integrationAccess';
+import {inspectDomainIntegration} from '../server/domainIntegrationEvidence';
+import {publicIntegrationCheck} from '../server/integrationCheckResult';
+import {maskIntegrationCredentials} from '../shared/integrationCredentials';
+let reads=0;const deps={access:async(_:any,company:string)=>({authorized:company==='A',status:403}),read:async(company:string,provider:string)=>{reads++;return {company_id:company,provider,credentials:{smtpPass:'private-smtp-password',apiKey:'private-key',provider:'smtp'}};}};
+for(const query of [{},{companyId:'A',company_id:'B'},{companyId:['A']},{companyId:'A',unknown:'field'}])assert.throws(()=>explicitIntegrationCompany(query));assert.equal(explicitIntegrationCompany({company_id:'A'}),'A');
+await assert.rejects(resolveIntegrationInput({provider:'smtp',credentials:{}},{},deps));assert.equal(reads,0);
+await assert.rejects(resolveIntegrationInput({companyId:'B',provider:'smtp',credentials:{}},{},deps));assert.equal(reads,0);
+for(const credentials of [{nested:{secret:'private'}},{apiKey:'enc:v1:fake'},{apiKey:'x'.repeat(16385)}])await assert.rejects(resolveIntegrationInput({companyId:'A',provider:'smtp',credentials},{},deps));
+const resolved=await resolveIntegrationInput({companyId:'A',provider:'smtp',credentials:{smtpPass:'••••••••'}},{},deps);assert.equal(resolved.credentials.smtpPass,'private-smtp-password');assert.equal(resolved.credentials.apiKey,'private-key');
+const masked=maskIntegrationCredentials({smtpPass:'1234567',apiKey:'short',login:'api-key-in-login',siteUrl:'https://public.example.invalid',nested:{token:'private'}});assert.equal(masked.smtpPass,'••••••••');assert.equal(masked.login,'••••••••');assert.equal(masked.nested,'');assert.ok(!JSON.stringify(masked).includes('1234567'));
+const read=publicIntegrationCheck({success:true,message:'private-api-key',details:{accessToken:'private'}});assert.ok(!JSON.stringify(read).includes('private'));assert.equal(read.status,'CONNECTION_CHECK_PASSED');assert.equal(publicIntegrationCheck({success:false,error:'private-url'}).status,'CHECK_FAILED');assert.equal(publicIntegrationCheck({success:false,status:'NOT_VERIFIED'}).success,false);
+let dnsCalls=0;const domainDeps={domains:async()=>[{company_id:'A',domain:'example.invalid',cname_target:'target.invalid',a_record_target:'1.2.3.4',dns_txt_record:'proof'}],verify:async()=>{dnsCalls++;return {verified:true,unavailable:false};}};
+for(const value of ['http://example.invalid','https://127.0.0.1','https://[::1]','https://example.invalid/redirect','https://user:pass@example.invalid','https://example.invalid:8443','https://example.invalid/?url=http://metadata'])await assert.rejects(inspectDomainIntegration('A',value,domainDeps));assert.equal(dnsCalls,0);
+const proof=await inspectDomainIntegration('A','https://example.invalid',domainDeps);assert.equal(proof.sslState,'UNVERIFIED');assert.equal(proof.status,'DNS_OBSERVED');await assert.rejects(inspectDomainIntegration('B','https://example.invalid',domainDeps));assert.equal(dnsCalls,1);
+await assert.rejects(inspectDomainIntegration('A','https://example.invalid',{...domainDeps,verify:async()=>({unavailable:true})}));
+console.log('Integration boundaries: mandatory tenant before reads, string/budget/ciphertext bounds, scoped masked-secret reuse, complete SMTP/login masking, provider DTO redaction, registered-domain-only DNS with no URL fetch or TLS claim passed.');

@@ -68,7 +68,7 @@
     {
       "method": "POST",
       "path": "/api/auth/forgot-password",
-      "owner": "server.ts"
+      "owner": "server/passwordRecoveryRoutes.ts#registerPasswordRecoveryRoutes"
     },
     {
       "method": "POST",
@@ -88,7 +88,7 @@
     {
       "method": "POST",
       "path": "/api/auth/reset-password",
-      "owner": "server.ts"
+      "owner": "server/passwordRecoveryRoutes.ts#registerPasswordRecoveryRoutes"
     },
     {
       "method": "GET",
@@ -696,5 +696,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 26
+  "registrationCount": 27
 }

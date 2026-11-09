@@ -1,0 +1,64 @@
+{
+  "date_ist": "2026-11-10",
+  "tasks": [
+    "P00-03",
+    "P01-02",
+    "P01-05",
+    "P01-09"
+  ],
+  "preparatory_tasks": [
+    "P02-05",
+    "P02-06",
+    "P02-07"
+  ],
+  "product_schema": "029 / 50 tables; unchanged",
+  "historical_migrations_changed": false,
+  "phase_gate_promotions": false,
+  "production_changes": false,
+  "batches": [
+    "Atomic password reset and scoped pending-link consumption",
+    "Password-bound bearer checks with strict claims/header/expiry",
+    "Verified legacy rehash CAS plus fresh login identity",
+    "Canonical recovery origin, bounded hashing and honest private responses",
+    "Confirmed encrypted integration SQL and complete secret masking",
+    "Explicit client/provider credential lookup and bounded payloads",
+    "Registered-domain DNS evidence and fixed public provider-check DTO",
+    "Frontend integration load/modal/client fences and metadata truth"
+  ],
+  "validated_behavior": [
+    "Eight-way reset one winner; all pending sibling links consumed; foreign links untouched",
+    "Consumed/expired/duplicate hash/missing user refuse; invalidation failure rolls back password",
+    "UTC DATETIME expiry/lookup in -08:00 session",
+    "Password changes invalidate bound bearers; missing legacy binding rejected by request auth",
+    "Conditional rehash cannot overwrite a deterministic concurrent password change",
+    "Invalid/expired link does not invoke expensive password derivation",
+    "APP_URL only; Host/forwarded headers ignored; provider failure is not delivery",
+    "SQL save returns stored stable integration ID; null untested timestamp; row-count delete",
+    "SMTP/login/API secrets encrypted on new writes and fully masked in metadata",
+    "Client scope before secret reads; no arbitrary website HEAD fetch or TLS claim",
+    "Old modal/client responses ignored; unavailable reads clear stale integration cards"
+  ],
+  "checks": {
+    "default_programs": 86,
+    "production_credentials_in_children": false,
+    "jwt_secret_inherited": false,
+    "sql": "Disposable MariaDB10.11.19 / restricted-user fresh and upgrade suite",
+    "browser": "Frontend-only integration fixture and existing full workspace suite; external requests blocked",
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "route_inventory": "138 declarations / 27 registrations; check passed"
+  },
+  "compatibility": [
+    "All pre-cutover bearer tokens without password binding require re-login after deployment",
+    "All serving instances must update; already authenticated in-flight actions are not canceled",
+    "Catalogue/save/test/delete require explicit company scope",
+    "Credential save and syntax-only checks do not grant verified provider status"
+  ],
+  "remaining": [
+    "Persistent individual session/logout revocation, cookies/CSRF and distributed rate limits",
+    "Canonical integration/alias registry and OAuth lifecycle",
+    "Legacy plaintext credential scrub, key rotation and whole-credential CAS",
+    "Broader safe network/upload/ingestion and provider scope review",
+    "Live hosting/deployed-version/cron/backup acceptance and remaining agency/marketing/sales phases"
+  ]
+}

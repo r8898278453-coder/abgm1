@@ -40,6 +40,7 @@
     "test:browser:website": "node --import tsx test/browser/websiteIsolation.test.ts",
     "test:browser:observations": "node --import tsx test/browser/observationTruth.test.ts",
     "test:browser:competitors": "node --import tsx test/browser/competitorWorkflow.test.ts",
+    "test:browser:integrations": "node --import tsx test/browser/integrationIsolation.test.ts",
     "db:check:sources": "node --import tsx server/scripts/checkMigrationSources.ts",
     "routes:check": "node --import tsx server/scripts/checkRoutes.ts",
     "routes:record": "node --import tsx server/scripts/checkRoutes.ts --write"

@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.4 • updated 9 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.5 • updated 10 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Latest security/integration checkpoint — 10 November 2026 IST
+
+Atomic reset/password-bound authentication, safe rehash CAS, canonical recovery origin, confirmed encrypted integration persistence, scoped masked-key resolution and honest connection/DNS evidence added. Integration frontend load/modal/client isolation verified.86 isolated programs, native SQL and Chromium evidence; schema029/50 retained. Read AUTH_AND_INTEGRATION_BOUNDARIES.md before integration/deployment: legacy bearer tokens require re-login, all instances must update, and full session/rate/OAuth/registry/network gates remain open. No phase promotion or production action.
 
 ### Latest command/contract checkpoint — 9 November 2026 IST
 

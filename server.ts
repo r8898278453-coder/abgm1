@@ -1,3 +1,9 @@
+import {publicIntegrationCheck} from './server/integrationCheckResult';
+import {maskIntegrationCredentials} from './shared/integrationCredentials';
+import {resolveIntegrationInput,IntegrationAccessError,explicitIntegrationCompany} from './server/integrationAccess';
+import {inspectDomainIntegration} from './server/domainIntegrationEvidence';
+import {registerPasswordRecoveryRoutes} from './server/passwordRecoveryRoutes';
+import {consumePasswordReset} from './server/db';
 import {registerCompetitorRoutes} from './server/competitorRoutes';
 import {WorkspaceConflict} from './shared/workspaceRevision';
 import {mutateCompetitorSql} from './server/competitorCommands';
@@ -68,10 +74,7 @@ import {
   createUser,
   verifyPassword,
   upgradeUserPassword,
-  updateUserPassword,
   createPasswordResetToken,
-  findPasswordResetToken,
-  markPasswordResetTokenUsed,
   getAllCompanies,
   getUserCompanies,
   getCompanyById,
@@ -493,7 +496,7 @@ app.post('/api/auth/register', registerRateLimiter, validateBody(registerSchema)
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(503).json({ success: false, error: 'Authentication storage unavailable. Sign in or reload before retrying.' });
   }
 });
 
@@ -552,150 +555,27 @@ app.post('/api/auth/login', loginProtectionMiddleware, validateBody(loginSchema)
     recordSuccessfulLogin(req, email);
 
     // Transparently upgrade legacy low-iteration hashes to OWASP 210,000 iterations
-    upgradeUserPassword(user.id, password).catch(() => {});
-
-    const token = generateAuthToken(user);
+    await upgradeUserPassword(user.id,password);
+    const currentUser=await findUserById(user.id);
+    if(!currentUser||!verifyPassword(password,currentUser.password_hash,currentUser.salt)){res.status(401).json({success:false,error:'Credentials changed. Sign in again.'});return;}
+    const token = generateAuthToken(currentUser);
     res.json({
       success: true,
       token,
       user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        is_platform_admin: Boolean(user.is_platform_admin),
+        id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name,
+        role: currentUser.role,
+        is_platform_admin: Boolean(currentUser.is_platform_admin),
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(503).json({ success: false, error: 'Authentication storage unavailable. Sign in or reload before retrying.' });
   }
 });
 
-// Initiate password reset flow (Email / Token recovery)
-app.post('/api/auth/forgot-password', forgotPasswordRateLimiter, validateBody(forgotPasswordSchema), async (req, res) => {
-  try {
-    const { email } = req.body;
-    const cleanEmail = email.trim().toLowerCase();
-
-    // Enforce transactional email provider configuration check
-    if (!isEmailServiceConfigured()) {
-      res.status(503).json({
-        success: false,
-        code: 'EMAIL_SERVICE_NOT_CONFIGURED',
-        error: 'Transactional email provider is not configured on the server. Please configure SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS) or API credentials (RESEND_API_KEY, SENDGRID_API_KEY, POSTMARK_SERVER_TOKEN) in environment variables.',
-      });
-      return;
-    }
-
-    // Look up user silently to avoid user enumeration
-    const user = await findUserByEmail(cleanEmail);
-
-    if (user) {
-      // Generate cryptographically secure random token (32 bytes = 64 hex chars)
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      // Store only the SHA-256 hash in database
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      // 30-minute expiration window
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-      await createPasswordResetToken(user.id, tokenHash, expiresAt);
-
-      // Build reset URL using request host/protocol
-      const host = req.get('host') || 'bga.aaditechs.in';
-      const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-      const resetUrl = `${protocol}://${host}/reset-password?token=${rawToken}`;
-
-      // Dispatch real transactional email via configured provider
-      const emailResult = await sendPasswordResetEmail(user, resetUrl);
-
-      if (!emailResult.success) {
-        console.error(`[PASSWORD RESET] Transactional email delivery failed for recipient.`);
-        res.status(502).json({
-          success: false,
-          code: 'EMAIL_DELIVERY_FAILED',
-          error: `Failed to deliver transactional password reset email: ${emailResult.error || 'Provider rejected message delivery.'}`,
-        });
-        return;
-      }
-
-      // Safe audit log without exposing reset token or reset URL
-      console.log(`[PASSWORD RESET] Transactional reset email successfully dispatched to user identity.`);
-
-      // Dispatch high-level admin security alert without exposing sensitive token credentials
-      const alertMsg = `🔐 *PASSWORD RESET INITIATED*\n\n👤 *User:* ${user.full_name} (${user.email})\n📧 *Provider:* ${emailResult.provider || 'configured-email-service'}\n⏳ *Expiry Window:* 30 minutes (Single Use)`;
-      sendTelegramPushAlert(alertMsg).catch(() => {});
-    } else {
-      // Safe audit log for unregistered email
-      console.log(`[PASSWORD RESET] Request received for unregistered identifier.`);
-    }
-
-    // Always respond with standard confirmation to protect against user enumeration
-    res.json({
-      success: true,
-      message: 'If that email is registered, a password reset link has been dispatched to your email.',
-    });
-  } catch (err: any) {
-    console.error('[forgot-password] Error:', err?.message);
-    res.status(500).json({ success: false, error: 'An unexpected error occurred while processing your request.' });
-  }
-});
-
-// Finalize password reset using valid token
-app.post('/api/auth/reset-password', validateBody(resetPasswordSchema), async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    const cleanToken = token.trim();
-
-    // Look up token by SHA-256 hash
-    const tokenHash = crypto.createHash('sha256').update(cleanToken).digest('hex');
-    const resetRecord = await findPasswordResetToken(tokenHash);
-
-    // Validate token exists, is not expired, and has not already been used
-    const now = Date.now();
-    const isExpired = resetRecord ? new Date(resetRecord.expires_at).getTime() < now : true;
-    const isUsed = resetRecord ? Boolean(resetRecord.used_at) : true;
-
-    if (!resetRecord || isExpired || isUsed) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid, expired, or already used password reset link. Please request a new link.',
-      });
-      return;
-    }
-
-    const user = await findUserById(resetRecord.user_id);
-    if (!user) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid, expired, or already used password reset link. Please request a new link.',
-      });
-      return;
-    }
-
-    // Update password hash using OWASP PBKDF2
-    await updateUserPassword(user.id, newPassword);
-
-    // Mark current token as used and invalidate all outstanding tokens for this user
-    await markPasswordResetTokenUsed(resetRecord.id, user.id);
-
-    // Clear any active failed login lockouts for this email
-    recordSuccessfulLogin(req, user.email);
-
-    console.log(`[PASSWORD RESET] Password successfully reset for user: ${user.email} (${user.id})`);
-
-    // Dispatch Telegram alert
-    const alertMsg = `✅ *PASSWORD SUCCESSFULLY RESET*\n\n👤 *User:* ${user.full_name} (${user.email})\n🔒 *Status:* Password securely updated via token and existing reset tokens invalidated.`;
-    sendTelegramPushAlert(alertMsg).catch(() => {});
-
-    res.json({
-      success: true,
-      message: 'Your password has been successfully reset. You can now log in with your new password.',
-    });
-  } catch (err: any) {
-    console.error('[reset-password] Error:', err?.message);
-    res.status(500).json({ success: false, error: 'An unexpected error occurred while resetting your password.' });
-  }
-});
+registerPasswordRecoveryRoutes(app,{forgotLimit:forgotPasswordRateLimiter,forgotValidate:validateBody(forgotPasswordSchema),resetValidate:validateBody(resetPasswordSchema),configured:isEmailServiceConfigured,find:findUserByEmail,create:createPasswordResetToken,send:sendPasswordResetEmail,consume:consumePasswordReset,afterReset:async(id,req)=>{const user=await findUserById(id);if(user)recordSuccessfulLogin(req,user.email);}});
 
 // Current session verification
 app.get('/api/auth/me', async (req, res) => {
@@ -1912,45 +1792,7 @@ function maskSecret(val: string): string {
   return val.slice(0, 4) + '••••' + val.slice(-4);
 }
 
-function maskCredentialsObj(creds: Record<string, any>): Record<string, any> {
-  const masked: Record<string, any> = {};
-  for (const [key, val] of Object.entries(creds)) {
-    if (typeof val === 'string') {
-      const lower = key.toLowerCase();
-      if (lower.includes('token') || lower.includes('secret') || lower.includes('key') || lower.includes('password')) {
-        masked[key] = maskSecret(val);
-      } else {
-        masked[key] = val;
-      }
-    } else {
-      masked[key] = val;
-    }
-  }
-  return masked;
-}
-
-async function syncIntegrationStatusAfterVerification(
-  companyId?: string,
-  provider?: string,
-  isSuccess?: boolean,
-  errorMsg?: string
-): Promise<void> {
-  if (!companyId || !provider) return;
-  try {
-    const existing = await getCompanyIntegration(companyId, provider);
-    if (existing) {
-      await saveCompanyIntegration(companyId, provider, {
-        status: isSuccess ? 'connected' : 'error',
-        credentials: existing.credentials,
-        config: existing.config,
-        last_tested_at: new Date().toISOString(),
-        last_error: isSuccess ? null : (errorMsg || 'Provider verification failed'),
-      });
-    }
-  } catch (err: any) {
-    console.warn('[syncIntegrationStatusAfterVerification] Warning:', err?.message);
-  }
-}
+const maskCredentialsObj=maskIntegrationCredentials;
 
 // Fetch configured integrations for a company
 app.get('/api/integrations', async (req, res) => {
@@ -1961,13 +1803,9 @@ app.get('/api/integrations', async (req, res) => {
       return;
     }
 
-    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-    const companyId = resolved.companyId;
+    res.set('Cache-Control','no-store');
+    const companyId=explicitIntegrationCompany(req.query),access=await verifyCompanyWorkspaceAccess(user,companyId);
+    if(!access.authorized){res.status(access.status).json({success:false,error:'Integration workspace access denied'});return;}
 
     const storedIntegrations = await getCompanyIntegrations(companyId);
 
@@ -2110,10 +1948,10 @@ app.get('/api/integrations', async (req, res) => {
       },
       {
         id: 'website_cname',
-        name: 'Custom Domain & SSL Gateway',
+        name: 'Custom Domain DNS Evidence',
         category: 'Platform',
         icon: '🌐',
-        description: 'Connects custom business domain (e.g. https://bga.aaditechs.in) with automated SSL edge caching.',
+        description: 'Checks ownership TXT and routing for this client’s registered domain. Hosting attachment and TLS require separate verification.',
         docsUrl: 'https://developers.cloudflare.com/dns',
         requiredFields: [
           { key: 'websiteUrl', label: 'Production URL', placeholder: 'https://yourdomain.com', secret: false, required: true },
@@ -2127,47 +1965,18 @@ app.get('/api/integrations', async (req, res) => {
 
     const result = providers.map((p) => {
       const stored = storedIntegrations.find((i) => i.provider === p.id);
-      let isConnected = stored ? stored.status === 'connected' : false;
-      let statusText = isConnected ? 'Connected & Verified' : 'Not Configured (Setup Required)';
+      let isConnected = false;
+      let statusText=stored?'Credentials saved; current permissions unverified':'Not configured';
       let lastTestedAt = stored?.last_tested_at || null;
-      let lastError = stored?.last_error || null;
+      let lastError=stored?.last_error?'Previous check failed; recheck required':null;
       let maskedCreds = stored ? maskCredentialsObj(stored.credentials || {}) : {};
 
-      // System-level fallback for Telegram if not set per-company
-      if (p.id === 'telegram_bot' && !stored && systemTelegramConfigured) {
-        isConnected = true;
-        statusText = 'Active (System Server Default Token)';
-        lastTestedAt = 'Server Startup';
-        maskedCreds = { botToken: maskSecret(process.env.TELEGRAM_BOT_TOKEN || '') };
-      }
-
-      // System-level fallback for Transactional Email if not set per-company
-      if (p.id === 'transactional_email' && !stored && emailConfiguredOnServer) {
-        isConnected = true;
-        statusText = `Active (${serverEmailConfig.provider.toUpperCase()} Server Default Transport)`;
-        lastTestedAt = 'Server Configured';
-        maskedCreds = {
-          provider: serverEmailConfig.provider,
-          fromEmail: serverEmailConfig.fromEmail,
-          fromName: serverEmailConfig.fromName,
-        };
-      }
-
-      // System-level fallback for Meta Ads if environment credentials present
-      if (p.id === 'meta_ads' && !stored && process.env.META_ADS_ACCESS_TOKEN && process.env.META_AD_ACCOUNT_ID) {
-        isConnected = true;
-        statusText = 'Active (Server Default Meta Ads Token)';
-        lastTestedAt = 'Server Environment';
-        maskedCreds = {
-          adAccountId: maskSecret(process.env.META_AD_ACCOUNT_ID),
-          accessToken: maskSecret(process.env.META_ADS_ACCESS_TOKEN),
-        };
-      }
+      if(!stored&&['telegram_bot','transactional_email','meta_ads'].includes(p.id)){isConnected=false;statusText='Client credentials not configured';}
 
       return {
         ...p,
         connected: isConnected,
-        status: isConnected ? 'connected' : (stored?.status === 'error' ? 'error' : 'disconnected'),
+        status: stored?(stored.status==='error'?'error':'saved'):'disconnected',
         statusText,
         lastTestedAt,
         lastError,
@@ -2183,7 +1992,7 @@ app.get('/api/integrations', async (req, res) => {
       systemEmailConfigured: emailConfiguredOnServer,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(err instanceof IntegrationAccessError?err.status:503).json({success:false,error:err instanceof IntegrationAccessError?err.code:'Integration metadata unavailable'});
   }
 });
 
@@ -2192,28 +2001,17 @@ app.post('/api/integrations/test', async (req, res) => {
   try {
     const user = await getAuthUserFromRequest(req);
     if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required to test integrations' });
+      res.status(401).json(publicIntegrationCheck({ success: false, error: 'Authentication required to test integrations' }));
       return;
     }
 
-    const { provider, credentials, companyId } = req.body;
-    if (companyId) {
-      const company = await getCompanyById(companyId);
-      if (company && company.user_id !== user.id && !user.is_platform_admin) {
-        res.status(403).json({ success: false, error: 'Access denied to test integrations for this company' });
-        return;
-      }
-    }
-
-    if (!provider || !credentials) {
-      res.status(400).json({ success: false, error: 'Provider and credentials are required' });
-      return;
-    }
+    const {provider,credentials,companyId}=await resolveIntegrationInput(req.body,user,{access:verifyCompanyWorkspaceAccess,read:getCompanyIntegration});
+    res.set('Cache-Control','no-store');
 
     if (provider === 'telegram_bot') {
       const botToken = credentials.botToken?.trim();
       if (!botToken) {
-        res.status(400).json({ success: false, error: 'Telegram Bot Token is required' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Telegram Bot Token is required' }));
         return;
       }
 
@@ -2223,24 +2021,24 @@ app.post('/api/integrations/test', async (req, res) => {
         });
         const tgData = await tgRes.json();
         if (tgRes.ok && tgData.ok) {
-          res.json({
+          res.json(publicIntegrationCheck({
             success: true,
             message: `Verified! Connected to Telegram Bot: @${tgData.result.username} (${tgData.result.first_name})`,
             details: { username: tgData.result.username, name: tgData.result.first_name, canJoinGroups: tgData.result.can_join_groups },
-          });
+          }));
           return;
         } else {
-          res.status(400).json({
+          res.status(400).json(publicIntegrationCheck({
             success: false,
             error: tgData.description || 'Invalid Telegram Bot Token (HTTP 401)',
-          });
+          }));
           return;
         }
       } catch (tgErr: any) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: `Telegram connection error: ${tgErr?.message || 'Timeout connecting to Telegram API'}`,
-        });
+        }));
         return;
       }
     }
@@ -2249,7 +2047,7 @@ app.post('/api/integrations/test', async (req, res) => {
       const phoneNumberId = credentials.phoneNumberId?.trim();
       const accessToken = credentials.accessToken?.trim();
       if (!phoneNumberId || !accessToken) {
-        res.status(400).json({ success: false, error: 'Phone Number ID and Meta Access Token are required' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Phone Number ID and Meta Access Token are required' }));
         return;
       }
 
@@ -2260,24 +2058,24 @@ app.post('/api/integrations/test', async (req, res) => {
         });
         const waData = await waRes.json();
         if (waRes.ok && waData.id) {
-          res.json({
+          res.json(publicIntegrationCheck({
             success: true,
             message: `Verified! WhatsApp Phone Number: ${waData.display_phone_number || phoneNumberId} (${waData.verified_name || 'Verified Account'})`,
             details: waData,
-          });
+          }));
           return;
         } else {
-          res.status(400).json({
+          res.status(400).json(publicIntegrationCheck({
             success: false,
             error: waData.error?.message || 'Meta Cloud API rejected credentials',
-          });
+          }));
           return;
         }
       } catch (waErr: any) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: `WhatsApp connection error: ${waErr?.message || 'Network timeout'}`,
-        });
+        }));
         return;
       }
     }
@@ -2286,7 +2084,7 @@ app.post('/api/integrations/test', async (req, res) => {
       const placeId = credentials.placeId?.trim();
       const apiKey = credentials.apiKey?.trim();
       if (!placeId) {
-        res.status(400).json({ success: false, error: 'Google Place ID is required' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Google Place ID is required' }));
         return;
       }
 
@@ -2297,33 +2095,33 @@ app.post('/api/integrations/test', async (req, res) => {
           });
           const gData = await gRes.json();
           if (gData.status === 'OK') {
-            res.json({
+            res.json(publicIntegrationCheck({
               success: true,
               message: `Verified! Connected to Google Place: ${gData.result?.name} (${gData.result?.formatted_address})`,
               details: { name: gData.result?.name, address: gData.result?.formatted_address, rating: gData.result?.rating },
-            });
+            }));
             return;
           } else {
-            res.status(400).json({
+            res.status(400).json(publicIntegrationCheck({
               success: false,
               error: `Google Places API Error: ${gData.status} - ${gData.error_message || 'Verify Place ID and API key'}`,
-            });
+            }));
             return;
           }
         } catch (gErr: any) {
-          res.status(400).json({ success: false, error: `Google API timeout: ${gErr?.message}` });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: `Google API timeout: ${gErr?.message}` }));
           return;
         }
       } else {
         // Syntax validation if API key not entered yet
         if (placeId.length >= 10) {
-          res.json({
-            success: true,
+          res.json(publicIntegrationCheck({
+            success: false,status:'NOT_VERIFIED',
             message: `Valid Place ID format (${placeId.slice(0, 8)}...). Saved for Google 3-Pack and Maps search indexing.`,
-          });
+          }));
           return;
         } else {
-          res.status(400).json({ success: false, error: 'Invalid Google Place ID format. Should be standard Place ID string.' });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: 'Invalid Google Place ID format. Should be standard Place ID string.' }));
           return;
         }
       }
@@ -2333,10 +2131,10 @@ app.post('/api/integrations/test', async (req, res) => {
       const oauthToken = credentials.oauthToken?.trim();
       const accountId = credentials.accountId?.trim();
       if (!oauthToken || !accountId) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: 'Google Business Profile OAuth requires both Account ID and an active OAuth2 Bearer Token.',
-        });
+        }));
         return;
       }
 
@@ -2347,24 +2145,24 @@ app.post('/api/integrations/test', async (req, res) => {
         });
         const gmbData = await gmbRes.json();
         if (gmbRes.ok) {
-          res.json({
+          res.json(publicIntegrationCheck({
             success: true,
             message: `Verified! Connected to Google Business Account: ${gmbData.accountName || accountId}`,
             details: gmbData,
-          });
+          }));
           return;
         } else {
-          res.status(400).json({
+          res.status(400).json(publicIntegrationCheck({
             success: false,
             error: gmbData.error?.message || 'Google Business Profile OAuth token rejected or expired.',
-          });
+          }));
           return;
         }
       } catch (gmbErr: any) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: `Google Business Profile API connection error: ${gmbErr?.message}`,
-        });
+        }));
         return;
       }
     }
@@ -2375,22 +2173,22 @@ app.post('/api/integrations/test', async (req, res) => {
       const privateKey = credentials.privateKey?.trim();
 
       if (!siteUrl) {
-        res.status(400).json({ success: false, error: 'Verified Property URL is required.' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Verified Property URL is required.' }));
         return;
       }
 
       if (!clientEmail || !privateKey) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: 'Google Search Console integration requires Service Account Client Email and Private Key.',
-        });
+        }));
         return;
       }
 
-      res.json({
-        success: true,
+      res.json(publicIntegrationCheck({
+        success: false,status:'NOT_VERIFIED',
         message: `Service Account credentials formatted for ${siteUrl}. Search Console property verification registered.`,
-      });
+      }));
       return;
     }
 
@@ -2400,7 +2198,7 @@ app.post('/api/integrations/test', async (req, res) => {
       const password = credentials.password?.trim();
 
       if (!login) {
-        res.status(400).json({ success: false, error: 'Login / API Key is required for Local SEO rank tracking' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Login / API Key is required for Local SEO rank tracking' }));
         return;
       }
 
@@ -2411,27 +2209,27 @@ app.post('/api/integrations/test', async (req, res) => {
           });
           const sData = await sRes.json();
           if (sRes.ok && sData.account_id) {
-            res.json({
+            res.json(publicIntegrationCheck({
               success: true,
               message: `Verified! SerpAPI connected (${sData.total_searches_left ?? 'Active'} searches left).`,
               details: { searchesLeft: sData.total_searches_left, plan: sData.plan_name },
-            });
+            }));
             return;
           } else {
-            res.status(400).json({
+            res.status(400).json(publicIntegrationCheck({
               success: false,
               error: sData.error || 'SerpAPI key was rejected.',
-            });
+            }));
             return;
           }
         } catch (sErr: any) {
-          res.status(400).json({ success: false, error: `SerpAPI connection error: ${sErr?.message}` });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: `SerpAPI connection error: ${sErr?.message}` }));
           return;
         }
       } else {
         // DataForSEO test
         if (!password) {
-          res.status(400).json({ success: false, error: 'DataForSEO requires both API Login and API Password' });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: 'DataForSEO requires both API Login and API Password' }));
           return;
         }
 
@@ -2443,21 +2241,21 @@ app.post('/api/integrations/test', async (req, res) => {
           });
           const dData = await dRes.json();
           if (dRes.ok && dData?.status_code === 20000) {
-            res.json({
+            res.json(publicIntegrationCheck({
               success: true,
               message: `Verified! DataForSEO account connected (Balance: $${dData.tasks?.[0]?.result?.[0]?.money ?? 0}).`,
               details: dData.tasks?.[0]?.result?.[0],
-            });
+            }));
             return;
           } else {
-            res.status(400).json({
+            res.status(400).json(publicIntegrationCheck({
               success: false,
               error: dData?.status_message || 'DataForSEO credentials rejected.',
-            });
+            }));
             return;
           }
         } catch (dErr: any) {
-          res.status(400).json({ success: false, error: `DataForSEO connection error: ${dErr?.message}` });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: `DataForSEO connection error: ${dErr?.message}` }));
           return;
         }
       }
@@ -2466,7 +2264,7 @@ app.post('/api/integrations/test', async (req, res) => {
     if (provider === 'meta_social') {
       const accessToken = credentials.accessToken?.trim();
       if (!accessToken) {
-        res.status(400).json({ success: false, error: 'Meta Access Token is required' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Meta Access Token is required' }));
         return;
       }
 
@@ -2476,21 +2274,21 @@ app.post('/api/integrations/test', async (req, res) => {
         });
         const metaData = await metaRes.json();
         if (metaRes.ok && metaData.id) {
-          res.json({
+          res.json(publicIntegrationCheck({
             success: true,
             message: `Verified! Connected to Meta Account: ${metaData.name || 'Meta App'} (ID: ${metaData.id})`,
             details: metaData,
-          });
+          }));
           return;
         } else {
-          res.status(400).json({
+          res.status(400).json(publicIntegrationCheck({
             success: false,
             error: metaData.error?.message || 'Meta Graph API token rejected',
-          });
+          }));
           return;
         }
       } catch (metaErr: any) {
-        res.status(400).json({ success: false, error: `Meta API error: ${metaErr?.message}` });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: `Meta API error: ${metaErr?.message}` }));
         return;
       }
     }
@@ -2499,12 +2297,12 @@ app.post('/api/integrations/test', async (req, res) => {
       const keyId = credentials.keyId?.trim();
       const keySecret = credentials.keySecret?.trim();
       if (!keyId) {
-        res.status(400).json({ success: false, error: 'Razorpay Key ID is required' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Razorpay Key ID is required' }));
         return;
       }
 
       if (!keyId.startsWith('rzp_test_') && !keyId.startsWith('rzp_live_')) {
-        res.status(400).json({ success: false, error: 'Key ID must start with rzp_test_ or rzp_live_' });
+        res.status(400).json(publicIntegrationCheck({ success: false, error: 'Key ID must start with rzp_test_ or rzp_live_' }));
         return;
       }
 
@@ -2516,21 +2314,21 @@ app.post('/api/integrations/test', async (req, res) => {
             signal: AbortSignal.timeout(6000),
           });
           if (rzpRes.ok) {
-            res.json({
+            res.json(publicIntegrationCheck({
               success: true,
               message: `Verified! Razorpay API Gateway active (${keyId.startsWith('rzp_live') ? 'LIVE Mode' : 'TEST Sandbox Mode'})`,
-            });
+            }));
             return;
           } else {
-            res.status(400).json({ success: false, error: 'Razorpay authentication failed: Invalid Key ID or Key Secret' });
+            res.status(400).json(publicIntegrationCheck({ success: false, error: 'Razorpay authentication failed: Invalid Key ID or Key Secret' }));
             return;
           }
         } catch (rzpErr: any) {
-          res.status(400).json({ success: false, error: `Razorpay connection error: ${rzpErr?.message}` });
+          res.status(400).json(publicIntegrationCheck({ success: false, error: `Razorpay connection error: ${rzpErr?.message}` }));
           return;
         }
       } else {
-        res.json({ success: true, message: `Key ID format validated (${keyId}). Ready to receive orders.` });
+        res.json(publicIntegrationCheck({ success: true, message: `Key ID format validated (${keyId}). Ready to receive orders.` }));
         return;
       }
     }
@@ -2540,10 +2338,10 @@ app.post('/api/integrations/test', async (req, res) => {
       const adAccountId = credentials.adAccountId?.trim() || credentials.ad_account_id?.trim();
 
       if (!accessToken || !adAccountId) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: 'Meta Ads testing requires both Ad Account ID and Meta Access Token.',
-        });
+        }));
         return;
       }
 
@@ -2557,24 +2355,24 @@ app.post('/api/integrations/test', async (req, res) => {
         const metaData = await metaRes.json();
         if (metaRes.ok && metaData.id) {
           const statusText = metaData.account_status === 1 ? 'ACTIVE (1)' : `Status Code: ${metaData.account_status}`;
-          res.json({
+          res.json(publicIntegrationCheck({
             success: true,
             message: `Verified! Connected to Meta Ad Account: ${metaData.name || sanitizedAccountId} (${metaData.currency || 'USD'}, ${statusText})`,
             details: metaData,
-          });
+          }));
           return;
         } else {
-          res.status(400).json({
+          res.status(400).json(publicIntegrationCheck({
             success: false,
             error: metaData.error?.message || 'Meta Marketing API rejected Ad Account credentials',
-          });
+          }));
           return;
         }
       } catch (metaErr: any) {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: `Meta Ads API connection error: ${metaErr?.message || 'Network timeout'}`,
-        });
+        }));
         return;
       }
     }
@@ -2582,49 +2380,25 @@ app.post('/api/integrations/test', async (req, res) => {
     if (provider === 'transactional_email') {
       const emailTestResult = await testEmailConnection(credentials);
       if (emailTestResult.success) {
-        res.json({
+        res.json(publicIntegrationCheck({
           success: true,
           message: emailTestResult.message,
           details: emailTestResult.details,
-        });
+        }));
       } else {
-        res.status(400).json({
+        res.status(400).json(publicIntegrationCheck({
           success: false,
           error: emailTestResult.message,
-        });
+        }));
       }
       return;
     }
 
-    if (provider === 'website_cname') {
-      const websiteUrl = credentials.websiteUrl?.trim();
-      if (!websiteUrl || !websiteUrl.startsWith('http')) {
-        res.status(400).json({ success: false, error: 'Valid URL starting with http:// or https:// is required' });
-        return;
-      }
+    if(provider==='website_cname'){res.json(publicIntegrationCheck(await inspectDomainIntegration(companyId,credentials.websiteUrl,{domains:getCustomDomainsByCompany,verify:verifyDomainDns})));return;}
 
-      try {
-        const siteRes = await fetch(websiteUrl, {
-          method: 'HEAD',
-          signal: AbortSignal.timeout(5000),
-        });
-        res.json({
-          success: true,
-          message: `Verified! Custom domain reachable (HTTP ${siteRes.status}) with active SSL.`,
-        });
-        return;
-      } catch {
-        res.json({
-          success: true,
-          message: `Custom domain ${websiteUrl} registered for outbound webhooks and CNAME routing.`,
-        });
-        return;
-      }
-    }
-
-    res.status(400).json({ success: false, error: `Unknown provider: ${provider}` });
+    res.status(400).json(publicIntegrationCheck({ success: false, error: `Unknown provider: ${provider}` }));
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(err instanceof IntegrationAccessError?err.status:503).json(publicIntegrationCheck({success:false,error:err instanceof IntegrationAccessError?err.code:'Integration verification unavailable'}));
   }
 });
 
@@ -2711,92 +2485,24 @@ app.post('/api/integrations/email/test-send', async (req, res) => {
 });
 
 // Save credentials and update integration state for a company
-app.post('/api/integrations/save', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { companyId, provider, credentials, config } = req.body;
-    const resolved = await resolveUserCompanyId(user, companyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-    const targetCompanyId = resolved.companyId;
-
-    if (!provider) {
-      res.status(400).json({ success: false, error: 'Provider is required' });
-      return;
-    }
-
-    // Retain existing secret credentials if user submitted masked placeholder string
-    const existing = await getCompanyIntegration(targetCompanyId, provider);
-    const cleanCredentials: Record<string, any> = { ...(existing?.credentials || {}) };
-
-    if (credentials && typeof credentials === 'object') {
-      for (const [k, v] of Object.entries(credentials)) {
-        if (typeof v === 'string') {
-          // If value is not a masked string, update it
-          if (!v.includes('••••')) {
-            cleanCredentials[k] = v.trim();
-          }
-        } else {
-          cleanCredentials[k] = v;
-        }
-      }
-    }
-
-    const hasCreds = Object.values(cleanCredentials).some(
-      (v) => v !== '' && v !== null && v !== undefined
-    );
-    const initialStatus = hasCreds ? 'saved' : 'disconnected';
-
-    const saved = await saveCompanyIntegration(targetCompanyId, provider, {
-      status: initialStatus as any,
-      credentials: cleanCredentials,
-      config: config || {},
-      last_tested_at: existing?.last_tested_at || null,
-      last_error: null,
-    });
-
-    res.json({
-      success: true,
-      integration: {
-        ...saved,
-        credentials: maskCredentialsObj(saved.credentials || {}),
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
+app.post('/api/integrations/save',async(req,res)=>{
+ res.set('Cache-Control','no-store');try{
+  const user=await getAuthUserFromRequest(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
+  const input=await resolveIntegrationInput(req.body,user,{access:verifyCompanyWorkspaceAccess,read:getCompanyIntegration});
+  const saved=await saveCompanyIntegration(input.companyId,input.provider,{status:Object.values(input.credentials).some(Boolean)?'saved':'disconnected',credentials:input.credentials,config:input.config??input.existing?.config??{},last_tested_at:null,last_error:null});
+  res.json({success:true,companyId:input.companyId,integration:{id:saved.id,company_id:saved.company_id,provider:saved.provider,status:saved.status,credentials:maskCredentialsObj(saved.credentials),last_tested_at:null,last_error:null}});
+ }catch(error){res.status(error instanceof IntegrationAccessError?error.status:503).json({success:false,error:error instanceof IntegrationAccessError?error.code:'Integration save unavailable or unconfirmed'});}
 });
 
 // Disconnect / delete integration
-app.delete('/api/integrations/:provider', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { provider } = req.params;
-    const requestedCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    const resolved = await resolveUserCompanyId(user, requestedCompanyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-    const companyId = resolved.companyId;
-
-    await deleteCompanyIntegration(companyId, provider);
-    res.json({ success: true, message: `Disconnected ${provider}` });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
+app.delete('/api/integrations/:provider',async(req,res)=>{
+ res.set('Cache-Control','no-store');try{
+  const user=await getAuthUserFromRequest(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
+  const companyId=explicitIntegrationCompany(req.query),provider=req.params.provider;
+  if(!/^[a-z][a-z0-9_]{0,63}$/.test(provider)){res.status(400).json({success:false,error:'Invalid provider'});return;}
+  const access=await verifyCompanyWorkspaceAccess(user,companyId);if(!access.authorized){res.status(access.status).json({success:false,error:'Integration workspace access denied'});return;}
+  const removed=await deleteCompanyIntegration(companyId,provider);res.status(removed?200:404).json({success:removed,companyId,provider,message:removed?'Saved integration removed':'Saved integration not found'});
+ }catch(error){res.status(error instanceof IntegrationAccessError?error.status:503).json({success:false,error:error instanceof IntegrationAccessError?error.code:'Integration deletion unavailable or unconfirmed'});}
 });
 
 // ---------------- REVIEWS API ENDPOINTS (PER-TENANT MYSQL PERSISTENCE) ---------------- //

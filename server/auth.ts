@@ -44,7 +44,12 @@ export interface TokenPayload {
   role: string;      // User Role ('owner' | 'manager' | 'agency')
   iat: number;       // Issued At timestamp (epoch seconds)
   exp: number;       // Expiry timestamp (epoch seconds)
-  jti: string;       // Unique Token ID (nonce to prevent replay)
+  jti: string;       // Random token identifier; this is not a replay/revocation ledger
+  pv?: string;      // HMAC binding to the current stored password material
+}
+
+function passwordBinding(user:{id:string;password_hash:string;salt:string}):string{
+ return crypto.createHmac('sha256',getAuthSecret()).update(JSON.stringify(['abgm-password-v1',user.id,user.password_hash,user.salt])).digest('hex');
 }
 
 function base64UrlEncode(input: string): string {
@@ -78,7 +83,7 @@ function computeHmacSignature(data: string, secret: string): string {
  * It contains standard claims (sub, email, role, iat, exp, jti) and cannot be forged
  * without knowing the server's private AUTH_SECRET.
  */
-export function generateAuthToken(user: { id: string; email: string; role?: string }): string {
+export function generateAuthToken(user: { id: string; email: string; role?: string;password_hash?:string;salt?:string }): string {
   const header = {
     alg: 'HS256',
     typ: 'JWT',
@@ -93,6 +98,7 @@ export function generateAuthToken(user: { id: string; email: string; role?: stri
     exp: nowSeconds + TOKEN_EXPIRY_SECONDS,
     jti: crypto.randomBytes(16).toString('hex'),
   };
+  if(user.password_hash&&user.salt)payload.pv=passwordBinding(user as {id:string;password_hash:string;salt:string});
 
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -112,7 +118,7 @@ export function generateAuthToken(user: { id: string; email: string; role?: stri
  * Returns the decoded TokenPayload if valid, or null if forged/expired/tampered.
  */
 export function verifyAuthToken(token: string): TokenPayload | null {
-  if (!token || typeof token !== 'string') {
+  if (!token || typeof token !== 'string'||token.length>4096) {
     return null;
   }
 
@@ -122,10 +128,13 @@ export function verifyAuthToken(token: string): TokenPayload | null {
   }
 
   const [headerB64, payloadB64, signature] = parts;
+  if(parts.some(part=>!part||!/^[A-Za-z0-9_-]+$/.test(part)))return null;
 
   // 1. Validate signature using constant-time comparison
   let secret: string;
   try {
+    const header=JSON.parse(base64UrlDecode(headerB64));
+    if(!header||header.alg!=='HS256'||header.typ!=='JWT'||Object.keys(header).some(key=>!['alg','typ'].includes(key)))return null;
     secret = getAuthSecret();
   } catch {
     return null;
@@ -148,12 +157,12 @@ export function verifyAuthToken(token: string): TokenPayload | null {
     const payloadJson = base64UrlDecode(payloadB64);
     const payload = JSON.parse(payloadJson) as TokenPayload;
 
-    if (!payload.sub || !payload.email || !payload.exp) {
+    if (!payload||typeof payload.sub!=='string'||!payload.sub||payload.sub.length>64||typeof payload.email!=='string'||!payload.email||payload.email.length>191||typeof payload.role!=='string'||!['owner','manager','agency','platform_admin'].includes(payload.role)||typeof payload.jti!=='string'||!/^[a-f0-9]{32}$/.test(payload.jti)||!Number.isSafeInteger(payload.iat)||!Number.isSafeInteger(payload.exp)||payload.pv!==undefined&&(typeof payload.pv!=='string'||!/^[a-f0-9]{64}$/.test(payload.pv))) {
       return null;
     }
 
     const nowSeconds = Math.floor(Date.now() / 1000);
-    if (nowSeconds > payload.exp) {
+    if (payload.iat<0||payload.iat>nowSeconds+30||payload.exp<=nowSeconds||payload.exp<=payload.iat||payload.exp-payload.iat>TOKEN_EXPIRY_SECONDS) {
       // Token has expired
       return null;
     }
@@ -171,7 +180,7 @@ export function verifyAuthToken(token: string): TokenPayload | null {
  */
 export async function getAuthUserFromRequest(req: express.Request): Promise<DbUser | null> {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (typeof authHeader!=='string' || !authHeader.startsWith('Bearer ')) {
     return null;
   }
 
@@ -181,7 +190,7 @@ export async function getAuthUserFromRequest(req: express.Request): Promise<DbUs
   }
 
   const payload = verifyAuthToken(token);
-  if (!payload) {
+  if (!payload||!payload.pv) {
     return null;
   }
 
@@ -195,6 +204,8 @@ export async function getAuthUserFromRequest(req: express.Request): Promise<DbUs
     if (user.email.toLowerCase() !== payload.email.toLowerCase()) {
       return null;
     }
+    const binding=passwordBinding(user);
+    if(!crypto.timingSafeEqual(Buffer.from(binding,'hex'),Buffer.from(payload.pv,'hex')))return null;
 
     return user;
   } catch {

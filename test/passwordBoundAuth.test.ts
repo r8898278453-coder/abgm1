@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+for(const key of Object.keys(process.env))if(/^DB_|^DATABASE_URL$/.test(key))delete process.env[key];process.env.NODE_ENV='test';process.env.AUTH_SECRET='synthetic-password-bound-auth-secret';
+const db=await import('../server/db'),auth=await import('../server/auth');
+const user=await db.createUser({email:'password-binding@example.invalid',password:'Old-password-fixture',full_name:'Fixture'}),token=auth.generateAuthToken(user);
+const request=(value:string)=>({headers:{authorization:'Bearer '+value}} as any);assert.equal((await auth.getAuthUserFromRequest(request(token)))?.id,user.id);
+assert.ok(!Buffer.from(token.split('.')[1],'base64url').toString().includes(user.password_hash));
+assert.equal(await auth.getAuthUserFromRequest({headers:{authorization:['Bearer bad']}} as any),null);
+const legacy=auth.generateAuthToken({id:user.id,email:user.email,role:user.role});assert.ok(auth.verifyAuthToken(legacy));assert.equal(await auth.getAuthUserFromRequest(request(legacy)),null);
+const payload=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString());
+const sign=(header:any,body:any)=>{const h=Buffer.from(JSON.stringify(header)).toString('base64url'),p=Buffer.from(JSON.stringify(body)).toString('base64url');return h+'.'+p+'.'+crypto.createHmac('sha256',process.env.AUTH_SECRET!).update(h+'.'+p).digest('base64url');};
+for(const body of [{...payload,exp:Math.floor(Date.now()/1000)},{...payload,iat:payload.exp+1},{...payload,iat:payload.iat+100},{...payload,exp:'future'},{...payload,jti:'bad'},{...payload,pv:'bad'},{...payload,role:'root'}])assert.equal(auth.verifyAuthToken(sign({alg:'HS256',typ:'JWT'},body)),null);
+assert.equal(auth.verifyAuthToken(sign({alg:'none',typ:'JWT'},payload)),null);
+await db.upgradeUserPassword(user.id,'Wrong-password-fixture');assert.equal((await db.findUserById(user.id))?.password_hash,user.password_hash);
+await db.updateUserPassword(user.id,'New-password-fixture');assert.equal(await auth.getAuthUserFromRequest(request(token)),null);
+const current=await db.findUserById(user.id);assert.ok(current);assert.equal((await auth.getAuthUserFromRequest(request(auth.generateAuthToken(current))))?.id,user.id);
+const hash=crypto.createHash('sha256').update('reset-link-fixture').digest('hex');await db.createPasswordResetToken(user.id,hash,new Date(Date.now()+60000));const outcomes=await Promise.all(Array.from({length:8},()=>db.consumePasswordReset(hash,'Reset-password-fixture')));assert.equal(outcomes.filter(Boolean).length,1);assert.equal(await db.consumePasswordReset(hash,'Another-password-fixture'),null);
+console.log('Password-bound auth: strict signed claims/header/expiry, legacy request rejection, fresh-user binding and password-change invalidation, wrong-password rehash refusal and one-use memory reset passed.');

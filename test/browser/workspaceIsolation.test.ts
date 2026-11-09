@@ -205,7 +205,7 @@ try {
           history:reviewCount?[{id:'audit-note-1',actor_id:'fixture-owner',decision:'UNRESOLVED',platform:'facebook',provider_post_id:null,evidence_reference:'Provider dashboard checked',note:'Observation for Alpha only',recordedAtMs:Date.parse('2026-11-03T02:30:00Z')}]:[]}};
       }
     }
-    else if(url.pathname==='/api/integrations') body={success:true,integrations:[{id:'meta_social',name:'Meta Social',description:'Fixture Meta connection',category:'Meta',icon:'M',docsUrl:'https://example.invalid',requiredFields:[],connected:true,status:'connected'}]};
+    else if(url.pathname==='/api/integrations') body={success:true,companyId:url.searchParams.get('companyId'),integrations:[{id:'meta_social',name:'Meta Social',description:'Fixture Meta connection',category:'Meta',icon:'M',docsUrl:'https://example.invalid',requiredFields:[],connected:true,status:'connected'}]};
     else if(url.pathname.endsWith('/meta-publication-drafts') && route.request().method()==='POST') {
       const request=route.request().postDataJSON();
       const companyId=url.pathname.split('/')[3];

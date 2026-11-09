@@ -149,7 +149,7 @@ export function recordFailedLogin(req: Request, email?: string): {
     if (record.failedAttempts >= MAX_FAILED_LOGINS) {
       record.lockedUntil = now + LOCKOUT_DURATION_MS;
       emailLockouts.set(cleanEmail, record);
-      console.warn(`[Security Alert] Account locked due to brute-force attempts: ${cleanEmail} (IP: ${ip})`);
+      console.warn('[Security Alert] Login lockout threshold reached');
       return {
         isLocked: true,
         remainingAttempts: 0,
