@@ -1,0 +1,700 @@
+{
+  "kind": "source-declaration-inventory",
+  "scope": "Inline app HTTP methods plus imported register*(app, deps) functions. Middleware/static mounts, authorization behavior, deployed revision and live reachability are not established.",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "*",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/chat",
+      "owner": "server.ts",
+      "kind": "middleware-chain"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/chat",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/generate-content",
+      "owner": "server.ts",
+      "kind": "middleware-chain"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/generate-content",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/knowledge/query",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/render-creative",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/render-reel",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/render-reel/:jobId/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/reply-review",
+      "owner": "server.ts",
+      "kind": "middleware-chain"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/reply-review",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/templates",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/forgot-password",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/reset-password",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/autonomous/actions",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/autonomous/actions/:id/approve",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/autonomous/actions/:id/execute",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/autonomous/actions/:id/reject",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/autonomous/audit-logs",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/autonomous/kill-switch",
+      "owner": "server/autonomousControlRoutes.ts#registerAutonomousControlRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/autonomous/recommendations",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/autonomous/run-cycle",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/autonomous/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/external",
+      "owner": "server/adCampaignRoutes.ts#registerAdCampaignRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/external/sync",
+      "owner": "server/adCampaignRoutes.ts#registerAdCampaignRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/internal",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/internal",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/internal/:campaignId/posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/campaigns/internal/:id",
+      "owner": "server.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/internal/:id",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/internal/:id/link-external",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/daily-work-report",
+      "owner": "server/dailyWorkReportRoutes.ts#registerDailyWorkReport"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/message-dispatch/:key",
+      "owner": "server/messageDispatchStatus.ts#registerMessageDispatchStatus"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/meta-publication-drafts",
+      "owner": "server/publicationDraftRoutes.ts#registerPublicationDrafts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/posts/:postId/publishing-review",
+      "owner": "server/publishingReviewRoutes.ts#registerPublishingReview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/posts/:postId/publishing-review",
+      "owner": "server/publishingReviewRoutes.ts#registerPublishingReview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/posts/:postId/publishing-verification",
+      "owner": "server/metaVerificationRoutes.ts#registerMetaVerification"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/posts/:postId/workflow-history",
+      "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/publication-controls",
+      "owner": "server/publicationControlRoutes.ts#registerPublicationControls"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/companies/:companyId/publication-controls",
+      "owner": "server/publicationControlRoutes.ts#registerPublicationControls"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/publication-controls/history",
+      "owner": "server/publicationControlRoutes.ts#registerPublicationControls"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/ai/executive-summary",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/assets",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/assets",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/assets/:assetId",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/audit",
+      "owner": "server/auditRoutes.ts#registerAuditRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/audit/:auditId/resolve",
+      "owner": "server/auditRoutes.ts#registerAuditRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/audit/scan",
+      "owner": "server/auditRoutes.ts#registerAuditRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/campaigns/:campaignId/posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/competitors",
+      "owner": "server/competitorRoutes.ts#registerCompetitorRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/competitors/:competitorId",
+      "owner": "server/competitorRoutes.ts#registerCompetitorRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/competitors/:competitorId",
+      "owner": "server/competitorRoutes.ts#registerCompetitorRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/competitors/:competitorId/history",
+      "owner": "server/observationHistoryRoutes.ts#registerObservationHistoryRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/competitors/:competitorId/refresh",
+      "owner": "server/competitorRoutes.ts#registerCompetitorRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/competitors/refresh-all",
+      "owner": "server/competitorRoutes.ts#registerCompetitorRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/data",
+      "owner": "server/companyDataRoutes.ts#registerCompanyDataRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/data",
+      "owner": "server/companyDataRoutes.ts#registerCompanyDataRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/domains",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/domains",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/domains/:domainId",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/domains/:domainId/verify",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/google-profile",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/google-profile/sync",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/growth-score",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/growth-score/recalculate",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/invoices",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/invoices",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/job-actions",
+      "owner": "server/actionFeedRoutes.ts#registerActionFeed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/jobs",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/jobs",
+      "owner": "server/queueRoutes.ts#registerQueueAdmission"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/keywords/:kw/history",
+      "owner": "server/observationHistoryRoutes.ts#registerObservationHistoryRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/notification-status",
+      "owner": "server/notificationStatusRoutes.ts#registerNotificationStatus"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/rank-radar/refresh-all",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/rank-radar/scan",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/revenue-attribution",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/subscription",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/subscription/upgrade",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/website/config",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/website/config",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/website/export",
+      "owner": "server/websiteRoutes.ts#registerWebsiteRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/website/preview-html",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content-posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content-posts/:id",
+      "owner": "server/contentMutationRoutes.ts#registerContentMutationRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-posts/:id/publish",
+      "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content-posts/:id/publishing-history",
+      "owner": "server.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/content-posts/:id/status",
+      "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cron/tick",
+      "owner": "server/schedulerRoutes.ts#registerSchedulerRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "owner": "server/health.ts#registerHealthRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/live",
+      "owner": "server/health.ts#registerHealthRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/ready",
+      "owner": "server/health.ts#registerHealthRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/integrations/:provider",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/email/test-send",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/save",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/test",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/:id/download",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "owner": "server.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/leads/:id/stage",
+      "owner": "server/leadStageRoutes.ts#registerLeadStageRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/meta/publish-post",
+      "owner": "server/metaPublishingRoutes.ts#registerMetaPublishing"
+    },
+    {
+      "method": "GET",
+      "path": "/api/meta/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/posts/:id",
+      "owner": "server/contentMutationRoutes.ts#registerContentMutationRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts/:id/publish",
+      "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posts/:id/publishing-history",
+      "owner": "server.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/posts/:id/status",
+      "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/lead",
+      "owner": "server/publicLeadRoutes.ts#registerPublicLeadRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/leads",
+      "owner": "server/publicLeadRoutes.ts#registerPublicLeadRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/leads/receipt",
+      "owner": "server/publicLeadRoutes.ts#registerPublicLeadRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/razorpay/create-order",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/razorpay/create-payment-link",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/razorpay/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/razorpay/verify-payment",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/razorpay/webhook",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/revenue-attribution",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reviews",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reviews",
+      "owner": "server.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/reviews/:id",
+      "owner": "server/reviewReplyRoutes.ts#registerReviewReplyRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reviews/:id/reply",
+      "owner": "server/reviewReplyRoutes.ts#registerReviewReplyRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reviews/:id/replyText",
+      "owner": "server/reviewReplyRoutes.ts#registerReviewReplyRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/scheduler/history",
+      "owner": "server/schedulerRoutes.ts#registerSchedulerRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/scheduler/tick",
+      "owner": "server/schedulerRoutes.ts#registerSchedulerRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/system/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/telegram/notify",
+      "owner": "server/tenantNotificationRoutes.ts#registerTenantNotificationRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/palettes",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/whatsapp/broadcast",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/whatsapp/send",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/whatsapp/status",
+      "owner": "server.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/whatsapp/webhook",
+      "owner": "server.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/whatsapp/webhook",
+      "owner": "server/whatsAppWebhook.ts#registerWhatsAppWebhook"
+    },
+    {
+      "method": "GET",
+      "path": "/storefront/:companyId",
+      "owner": "server.ts"
+    }
+  ],
+  "registrationCount": 26
+}

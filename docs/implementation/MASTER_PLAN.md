@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.3 • updated 6 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.4 • updated 9 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Latest command/contract checkpoint — 9 November 2026 IST
+
+Atomic competitor profile/observation/revision commands, explicit edit/delete preconditions, dedicated collection ownership, revision adoption fences and scoped frontend mutation/history handling added. Optional provider refresh preserves confirmed manual creation; baseline differences are explicitly previous-observation metrics. Source route inventory records138 declarations/26 registrations and guards duplicate terminal ownership/drift.83 isolated programs plus actual SQL, competitor/workspace browser, TypeScript/build evidence. API_COMPATIBILITY.md documents intentional legacy-client migration and limits. P02 preparation does not close P01 or any later gate; all remaining phases stay tracked.
 
 ### Latest observation checkpoint — 9 November 2026 IST
 

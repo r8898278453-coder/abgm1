@@ -1,4 +1,4 @@
-# Phase gate status — 6 November 2026 IST
+# Phase gate status — 9 November 2026 IST
 
 Snapshot derived from TASKS.csv; MASTER_PLAN.md remains the specification. Local foundations are not production acceptance.
 
@@ -20,7 +20,7 @@ P00 hosting evidence is blocked: no Hostinger account tools are callable in this
 
 P01 has substantial implementation evidence. Its gate still requires broader durable execution policy across all action families, complete action/report reconciliation, remaining source/capability audits and hosting acceptance. Later phase gates are retained. Billing remains excluded.
 
-Current work: five sequential reliability batches documented in EXECUTION.md and evidence/phase01-content-crm-isolation.json. No production publish/deploy/migration was performed.
+Current work: competitor transactions, scoped frontend commands and route compatibility guards documented in EXECUTION.md and evidence/competitor-commands-and-contracts.json. Earlier continuation notes below retain their historical evidence. No production publish/deploy/migration was performed.
 
 Additional P01 continuation: outbound global boundary coverage, truthful WhatsApp outcomes and bounded partial broadcasts; see evidence/outbound-stop-and-outcomes.json. No task/phase gate is promoted solely from this service batch.
 
@@ -41,3 +41,5 @@ Website/domain continuation: strict scoped routes and transactional field patche
 Public inquiry continuation:029/50 tables; atomic receipt/lead, current-token recovery, same-key conflict/replay, best-effort alert journal, generated-tab recovery and IST report/CSV/digest counters verified.77 default programs, actual fresh/upgrade SQL, website/workspace Chromium and unchanged-export restore pass. No phase/task promotion. Broader notification outbox, consent, contact merge, hosting and extension-manifest acceptance remain open. See evidence/public-inquiry-recovery.json.
 
 Migration/baseline continuation: P00-05 locally validated after immutable legacy29/source guards, compiler-independent030+ SQL manifests, strict ledger evidence, actual partial-DDL/minified recovery and unchanged copied-export replay.79 default programs, TypeScript/build/source command and native SQL passed; db:status/db:verify now use canonical read-only evidence and no unsupported safety claims. No new product migration (029/50 retained). P00-06 is in progress with BASELINE_GATE.md; missing actual hosting/P00-03 acceptance prevents phase closure. Tracker now8 validated,7 in_progress,1 blocked,77 planned. See MIGRATIONS.md and evidence/migration-manifest-and-ledger.json.
+
+Latest continuation: atomic competitor commands, client revision/request fences and source route-contract guard validated locally.83 isolated programs, native SQL, scoped competitor Chromium and existing workspace recheck passed. No phase promotion. P02 contract/extraction evidence is preparatory; P01-10 remains unaccepted. See API_COMPATIBILITY.md and evidence/competitor-commands-and-contracts.json.

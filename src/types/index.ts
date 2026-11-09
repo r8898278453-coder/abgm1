@@ -209,6 +209,7 @@ export interface CompetitorSnapshot {
 }
 
 export interface CompetitorData {
+  reviewChangeSincePreviousObservation?: number | null;
   id: string;
   name: string;
   rating: number | null;

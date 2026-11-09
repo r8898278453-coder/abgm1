@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import {competitorVersion} from '../../shared/competitors';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users2,
   Star,
@@ -27,7 +28,7 @@ interface CompetitorsViewProps {
   competitors: CompetitorData[];
   companyId?: string;
   onNavigate: (tab: any) => void;
-  onUpdateCompetitors?: (competitors: CompetitorData[]) => void;
+  onUpdateCompetitors?: (competitors: CompetitorData[], acknowledgement?: any) => void;
 }
 
 export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
@@ -66,6 +67,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
 
   const handleOpenEdit = (comp: CompetitorData) => {
     setEditingCompId(comp.id);
+    editingVersion.current=competitorVersion(comp);
     setName(comp.name);
     setRating(comp.rating !== null && comp.rating !== undefined ? comp.rating.toString() : '');
     setReviewsCount(comp.reviewsCount !== null && comp.reviewsCount !== undefined ? comp.reviewsCount.toString() : '');
@@ -73,188 +75,55 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
     setIsAddModalOpen(true);
   };
 
-  const handleSaveCompetitor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    const parsedRating = rating.trim() ? parseFloat(rating) : null;
-    const parsedReviews = reviewsCount.trim() ? parseInt(reviewsCount, 10) : null;
-
-    setIsSubmitting(true);
-    try {
-      if (companyId) {
-        if (editingCompId) {
-          const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
-            `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(editingCompId)}`,
-            {
-              method: 'PUT',
-              body: JSON.stringify({
-                name: name.trim(),
-                rating: parsedRating,
-                reviewsCount: parsedReviews,
-              }),
-            }
-          );
-          if (data.success && data.competitors) {
-            onUpdateCompetitors?.(data.competitors);
-            setStatusMessage({ type: 'success', text: `Updated competitor "${name.trim()}".` });
-          }
-        } else {
-          const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
-            `/api/companies/${encodeURIComponent(companyId)}/competitors`,
-            {
-              method: 'POST',
-              body: JSON.stringify({
-                name: name.trim(),
-                rating: parsedRating,
-                reviewsCount: parsedReviews,
-                refreshNow,
-              }),
-            }
-          );
-          if (data.success && data.competitors) {
-            onUpdateCompetitors?.(data.competitors);
-            setStatusMessage({
-              type: 'success',
-              text: `Added competitor "${name.trim()}" to radar & persisted initial observation.`,
-            });
-          }
-        }
-      } else {
-        // Local in-memory fallback if no companyId
-        if (editingCompId) {
-          const updated = competitors.map((c) =>
-            c.id === editingCompId
-              ? {
-                  ...c,
-                  name: name.trim(),
-                  rating: parsedRating,
-                  reviewsCount: parsedReviews,
-                }
-              : c
-          );
-          onUpdateCompetitors?.(updated);
-        } else {
-          const newEntry: CompetitorData = {
-            id: `comp_${Date.now()}`,
-            name: name.trim(),
-            rating: parsedRating,
-            reviewsCount: parsedReviews,
-            reviewGrowthThisMonth: null,
-            photosCount: null,
-            postsPerWeek: null,
-            localVisibilityRank: competitors.length + 1,
-            dataClassification: 'USER_ENTERED',
-            lastObservedAt: new Date().toISOString(),
-          };
-          onUpdateCompetitors?.([...competitors, newEntry]);
-        }
-      }
-    } catch (err: any) {
-      console.warn('Failed to save competitor:', err);
-      setStatusMessage({ type: 'error', text: err?.message || 'Failed to save competitor' });
-    } finally {
-      setIsSubmitting(false);
-      setIsAddModalOpen(false);
-    }
+  const mounted=useRef(true),historySequence=useRef(0);
+  const [historyError,setHistoryError]=useState(false);
+  const [writeUnconfirmed,setWriteUnconfirmed]=useState(false);
+  const editingVersion=useRef<string|null>(null);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;historySequence.current++;};},[]);
+  const accept=(data:any)=>{
+    if(!mounted.current)return false;
+    if(data?.success!==true||data.companyId!==companyId||!Array.isArray(data.competitors))throw new Error('Competitor acknowledgement unconfirmed. Reload workspace.');
+    onUpdateCompetitors?.(data.competitors,data);return true;
   };
-
-  const handleDeleteCompetitor = async (id: string) => {
-    if (companyId) {
-      try {
-        const data = await apiRequest<{ success: boolean; competitors: CompetitorData[] }>(
-          `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(id)}`,
-          {
-            method: 'DELETE',
-          }
-        );
-        if (data.success && data.competitors) {
-          onUpdateCompetitors?.(data.competitors);
-          setStatusMessage({ type: 'info', text: 'Competitor removed from radar.' });
-          return;
-        }
-      } catch (err) {
-        console.warn('Failed to delete competitor:', err);
-      }
+  const handleSaveCompetitor=async(e:React.FormEvent)=>{
+    e.preventDefault();if(!companyId||!name.trim()||writeUnconfirmed||isSubmitting)return;
+    const parsedRating=rating.trim()?Number(rating):null,parsedReviews=reviewsCount.trim()?Number(reviewsCount):null;
+    if(parsedRating!==null&&(!Number.isFinite(parsedRating)||parsedRating<0||parsedRating>5)||parsedReviews!==null&&(!Number.isInteger(parsedReviews)||parsedReviews<0)){
+      setStatusMessage({type:'error',text:'Enter a rating from 0 to 5 and a non-negative whole review count.'});return;
     }
-    onUpdateCompetitors?.(competitors.filter((c) => c.id !== id));
+    const expected=editingCompId?editingVersion.current:null;setIsSubmitting(true);
+    try{
+      const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/competitors${editingCompId?'/'+encodeURIComponent(editingCompId):''}`,{method:editingCompId?'PUT':'POST',body:JSON.stringify({name:name.trim(),rating:parsedRating,reviewsCount:parsedReviews,...(editingCompId?{expectedVersion:expected}:{refreshNow})})});
+      if(accept(data)){setIsAddModalOpen(false);setStatusMessage({type:'success',text:data.refreshStatus==='SAVED'?'Competitor and provider observation saved.':data.refreshStatus==='UNCONFIRMED'?'Competitor saved manually; refresh outcome unconfirmed. Reload workspace.':data.refreshStatus==='UNAVAILABLE'?'Competitor saved manually; provider refresh unavailable.':'Manual competitor observation saved.'});}
+    }catch{if(mounted.current){setWriteUnconfirmed(true);setStatusMessage({type:'error',text:'Save unconfirmed. Your form is retained. Reload workspace before retrying.'});}}
+    finally{if(mounted.current)setIsSubmitting(false);}
   };
-
-  const handleRefreshSingle = async (comp: CompetitorData) => {
-    if (!companyId) return;
-    setRefreshingCompId(comp.id);
-    try {
-      const data = await apiRequest<{ success: boolean; competitors: CompetitorData[]; snapshot?: any; error?: string }>(
-        `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/refresh`,
-        {
-          method: 'POST',
-        }
-      );
-      if (data.success && data.competitors) {
-        onUpdateCompetitors?.(data.competitors);
-        const classification = data.snapshot?.dataClassification || 'UPDATED';
-        setStatusMessage({
-          type: 'success',
-          text: `Refreshed "${comp.name}" [${classification}]. Observation saved with baseline diff.`,
-        });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'Refresh failed' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err?.message || 'Refresh failed' });
-    } finally {
-      setRefreshingCompId(null);
-    }
+  const handleDeleteCompetitor=async(id:string)=>{
+    if(!companyId||writeUnconfirmed)return;const item=competitors.find(row=>row.id===id);if(!item)return;
+    try{const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(id)}`,{method:'DELETE',body:JSON.stringify({expectedVersion:competitorVersion(item)})});if(accept(data))setStatusMessage({type:'info',text:'Competitor removed. Historical observations retained.'});}
+    catch{if(mounted.current){setWriteUnconfirmed(true);setStatusMessage({type:'error',text:'Delete unconfirmed. Record retained; reload workspace before retrying.'});}}
   };
-
-  const handleRefreshAll = async () => {
-    if (!companyId) return;
-    setIsRefreshingAll(true);
-    try {
-      const data = await apiRequest<{ success: boolean; competitors: CompetitorData[]; message?: string; error?: string }>(
-        `/api/companies/${encodeURIComponent(companyId)}/competitors/refresh-all`,
-        {
-          method: 'POST',
-        }
-      );
-      if (data.success && data.competitors) {
-        onUpdateCompetitors?.(data.competitors);
-        setStatusMessage({
-          type: 'success',
-          text: data.message || `Successfully refreshed ${data.competitors.length} competitors.`,
-        });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'Refresh all failed' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err?.message || 'Refresh all failed' });
-    } finally {
-      setIsRefreshingAll(false);
-    }
+  const handleRefreshSingle=async(comp:CompetitorData)=>{
+    if(!companyId||writeUnconfirmed)return;setRefreshingCompId(comp.id);
+    try{const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/refresh`,{method:'POST'});if(accept(data))setStatusMessage({type:'success',text:'Provider observation saved. Change requires a comparable previous observation.'});}
+    catch{if(mounted.current)setStatusMessage({type:'error',text:'Refresh unavailable or changed concurrently. Reload before another scan.'});}
+    finally{if(mounted.current)setRefreshingCompId(null);}
   };
-
-  const handleOpenHistory = async (comp: CompetitorData) => {
-    setSelectedCompForHistory(comp);
-    setIsHistoryModalOpen(true);
-    setIsLoadingHistory(true);
-    setObservationHistory([]);
-
-    if (companyId) {
-      try {
-        const data = await apiRequest<{ success: boolean; history: any[] }>(
-          `/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/history`
-        );
-        if (data.success && Array.isArray(data.history)) {
-          setObservationHistory(data.history);
-        }
-      } catch (err) {
-        console.warn('Failed to load observation history:', err);
-      } finally {
-        setIsLoadingHistory(false);
-      }
-    } else {
-      setIsLoadingHistory(false);
-    }
+  const handleRefreshAll=async()=>{
+    if(!companyId||writeUnconfirmed)return;setIsRefreshingAll(true);
+    try{const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/competitors/refresh-all`,{method:'POST'});if(accept(data))setStatusMessage({type:data.partial?'info':'success',text:data.partial?'Some observations were not saved. Reload for current state.':'Competitor observations saved.'});}
+    catch{if(mounted.current)setStatusMessage({type:'error',text:'Batch refresh unavailable. Reload for current observations.'});}
+    finally{if(mounted.current)setIsRefreshingAll(false);}
+  };
+  const handleOpenHistory=async(comp:CompetitorData)=>{
+    const sequence=++historySequence.current;setSelectedCompForHistory(comp);setIsHistoryModalOpen(true);setIsLoadingHistory(true);setHistoryError(false);setObservationHistory([]);
+    try{
+      if(!companyId)throw new Error('Missing workspace');
+      const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(companyId)}/competitors/${encodeURIComponent(comp.id)}/history`);
+      if(data.success!==true||data.companyId!==companyId||data.competitorId!==comp.id||!Array.isArray(data.history))throw new Error('Invalid history');
+      if(mounted.current&&sequence===historySequence.current)setObservationHistory(data.history);
+    }catch{if(mounted.current&&sequence===historySequence.current)setHistoryError(true);}
+    finally{if(mounted.current&&sequence===historySequence.current)setIsLoadingHistory(false);}
   };
 
   return (
@@ -378,7 +247,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             <Users2 className="w-10 h-10 text-slate-300 mx-auto" />
             <div className="font-bold text-slate-800 text-sm">No Competitors Tracked</div>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Add nearby competitors to monitor their ratings, monthly review acquisition, and map rank.
+              Add nearby competitors to monitor their ratings, observed review changes, and map rank.
             </p>
             {onUpdateCompetitors && (
               <button
@@ -399,7 +268,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                   <th className="p-3.5 font-bold">Data Status</th>
                   <th className="p-3.5 font-bold">Google Rating</th>
                   <th className="p-3.5 font-bold">Total Reviews</th>
-                  <th className="p-3.5 font-bold">Review Velocity</th>
+                  <th className="p-3.5 font-bold">Change Since Previous Observation</th>
                   <th className="p-3.5 font-bold">Photos Count</th>
                   <th className="p-3.5 font-bold">Post Frequency</th>
                   <th className="p-3.5 text-center font-bold">Visibility Rank</th>
@@ -410,7 +279,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                 {competitors.map((comp) => {
                   const isSelf = comp.isSelf;
                   const classification =
-                    comp.dataClassification || (isSelf ? 'VERIFIED' : 'USER_ENTERED');
+                    comp.dataClassification || 'UNAVAILABLE';
 
                   return (
                     <tr
@@ -463,17 +332,17 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
 
                       {/* Review Velocity (Strict Baseline Check) */}
                       <td className="p-3.5">
-                        {typeof comp.reviewGrowthThisMonth === 'number' ? (
+                        {typeof comp.reviewChangeSincePreviousObservation === 'number' ? (
                           <span
                             className={`font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
-                              comp.reviewGrowthThisMonth > 0
+                              comp.reviewChangeSincePreviousObservation > 0
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : comp.reviewGrowthThisMonth < 0
+                                : comp.reviewChangeSincePreviousObservation < 0
                                 ? 'bg-rose-100 text-rose-800'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                           >
-                            {comp.reviewGrowthThisMonth >= 0 ? `+${comp.reviewGrowthThisMonth}` : comp.reviewGrowthThisMonth} new
+                            {comp.reviewChangeSincePreviousObservation >= 0 ? `+${comp.reviewChangeSincePreviousObservation}` : comp.reviewChangeSincePreviousObservation} new
                           </span>
                         ) : (
                           <span
@@ -610,11 +479,11 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Google Rating (Optional)</label>
+                  <label className="font-bold text-slate-700">Manual Rating (Optional)</label>
                   <input
                     type="number"
                     step="0.1"
-                    min="1"
+                    min="0"
                     max="5"
                     value={rating}
                     onChange={(e) => setRating(e.target.value)}
@@ -635,23 +504,9 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                 </div>
               </div>
 
-              {!editingCompId && (
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="refreshNowCheck"
-                    checked={refreshNow}
-                    onChange={(e) => setRefreshNow(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="refreshNowCheck" className="text-slate-600 font-medium">
-                    Run provider scan immediately (if Places / SerpAPI connected)
-                  </label>
-                </div>
-              )}
-
+              {!editingCompId&&<label className="flex items-center gap-2 text-slate-600"><input type="checkbox" checked={refreshNow} onChange={e=>setRefreshNow(e.target.checked)}/>Attempt provider refresh after saving</label>}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
-                <strong>Data Truth Notice:</strong> Review growth will remain <code className="font-bold">Baseline needed</code> until a second verified timestamped observation is recorded.
+                <strong>Data Truth Notice:</strong> Change since the previous observation remains <code className="font-bold">Baseline needed</code> until comparable provider observations for the same place are recorded. This is not a calendar-month metric.
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -664,7 +519,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || writeUnconfirmed}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : editingCompId ? 'Update Competitor' : 'Save Competitor'}
@@ -690,7 +545,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                 </p>
               </div>
               <button
-                onClick={() => setIsHistoryModalOpen(false)}
+                onClick={() => {historySequence.current++;setIsHistoryModalOpen(false);}}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
               >
                 <X className="w-4 h-4" />
@@ -700,6 +555,8 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             <div className="overflow-y-auto flex-1 space-y-3 pr-1 text-xs">
               {isLoadingHistory ? (
                 <div className="p-8 text-center text-slate-400">Loading historical snapshots from database...</div>
+              ) : historyError ? (
+                <div className="p-8 text-center text-rose-600">History unavailable. Reload to retry.</div>
               ) : observationHistory.length === 0 ? (
                 <div className="p-8 text-center bg-slate-50 rounded-2xl text-slate-500 space-y-1">
                   <div className="font-bold">No Historical Snapshots Recorded Yet</div>
@@ -768,7 +625,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
+                onClick={() => {historySequence.current++;setIsHistoryModalOpen(false);}}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-xs"
               >
                 Close History

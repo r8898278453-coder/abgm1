@@ -53,40 +53,8 @@ export function sanitizeCompanyData(clientData:any,existingPayload:any,company:a
       });
     }
 
-    // User-managed competitors: user can add/remove competitors to monitor, but cannot forge provider ratings/reviews
-    if (Array.isArray(clientData.competitors)) {
-      const existingCompMap = new Map(
-        (existingPayload.competitors || []).map((c: any) => [(c.name || '').toLowerCase().trim(), c])
-      );
-      sanitizedPayload.competitors = clientData.competitors.map((comp: any) => {
-        const cleanName = (comp.name || '').trim();
-        const existing: any = existingCompMap.get(cleanName.toLowerCase());
-        if (existing) {
-          return {
-            ...existing,
-            id: existing.id || comp.id,
-            name: cleanName,
-            placeId: existing.placeId || comp.placeId,
-            address: existing.address || comp.address,
-          };
-        }
-        return {
-          id: comp.id || `comp_${crypto.randomUUID().slice(0, 8)}`,
-          name: cleanName,
-          placeId: comp.placeId || null,
-          address: comp.address || null,
-          rating: null,
-          reviewsCount: null,
-          reviewGrowthThisMonth: null,
-          photosCount: null,
-          postsPerWeek: null,
-          localVisibilityRank: null,
-          provider: 'UNCONFIGURED',
-          lastObservedAt: null,
-          dataClassification: 'UNAVAILABLE',
-        };
-      });
-    }
+    // Competitor commands own this collection. Legacy profile clients cannot replace it.
+    // Existing stored records remain readable; dedicated routes perform validated mutations.
 
     // User-managed campaigns: user can manage strategic campaign plans, but actual_spend / impressions / provider IDs are strictly server/provider-verified
     if (Array.isArray(clientData.campaigns)) {

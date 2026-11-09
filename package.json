@@ -39,7 +39,10 @@
     "test:sql:restore": "node --import tsx server/scripts/testLocalSql.ts --restore",
     "test:browser:website": "node --import tsx test/browser/websiteIsolation.test.ts",
     "test:browser:observations": "node --import tsx test/browser/observationTruth.test.ts",
-    "db:check:sources": "node --import tsx server/scripts/checkMigrationSources.ts"
+    "test:browser:competitors": "node --import tsx test/browser/competitorWorkflow.test.ts",
+    "db:check:sources": "node --import tsx server/scripts/checkMigrationSources.ts",
+    "routes:check": "node --import tsx server/scripts/checkRoutes.ts",
+    "routes:record": "node --import tsx server/scripts/checkRoutes.ts --write"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

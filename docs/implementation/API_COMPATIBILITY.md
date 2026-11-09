@@ -1,0 +1,34 @@
+# Route and state ownership review — 9 November 2026 IST
+
+This is preparatory evidence for P02-01/P02-02, not acceptance of P01-10 or P02. The full contract/security/hosting review remains open. [Route inventory](evidence/route-contract-inventory.json) records 138 source declarations: 135 terminal handlers and three intentional shared AI middleware-chain entries, across 26 imported registration functions plus inline routes.
+
+`npm run routes:check` compares current declarations to the reviewed inventory and rejects duplicate method/path ownership, including parameter-name aliases and default case/trailing-slash equivalence. `npm run routes:record` regenerates the artifact for review. Tests also check artifact drift. Inline paths must resolve statically; imported registration functions run against a recorder with forbidden effectful dependency calls. The application entrypoint and request handlers do not run. The child environment excludes production bindings.
+
+Scope limits: declaration inventory is not live reachability, authentication, middleware-order, wildcard shadowing, implicit HEAD/ALL coverage or provider permission proof. `app.use`, static mounts, deployment rewrites and unknown dynamically mounted applications need separate review. The `requireAiWorkspace` chain deliberately precedes the three AI handlers; retaining that chain is part of compatibility. Do not remove it as a supposed duplicate.
+
+| Concept | Canonical source owner | Meaning/compatibility boundary |
+| --- | --- | --- |
+| Editable workspace profile | companyDataRoutes, companyDataPolicy, companyProfileStore; workspaceRevision | GET exposes revision; PUT requires expectedVersion; stale writes409, missing precondition428. Metrics/observations retain server authority. |
+| Competitor commands | competitorRoutes, competitorCommands; shared/competitors | Existing POST/PUT/DELETE/refresh paths retained; edit/delete now require expectedVersion from competitorVersion. Profile projection, observation and revision commit together. |
+| Rank observations | observationStore, observationHistoryRoutes, localSeoProvider | Timestamp-group history; actual centre measurements only. No dedicated scan-run identity yet. |
+| Queue state | queueSql, queueValidation, db compatibility exports | QUEUED/RUNNING/RETRY_WAIT/SUCCEEDED/FAILED/CANCELLED describe job execution; SUCCEEDED alone does not prove a customer delivery or sale. |
+| Message dispatch | messageDispatchIntents/messageDispatchStatus | IN_PROGRESS/API_ACCEPTED/REJECTED/PAUSED/UNKNOWN describe request outcome. Acceptance requires a provider ID; delivery comes from distinct receipt evidence. |
+| Delivery evidence | messageDeliveryReceipts | Signed scoped receipts project delivery separately; conflict/unknown states do not imply safe resend. |
+| Content workflow | publicationWorkflow, publishingReview | Draft/approval/scheduling concerns remain separate from provider dispatch. Version/approval/target checks are retained on aliases. |
+| Publishing outcome | publishingEngine, publishingClaims/Evidence | Publication, failure, in-progress, already-published and uncertainty remain explicit; uncertainty cannot automatically unlock resend. |
+| Public inquiry | publicLeadRoutes/publicLeadStore; shared/publicLead | Atomic lead/receipt, body-token plus request reference recovery. Receipt is not a sale or outreach consent. |
+| Daily report | dailyWorkReport/shared report contracts | Asia/Kolkata day boundaries; evidence counters distinguish receipt/attempt/acceptance/delivery. |
+| Ingestion | Existing knowledge endpoints; P04 remains planned | No canonical ingestion-run lifecycle accepted yet. Do not map a profile flag or timer to completed ingestion. |
+
+Competitor compatibility details:
+
+- Create accepts strict bounded name, optional nullable numeric rating/review count/place/address and refreshNow. Numeric strings, unsupported keys and invalid metrics reject. An acknowledged manual save remains successful when an optional provider refresh is unavailable. A later uncertain refresh is reported UNCONFIRMED and requires reload; it does not negate confirmed creation.
+- PUT/DELETE require the opaque comparison value calculated from the loaded entry. It is a concurrency precondition, never an authorization credential. A foreign/missing/stale entry cannot be overwritten through these routes. Client mutation failures retain the visible record or form and require reload before retrying an uncertain create/edit/delete.
+- Generic profile PUT no longer owns competitor replacement; legacy competitor arrays are ignored while canonical stored records remain. The frontend omits competitors from profile autosave. Existing external/custom clients must migrate to dedicated commands; none have been inventoried on the live deployment.
+- Refresh only adopts non-candidate LIVE/VERIFIED observations; unconfigured/unavailable candidates leave the last saved projection intact. Changes require the same known place/provider and a later timestamp. The displayed difference is since the previous observation, not a calendar-month growth metric. Manual entries have no inferred map rank/photo/post metrics.
+- Batch refresh starts at most25 targets and stops starting work after a20-second budget; one provider call may finish after that start budget. Per-target statuses and partial:true expose incomplete results. Batch saves are per competitor, not one all-or-nothing transaction. Reload is required before profile writes when the client cannot safely adopt the returned revision sequence.
+- Deleting tracking retains historical observations. There is no contact/privacy purge policy in this command. Create transport idempotency and durable provider-cost budgets remain follow-up work; uncertain creation must not be blindly retried.
+
+Error conventions for new/refactored routes:401 unauthenticated,403 forbidden,404 missing scoped resource,400 invalid input,428 missing required precondition,409 stale/conflicting state,503 unavailable/unconfirmed storage/provider operation. Legacy routes are not asserted to conform universally. Errors exclude raw SQL/provider data; private DTOs whitelist metadata. API success indicates the specific operation acknowledged in the response, not a whole business outcome.
+
+Authentication currently retains the existing bearer path. Cookie migration, CSRF, durable session revocation, role/membership grants, persistent rate limiting and OAuth lifecycle remain P02/P03 work. No deployed security acceptance is inferred from this inventory. Billing stays excluded.

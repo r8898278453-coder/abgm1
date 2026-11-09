@@ -1,0 +1,50 @@
+{
+  "date_ist": "2026-11-09",
+  "tasks": [
+    "P01-02",
+    "P01-05",
+    "P01-09"
+  ],
+  "preparatory_tasks": [
+    "P02-01",
+    "P02-02"
+  ],
+  "schema": "029 / 50 tables; unchanged",
+  "phase_gate_promotions": false,
+  "production_changes": false,
+  "batches": [
+    "Strict competitor route extraction and bounded command validation",
+    "Atomic competitor profile/observation/revision writes; stale-source checks",
+    "Client revision adoption with pending/unknown fence; dedicated collection ownership",
+    "Client remount/late-response history and mutation isolation; honest baseline UI",
+    "Source declaration inventory/collision/drift guard and compatibility guide"
+  ],
+  "verified": [
+    "Eight-way edit one winner; cross-company/stale delete rejected",
+    "Injected profile UPDATE failure rolls back inserted observation",
+    "Manual entries have unknown rank/photo/post metrics; null/zero preserved",
+    "Known provider/place/later-observation comparison; no monthly growth assertion",
+    "Failed edit retains form; failed delete retains row; no update after client switch",
+    "Optional refresh distinguishes manual creation from provider refresh/uncertain outcome",
+    "138 declarations / 26 registrations / zero terminal collisions; shared AI middleware chain preserved",
+    "Profile and SQL observation use the same normalized decimal metrics"
+  ],
+  "checks": {
+    "default_programs": 83,
+    "production_credentials_in_tests": false,
+    "sql": "Disposable MariaDB10.11.19; restricted-user integration",
+    "browser": "Frontend-only competitor fixture; full workspace suite passed on recheck; external requests blocked",
+    "typescript": "passed",
+    "build": "passed; existing chunk-size warning",
+    "route_inventory": "record/check and drift/collision regression",
+    "targeted_final": "Competitor route, workspace revision and route inventory programs passed after final schema refinements"
+  },
+  "limits": [
+    "All phases remain incomplete; existing status counts retained",
+    "Live hosting/provider permissions/security/session/agency/ingestion/sales gates remain open",
+    "Batch refresh commits each competitor independently; provider cost limits not durable",
+    "No transport idempotency for create; uncertain mutation requires reload",
+    "Existing external/custom clients need competitor precondition migration",
+    "Browser full-workspace first run timed out at cross-tab conflict; unchanged recheck passed, timing sensitivity remains"
+  ]
+}

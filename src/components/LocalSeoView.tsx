@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   TrendingUp,
   MapPin,
@@ -29,7 +29,7 @@ interface LocalSeoViewProps {
   onDeleteKeyword?: (id: string) => void;
   onRefreshAll?: () => Promise<void> | void;
   onScanSingle?: (kw: string) => Promise<void> | void;
-  onAddCompetitor?: (comp: { name: string; rating: number; reviewsCount: number }) => void;
+  onAddCompetitor?: (comp: { name: string; rating: number; reviewsCount: number }) => Promise<void> | void;
   city?: string;
   category?: string;
   isScanning?: boolean;
@@ -46,6 +46,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
   category = 'IT Services & Web Development',
   isScanning = false,
 }) => {
+  const mounted=useRef(true);useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const [newKw, setNewKw] = useState('');
   const [selectedKwId, setSelectedKwId] = useState<string | null>(null);
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
@@ -58,16 +59,18 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     e.preventDefault();
     if (!newKw.trim() || isScanning) return;
     const target = newKw.trim();
-    setNewKw('');
     setActiveScanningKw(target);
     try {
       if (onAddKeyword) {
         await onAddKeyword(target);
+        if(!mounted.current)return;setNewKw('');
         setStatusMessage(`Local SERP scan processed for "${target}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
+    } catch {
+      if(mounted.current)setStatusMessage('Scan unavailable or save unconfirmed. Reload workspace before retrying.');
     } finally {
-      setActiveScanningKw(null);
+      if(mounted.current)setActiveScanningKw(null);
     }
   };
 
@@ -77,11 +80,13 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onRefreshAll) {
         await onRefreshAll();
-        setStatusMessage('Tracked keyword rank observations refreshed.');
+        if(!mounted.current)return;setStatusMessage('Tracked keyword rank observations refreshed.');
         setTimeout(() => setStatusMessage(null), 5000);
       }
+    } catch {
+      if(mounted.current)setStatusMessage('Refresh unavailable or save unconfirmed. Reload workspace.');
     } finally {
-      setIsRefreshingAll(false);
+      if(mounted.current)setIsRefreshingAll(false);
     }
   };
 
@@ -90,14 +95,23 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onScanSingle) {
         await onScanSingle(kwText);
-        setStatusMessage(`Refreshed rank radar for "${kwText}".`);
+        if(!mounted.current)return;setStatusMessage(`Refreshed rank radar for "${kwText}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
+    } catch {
+      if(mounted.current)setStatusMessage('Scan unavailable or save unconfirmed. Reload workspace before retrying.');
     } finally {
-      setActiveScanningKw(null);
+      if(mounted.current)setActiveScanningKw(null);
     }
   };
 
+  const [tracking,setTracking]=useState(false);
+  const trackCompetitor=async(comp:{name:string;rating:number;reviewsCount:number})=>{
+    if(tracking)return;setTracking(true);
+    try{await onAddCompetitor?.(comp);if(mounted.current)setStatusMessage('Competitor saved as a manual tracking entry. Refresh separately for provider metrics.');}
+    catch{if(mounted.current)setStatusMessage('Competitor save unconfirmed. Reload workspace before retrying.');}
+    finally{if(mounted.current)setTracking(false);}
+  };
   const suggestions = [
     `custom website development in ${city}`,
     `mobile app developer near me`,
@@ -374,7 +388,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                     </div>
                     {onAddCompetitor && (
                       <button
-                        onClick={() => onAddCompetitor({ name: comp.name, rating: comp.rating, reviewsCount: comp.reviewsCount })}
+                        disabled={tracking} onClick={() => void trackCompetitor({ name: comp.name, rating: comp.rating, reviewsCount: comp.reviewsCount })}
                         className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold whitespace-nowrap transition"
                       >
                         + Track

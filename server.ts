@@ -1,3 +1,6 @@
+import {registerCompetitorRoutes} from './server/competitorRoutes';
+import {WorkspaceConflict} from './shared/workspaceRevision';
+import {mutateCompetitorSql} from './server/competitorCommands';
 import {registerObservationHistoryRoutes} from './server/observationHistoryRoutes';
 import {registerPublicLeadRoutes} from './server/publicLeadRoutes';
 import {resolvePublicLeadCompany,savePublicLeadIntake,readPublicLeadReceipt,notifyPublicLeadOnce} from './server/publicLeadStore';
@@ -1793,66 +1796,22 @@ app.post('/api/companies/:id/rank-radar/scan', validateBody(rankScanSchema), asy
       payload.keywords.unshift(newKeywordEntry);
     }
 
-    // Merge real discovered competitors if returned by provider
-    if (scanResult.topCompetitors && scanResult.topCompetitors.length > 0) {
-      for (const comp of scanResult.topCompetitors) {
-        const compClean = comp.name.toLowerCase().trim();
-        const exists = payload.competitors.some((c: any) => (c.name || '').toLowerCase().trim() === compClean);
-        if (!exists && compClean.length > 2) {
-          const compId = `comp_${crypto.randomUUID().slice(0, 8)}`;
-          const nowIso = new Date().toISOString();
-          const ratingVal = typeof comp.rating === 'number' ? comp.rating : null;
-          const reviewsVal = typeof comp.reviewsCount === 'number' ? comp.reviewsCount : null;
-          const rankVal = typeof comp.position === 'number' ? comp.position : null;
+    // Discovered SERP names remain candidates on the keyword result. Tracking a
+    // competitor is a separate explicit command with its own source classification.
 
-          payload.competitors.push({
-            id: compId,
-            name: comp.name,
-            rating: ratingVal,
-            reviewsCount: reviewsVal,
-            reviewGrowthThisMonth: null, // Baseline required for calculated growth
-            photosCount: null, // UNAVAILABLE until photo provider queried
-            postsPerWeek: null, // UNAVAILABLE until post provider queried
-            localVisibilityRank: rankVal,
-            provider: scanResult.provider,
-            lastObservedAt: nowIso,
-            dataClassification: scanResult.dataClassification === 'LIVE' ? 'LIVE' : 'VERIFIED',
-          });
-
-          // Persist initial observation
-          await saveCompetitorObservation({
-            id: `cobs_${crypto.randomUUID().replace(/-/g, '')}`,
-            company_id: id,
-            competitor_id: compId,
-            name: comp.name,
-            place_id: null,
-            address: null,
-            rating: ratingVal,
-            reviews_count: reviewsVal,
-            photos_count: null,
-            posts_per_week: null,
-            rank_position: rankVal,
-            provider: scanResult.provider,
-            timestamp: nowIso,
-            status: scanResult.dataClassification === 'LIVE' ? 'LIVE' : 'VERIFIED',
-          });
-        }
-      }
-    }
-
-    await saveCompanyDataPayload(id, payload);
+    const previousVersion=companyDataVersion(payload);
+    if(!await saveCompanyDataPayload(id,payload))throw new Error('Rank profile save unconfirmed');
 
     res.json({
-      success: true,
+      success: true,companyId:id,previousVersion,version:companyDataVersion(payload),
       keyword: newKeywordEntry,
       keywords: payload.keywords,
-      competitors: payload.competitors,
       observations: scanResult.observations,
       recommendation: scanResult.recommendation,
     });
   } catch (err: any) {
-    const status = err?.statusCode || (err?.code === 'LOCATION_NOT_RESOLVED' ? 422 : 500);
-    res.status(status).json({ success: false, code: err?.code || 'SCAN_FAILED', error: err?.message || 'Rank scan failed' });
+    const status=err instanceof WorkspaceConflict?409:err?.code==='LOCATION_NOT_RESOLVED'?422:503;
+    res.status(status).json({success:false,error:status===409?'Workspace changed. Reload before another scan.':'Rank scan unavailable or save unconfirmed'});
   }
 });
 
@@ -1888,6 +1847,7 @@ app.post('/api/companies/:id/rank-radar/refresh-all', async (req, res) => {
       (await getCompanyIntegration(id, 'dataforseo')) ||
       (await getCompanyIntegration(id, 'serpapi'));
 
+    if(payload.keywords.length>25||payload.keywords.some((item:any)=>typeof item.keyword!=='string'||!item.keyword.trim()||item.keyword.length>191)){res.status(400).json({success:false,error:'Refresh supports at most 25 valid keywords per request'});return;}
     const updatedKeywords: any[] = [];
 
     for (const kw of payload.keywords) {
@@ -1909,479 +1869,31 @@ app.post('/api/companies/:id/rank-radar/refresh-all', async (req, res) => {
     }
 
     payload.keywords = updatedKeywords;
-    await saveCompanyDataPayload(id, payload);
+    const previousVersion=companyDataVersion(payload);
+    if(!await saveCompanyDataPayload(id,payload))throw new Error('Rank profile save unconfirmed');
 
     res.json({
-      success: true,
+      success: true,companyId:id,previousVersion,version:companyDataVersion(payload),
       message: `Refreshed rank radar for ${updatedKeywords.length} keywords.`,
       keywords: payload.keywords,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Refresh all ranks failed' });
+    res.status(err instanceof WorkspaceConflict?409:503).json({success:false,error:'Rank refresh unavailable or save unconfirmed'});
   }
 });
 
 registerObservationHistoryRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,ranks:getKeywordObservationHistory,competitors:getCompetitorObservationHistory});
 
-// ---------------- COMPETITOR RADAR & INTELLIGENCE API ---------------- //
-
-// Refresh single competitor intelligence (Competitor -> Provider -> Normalize -> Persist -> Timestamp -> Historical Snapshot -> Change Detection -> API -> UI)
-app.post('/api/companies/:id/competitors/:competitorId/refresh', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, competitorId } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { competitors: [] };
-    const competitor = (payload.competitors || []).find((c: any) => c.id === competitorId);
-    if (!competitor) {
-      res.status(404).json({ success: false, error: 'Competitor not found' });
-      return;
-    }
-
-    // 1. Resolve Provider
-    const placesIntegration = await getCompanyIntegration(id, 'google_business');
-    const serpIntegration =
-      (await getCompanyIntegration(id, 'serpapi')) ||
-      (await getCompanyIntegration(id, 'local_seo_serp'));
-
-    const provider = resolveCompetitorProvider(
-      placesIntegration?.credentials,
-      serpIntegration?.credentials
-    );
-
-    // 2. Fetch & Normalize Observation
-    const obsContext: CompetitorFetchContext = {
-      companyId: id,
-      competitorId,
-      name: competitor.name,
-      city: company.city,
-      placeId: competitor.placeId || null,
-    };
-
-    const normObs = await provider.fetchCompetitorObservation(
-      obsContext,
-      placesIntegration?.credentials || serpIntegration?.credentials
-    );
-
-    // 3. Persist Timestamped Observation into MySQL
-    await saveCompetitorObservation({
-      id: normObs.id,
-      company_id: id,
-      competitor_id: competitorId,
-      name: normObs.name,
-      place_id: normObs.placeId,
-      address: normObs.address,
-      rating: normObs.rating,
-      reviews_count: normObs.reviewsCount,
-      photos_count: normObs.photosCount,
-      posts_per_week: normObs.postsPerWeek,
-      rank_position: normObs.rankPosition,
-      provider: normObs.provider,
-      timestamp: normObs.timestamp,
-      status: normObs.dataClassification,
-      raw_payload: normObs.rawPayload ? JSON.stringify(normObs.rawPayload) : null,
-    });
-
-    // 4. Retrieve Historical Baseline & Change Detection
-    const baseline = await getCompetitorHistoricalBaseline(id, competitorId);
-    const changes = calculateCompetitorChanges(
-      {
-        rating: normObs.rating,
-        reviewsCount: normObs.reviewsCount,
-        rankPosition: normObs.rankPosition,
-      },
-      baseline.previous
-        ? {
-            rating: baseline.previous.rating,
-            reviewsCount: baseline.previous.reviews_count,
-            rankPosition: baseline.previous.rank_position,
-          }
-        : null
-    );
-
-    // 5. Update Company Payload with Normalized Competitor State
-    competitor.rating = normObs.rating;
-    competitor.reviewsCount = normObs.reviewsCount;
-    competitor.reviewGrowthThisMonth = changes.reviewGrowthThisMonth; // null if no previous baseline
-    competitor.photosCount = normObs.photosCount;
-    competitor.postsPerWeek = normObs.postsPerWeek;
-    if (normObs.rankPosition !== null) {
-      competitor.localVisibilityRank = normObs.rankPosition;
-    }
-    competitor.placeId = normObs.placeId || competitor.placeId;
-    competitor.address = normObs.address || competitor.address;
-    competitor.provider = normObs.provider;
-    competitor.lastObservedAt = normObs.timestamp;
-    competitor.dataClassification = normObs.dataClassification;
-
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      competitor,
-      snapshot: normObs,
-      changes,
-      competitors: payload.competitors,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Competitor refresh failed' });
-  }
-});
-
-// Refresh all tracked competitors for a company
-app.post('/api/companies/:id/competitors/refresh-all', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { competitors: [] };
-    if (!Array.isArray(payload.competitors) || payload.competitors.length === 0) {
-      res.json({ success: true, message: 'No competitors tracked to refresh', competitors: [] });
-      return;
-    }
-
-    const placesIntegration = await getCompanyIntegration(id, 'google_business');
-    const serpIntegration =
-      (await getCompanyIntegration(id, 'serpapi')) ||
-      (await getCompanyIntegration(id, 'local_seo_serp'));
-
-    const provider = resolveCompetitorProvider(
-      placesIntegration?.credentials,
-      serpIntegration?.credentials
-    );
-
-    const updatedCompetitors: any[] = [];
-
-    for (const comp of payload.competitors) {
-      const obsContext: CompetitorFetchContext = {
-        companyId: id,
-        competitorId: comp.id,
-        name: comp.name,
-        city: company.city,
-        placeId: comp.placeId || null,
-      };
-
-      const normObs = await provider.fetchCompetitorObservation(
-        obsContext,
-        placesIntegration?.credentials || serpIntegration?.credentials
-      );
-
-      // Persist to MySQL
-      await saveCompetitorObservation({
-        id: normObs.id,
-        company_id: id,
-        competitor_id: comp.id,
-        name: normObs.name,
-        place_id: normObs.placeId,
-        address: normObs.address,
-        rating: normObs.rating,
-        reviews_count: normObs.reviewsCount,
-        photos_count: normObs.photosCount,
-        posts_per_week: normObs.postsPerWeek,
-        rank_position: normObs.rankPosition,
-        provider: normObs.provider,
-        timestamp: normObs.timestamp,
-        status: normObs.dataClassification,
-        raw_payload: normObs.rawPayload ? JSON.stringify(normObs.rawPayload) : null,
-      });
-
-      // Calculate baseline changes
-      const baseline = await getCompetitorHistoricalBaseline(id, comp.id);
-      const changes = calculateCompetitorChanges(
-        {
-          rating: normObs.rating,
-          reviewsCount: normObs.reviewsCount,
-          rankPosition: normObs.rankPosition,
-        },
-        baseline.previous
-          ? {
-              rating: baseline.previous.rating,
-              reviewsCount: baseline.previous.reviews_count,
-              rankPosition: baseline.previous.rank_position,
-            }
-          : null
-      );
-
-      updatedCompetitors.push({
-        ...comp,
-        rating: normObs.rating,
-        reviewsCount: normObs.reviewsCount,
-        reviewGrowthThisMonth: changes.reviewGrowthThisMonth,
-        photosCount: normObs.photosCount,
-        postsPerWeek: normObs.postsPerWeek,
-        localVisibilityRank: normObs.rankPosition !== null ? normObs.rankPosition : comp.localVisibilityRank,
-        placeId: normObs.placeId || comp.placeId,
-        address: normObs.address || comp.address,
-        provider: normObs.provider,
-        lastObservedAt: normObs.timestamp,
-        dataClassification: normObs.dataClassification,
-      });
-    }
-
-    payload.competitors = updatedCompetitors;
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      message: `Refreshed intelligence for ${updatedCompetitors.length} competitors.`,
-      competitors: payload.competitors,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Batch competitor refresh failed' });
-  }
-});
-
-// Add a new competitor entry
-app.post('/api/companies/:id/competitors', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const { name, rating, reviewsCount, placeId, address, refreshNow } = req.body;
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      res.status(400).json({ success: false, error: 'Competitor name is required' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { competitors: [] };
-    if (!Array.isArray(payload.competitors)) {
-      payload.competitors = [];
-    }
-
-    const compId = `comp_${crypto.randomUUID().slice(0, 8)}`;
-    const nowIso = new Date().toISOString();
-
-    let newCompEntry: any = {
-      id: compId,
-      name: name.trim(),
-      rating: typeof rating === 'number' ? rating : rating ? parseFloat(rating) : null,
-      reviewsCount: typeof reviewsCount === 'number' ? reviewsCount : reviewsCount ? parseInt(reviewsCount, 10) : null,
-      reviewGrowthThisMonth: null, // Baseline needed
-      photosCount: null,
-      postsPerWeek: null,
-      localVisibilityRank: payload.competitors.length + 1,
-      placeId: placeId || null,
-      address: address || null,
-      provider: 'manual',
-      lastObservedAt: nowIso,
-      dataClassification: 'USER_ENTERED',
-    };
-
-    // If live refresh requested on creation, run through provider
-    if (refreshNow) {
-      const placesIntegration = await getCompanyIntegration(id, 'google_business');
-      const serpIntegration =
-        (await getCompanyIntegration(id, 'serpapi')) ||
-        (await getCompanyIntegration(id, 'local_seo_serp'));
-
-      const provider = resolveCompetitorProvider(
-        placesIntegration?.credentials,
-        serpIntegration?.credentials
-      );
-
-      const normObs = await provider.fetchCompetitorObservation(
-        { companyId: id, competitorId: compId, name: newCompEntry.name, city: company.city, placeId: placeId || null },
-        placesIntegration?.credentials || serpIntegration?.credentials
-      );
-
-      if (normObs.dataClassification !== 'UNAVAILABLE') {
-        newCompEntry.rating = normObs.rating ?? newCompEntry.rating;
-        newCompEntry.reviewsCount = normObs.reviewsCount ?? newCompEntry.reviewsCount;
-        newCompEntry.photosCount = normObs.photosCount;
-        newCompEntry.postsPerWeek = normObs.postsPerWeek;
-        newCompEntry.localVisibilityRank = normObs.rankPosition ?? newCompEntry.localVisibilityRank;
-        newCompEntry.placeId = normObs.placeId ?? newCompEntry.placeId;
-        newCompEntry.address = normObs.address ?? newCompEntry.address;
-        newCompEntry.provider = normObs.provider;
-        newCompEntry.dataClassification = normObs.dataClassification;
-      }
-    }
-
-    // Persist observation to database
-    await saveCompetitorObservation({
-      id: `cobs_${crypto.randomUUID().replace(/-/g, '')}`,
-      company_id: id,
-      competitor_id: compId,
-      name: newCompEntry.name,
-      place_id: newCompEntry.placeId,
-      address: newCompEntry.address,
-      rating: newCompEntry.rating,
-      reviews_count: newCompEntry.reviewsCount,
-      photos_count: newCompEntry.photosCount,
-      posts_per_week: newCompEntry.postsPerWeek,
-      rank_position: newCompEntry.localVisibilityRank,
-      provider: newCompEntry.provider,
-      timestamp: nowIso,
-      status: newCompEntry.dataClassification,
-    });
-
-    payload.competitors.push(newCompEntry);
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      competitor: newCompEntry,
-      competitors: payload.competitors,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to add competitor' });
-  }
-});
-
-// Update competitor info
-app.put('/api/companies/:id/competitors/:competitorId', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, competitorId } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { competitors: [] };
-    const compIndex = (payload.competitors || []).findIndex((c: any) => c.id === competitorId);
-    if (compIndex < 0) {
-      res.status(404).json({ success: false, error: 'Competitor not found' });
-      return;
-    }
-
-    const { name, rating, reviewsCount, placeId, address } = req.body;
-    const existing = payload.competitors[compIndex];
-    const nowIso = new Date().toISOString();
-
-    const updatedRating = typeof rating === 'number' ? rating : rating ? parseFloat(rating) : existing.rating;
-    const updatedReviews = typeof reviewsCount === 'number' ? reviewsCount : reviewsCount ? parseInt(reviewsCount, 10) : existing.reviewsCount;
-
-    payload.competitors[compIndex] = {
-      ...existing,
-      name: name?.trim() || existing.name,
-      rating: updatedRating,
-      reviewsCount: updatedReviews,
-      placeId: placeId !== undefined ? placeId : existing.placeId,
-      address: address !== undefined ? address : existing.address,
-      lastObservedAt: nowIso,
-      dataClassification: 'USER_ENTERED',
-    };
-
-    // Save observation
-    await saveCompetitorObservation({
-      id: `cobs_${crypto.randomUUID().replace(/-/g, '')}`,
-      company_id: id,
-      competitor_id: competitorId,
-      name: payload.competitors[compIndex].name,
-      place_id: payload.competitors[compIndex].placeId,
-      address: payload.competitors[compIndex].address,
-      rating: payload.competitors[compIndex].rating,
-      reviews_count: payload.competitors[compIndex].reviewsCount,
-      photos_count: payload.competitors[compIndex].photosCount,
-      posts_per_week: payload.competitors[compIndex].postsPerWeek,
-      rank_position: payload.competitors[compIndex].localVisibilityRank,
-      provider: 'manual_update',
-      timestamp: nowIso,
-      status: 'USER_ENTERED',
-    });
-
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      competitor: payload.competitors[compIndex],
-      competitors: payload.competitors,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to update competitor' });
-  }
-});
-
-// Delete a competitor
-app.delete('/api/companies/:id/competitors/:competitorId', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id, competitorId } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { competitors: [] };
-    payload.competitors = (payload.competitors || []).filter((c: any) => c.id !== competitorId);
-
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      competitors: payload.competitors,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to delete competitor' });
-  }
+registerCompetitorRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,
+ read:async(company)=>{const payload=await getCompanyDataPayload(company);return payload?.competitors||[];},
+ mutate:async(company,command)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable competitor storage unavailable');return mutateCompetitorSql(pool,company,command);},
+ fetch:async(companyId,competitor)=>{
+  const company=await getCompanyById(companyId);if(!company)throw new Error('Workspace unavailable');
+  const places=await getCompanyIntegration(companyId,'google_business');
+  const serp=(await getCompanyIntegration(companyId,'serpapi'))||(await getCompanyIntegration(companyId,'local_seo_serp'));
+  const provider=resolveCompetitorProvider(places?.credentials,serp?.credentials);
+  return provider.fetchCompetitorObservation({companyId,competitorId:competitor.id,name:competitor.name,city:company.city,placeId:competitor.placeId||null},provider.providerName==='google_places'?places?.credentials:serp?.credentials);
+ }
 });
 
 // ---------------- EVIDENCE-BASED AUDIT ENGINE & ACTION REMEDIATION ---------------- //

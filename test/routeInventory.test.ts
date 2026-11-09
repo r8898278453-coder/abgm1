@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {assertUniqueRoutes,inventoryRoutes} from '../server/scripts/routeInventory';
+assert.throws(()=>assertUniqueRoutes([{method:'GET',path:'/api/items/:id',owner:'first'},{method:'GET',path:'/api/items/:itemId/',owner:'second'}]),/ROUTE_COLLISION/);
+const chain=await inventoryRoutes("app.post(['/a'],limit,requireAiWorkspace({}));app.post('/a',()=>{});",async()=>({}));assert.equal(chain.routes.filter(row=>row.kind==='middleware-chain').length,1);
+const test=await inventoryRoutes("import {registerFixture} from './server/fixture'; app.get(['/a','/b'],()=>{throw Error('handler ran')});registerFixture(app,{});",async()=>({registerFixture:(app:any)=>{for(const method of ['get','post'])app[method]('/fixture',()=>{throw Error('handler ran');});}}));assert.equal(test.routes.length,4);assert.equal(test.registrationCount,1);
+await assert.rejects(inventoryRoutes('app.get(dynamicPath,()=>{});',async()=>({})),/ROUTE_PATH_UNRESOLVED/);
+await assert.rejects(inventoryRoutes("import{registerFixture}from'./server/fixture';registerFixture(app,{});",async()=>({registerFixture:(_:any,deps:any)=>deps.read()})),/ROUTE_REGISTRATION_ATTEMPTED_EFFECT/);
+const source=await readFile('server.ts','utf8'),actual=await inventoryRoutes(source,module=>import(pathToFileURL(path.resolve(module+'.ts')).href));assert.ok(actual.routes.length>100);assert.ok(actual.registrationCount>20);assert.equal(actual.routes.filter(row=>row.method==='POST'&&row.path==='/api/companies/:id/competitors').length,1);
+const recorded=JSON.parse(await readFile('docs/implementation/evidence/route-contract-inventory.json','utf8'));assert.deepEqual(actual.routes,recorded.routes,'Review and regenerate the route inventory after endpoint ownership changes.');
+console.log('Route contracts: source inline arrays, dynamic module registrations, param-alias collisions, unresolved declarations and registration side effects checked; no request handlers executed.');

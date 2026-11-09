@@ -1,3 +1,4 @@
+import {apiRequest} from './services/authService';
 import {workspaceDraft} from './services/workspaceDraft';
 import {canonicalJson} from '../shared/canonicalJson';
 import {createWorkspaceSaver} from './services/workspaceSaver';
@@ -614,80 +615,29 @@ export default function App() {
     setLeads(previous=>previous.map(lead=>lead.id===leadId?{...lead,stage}:lead));
   };
 
-  const handleAddKeyword = async (newKwText: string) => {
-    if (!newKwText.trim()) return;
-    const targetKw = newKwText.trim();
-    if (activeCompanyId) {
-      try {
-        const res = await scanKeywordRankApi(activeCompanyId, targetKw, business.city);
-        if (res.success && res.keyword) {
-          setKeywords((prev) => {
-            const exists = prev.findIndex(
-              (k) => k.id === res.keyword.id || k.keyword.toLowerCase() === targetKw.toLowerCase()
-            );
-            if (exists >= 0) {
-              const updated = [...prev];
-              updated[exists] = res.keyword;
-              return updated;
-            }
-            return [res.keyword, ...prev];
-          });
-          if (res.competitors && res.competitors.length > 0) {
-            setCompetitors(res.competitors);
-          }
-          return;
-        }
-      } catch (err) {
-        console.warn('Live rank scan error, using calculated fallback:', err);
-      }
-    }
-    // Fallback if offline/unconfigured - return UNAVAILABLE without fabricating data
-    const kwItem: KeywordRank = {
-      id: `kw_${Date.now()}`,
-      keyword: targetKw,
-      rank: null,
-      previousRank: null,
-      diff: null,
-      searchVolume: null,
-      dataClassification: 'UNAVAILABLE',
-      provider: 'unconfigured',
-      lastScannedAt: new Date().toISOString(),
-      gridRankings: {},
-      evidenceNotes: 'No verified SERP rank provider configured.',
-    };
-    setKeywords((prev) => [kwItem, ...prev]);
+  const handleAddKeyword=async(newKwText:string)=>{
+    const company=activeCompanyId,generation=workspaceLoadGenerationRef.current,target=newKwText.trim();
+    if(!company||!target)throw new Error('Select a workspace and keyword.');
+    const result=await scanKeywordRankApi(company,target,business.city);
+    if(activeCompanyIdRef.current!==company||workspaceLoadGenerationRef.current!==generation)return;
+    if(result.success!==true||result.companyId!==company||!result.keyword||result.keyword.keyword.toLowerCase()!==target.toLowerCase())throw new Error('Rank scan acknowledgement unconfirmed. Reload workspace.');
+    setKeywords(previous=>{const index=previous.findIndex(item=>item.keyword.toLowerCase()===target.toLowerCase());return index<0?[result.keyword,...previous]:previous.map((item,i)=>i===index?result.keyword:item);});
+    if(!workspaceSaverRef.current?.observe(result.previousVersion,result.version))setWorkspaceWritePaused(true);
   };
-
-  const handleRefreshAllKeywords = async () => {
-    if (!activeCompanyId) return;
-    try {
-      const res = await refreshAllKeywordRanksApi(activeCompanyId);
-      if (res.success && res.keywords) {
-        setKeywords(res.keywords);
-      }
-    } catch (err) {
-      console.warn('Failed to refresh all keyword ranks:', err);
-    }
+  const handleRefreshAllKeywords=async()=>{
+    const company=activeCompanyId,generation=workspaceLoadGenerationRef.current;if(!company)throw new Error('Select a workspace.');
+    const result=await refreshAllKeywordRanksApi(company);
+    if(activeCompanyIdRef.current!==company||workspaceLoadGenerationRef.current!==generation)return;
+    if(result.success!==true||result.companyId!==company||!Array.isArray(result.keywords))throw new Error('Rank refresh unconfirmed.');
+    setKeywords(result.keywords);if(!workspaceSaverRef.current?.observe(result.previousVersion,result.version))setWorkspaceWritePaused(true);
   };
-
-  const handleScanSingleKeyword = async (kwText: string) => {
-    await handleAddKeyword(kwText);
-  };
-
-  const handleAddCompetitorFromSerp = (comp: { name: string; rating: number; reviewsCount: number }) => {
-    const exists = competitors.some((c) => c.name.toLowerCase().trim() === comp.name.toLowerCase().trim());
-    if (exists) return;
-    const newComp: CompetitorData = {
-      id: `comp_${Date.now()}`,
-      name: comp.name,
-      rating: comp.rating,
-      reviewsCount: comp.reviewsCount,
-      reviewGrowthThisMonth: 4,
-      photosCount: 20,
-      postsPerWeek: 2,
-      localVisibilityRank: competitors.length + 1,
-    };
-    setCompetitors((prev) => [...prev, newComp]);
+  const handleScanSingleKeyword=handleAddKeyword;
+  const handleAddCompetitorFromSerp=async(comp:{name:string;rating:number;reviewsCount:number})=>{
+    const company=activeCompanyId,generation=workspaceLoadGenerationRef.current;if(!company)throw new Error('Select a workspace.');
+    const data=await apiRequest<any>(`/api/companies/${encodeURIComponent(company)}/competitors`,{method:'POST',body:JSON.stringify({name:comp.name,refreshNow:false})});
+    if(activeCompanyIdRef.current!==company||workspaceLoadGenerationRef.current!==generation)return;
+    if(data.success!==true||data.companyId!==company||!Array.isArray(data.competitors))throw new Error('Competitor save unconfirmed.');
+    setCompetitors(data.competitors);if(!workspaceSaverRef.current?.observe(data.previousVersion,data.version))setWorkspaceWritePaused(true);
   };
 
   const handleDeleteKeyword = async (kwId: string) => {
@@ -892,6 +842,7 @@ export default function App() {
 
                   {(renderedTab === 'local_seo' || renderedTab === 'seo') && (
                     <LocalSeoView
+                      key={`${user?.id}:${activeCompanyId}`}
                       keywords={keywords}
                       onAddKeyword={handleAddKeyword}
                       onDeleteKeyword={handleDeleteKeyword}
@@ -905,10 +856,15 @@ export default function App() {
 
                   {renderedTab === 'competitors' && (
                     <CompetitorsView
+                      key={`${user?.id}:${activeCompanyId}`}
                       competitors={competitors}
                       companyId={activeCompanyId || undefined}
                       onNavigate={setActiveTab}
-                      onUpdateCompetitors={setCompetitors}
+                      onUpdateCompetitors={(items,ack)=>{
+                        if(!ack||ack.companyId!==activeCompanyIdRef.current)return;
+                        setCompetitors(items);
+                        if(ack.revisionUnconfirmed||!workspaceSaverRef.current?.observe(ack.previousVersion,ack.version,ack.revisionDelta??1))setWorkspaceWritePaused(true);
+                      }}
                     />
                   )}
 

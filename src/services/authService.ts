@@ -964,6 +964,7 @@ export async function syncGoogleProfileApi(companyId: string): Promise<GooglePro
 // ---------------- LOCAL SEO & GOOGLE MAPS RANK RADAR APIS ---------------- //
 
 export interface RankRadarScanResponse {
+  companyId?:string;previousVersion?:string;version?:string;
   success: boolean;
   keyword?: any;
   keywords?: any[];
