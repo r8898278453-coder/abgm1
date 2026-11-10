@@ -13,6 +13,7 @@ const programs=[
   "test/observationStore.test.ts",
   "test/observationHistoryRoutes.test.ts",
   "test/databaseStatus.test.ts",
+  "test/deploymentReport.test.ts",
   "test/migrationManifests.test.ts",
   "test/publicLeadRoutes.test.ts",
   "test/websiteRoutes.test.ts",

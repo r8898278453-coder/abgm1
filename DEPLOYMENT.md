@@ -2,7 +2,7 @@
 
 This document outlines the standard deployment architecture, pre-flight checks, and operations for the **Aaditech BGA / LocalPulse** multi-tenant platform.
 
-**Current migration target:029;50 canonical tables. Earlier batch notes describe their original prerequisites. No production migration has been applied here.**
+**Current migration target:030;51 canonical tables. Earlier batch notes describe their original prerequisites. No production migration has been applied here.**
 
 ---
 
@@ -489,3 +489,7 @@ Before any separately authorized deployment, review docs/implementation/AUTH_AND
 ## Private knowledge source checkpoint — 10 November 2026 IST
 
 Prepared schema030_private_knowledge_sources adds the51st table using immutable SQL manifest v1. Review docs/implementation/KNOWLEDGE_SOURCES.md before separately authorized rollout. Confirm private DB storage/packet capacity, optional pdfinfo/pdftotext capability, parser resource limits and temporary-file cleanup; missing PDF tools are explicitly unsupported. Coordinate frontend/server/schema30 because older binaries reject newer ledger evidence. No production migration, parser installation or deployment was performed here.
+
+## Fail-closed release prerequisites — 11 November2026 IST
+
+`npm run deploy:validate` now emits structured PREREQUISITES_PASS/FAIL evidence and exits1 for missing client/server build files, Node below20, unavailable configured database, or any noncanonical/contradictory schema readiness. The installed @google/genai dependency requires Node20+, which is the release preflight minimum; the validated local toolchain remains Node24.19.0. Development memory mode cannot pass this release command. Both build paths must be regular files. The command closes its owned database pool, excludes raw database errors and may include only allowlisted transport codes. It performs no migration or repair. Passing these local/configured checks does not establish Hostinger runtime, deployed commit, cron, backups, provider acceptance or approval to release.

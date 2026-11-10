@@ -1,3 +1,9 @@
+## Fail-closed release preflight — 11 November2026 IST
+
+Replaced deployment validator's warning-only missing artifacts and development-mode DB bypass. Structured prerequisites now require Node20+, actual regular client/server build files and the canonical complete READY contract in every environment. Unsupported runtime, absent artifacts, unavailable DB or contradictory READY exit1. Read-only DB report owns pool cleanup and redacts raw errors; known transport code is preserved safely. This is local/configured evidence, not hosting/provider acceptance or release authorization. DEPLOYMENT.md current target corrected030/51.
+
+Dedicated regression covers former false-pass paths, cleanup and privacy; TypeScript passes. 90 isolated default regression programs pass; final Node20 dependency-floor cases and TypeScript recheck also pass. Minimum follows installed @google/genai Node>=20 engine requirement; Node24.19.0 remains locally validated. No live schema change, provider send, deploy, billing work or phase promotion. Actual remote DB refusal and missing callable Hostinger account tools remain documented prerequisites; other remaining implementation tasks remain open.
+
 ## Actual runtime prerequisite recheck and safe diagnostics — 11 November 2026 IST
 
 Cloud configuration observations are current, network policy enforced/unrestricted and DB bindings ready. Hostinger is configured/enabled at the hosted MCP URL in local CLI configuration, but no Hostinger account tools are callable in this chat. This is tool availability, not proof the account is absent. No config overwrite, sign-in, deployment or provider action performed.
