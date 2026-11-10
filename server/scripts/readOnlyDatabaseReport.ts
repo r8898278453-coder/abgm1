@@ -3,7 +3,7 @@ import type {VerificationResult} from '../migrator';
 const states=new Set(['READY','MIGRATION_REQUIRED','DATABASE_SCHEMA_OUTDATED','UNAVAILABLE']);
 const note='Schema evidence only. Runtime, providers, cron, backups and production release readiness are not established.';
 /** Both operational readers share the runtime verifier. No separate presence-only readiness algorithm. */
-export async function readOnlyDatabaseReport(getPool:()=>Promise<Pool|null>,verify:(pool:Pool)=>Promise<VerificationResult>){
+export async function readOnlyDatabaseReport(getPool:()=>Promise<Pool|null>,verify:(pool:Pool)=>Promise<VerificationResult>,connectionDiagnostic?:()=>string|undefined){
  let pool:Pool|null=null;
  try{
   pool=await getPool();if(!pool)throw new Error('DATABASE_UNAVAILABLE');const report=await verify(pool);
@@ -18,6 +18,6 @@ export async function readOnlyDatabaseReport(getPool:()=>Promise<Pool|null>,veri
   // READY requires the verifier's complete affirmative contract; contradictory reports cannot return success.
   if(report.status==='READY'&&(report.connection!=='PASS'||report.migrationTable!=='PASS'||report.requiredTables!=='PASS'||report.requiredIndexes!=='PASS'||report.pendingMigrations!==0||['missingTables','missingColumns','missingIndexes','missingConstraints'].some(key=>(safe[key] as any[])?.length)))throw new Error('INVALID_REPORT');
   return {exitCode:report.status==='READY'?0:1,report:safe};
- }catch{return {exitCode:1,report:{connection:'FAIL',status:'UNAVAILABLE',code:'DATABASE_INSPECTION_UNAVAILABLE',note}};}
+ }catch{let transportCode:string|undefined;try{const candidate=connectionDiagnostic?.();if(new Set(['ECONNREFUSED','ETIMEDOUT','ENOTFOUND','EHOSTUNREACH','ENETUNREACH','ER_ACCESS_DENIED_ERROR','ER_BAD_DB_ERROR','ER_NOT_SUPPORTED_AUTH_MODE']).has(candidate!))transportCode=candidate;}catch{}return {exitCode:1,report:{...(transportCode?{transportCode}:{}),connection:'FAIL',status:'UNAVAILABLE',code:'DATABASE_INSPECTION_UNAVAILABLE',note}};}
  finally{try{await pool?.end();}catch{}}
 }

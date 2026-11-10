@@ -686,6 +686,8 @@ export async function getDefaultCompanyId(): Promise<string | null> {
   return inMemoryCompanies[0]?.id || null;
 }
 
+let lastConnectionCode:string|undefined;
+export function databaseConnectionDiagnostic(){return lastConnectionCode;}
 export async function getDbPool(): Promise<mysql.Pool | null> {
   if (pool && isMySqlAvailable) return pool;
 
@@ -742,13 +744,14 @@ export async function getDbPool(): Promise<mysql.Pool | null> {
       connection.release();
 
       pool = candidatePool;
-      isMySqlAvailable = true;
+      isMySqlAvailable = true;lastConnectionCode=undefined;
       lastFailureTime = 0;
       hasLoggedFailure = false;
       console.log('[Database] Connected to the configured MySQL endpoint');
 
       return pool;
     } catch (err: any) {
+      lastConnectionCode=new Set(['ECONNREFUSED','ETIMEDOUT','ENOTFOUND','EHOSTUNREACH','ENETUNREACH','ER_ACCESS_DENIED_ERROR','ER_BAD_DB_ERROR','ER_NOT_SUPPORTED_AUTH_MODE']).has(err?.code)?err.code:undefined;
       if (!hasLoggedFailure) {
         const code=/^[A-Z0-9_]+$/.test(err?.code||'')?err.code:'CONNECTION_UNAVAILABLE';
         console.warn(`[Database] Connection unavailable (${code}). ${isProductionDatabaseMode()?'Production requests remain blocked.':'Development memory mode only.'}`);

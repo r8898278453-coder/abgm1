@@ -1,3 +1,11 @@
+## Actual runtime prerequisite recheck and safe diagnostics — 11 November 2026 IST
+
+Cloud configuration observations are current, network policy enforced/unrestricted and DB bindings ready. Hostinger is configured/enabled at the hosted MCP URL in local CLI configuration, but no Hostinger account tools are callable in this chat. This is tool availability, not proof the account is absent. No config overwrite, sign-in, deployment or provider action performed.
+
+Existing read-only db:status executed against the configured endpoint outside the IPC sandbox: connection FAIL / UNAVAILABLE, transport ECONNREFUSED. Schema/ledger readiness could not be read; no migration/repair/data write performed. Neither credential correctness nor remote allowlisting is established by refusal. No host/user/password/raw error retained in repository evidence. P00-02 remains blocked, with no phase promotion.
+
+Implemented safe diagnostic propagation: getDbPool retains only a fixed allowlist of transport/authentication error codes, clears it after successful connection; both read-only CLIs may include that code in UNAVAILABLE reports. Unknown strings and diagnostic callback failures are excluded. Actual CLI confirms ECONNREFUSED without endpoint details. Database-report regression and TypeScript pass. Broader independent implementation remains pending; this prerequisite check does not complete remaining batches.
+
 ## Extraction chunk boundaries — 10 November 2026 IST
 
 Replaced fixed character slicing with bounded nearby whitespace boundaries (last100 characters of a1200-character window), preserving normalized-page start/end offsets and Unicode surrogate pairs. This prevents ordinary terms at chunk edges being split into unrelated search tokens. Very long unbroken tokens still use the hard boundary; semantic/phrase retrieval is not claimed. No overlap, invented text or changed original bytes. Existing stored/approved chunks remain unchanged until an explicit revision-bound retry, which clears approval and requires review again.

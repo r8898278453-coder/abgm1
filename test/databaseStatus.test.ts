@@ -17,3 +17,5 @@ try{
  const {getDbPool}=await import('../server/db');const failed=await readOnlyDatabaseReport(getDbPool,async()=>{throw new Error('must not verify');});assert.equal(failed.exitCode,1);assert.ok(!JSON.stringify(failed).includes('private-'));assert.equal(warnings.length,1);assert.ok(!warnings[0].includes('private-')&&!warnings[0].includes('in-memory'));assert.ok(warnings[0].includes('Production requests remain blocked'));
 }finally{(mysql as any).createPool=originalFactory;console.warn=originalWarn;}
 console.log('Database CLI reports: both readers use canonical schema evidence, only consistent READY exits0, invalid/future/unavailable states fail, raw detail excluded and command-owned pools close.');
+
+for(const candidate of ['ECONNREFUSED','private-host-password',undefined]){const reported=await readOnlyDatabaseReport(async()=>null,async()=>{throw new Error('must not read');},()=>candidate);assert.equal((reported.report as any).transportCode,candidate==='ECONNREFUSED'?candidate:undefined);assert.ok(!JSON.stringify(reported).includes('private-host-password'));}
