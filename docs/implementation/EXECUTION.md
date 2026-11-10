@@ -1,3 +1,11 @@
+## Bounded website snapshot transport — 11 November2026 IST
+
+Started P04-02 implementation foundation, retaining prerequisite/phase gates. New HTTPS transport rejects userinfo/query/fragment/nonstandard ports/IP literals and origin changes. Conservative public-address allowlist checks every DNS answer before opening a socket; checked address is pinned with automatic family selection disabled, preventing DNS rebinding between validation/dial. Same-origin redirects max3; total10s, DNS3s,256KiB streamed cap, text/html or text/plain only and identity content encoding. No caller credential/cookie forwarding; TLS verification stays on. Unknown network/parser errors become fixed private-detail-free codes.
+
+Mocked resolver/socket/stream tests prove exact returned bytes, pinning, mixed private/public refusal before dial, redirect boundaries and size/type/encoding refusals. No real network fetch, production access or source ingestion performed. This is not complete website import: saved source provenance, HTML extraction, approved website ownership, route/UI, multi-page discovery, queue/recovery and production egress acceptance remain open. Current dependency graph still applies; no phase acceptance. Tracker:8 validated,11 in_progress,1 blocked,73 planned (93 tasks).
+
+Validation:91 isolated default programs and TypeScript pass; network transport uses fixture dependencies with no real website calls. Guide: WEBSITE_IMPORT.md. No new schema, deploy, send or billing action.
+
 ## Fail-closed release preflight — 11 November2026 IST
 
 Replaced deployment validator's warning-only missing artifacts and development-mode DB bypass. Structured prerequisites now require Node20+, actual regular client/server build files and the canonical complete READY contract in every environment. Unsupported runtime, absent artifacts, unavailable DB or contradictory READY exit1. Read-only DB report owns pool cleanup and redacts raw errors; known transport code is preserved safely. This is local/configured evidence, not hosting/provider acceptance or release authorization. DEPLOYMENT.md current target corrected030/51.

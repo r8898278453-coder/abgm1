@@ -1,4 +1,4 @@
-# Phase gate status — 10 November 2026 IST
+# Phase gate status — 11 November 2026 IST
 
 Snapshot derived from TASKS.csv; MASTER_PLAN.md remains the specification. Local foundations are not production acceptance.
 
@@ -8,7 +8,7 @@ Snapshot derived from TASKS.csv; MASTER_PLAN.md remains the specification. Local
 | P01 | 4 | 5 | 0 | 1 |
 | P02 | 1 | 0 | 0 | 7 |
 | P03 | 0 | 0 | 0 | 7 |
-| P04 | 0 | 3 | 0 | 6 |
+| P04 | 0 | 4 | 0 | 5 |
 | P05 | 0 | 0 | 0 | 11 |
 | P06 | 0 | 0 | 0 | 8 |
 | P07 | 0 | 0 | 0 | 8 |
@@ -49,3 +49,5 @@ Security/integration continuation:86 isolated programs, native reset concurrency
 Knowledge continuation:030/51 source target and88 isolated programs, native restricted SQL, copied export and knowledge/workspace Chromium verified. P04-01/03/05 are in progress locally; earlier phase prerequisites and P04 acceptance remain open. Tracker:8 validated,10 in_progress,1 blocked,74 planned. See KNOWLEDGE_SOURCES.md. Earlier029 notes retain their historical scope.
 
 Campaign reliability continuation: internal planning truth, scoped mutation acknowledgement/recovery and stable external sync identity verified locally; source target030/51 unchanged. See CAMPAIGN_PERSISTENCE.md and campaign-persistence.json. Phase counts remain8 validated,10 in_progress,1 blocked,74 planned; phase acceptance/hosting remains open.
+
+11 November2026 website snapshot foundation: P04-02 now in_progress; no acceptance gate promoted. Current tracker8 validated,11 in_progress,1 blocked,73 planned. Prior numerical checkpoints above are historical. See WEBSITE_IMPORT.md.
