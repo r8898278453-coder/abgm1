@@ -1,3 +1,9 @@
+## Extraction chunk boundaries — 10 November 2026 IST
+
+Replaced fixed character slicing with bounded nearby whitespace boundaries (last100 characters of a1200-character window), preserving normalized-page start/end offsets and Unicode surrogate pairs. This prevents ordinary terms at chunk edges being split into unrelated search tokens. Very long unbroken tokens still use the hard boundary; semantic/phrase retrieval is not claimed. No overlap, invented text or changed original bytes. Existing stored/approved chunks remain unchanged until an explicit revision-bound retry, which clears approval and requires review again.
+
+Actual TXT/DOCX/PDF extraction/retrieval fixture passes, including exact chunk reconstruction, boundary-word search, UTF16 integrity and source spans. TypeScript passes. No schema/production change, no phase promotion; ingestion queue/history, safe website import and remaining task gates stay open.
+
 ## Revision-bound extraction retry — 10 November 2026 IST
 
 Continued source lifecycle reliability: public retry now requires the loaded expectedVersion, validated before a claim. Locked SQL revision comparison precedes clearing extraction/approval; stale retry returns409 and leaves metadata/search eligibility unchanged. Browser commands send the current source revision. Initial server-owned upload extraction retains its internal claim path. Native fixture checks unchanged approved metadata after stale HTTP retry and eight-way contention admitting one owner. No schema/production change or phase promotion. Validation:89 isolated regression programs, TypeScript, restricted disposable MariaDB full suite and knowledge Chromium workflow pass. Browser fixture asserts retry expectedVersion. Production credentials excluded; no real sends.

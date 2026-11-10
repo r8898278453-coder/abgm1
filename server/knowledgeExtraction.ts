@@ -16,7 +16,18 @@ function chunks(pages:string[],ocr=false):ExtractedSource{
  const normalized=pages.map(text=>text.replace(/\r\n?/g,'\n').replace(/\0/g,''));const text=normalized.join('\n\f\n').trim();
  if(Buffer.byteLength(text)>KNOWLEDGE_TEXT_MAX_BYTES)return result('FAILED','TEXT_LIMIT');
  if(!text)return result(ocr?'NEEDS_OCR':'FAILED',ocr?'NO_TEXT_EXTRACTED':'EMPTY_TEXT');
- const values:KnowledgeChunk[]=[];normalized.forEach((page,index)=>{for(let start=0;start<page.length;start+=1200){const excerpt=page.slice(start,start+1200);if(excerpt.trim())values.push({index:values.length,page:pages.length>1?index+1:null,start,end:start+excerpt.length,text:excerpt});}});
+ const values:KnowledgeChunk[]=[];normalized.forEach((page,index)=>{
+  for(let start=0;start<page.length;){
+   let end=Math.min(page.length,start+1200);
+   if(end<page.length){
+    // Prefer a nearby word boundary; preserve exact normalized-page offsets.
+    const boundary=page.slice(start+1100,end).search(/\s+\S*$/u);
+    if(boundary>=0)end=start+1100+boundary+1;
+    if(/[\uDC00-\uDFFF]/.test(page[end]))end--;
+   }
+   const excerpt=page.slice(start,end);if(excerpt.trim())values.push({index:values.length,page:pages.length>1?index+1:null,start,end,text:excerpt});start=end;
+  }
+ });
  if(values.length>500)return result('FAILED','CHUNK_LIMIT');return {state:'EXTRACTED',code:'TEXT_EXTRACTED',text,chunks:values};
 }
 function xmlText(value:string){

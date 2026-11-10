@@ -22,3 +22,8 @@ const passage=retrieveKnowledge('A','refund eligibility',{knowledge_base:{faqs:[
 assert.match(passage.answer,/Refund eligibility requires the original receipt/);
 const quote=passage.citations[0];assert.equal(longAnswer.slice(quote.excerptStart,quote.excerptEnd),quote.excerpt);assert.ok(quote.excerpt.length<=1200);assert.ok(quote.excerptStart>0);
 console.log('Long FAQ retrieval: matching answer passage remains an exact bounded source substring with explicit character offsets.');
+
+const boundaryText='x '.repeat(598)+'Refund eligibility requires a receipt. '+ '😀'.repeat(650);
+const boundaries=await extractKnowledge('boundaries.txt',Buffer.from(boundaryText));assert.equal(boundaries.state,'EXTRACTED');assert.equal(boundaries.chunks.map(chunk=>chunk.text).join(''),boundaryText);for(const chunk of boundaries.chunks){assert.equal(boundaryText.slice(chunk.start,chunk.end),chunk.text);assert.ok(chunk.text.length<=1200);assert.ok(!/^[\uDC00-\uDFFF]/.test(chunk.text));assert.ok(!/[\uD800-\uDBFF]$/.test(chunk.text));}
+const boundarySearch=retrieveKnowledge('A','refund eligibility',{},'1',{rows:[{id:'boundary',filename:'boundaries.txt',revision:'1',content_sha:'fixture',chunks:boundaries.chunks}],truncated:false});assert.match(boundarySearch.answer,/Refund eligibility/);
+console.log('Extraction boundaries: original normalized text reconstructed exactly, intact boundary words and surrogate pairs, chunk character spans and boundary-term retrieval passed.');

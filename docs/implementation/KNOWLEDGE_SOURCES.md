@@ -50,3 +50,5 @@ Hostinger must separately support the pinned Node runtime, schema30/51, required
 Long answer citations select an exact source substring around the first answer-side query term, with excerptStart/excerptEnd UTF16 character offsets within the FAQ answer or extracted chunk. Question-only matches retain the answer prefix. This avoids returning an unrelated prefix when the matching answer text occurs later; no semantic inference is introduced.
 
 Extraction retry is now revision-bound at the locked claim: stale tabs cannot clear newer approval/text, including recovery of an older processing claim. Eight contenders for one loaded revision admit one extraction owner. Internal initial-upload claims remain server-owned; public retry always supplies expectedVersion.
+
+New extractions prefer whitespace within the final100 characters of each1200-character chunk and avoid splitting UTF16 surrogate pairs. Offsets remain exact normalized-page spans; very long tokens may still hit the hard bound. Existing approved chunks are not rewritten automatically: deliberate revision-bound retry clears approval before regenerated chunks can be reviewed.
