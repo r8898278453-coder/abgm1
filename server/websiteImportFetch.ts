@@ -13,7 +13,8 @@ async function fetchWebsitePageInternal(value:string,dependencies:{resolve?:(hos
   if(!addresses.length||addresses.length>32||addresses.some(row=>!publicWebsiteAddress(row.address)))throw new WebsiteImportError('WEBSITE_ADDRESS_REFUSED');
   const pinned=addresses[0];
   const response=await new Promise<{status:number;location?:string;bytes:Buffer;contentType:string}>((resolve,reject)=>{
-   const request=(dependencies.request||https.request)(current,{method:'GET',autoSelectFamily:false,headers:{Accept:'text/html,text/plain;q=0.5','Accept-Encoding':'identity','User-Agent':'ABGM1-Website-Importer/1.0'},lookup:(_host,_options,callback)=>callback(null,pinned.address,pinned.family),rejectUnauthorized:true},res=>{
+   const options:https.RequestOptions&{autoSelectFamily:boolean}={method:'GET',autoSelectFamily:false,headers:{Accept:'text/html,text/plain;q=0.5','Accept-Encoding':'identity','User-Agent':'ABGM1-Website-Importer/1.0'},lookup:(_host,_options,callback)=>callback(null,pinned.address,pinned.family),rejectUnauthorized:true};
+   const request=(dependencies.request||https.request)(current,options,res=>{
     const status=res.statusCode||0;
     if(status>=300&&status<400){res.destroy();resolve({status,location:res.headers.location,bytes:Buffer.alloc(0),contentType:''});return;}
     const type=String(res.headers['content-type']||'').toLowerCase();

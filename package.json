@@ -67,6 +67,7 @@
     "mysql2": "^3.24.3",
     "node-cron": "^4.6.0",
     "nodemailer": "^10.0.10",
+    "parse5": "8.0.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
