@@ -386,6 +386,11 @@
       "owner": "server/observationHistoryRoutes.ts#registerObservationHistoryRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/import-website",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:id/knowledge/sources",
       "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"

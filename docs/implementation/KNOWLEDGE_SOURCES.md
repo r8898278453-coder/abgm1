@@ -1,6 +1,6 @@
-# Private knowledge sources — 10 November 2026 IST
+# Private knowledge sources — 11 November 2026 IST
 
-Source schema target:030_private_knowledge_sources,51 canonical tables. This fixes existing false upload/index/search claims and starts P04-01/03/05 locally. P03/P04 acceptance, website import, complete fact governance and automatic use in marketing/sales remain open. No live migration or deployment was performed.
+Source schema target:031_website_source_provenance,51 canonical tables (030 introduced private source storage). This fixes existing false upload/index/search claims and starts P04-01/03/05 locally. P03/P04 acceptance, website import, complete fact governance and automatic use in marketing/sales remain open. No live migration or deployment was performed.
 
 ## Storage and extraction
 
@@ -52,3 +52,5 @@ Long answer citations select an exact source substring around the first answer-s
 Extraction retry is now revision-bound at the locked claim: stale tabs cannot clear newer approval/text, including recovery of an older processing claim. Eight contenders for one loaded revision admit one extraction owner. Internal initial-upload claims remain server-owned; public retry always supplies expectedVersion.
 
 New extractions prefer whitespace within the final100 characters of each1200-character chunk and avoid splitting UTF16 surrogate pairs. Offsets remain exact normalized-page spans; very long tokens may still hit the hard bound. Existing approved chunks are not rewritten automatically: deliberate revision-bound retry clears approval before regenerated chunks can be reviewed.
+
+Registered website source import is now available in the authenticated Knowledge view. Source target031 adds original URL/fetch-ms; internal HTML/text snapshots retain original bytes and remain unapproved. Retry retains provenance and clears approval. See WEBSITE_IMPORT.md for endpoint/limits and same-byte replay/refresh/conflict semantics.

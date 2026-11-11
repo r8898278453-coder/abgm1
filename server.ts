@@ -2835,7 +2835,7 @@ Draft the exact reply text only.`;
   res.status(503).json({success:false,error:'AI reply generation unavailable'});
 });
 
-registerKnowledgeRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,pool:getDbPool,rateLimit:aiRateLimiter,profile:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};}});
+registerKnowledgeRoutes(app,{registeredWebsite:async company=>(await getCompanyById(company))?.website||null,auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,pool:getDbPool,rateLimit:aiRateLimiter,profile:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};}});
 
 // AI Content Studio Generator (Protected with Auth + Rate Limiting + Zod Validation)
 app.post('/api/ai/generate-content', validateBody(generateAiContentSchema), async (req, res) => {

@@ -1,4 +1,4 @@
-import {listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
+import {importRegisteredWebsite,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
 import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk} from '../../shared/knowledge';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -239,10 +239,11 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
       <section className="bg-white border rounded-2xl p-5 space-y-3">
         <h2 className="font-bold">Private Source Files ({sources.length})</h2>
         <button onClick={()=>{if(companyId){const sequence=++sourceSequence.current;void listSources(companyId).then(rows=>{if(mounted.current&&sequence===sourceSequence.current){setSources(rows);setSourceError('');setTestResponse(null);setCitations([]);previewSequence.current++;setPreview(null);}}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable.');});}}}>Reload sources</button>
+        <button disabled={sourceBusy||!companyId} onClick={()=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');void importRegisteredWebsite(companyId).then(result=>{if(mounted.current){setSources(result.sources);setPreview(null);setTestResponse(null);setCitations([]);if(result.status!=='STATIC_PREVIEW')setSourceError('Website import partial or unavailable. Review stored sources; JavaScript content and completeness are unverified.');}}).catch(()=>{if(mounted.current)setSourceError('Website import unconfirmed. Reload sources before retrying.');}).finally(()=>{if(mounted.current)setSourceBusy(false);});}}>Import registered website</button>
         <p className="text-xs text-slate-500">Text PDF extraction depends on server support; scanned PDFs need OCR. DOCX extracts body text. Review text before approving use. Retrying clears approval.</p>
         {sourceError&&<p role="alert" className="text-rose-700">{sourceError}</p>}
         {sources.map(source=><div key={source.id} className="border rounded-xl p-3 text-sm">
-          <strong>{source.filename}</strong><div>{source.state} · {source.byteSize} bytes · {source.approved?'Approved for search':'Not approved'}</div>
+          <strong>{source.filename}</strong>{source.sourceUrl&&<p className="text-xs">Snapshot: {source.sourceUrl} · {source.fetchedAtMs?new Date(source.fetchedAtMs).toISOString():'Fetch time unavailable'}</p>}<div>{source.state} · {source.byteSize} bytes · {source.approved?'Approved for search':'Not approved'}</div>
           {source.code&&<p className="text-xs">{sourceExplanation(source.code)}</p>}
           <button disabled={sourceBusy} onClick={()=>void openPreview(source)} className="mr-3">Review extracted text</button>
           <button disabled={sourceBusy} onClick={()=>void sourceAction(source,'retry')} className="mr-3">Retry extraction</button>

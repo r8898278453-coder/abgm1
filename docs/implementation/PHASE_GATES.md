@@ -24,7 +24,7 @@ Current work: knowledge-source foundations and campaign persistence/client recov
 
 Additional P01 continuation: outbound global boundary coverage, truthful WhatsApp outcomes and bounded partial broadcasts; see evidence/outbound-stop-and-outcomes.json. No task/phase gate is promoted solely from this service batch.
 
-Current schema target is030 (51 tables), including durable dispatcher evidence and revision-bound company profile writes. The025 receipt baseline covers: durable requests plus tenant/sender-scoped receipt evidence, atomic inbound lead intake and autonomous WhatsApp ownership. Google review verification and credential-isolated regression follow the same P01 reliability work. See evidence/whatsapp-receipts-and-autonomous-truth.json; earlier durable-message-dispatch.json records its024 baseline. No phase gate promoted from these foundations. Hostinger tool discovery repeated in this continuation returned no callable account tools.
+Current schema target is031 (51 tables), including durable dispatcher evidence and revision-bound company profile writes. The025 receipt baseline covers: durable requests plus tenant/sender-scoped receipt evidence, atomic inbound lead intake and autonomous WhatsApp ownership. Google review verification and credential-isolated regression follow the same P01 reliability work. See evidence/whatsapp-receipts-and-autonomous-truth.json; earlier durable-message-dispatch.json records its024 baseline. No phase gate promoted from these foundations. Hostinger tool discovery repeated in this continuation returned no callable account tools.
 
 P02-04 is locally validated after retiring connection/request/startup schema writers, production READY-only startup, actual restricted-user no-write checks, full fresh/upgrade metadata parity and unchanged source/bundle identities. P02 architecture/security/integration work and earlier phase gates remain open. See evidence/schema-authority-cutover.json. Tracker totals:8 validated,10 in_progress,1 blocked,74 planned (93 unique tasks).
 
@@ -51,3 +51,5 @@ Knowledge continuation:030/51 source target and88 isolated programs, native rest
 Campaign reliability continuation: internal planning truth, scoped mutation acknowledgement/recovery and stable external sync identity verified locally; source target030/51 unchanged. See CAMPAIGN_PERSISTENCE.md and campaign-persistence.json. Phase counts remain8 validated,10 in_progress,1 blocked,74 planned; phase acceptance/hosting remains open.
 
 11 November2026 website snapshot foundation: P04-02 now in_progress; no acceptance gate promoted. Current tracker8 validated,11 in_progress,1 blocked,73 planned. Prior numerical checkpoints above are historical. See WEBSITE_IMPORT.md.
+
+Website source persistence continuation:031/51 source target, scoped registered website import, original provenance and approval UI verified locally. No phase accepted;8 validated,11 in_progress,1 blocked,73 planned. See WEBSITE_IMPORT.md.

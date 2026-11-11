@@ -51,3 +51,5 @@ No production implementation, source edit, dependency change or deployment was p
 Campaign continuation: [CAMPAIGN_PERSISTENCE.md](CAMPAIGN_PERSISTENCE.md) records SQL/HTTP/client recovery fixes and remaining execution gates; phase acceptance is unchanged.
 
 Website importer foundation: [WEBSITE_IMPORT.md](WEBSITE_IMPORT.md) describes the bounded snapshot transport and incomplete integration/acceptance gates.
+
+Current registered website source workflow: schema031/51, private originals and URL/time provenance, review/search/retry and Knowledge UI. See WEBSITE_IMPORT.md; queue/history/conflict/hosting gates remain open.

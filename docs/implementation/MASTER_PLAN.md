@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.8 • updated 11 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.9 • updated 11 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -14,7 +14,11 @@ Earlier six user-facing workstreams remain intact: (1) reliability/agency isolat
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
 
-### Latest website import foundation — 11 November2026 IST
+### Latest website source checkpoint — 11 November2026 IST
+
+Registered-client website import now connects bounded fetching/static extraction to private persisted originals/provenance, approval/search/retry and UI. Target031/51; route inventory147/29. No arbitrary browser URL, automatic fact verification or supersession claim. WEBSITE_IMPORT.md records complete limits and remaining durable queue/history/conflict/hosting gates. Tracker8 validated,11 in_progress,1 blocked,73 planned; no phase promoted.
+
+### Previous website import foundation — 11 November2026 IST
 
 P04-02 now in progress with bounded DNS-pinned HTTPS page snapshots and fixture-verified redirect/address/byte/content limits. No public route or UI consumes this transport yet. Read WEBSITE_IMPORT.md for prerequisites, provenance/extraction integration and egress acceptance still required. No phase accepted; tracker8 validated,11 in_progress,1 blocked,73 planned. Older checkpoint totals below retain their historical scope.
 

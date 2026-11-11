@@ -1,0 +1,51 @@
+{
+  "date_ist": "2026-11-11",
+  "schema": "031_website_source_provenance / 51 tables",
+  "historical_001_to_030_changed": false,
+  "routes": {
+    "declarations": 147,
+    "registrations": 29,
+    "terminal_collisions": 0
+  },
+  "tasks": [
+    "P04-01",
+    "P04-02",
+    "P04-05",
+    "P00-03",
+    "P02-04"
+  ],
+  "tracker": {
+    "validated": 8,
+    "in_progress": 11,
+    "blocked": 1,
+    "planned": 73
+  },
+  "verified": [
+    "Canonical company website after auth/client access; browser arbitrary URL rejected",
+    "Actual private original HTML/media type/URL/fetch milliseconds stored",
+    "Unapproved text excluded; approval enables original-hash/revision/URL/time citations",
+    "Same-byte replay retains original identity/provenance and review state",
+    "Revision retry retains original provenance and clears approval",
+    "Fresh/upgrade/replay; incompatible source URL shape rejected by readiness and preflight",
+    "Targeted knowledge Chromium imports with empty body and shows client provenance/partial notice",
+    "Full workspace Chromium and credential-isolated regressions"
+  ],
+  "validation": {
+    "default_programs": 92,
+    "typescript": "passed",
+    "build": "passed; existing chunk warning",
+    "native_sql": "restricted disposable MariaDB10.11.19; actual website source lifecycle",
+    "copied_export": "READY through031, original rows/five ledger identities preserved, source/bundled repeat0",
+    "browser": "knowledge import and full workspace passed"
+  },
+  "production_changes": false,
+  "real_website_fetches_in_tests": false,
+  "phase_acceptance": false,
+  "remaining": [
+    "Durable ingestion queue/run/attempt history",
+    "Shared admission/usage quotas and site/robots policy",
+    "Structured fact conflict/precedence and refresh supersession",
+    "Automatic marketing/sales consumers",
+    "Hosting engine/direct HTTPS egress canary and preceding agency/security gates"
+  ]
+}

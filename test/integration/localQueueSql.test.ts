@@ -96,6 +96,11 @@ try {
   await assert.rejects(MIGRATIONS[29].up(pool),/MIGRATION_KNOWLEDGE_TABLE_CONFLICT/);
   await pool.query('ALTER TABLE knowledge_sources ADD COLUMN extraction_code VARCHAR(64) DEFAULT NULL AFTER extraction_state');
   assert.equal((await verifySchema(pool)).status,'READY');
+  await pool.query('ALTER TABLE knowledge_sources MODIFY COLUMN source_url VARCHAR(64) DEFAULT NULL');
+  assert.ok((await verifySchema(pool)).missingConstraints?.includes('knowledge_sources.website_provenance_shape'));
+  await assert.rejects(MIGRATIONS.find(m=>m.name==='031_website_source_provenance')!.up(pool),/MIGRATION_WEBSITE_PROVENANCE_CONFLICT/);
+  await pool.query('ALTER TABLE knowledge_sources MODIFY COLUMN source_url VARCHAR(2048) DEFAULT NULL');
+  assert.equal((await verifySchema(pool)).status,'READY');
   await checkRestrictedRuntime(false);
   await pool.query('ALTER TABLE company_profiles_data DROP COLUMN revision');assert.ok((await verifySchema(pool)).missingColumns?.includes('company_profiles_data.revision'));await MIGRATIONS.find(m=>m.name==='026_company_profile_revision')!.up(pool);assert.equal((await verifySchema(pool)).status,'READY');
   // A full empty-database migration must match the005-upgrade path, not a second schema definition.
@@ -1227,7 +1232,7 @@ try {
     console.log('Dispatcher SQL:8 claimants/one minute owner, no duplicate replay, persisted rotation across fresh pool, IST session/DB clock, journal/stale UNKNOWN fencing, private keyset history, corrupt-state rejection and atomic rollback passed.');
   }finally{await nativeClockPool.end();}
 
-  console.log(JSON.stringify({ engine: identity[0].version, fresh_schema_001_to_005: 'passed', upgrade_from_005_through_030: 'passed', duplicate_domain_preflight: 'passed', incorrect_index_columns: 'rejected', equivalent_lead_index_reused: true, repeat_upgrade: 'passed', concurrent_workers: 12, single_claim: 'passed', type_filter: 'passed', expired_lease_recovery: 'passed', rollback: 'passed', stale_worker_completion_failure: 'rejected', unfenced_running_update: 'rejected', reused_worker_attempt_fence: 'passed', lease_renewal: 'passed', concurrent_settlement: 'single winner', attempt_exhaustion: 'dead letter', retry_backoff: 'passed', cancelled_state_fence: 'passed', transactional_enqueue_events_outbox: 'passed', outbox_fault_rollback: 'passed', concurrent_enqueue_idempotency: 8, tenant_key_separation: 'passed', production_access: false }));
+  console.log(JSON.stringify({ engine: identity[0].version, fresh_schema_001_to_005: 'passed', upgrade_from_005_through_031: 'passed', duplicate_domain_preflight: 'passed', incorrect_index_columns: 'rejected', equivalent_lead_index_reused: true, repeat_upgrade: 'passed', concurrent_workers: 12, single_claim: 'passed', type_filter: 'passed', expired_lease_recovery: 'passed', rollback: 'passed', stale_worker_completion_failure: 'rejected', unfenced_running_update: 'rejected', reused_worker_attempt_fence: 'passed', lease_renewal: 'passed', concurrent_settlement: 'single winner', attempt_exhaustion: 'dead letter', retry_backoff: 'passed', cancelled_state_fence: 'passed', transactional_enqueue_events_outbox: 'passed', outbox_fault_rollback: 'passed', concurrent_enqueue_idempotency: 8, tenant_key_separation: 'passed', production_access: false }));
 } finally {
   await pool?.end();
   if (created) await admin.query(`DROP DATABASE ${database}`);

@@ -1,3 +1,4 @@
+import {extractWebsitePage} from './websiteImportExtract';
 import JSZip from 'jszip';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -40,11 +41,12 @@ async function boundedZipText(zip:JSZip){
  return new Promise<string>((resolve,reject)=>{const stream=entry.nodeStream('nodebuffer') as import('node:stream').Readable,parts:Buffer[]=[];let size=0;stream.on('data',(part:Buffer)=>{size+=part.length;if(size>KNOWLEDGE_TEXT_MAX_BYTES){stream.destroy(new Error('DOCX_TEXT_LIMIT'));return;}parts.push(part);});stream.on('error',reject);stream.on('end',()=>{try{resolve(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(parts)));}catch(error){reject(error);}});});
 }
 /** Local parsers only. Document text is never executed or fetched as a URL. */
-export async function extractKnowledge(filename:string,bytes:Buffer):Promise<ExtractedSource>{
+export async function extractKnowledge(filename:string,bytes:Buffer,website?:{url:string;fetchedAtMs:number;contentType?:string}):Promise<ExtractedSource>{
  if(bytes.length<1||bytes.length>SOURCE_MAX_BYTES)return result('FAILED','FILE_SIZE_LIMIT');
  if(active>=2)return result('FAILED','EXTRACTION_CAPACITY');active++;
  try{
   const extension=path.extname(filename).toLowerCase();
+  if(extension==='.html'&&website){const page=extractWebsitePage({url:website.url,bytes,contentType:website.contentType||'text/html;charset=utf-8'});const extracted=chunks([page.text]);if(extracted.state==='EXTRACTED')extracted.code='WEBSITE_STATIC_TEXT';return extracted;}
   if(['.txt','.md'].includes(extension)){if(bytes.subarray(0,5).toString()==='%PDF-'||bytes.subarray(0,4).equals(Buffer.from([80,75,3,4])))return result('UNSUPPORTED','FILE_SIGNATURE_MISMATCH');try{return chunks([new TextDecoder('utf-8',{fatal:true}).decode(bytes)]);}catch{return result('UNSUPPORTED','UTF8_REQUIRED');}}
   if(extension==='.docx'){
    if(bytes.readUInt16LE(0)!==0x4b50)return result('FAILED','DOCX_SIGNATURE_INVALID');
