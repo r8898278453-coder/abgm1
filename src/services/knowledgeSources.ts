@@ -2,7 +2,7 @@ import {validWorkspaceRevision} from '../../shared/workspaceRevision';
 import {KNOWLEDGE_EVENT_TYPES} from '../../shared/knowledge';
 import {apiRequest,getStoredToken,ApiRequestError} from './authService';
 import {API_BASE_URL} from '../config/apiConfig';
-import type {KnowledgeSource,KnowledgeChunk} from '../../shared/knowledge';
+import type {KnowledgeSource,KnowledgeChunk,WebsiteImportRun} from '../../shared/knowledge';
 const base=(company:string)=>`/api/companies/${encodeURIComponent(company)}/knowledge/sources`;
 function collection(data:any,company:string):KnowledgeSource[]{if(data?.success!==true||data.companyId!==company||!Array.isArray(data.sources)||data.sources.some((row:any)=>row.companyId!==company))throw new Error('Source acknowledgement unconfirmed. Reload source list.');return data.sources;}
 export async function listSources(company:string,signal?:AbortSignal){return collection(await apiRequest(base(company),{signal}),company);}
@@ -16,7 +16,7 @@ export async function downloadSource(company:string,source:KnowledgeSource){cons
 export class WebsiteImportSetupError extends Error{}
 export async function importRegisteredWebsite(company:string){
  let data:any;try{data=await apiRequest(`/api/companies/${encodeURIComponent(company)}/knowledge/import-website`,{method:'POST',body:'{}'});}catch(error){if(error instanceof ApiRequestError&&error.status===409){if(error.message==='REGISTERED_WEBSITE_REQUIRED')throw new WebsiteImportSetupError('No saved website for this client. Add an HTTPS website, or upload a document instead.');if(error.message==='REGISTERED_WEBSITE_UNSUPPORTED')throw new WebsiteImportSetupError('The saved website URL is unsupported. Use HTTPS without credentials, query parameters or fragments.');}throw error;}
- const sources=collection(data,company);if(!['STATIC_PREVIEW','PARTIAL','UNAVAILABLE'].includes(data.status))throw new Error('Website import acknowledgement unavailable');return{sources,status:data.status};
+ if(data?.success!==true||data.companyId!==company||typeof data.reused!=='boolean')throw new Error('Website import acknowledgement unavailable');return checkedWebsiteRun(data.run,company);
 }
 export async function sourceHistory(company:string,id:string,before?:string){
  const data:any=await apiRequest(base(company)+'/'+encodeURIComponent(id)+'/history'+(before!==undefined?'?beforeVersion='+encodeURIComponent(before):''));
@@ -26,3 +26,15 @@ export async function sourceHistory(company:string,id:string,before?:string){
  if(data.nextBeforeVersion!==null&&data.nextBeforeVersion!==data.events.at(-1)?.sourceVersion)throw new Error('Source history cursor unavailable');
  return{events:data.events,nextBeforeVersion:data.nextBeforeVersion as string|null};
 }
+
+function checkedWebsiteRun(run:any,company:string):WebsiteImportRun{
+ if(!run||!/^wi_[a-f0-9]{32}$/.test(run.id)||run.companyId!==company||typeof run.websiteUrl!=='string'||!['QUEUED','RUNNING','RETRY_WAIT','SUCCEEDED','FAILED','CANCELLED'].includes(run.status)||!Number.isSafeInteger(run.attempts)||run.attempts<0||![run.createdAtMs,run.updatedAtMs].every(value=>Number.isFinite(value)&&Number.isFinite(new Date(value).getTime()))||run.errorCode!==null&&typeof run.errorCode!=='string')throw new Error('Website run unavailable');
+ if(run.outcome!==null){const result=run.outcome;if(!result||!['STATIC_PREVIEW','PARTIAL','UNAVAILABLE'].includes(result.status)||!Array.isArray(result.sourceIds)||result.sourceIds.length>3||result.sourceIds.some((id:any)=>typeof id!=='string'||!id.startsWith('ks_'))||!Array.isArray(result.failures)||result.failures.length>3||result.failures.some((failure:any)=>typeof failure?.url!=='string'||typeof failure?.code!=='string')||typeof result.truncated!=='boolean'||!Number.isSafeInteger(result.reusedCount)||result.reusedCount<0||result.reusedCount>3)throw new Error('Website result unavailable');}
+ return run;
+}
+export async function websiteImportHistory(company:string,before?:string){
+ const data:any=await apiRequest(`/api/companies/${encodeURIComponent(company)}/knowledge/website-imports`+(before?'?before='+encodeURIComponent(before):''));
+ if(data?.success!==true||data.companyId!==company||!Array.isArray(data.runs)||data.runs.length>10||data.nextBefore!==null&&(!/^wi_[a-f0-9]{32}$/.test(data.nextBefore)||data.nextBefore!==data.runs.at(-1)?.id))throw new Error('Website history unavailable');
+ return{runs:data.runs.map((run:any)=>checkedWebsiteRun(run,company)) as WebsiteImportRun[],nextBefore:data.nextBefore as string|null};
+}
+export async function cancelWebsiteRun(company:string,id:string){const data:any=await apiRequest(`/api/companies/${encodeURIComponent(company)}/knowledge/website-imports/${encodeURIComponent(id)}/cancel`,{method:'POST',body:'{}'});if(data?.success!==true||data.companyId!==company)throw new Error('Website cancellation unconfirmed');}

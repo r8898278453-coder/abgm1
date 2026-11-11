@@ -29,3 +29,5 @@ assert.equal(await queueResourceBelongsToCompany(nurture, 'foreign', repo), fals
 console.log('Queue admission: aliases, payload/schedule/type restrictions and resource ownership checks passed.');
 
 assert.throws(()=>parseQueueRequest({job_type:'knowledge_extract',payload:{sourceId:'foreign-source',sourceVersion:'1'}})); // Internal admission owns source/lease binding; public arbitrary jobs cannot bypass it.
+
+assert.throws(()=>parseQueueRequest({job_type:'website_import',payload:{websiteUrl:'https://arbitrary.example/'}}));

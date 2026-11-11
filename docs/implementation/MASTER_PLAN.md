@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.11 • updated 11 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.12 • updated 11 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Latest durable website-run checkpoint — 11 November2026 IST
+
+Website fetching now leaves the request:202 admission reuses one active per-client website_import job. The existing worker rechecks registered URL/lease; all page originals, extraction child jobs and final result commit atomically. No-page/partial runs, scoped keyset history, running cancellation and stale/client-change fencing are verified. Schema032/51 unchanged; WEBSITE_IMPORT.md and durable-website-imports.json record current behavior. Shared budgets/site policy, fact governance, automatic consumers, agency and actual hosting gates remain open. Tracker8 validated,11 in_progress,1 blocked,73 planned; no phase accepted.
 
 ### Latest durable-ingestion checkpoint — 11 November2026 IST
 

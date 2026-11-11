@@ -1,3 +1,4 @@
+import {executeWebsiteImportJob} from './websiteImportJobs';
 import {executeKnowledgeExtractionJob,recoverKnowledgeIngestion} from './knowledgeIngestion';
 import {publishingExecutionBlock} from './publishingExecutionControls';
 import type {PauseReason} from './queueSql';
@@ -91,6 +92,7 @@ export async function executeJob(
     };
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     switch (jobType) {
+      case 'website_import': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeWebsiteImportJob(pool,job);}
       case 'knowledge_extract': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeKnowledgeExtractionJob(pool,job);}
       case 'publishing': {
         const postId = payload?.postId;

@@ -437,6 +437,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:id/knowledge/website-imports",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/website-imports/:runId/cancel",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/notification-status",
       "owner": "server/notificationStatusRoutes.ts#registerNotificationStatus"
     },

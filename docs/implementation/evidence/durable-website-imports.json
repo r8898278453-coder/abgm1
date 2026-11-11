@@ -1,0 +1,47 @@
+{
+  "date_ist": "2026-11-11",
+  "schema": "032 /51 unchanged; next product033",
+  "historical_migrations_unchanged": true,
+  "default_programs": 94,
+  "routes": {
+    "declarations": 150,
+    "registrations": 29,
+    "collisions": 0
+  },
+  "implemented": [
+    "Durable202 registered-website admission, no HTTP fetch before worker",
+    "Company-locked eight-way active-run reuse and public internal-type refusal",
+    "Before/after fetch registered-site checks and DB-clock lease ownership",
+    "Atomic all-pages originals/source-history/child-jobs/outbox/parent-result settlement",
+    "No-page and partial failure run metadata, scoped10-row keyset history and5-second read-only deadline",
+    "Running cancellation and stale lease fencing without claiming open HTTP requests were recalled",
+    "Same-byte replay preserves original approval/provenance and creates no duplicate extraction",
+    "UI actual run states, partial details, cancellation, older pages and late-client admission/history fencing"
+  ],
+  "validation": {
+    "typescript": "passed",
+    "default_regressions": "94 passed with production credentials excluded",
+    "native_sql": "restricted disposable MariaDB10.11.19 fresh/upgrade/replay and actual HTTP/worker; second-page/outbox rollback, cancelled/stale/site-change refusal passed",
+    "browser": "knowledge workflow and full workspace passed with external traffic blocked",
+    "build": "passed; existing client chunk warning",
+    "copied_export": "schema unchanged; previous032 restore/preservation/source-and-bundle replay evidence retained, not rerun"
+  },
+  "production_changes": false,
+  "real_website_fetches": false,
+  "customer_sends": false,
+  "deployed": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 11,
+    "blocked": 1,
+    "planned": 73
+  },
+  "phase_acceptance": false,
+  "remaining": [
+    "Shared per-site/global usage/admission and retention/performance policies",
+    "Robots/domain ownership and refresh/supersession policy",
+    "Structured fact conflict/precedence/freshness and automatic consumers",
+    "Agency/security prerequisites and actual hosting worker/cron/egress/provider acceptance"
+  ]
+}

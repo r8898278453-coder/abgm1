@@ -22,10 +22,13 @@ async function reconcileInterrupted(connection:PoolConnection,source:any,job:any
 
 /** Source admission, queue intent, source history and queue outbox commit together. */
 export async function enqueueKnowledgeExtraction(company:string,id:string,pool:Pool,expectedVersion?:string,actor='system'):Promise<void>{
- const connection=await pool.getConnection();try{
-  await connection.beginTransaction();const [rows]:any=await connection.query("SELECT *,CAST(revision AS CHAR) version,claimed_at<DATE_SUB(NOW(),INTERVAL 10 MINUTE) stale FROM knowledge_sources WHERE company_id=? AND id=? FOR UPDATE",[company,id]);
+ const connection=await pool.getConnection();try{await connection.beginTransaction();await enqueueKnowledgeExtractionInTransaction(connection,company,id,expectedVersion,actor);await connection.commit();}catch(error){await connection.rollback();throw error;}finally{connection.release();}
+}
+/** Caller must own a transaction; source admission joins its atomic effect. */
+export async function enqueueKnowledgeExtractionInTransaction(connection:PoolConnection,company:string,id:string,expectedVersion?:string,actor='system'):Promise<void>{
+const [rows]:any=await connection.query("SELECT *,CAST(revision AS CHAR) version,claimed_at<DATE_SUB(NOW(),INTERVAL 10 MINUTE) stale FROM knowledge_sources WHERE company_id=? AND id=? FOR UPDATE",[company,id]);
   if(rows.length!==1)throw new KnowledgeError(404,'SOURCE_NOT_FOUND');const source=rows[0];
-  if(expectedVersion===undefined&&(source.extraction_state!=='STORED'||source.extraction_job_id)){await connection.commit();return;}
+  if(expectedVersion===undefined&&(source.extraction_state!=='STORED'||source.extraction_job_id)){return;}
   if(expectedVersion!==undefined&&expectedVersion!==source.version)throw new KnowledgeError(409,'SOURCE_RETRY_CHANGED');
   if(source.extraction_job_id){const [jobs]:any=await connection.query('SELECT status,attempts,error_message FROM job_queue WHERE id=? AND company_id=?',[source.extraction_job_id,company]);if(jobs.length&&activeJobs.has(jobs[0].status))throw new KnowledgeError(409,'EXTRACTION_IN_PROGRESS');if(jobs.length&&['FAILED','CANCELLED'].includes(jobs[0].status)&&['QUEUED','PROCESSING'].includes(source.extraction_state)){if(BigInt(source.version)>maxRevision-4n)throw new KnowledgeError(409,'SOURCE_REVISION_EXHAUSTED');source.version=await reconcileInterrupted(connection,source,jobs[0]);source.extraction_state='FAILED';}}
   else if(source.extraction_state==='PROCESSING'&&Number(source.stale)!==1)throw new KnowledgeError(409,'EXTRACTION_IN_PROGRESS');
@@ -34,8 +37,7 @@ export async function enqueueKnowledgeExtraction(company:string,id:string,pool:P
   await connection.query("INSERT INTO job_queue(id,company_id,job_type,payload,status,attempts,max_attempts,idempotency_key,scheduled_for) VALUES (?,?,'knowledge_extract',?,'QUEUED',0,3,?,NOW())",[jobId,company,JSON.stringify({sourceId:id,sourceVersion:version}),'knowledge:'+id+':'+version]);
   await connection.query("UPDATE knowledge_sources SET extraction_state='QUEUED',extraction_code=NULL,extracted_text=NULL,chunks_json=NULL,approved_by=NULL,approved_at=NULL,claimed_at=NULL,revision=?,extraction_job_id=?,extraction_attempt=NULL WHERE company_id=? AND id=?",[version,jobId,company,id]);
   await appendKnowledgeHistory(connection,company,id,'KNOWLEDGE_EXTRACTION_QUEUED',version,'QUEUED',actor,{jobId,attempt:0});
-  await appendQueueEvent(connection,jobId,'JOB_QUEUED',{userId:actor});await connection.commit();
- }catch(error){await connection.rollback();throw error;}finally{connection.release();}
+  await appendQueueEvent(connection,jobId,'JOB_QUEUED',{userId:actor});
 }
 
 async function claimSource(pool:Pool,job:DbJobQueue,lease:QueueLease){

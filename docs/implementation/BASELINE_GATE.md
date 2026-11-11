@@ -30,3 +30,5 @@ Website persistence checkpoint:031/51 source target,92 isolated programs, actual
 Latest source history/report checkpoint:93 isolated programs, actual transactional audit rollback/deletion evidence/pagination/IST report counts and scoped Chromium. Route inventory148/29; schema031/51 unchanged. No phase/hosting acceptance.
 
 Durable ingestion source target032/51. Local worker/queue/source/outbox failure/recovery and runtime packaging evidence are in KNOWLEDGE_INGESTION_QUEUE.md. External hosting/DB/cron acceptance remains unestablished; no phase promotion.
+
+Durable website-run continuation (11 November2026 IST): background202 admission, existing worker, atomic page/source-job/result groups, no-page/partial history, scoped cancellation and client/lease/site fencing. Schema032/51 unchanged. See WEBSITE_IMPORT.md and evidence/durable-website-imports.json. Shared budgets/site/fact/agency/hosting gates remain open; task/phase acceptance unchanged.

@@ -1,6 +1,6 @@
 # Private knowledge sources — 11 November2026 IST
 
-Current schema032_knowledge_ingestion_queue /51 tables. Private originals, queued processing, review/search, source history and daily source accountability are implemented locally. P03/P04 acceptance, full website-run/fact governance and automatic marketing/sales consumption remain open. No production migration or deployment performed.
+Current schema032_knowledge_ingestion_queue /51 tables. Private originals, queued processing, review/search, source history and daily source accountability are implemented locally. P03/P04 acceptance, fact governance and automatic marketing/sales consumption remain open. No production migration or deployment performed.
 
 ## Storage and formats
 
@@ -42,4 +42,6 @@ Frontend remounts by actor/client and fences obsolete searches/history/preview/l
 
 Local evidence includes real TXT/DOCX/PDF facts/pages, malformed/encoding/XML/OCR/limits, multipart/private attachment,8-way replay/admission, caps, approval/withdraw/retry/delete, atomic history/job/outbox faults, stale-worker takeover, queued HTML/plain provenance and integrity refusal. Uploaded export reaches032 READY with original business rows/five historical ledger identities preserved and source/bundle repeat0. This is a disposable-copy rehearsal, not a production backup/restore canary. Earlier private-knowledge-sources.json records its030 checkpoint; durable-knowledge-ingestion.json records the current queue checkpoint.
 
-Actual hosting must support coordinated schema/server/workers, pinned runtime, DML/storage/packet capacity, scheduling/restart/overlap, direct HTTPS egress/site policy and optional Poppler before production acceptance. Old binaries refuse the newer ledger; pause/update all instances together. No release authorization follows solely from local tests. Whole-website fetch-run orchestration/grouping and pre-source fetch failure history, OCR enablement, complete fact conflicts/freshness, shared usage/retention/performance, agency roles and automatic marketing/sales consumers remain open.
+Actual hosting must support coordinated schema/server/workers, pinned runtime, DML/storage/packet capacity, scheduling/restart/overlap, direct HTTPS egress/site policy and optional Poppler before production acceptance. Old binaries refuse the newer ledger; pause/update all instances together. No release authorization follows solely from local tests. OCR enablement, complete fact conflicts/freshness, shared usage/retention/performance, agency roles and automatic marketing/sales consumers remain open.
+
+Website import now acknowledges202 with durable run metadata; history/cancellation live beside source operations. Fetching no longer holds the HTTP request open. Parent success means snapshots committed, not extraction/approval. See WEBSITE_IMPORT.md for the full current contract.

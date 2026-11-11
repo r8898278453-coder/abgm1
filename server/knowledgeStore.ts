@@ -1,7 +1,7 @@
 import {appendKnowledgeHistory,type KnowledgeEvent} from './knowledgeHistory';
 import {websiteImportUrl} from './websiteImportPolicy';
 import crypto from 'node:crypto';
-import type {Pool} from 'mysql2/promise';
+import type {Pool,PoolConnection} from 'mysql2/promise';
 import {SOURCE_MAX_BYTES,type KnowledgeSource} from '../shared/knowledge';
 import type {ExtractedSource} from './knowledgeExtraction';
 export class KnowledgeError extends Error{constructor(public status:number,public code:string){super(code);}}
@@ -10,18 +10,21 @@ const metadata='extraction_job_id,(SELECT status FROM job_queue j WHERE j.id=kno
 export const sourceDto=(row:any):KnowledgeSource=>({id:row.id,companyId:row.company_id,filename:row.filename,mediaType:row.media_type,byteSize:Number(row.byte_size),contentSha:row.content_sha,state:row.extraction_state,code:row.extraction_code,version:String(row.revision),approved:row.approved_at!=null,createdAtMs:Number(row.created_ms),extractionJobId:row.extraction_job_id||null,ingestionJobStatus:row.ingestion_job_status||null,sourceUrl:row.source_url||null,fetchedAtMs:row.fetched_at_ms==null?null:Number(row.fetched_at_ms)});
 export async function listKnowledgeSources(pool:Pool,company:string){const [rows]:any=await pool.query(`SELECT ${metadata} FROM knowledge_sources WHERE company_id=? ORDER BY created_at DESC,id DESC LIMIT 50`,[company]);return rows.map(sourceDto);}
 export async function storeKnowledgeSource(pool:Pool,company:string,name:string,bytes:Buffer,website?:{url:string;fetchedAtMs:number;mediaType?:string},actor='system'){
+ const connection=await pool.getConnection();try{await connection.beginTransaction();const result=await storeKnowledgeSourceInTransaction(connection,company,name,bytes,website,actor);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}finally{connection.release();}
+}
+/** Caller owns the transaction; original, history and admission can commit atomically. */
+export async function storeKnowledgeSourceInTransaction(connection:PoolConnection,company:string,name:string,bytes:Buffer,website?:{url:string;fetchedAtMs:number;mediaType?:string},actor='system'){
  if(!name.trim()||name.length>255||/[\x00-\x1f/\\]/.test(name)||!bytes.length||bytes.length>SOURCE_MAX_BYTES)throw new KnowledgeError(400,'SOURCE_INPUT_INVALID');
  if(website){websiteImportUrl(website.url);if(!Number.isSafeInteger(website.fetchedAtMs)||website.fetchedAtMs<0)throw new KnowledgeError(400,'WEBSITE_PROVENANCE_INVALID');}
  const extension=name.split('.').at(-1)?.toLowerCase(),mime=({pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',md:'text/markdown',...(website?{html:website.mediaType||'text/html'}:{})} as any)[extension!];
  if(website&&(!/^text\/(?:html|plain)(?:;|$)/i.test(mime)||mime.length>128))throw new KnowledgeError(400,'WEBSITE_MEDIA_INVALID');
  if(!mime)throw new KnowledgeError(415,'SOURCE_TYPE_UNSUPPORTED');
- const id='ks_'+crypto.randomUUID().replaceAll('-',''),hash=crypto.createHash('sha256').update(bytes).digest('hex'),connection=await pool.getConnection();
- try{await connection.beginTransaction();const [owner]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[company]);if(owner.length!==1)throw new KnowledgeError(404,'WORKSPACE_NOT_FOUND');
+ const id='ks_'+crypto.randomUUID().replaceAll('-',''),hash=crypto.createHash('sha256').update(bytes).digest('hex');
+ const [owner]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[company]);if(owner.length!==1)throw new KnowledgeError(404,'WORKSPACE_NOT_FOUND');
   const [existing]:any=await connection.query('SELECT id,content_bytes FROM knowledge_sources WHERE company_id=? AND content_sha=?',[company,hash]);
-  if(existing.length){if(!Buffer.from(existing[0].content_bytes).equals(bytes))throw new KnowledgeError(409,'SOURCE_HASH_CONFLICT');await connection.commit();return {id:existing[0].id as string,reused:true};}
+  if(existing.length){if(!Buffer.from(existing[0].content_bytes).equals(bytes))throw new KnowledgeError(409,'SOURCE_HASH_CONFLICT');return {id:existing[0].id as string,reused:true};}
   const [budget]:any=await connection.query('SELECT COUNT(*) count,COALESCE(SUM(byte_size),0) bytes FROM knowledge_sources WHERE company_id=?',[company]);if(Number(budget[0].count)>=50||Number(budget[0].bytes)+bytes.length>32*1024*1024)throw new KnowledgeError(409,'SOURCE_STORAGE_LIMIT');
-  await connection.query('INSERT INTO knowledge_sources(id,company_id,filename,media_type,byte_size,content_sha,content_bytes,source_url,fetched_at_ms) VALUES (?,?,?,?,?,?,?,?,?)',[id,company,name.trim(),mime,bytes.length,hash,bytes,website?.url||null,website?.fetchedAtMs??null]);await appendKnowledgeHistory(connection,company,id,'KNOWLEDGE_STORED','0','STORED',actor);await connection.commit();return {id,reused:false};
- }catch(error){await connection.rollback();throw error;}finally{connection.release();}
+  await connection.query('INSERT INTO knowledge_sources(id,company_id,filename,media_type,byte_size,content_sha,content_bytes,source_url,fetched_at_ms) VALUES (?,?,?,?,?,?,?,?,?)',[id,company,name.trim(),mime,bytes.length,hash,bytes,website?.url||null,website?.fetchedAtMs??null]);await appendKnowledgeHistory(connection,company,id,'KNOWLEDGE_STORED','0','STORED',actor);return {id,reused:false};
 }
 /** Legacy unbound-source processing seam; queued sources must use the durable worker/lease owner. */
 export async function claimKnowledgeExtraction(pool:Pool,company:string,id:string,expectedVersion?:string,actor='system'){

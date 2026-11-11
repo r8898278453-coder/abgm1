@@ -1,6 +1,6 @@
 import {formatPlatformDateTime} from '../../shared/platformTime';
-import {sourceHistory,importRegisteredWebsite,WebsiteImportSetupError,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
-import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk} from '../../shared/knowledge';
+import {websiteImportHistory,cancelWebsiteRun,sourceHistory,importRegisteredWebsite,WebsiteImportSetupError,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
+import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk,type WebsiteImportRun} from '../../shared/knowledge';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Brain,
@@ -70,6 +70,11 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   const historySequence=useRef(0);const [historySource,setHistorySource]=useState<string|null>(null),[historyEvents,setHistoryEvents]=useState<any[]>([]),[historyNext,setHistoryNext]=useState<string|null>(null),[historyError,setHistoryError]=useState('');
   useEffect(()=>{historySequence.current++;setHistorySource(null);setHistoryEvents([]);setHistoryNext(null);setHistoryError('');},[companyId]);
   const loadHistory=async(id:string,before?:string)=>{if(!companyId)return;const sequence=++historySequence.current;setHistorySource(id);setHistoryError('');if(before===undefined){setHistoryEvents([]);setHistoryNext(null);}try{const result=await sourceHistory(companyId,id,before);if(mounted.current&&sequence===historySequence.current){setHistoryEvents(current=>before===undefined?result.events:[...current,...result.events]);setHistoryNext(result.nextBeforeVersion);}}catch{if(mounted.current&&sequence===historySequence.current)setHistoryError('Source history unavailable. Reload to retry.');}};
+  const runSequence=useRef(0);const [websiteRuns,setWebsiteRuns]=useState<WebsiteImportRun[]>([]),[runError,setRunError]=useState(''),[runsNext,setRunsNext]=useState<string|null>(null),[runBusy,setRunBusy]=useState(false);
+  const loadWebsiteRuns=async(before?:string)=>{if(!companyId)return;const sequence=++runSequence.current;setRunError('');try{const result=await websiteImportHistory(companyId,before);if(mounted.current&&sequence===runSequence.current){setWebsiteRuns(current=>before?[...current,...result.runs]:result.runs);setRunsNext(result.nextBefore);}}catch{if(mounted.current&&sequence===runSequence.current)setRunError('Website run history unavailable. Reload to retry.');}};
+  useEffect(()=>{setWebsiteRuns([]);setRunsNext(null);setRunError('');void loadWebsiteRuns();return()=>{runSequence.current++;};},[companyId]);
+  const startWebsiteImport=async()=>{if(!companyId||sourceBusy||runBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');invalidateFactSearch();try{const run=await importRegisteredWebsite(companyId);if(mounted.current){runSequence.current++;setWebsiteRuns(current=>[run,...current.filter(row=>row.id!==run.id)]);setPreview(null);setRunError('');}}catch(error){if(mounted.current)setSourceError(error instanceof WebsiteImportSetupError?error.message:'Website import unconfirmed. Reload website runs before retrying.');}finally{if(mounted.current)setSourceBusy(false);}};
+  const stopWebsiteImport=async(id:string)=>{if(!companyId||runBusy||sourceBusy)return;runSequence.current++;setRunBusy(true);setRunError('');try{await cancelWebsiteRun(companyId,id);if(mounted.current)await loadWebsiteRuns();}catch{if(mounted.current)setRunError('Website cancellation unconfirmed. Reload runs before retrying.');}finally{if(mounted.current)setRunBusy(false);}};
   const [localDocs, setLocalDocs] = useState<DocumentItem[]>(propDocs || []);
   const [localFaqs, setLocalFaqs] = useState<FaqItem[]>(propFaqs || []);
 
@@ -245,7 +250,21 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
       <section className="bg-white border rounded-2xl p-5 space-y-3">
         <h2 className="font-bold">Private Source Files ({sources.length})</h2>
         <button disabled={sourceBusy} onClick={()=>{if(companyId&&!sourceBusy){invalidateFactSearch();const sequence=++sourceSequence.current;void listSources(companyId).then(rows=>{if(mounted.current&&sequence===sourceSequence.current){setSources(rows);setSourceError('');setTestResponse(null);setCitations([]);previewSequence.current++;setPreview(null);}}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable.');});}}}>Reload sources</button>
-        <button disabled={sourceBusy||!companyId} onClick={()=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');invalidateFactSearch();void importRegisteredWebsite(companyId).then(result=>{if(mounted.current){setSources(result.sources);setPreview(null);setTestResponse(null);setCitations([]);if(result.status!=='STATIC_PREVIEW')setSourceError('Website import partial or unavailable. Review stored sources; JavaScript content and completeness are unverified.');}}).catch(error=>{if(mounted.current)setSourceError(error instanceof WebsiteImportSetupError?error.message:'Website import unconfirmed. Reload sources before retrying.');}).finally(()=>{if(mounted.current)setSourceBusy(false);});}}>Import registered website</button>
+        <button disabled={sourceBusy||runBusy||!companyId} onClick={()=>void startWebsiteImport()}>Import registered website</button>
+        <section aria-label="Website import runs" className="border rounded-xl p-3 space-y-2">
+          <h3 className="font-bold">Website import runs</h3>
+          <p className="text-xs">Import is processed in the background by the server worker. Reload runs and sources for progress. Saved snapshots require extraction and approval before search.</p>
+          <button disabled={sourceBusy||runBusy} onClick={()=>void loadWebsiteRuns()}>Reload website runs</button>
+          {runError&&<p role="alert">{runError}</p>}
+          {!runError&&!websiteRuns.length&&<p className="text-xs">No recorded website imports loaded.</p>}
+          {websiteRuns.map(run=><div key={run.id} className="border-t pt-2 text-xs">
+            <p>{run.websiteUrl} · Import {run.status} · attempt {run.attempts} · {formatPlatformDateTime(run.updatedAtMs)}</p>
+            {run.errorCode&&<p>{run.errorCode}</p>}
+            {run.outcome&&<><p>{run.outcome.status} · {run.outcome.sourceIds.length} saved sources · {run.outcome.reusedCount} unchanged snapshots reused{run.outcome.truncated?' · Page limit reached':''}. Static content completeness is unverified.</p>{run.outcome.failures.map((failure,index)=><p key={index}>{failure.url} · {failure.code}</p>)}</>}
+            {['QUEUED','RUNNING','RETRY_WAIT'].includes(run.status)&&<button disabled={sourceBusy||runBusy} onClick={()=>void stopWebsiteImport(run.id)}>Cancel website import</button>}
+          </div>)}
+          {runsNext&&<button disabled={sourceBusy||runBusy} onClick={()=>void loadWebsiteRuns(runsNext)}>Load older website imports</button>}
+        </section>
         <p className="text-xs text-slate-500">Text PDF extraction depends on server support; scanned PDFs need OCR. DOCX extracts body text. Uploads queue server-side extraction. Review text before approving use. Retrying queues a new run and clears approval. Deleting originals retains minimal lifecycle audit metadata.</p>
         {sourceError&&<p role="alert" className="text-rose-700">{sourceError}</p>}
         {sources.map(source=><div key={source.id} className="border rounded-xl p-3 text-sm">

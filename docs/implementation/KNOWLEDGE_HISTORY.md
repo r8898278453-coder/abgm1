@@ -1,6 +1,6 @@
 # Source lifecycle history and daily accountability
 
-11 November2026 IST. Current source schema032/51; history reused the existing ledger without a new table. Durable queued ingestion is now implemented as described in KNOWLEDGE_INGESTION_QUEUE.md; whole-import orchestration and phase/fact governance gates remain open.
+11 November2026 IST. Current source schema032/51; history reused the existing ledger without a new table. Durable queued ingestion is now implemented as described in KNOWLEDGE_INGESTION_QUEUE.md; website-import parent orchestration is described in WEBSITE_IMPORT.md and phase/fact governance gates remain open.
 
 ## One existing ledger, atomic transitions
 
@@ -26,6 +26,6 @@ CSV uses fixed numeric labels only, and the existing digest formatter validates 
 
 Restricted disposable MariaDB tests inject an audit INSERT failure and prove the source mutation/revision rolls back. Actual lifecycle, foreign-client reads, retained deletion events, same-second revision order,50-row pagination, large unsigned revisions, exact IST boundaries and cross-session timezone counts are verified. Native fixtures also prove a deleted source still contributes daily storage/deletion/approval counts. Unit and browser fixtures verify DTO privacy, bad cursor rejection, older-page loading and late-client result fencing. Default regressions, TypeScript/build and full workspace browser checks are recorded in EXECUTION.md.
 
-Source transition history now participates in durable queue admission/attempt settlement. Whole-website import orchestration/grouping remains incomplete. Import failures before a source exists have no source lifecycle event. Shared usage budgets, fact conflict/precedence, approval of structured business facts, all-workflow reconciliation, audit retention/performance acceptance on hosting and actual provider/hosting release gates remain open.
+Source transition history now participates in durable queue admission/attempt settlement. Whole-website import runs now persist separately in the existing queue ledger. Import failures before a source exists have a run outcome but no source lifecycle event. Shared usage budgets, fact conflict/precedence, approval of structured business facts, all-workflow reconciliation, audit retention/performance acceptance on hosting and actual provider/hosting release gates remain open.
 
 Queued events and worker lease attempts are now recorded. Settled/attention report counts include reconciled cancelled/interrupted runs, including runs that never reached the parser. Original/hash checks, queue fencing and worker/deploy limits are in KNOWLEDGE_INGESTION_QUEUE.md.

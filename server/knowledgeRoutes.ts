@@ -1,8 +1,7 @@
 import {enqueueKnowledgeExtraction} from './knowledgeIngestion';
 import {readKnowledgeHistory} from './knowledgeHistory';
 import {validWorkspaceRevision} from '../shared/workspaceRevision';
-import crypto from 'node:crypto';
-import {previewWebsiteImport} from './websiteImportService';
+import {enqueueWebsiteImport,readWebsiteImports,cancelWebsiteImport,validWebsiteRunId} from './websiteImportJobs';
 import {websiteImportUrl} from './websiteImportPolicy';
 import type {Express,Request,RequestHandler} from 'express';
 import type {Pool} from 'mysql2/promise';
@@ -11,21 +10,23 @@ import {SOURCE_MAX_BYTES,knowledgeQueryInput,sourceRevisionInput} from '../share
 import {KnowledgeError,listKnowledgeSources,storeKnowledgeSource,approveKnowledgeSource,withdrawKnowledgeApproval,deleteKnowledgeSource,downloadKnowledgeSource,previewKnowledgeSource,readKnowledgeExcerpts} from './knowledgeStore';
 import {retrieveKnowledge} from './knowledgeRetrieval';
 const multipart=multer({storage:multer.memoryStorage(),limits:{fileSize:SOURCE_MAX_BYTES,files:1,fields:0,parts:1}}).single('file');
-export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;access:(user:any,company:string)=>Promise<any>;pool:()=>Promise<Pool|null>;profile:(company:string)=>Promise<{data:any;version:string}>;rateLimit:RequestHandler;registeredWebsite?:(company:string)=>Promise<string|null>;websitePreview?:typeof previewWebsiteImport;runExtraction?:typeof enqueueKnowledgeExtraction}){
+export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;access:(user:any,company:string)=>Promise<any>;pool:()=>Promise<Pool|null>;profile:(company:string)=>Promise<{data:any;version:string}>;rateLimit:RequestHandler;registeredWebsite?:(company:string)=>Promise<string|null>;runExtraction?:typeof enqueueKnowledgeExtraction}){
  const run=deps.runExtraction||enqueueKnowledgeExtraction;
  const route=(method:'get'|'post'|'delete',path:string,handler:(req:Request,res:any,company:string,pool:Pool,user:any)=>Promise<void>)=>app[method](path,deps.rateLimit,async(req,res)=>{
   res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
-   const params=req.params as Record<string,string>,company=params.id;if(!company||company.length>64||params.sourceId&&params.sourceId.length>64||(Object.keys(req.query).length&&!path.endsWith('/history')))throw new KnowledgeError(400,'KNOWLEDGE_SCOPE_INVALID');
+   const params=req.params as Record<string,string>,company=params.id;if(!company||company.length>64||params.sourceId&&params.sourceId.length>64||(Object.keys(req.query).length&&!path.endsWith('/history')&&!path.endsWith('/website-imports')))throw new KnowledgeError(400,'KNOWLEDGE_SCOPE_INVALID');
    const access=await deps.access(user,company);if(!access.authorized){res.status(access.status).json({success:false,error:'Knowledge workspace access denied'});return;}const pool=await deps.pool();if(!pool)throw new KnowledgeError(503,'KNOWLEDGE_STORAGE_UNAVAILABLE');await handler(req,res,company,pool,user);
   }catch(error){res.status(error instanceof KnowledgeError?error.status:503).json({success:false,error:error instanceof KnowledgeError?error.code:'Knowledge operation unavailable or unconfirmed'});}
  });
  route('post','/api/companies/:id/knowledge/import-website',async(req,res,company,pool,user)=>{
   if(!req.body||Array.isArray(req.body)||Object.keys(req.body).length)throw new KnowledgeError(400,'WEBSITE_IMPORT_BODY_INVALID');
   const registered=await deps.registeredWebsite?.(company);if(!registered)throw new KnowledgeError(409,'REGISTERED_WEBSITE_REQUIRED');
-  let root:URL;try{root=websiteImportUrl(registered);}catch{throw new KnowledgeError(409,'REGISTERED_WEBSITE_UNSUPPORTED');}const result=await(deps.websitePreview||previewWebsiteImport)(root.href);const imported:string[]=[];
-  for(const page of result.pages){websiteImportUrl(page.url,root.origin);const name='website-'+crypto.createHash('sha256').update(page.url).digest('hex').slice(0,20)+'.html';const source=await storeKnowledgeSource(pool,company,name,page.originalBytes,{url:page.url,fetchedAtMs:Date.parse(page.fetchedAt),mediaType:page.contentType},user.id);if(!source.reused)await run(company,source.id,pool,undefined,user.id);imported.push(source.id);}
-  res.json({success:true,companyId:company,importedSourceIds:imported,status:result.status,failures:result.failures,truncated:result.truncated,sources:await listKnowledgeSources(pool,company)});
+  try{websiteImportUrl(registered);}catch{throw new KnowledgeError(409,'REGISTERED_WEBSITE_UNSUPPORTED');}
+  const result=await enqueueWebsiteImport(pool,company,registered,user.id);res.status(202).json({success:true,companyId:company,...result});
  });
+ route('get','/api/companies/:id/knowledge/website-imports',async(req,res,company,pool)=>{const before=req.query.before;if(Object.keys(req.query).some(key=>key!=='before')||before!==undefined&&!validWebsiteRunId(before))throw new KnowledgeError(400,'WEBSITE_RUN_CURSOR_INVALID');res.json({success:true,companyId:company,...await readWebsiteImports(pool,company,before as string|undefined)});});
+ route('post','/api/companies/:id/knowledge/website-imports/:runId/cancel',async(req,res,company,pool,user)=>{if(!req.body||Array.isArray(req.body)||Object.keys(req.body).length)throw new KnowledgeError(400,'WEBSITE_CANCEL_BODY_INVALID');await cancelWebsiteImport(pool,company,req.params.runId as string,user.id);res.json({success:true,companyId:company});});
+
  route('get','/api/companies/:id/knowledge/sources/:sourceId/history',async(req,res,company,pool)=>{const before=req.query.beforeVersion;if(Object.keys(req.query).some(key=>key!=='beforeVersion')||before!==undefined&&(typeof before!=='string'||!validWorkspaceRevision(before)))throw new KnowledgeError(400,'SOURCE_HISTORY_CURSOR_INVALID');res.json({success:true,companyId:company,sourceId:req.params.sourceId,...await readKnowledgeHistory(pool,company,req.params.sourceId as string,before as string|undefined)});});
  route('get','/api/companies/:id/knowledge/sources',async(_,res,company,pool)=>res.json({success:true,companyId:company,sources:await listKnowledgeSources(pool,company)}));
  route('post','/api/companies/:id/knowledge/sources',async(req,res,company,pool,user)=>{

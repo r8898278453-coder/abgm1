@@ -57,3 +57,5 @@ Website source persistence continuation:031/51 source target, scoped registered 
 Atomic source history/daily accountability continuation verified locally; schema031/51 unchanged,93 isolated programs, native SQL and Chromium/build. Counts remain8 validated,11 in_progress,1 blocked,73 planned; no phase accepted. See KNOWLEDGE_HISTORY.md.
 
 Durable source ingestion continuation: schema032/51; queue/source/outbox atomicity, crash recovery and UI truth verified locally. No phase accepted;8 validated,11 in_progress,1 blocked,73 planned. Actual hosting/worker and later task gates remain open.
+
+Durable website-run continuation (11 November2026 IST): background202 admission, existing worker, atomic page/source-job/result groups, no-page/partial history, scoped cancellation and client/lease/site fencing. Schema032/51 unchanged. See WEBSITE_IMPORT.md and evidence/durable-website-imports.json. Shared budgets/site/fact/agency/hosting gates remain open; task/phase acceptance unchanged.
