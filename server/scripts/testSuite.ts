@@ -4,6 +4,7 @@ import {isolatedTestEnvironment} from './testEnvironment';
 const programs=[
   "test/websiteImportPolicy.test.ts",
   "test/websiteImportExtract.test.ts",
+  "test/websiteImportBuild.test.ts",
   "test/knowledgeExtraction.test.ts",
   "test/knowledgeRoutes.test.ts",
   "test/knowledgeHistory.test.ts",

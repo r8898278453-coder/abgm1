@@ -1,4 +1,5 @@
-import {sourceHistory,importRegisteredWebsite,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
+import {formatPlatformDateTime} from '../../shared/platformTime';
+import {sourceHistory,importRegisteredWebsite,WebsiteImportSetupError,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
 import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk} from '../../shared/knowledge';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -64,7 +65,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   const [sources,setSources]=useState<KnowledgeSource[]>([]),[sourceError,setSourceError]=useState(''),[sourceBusy,setSourceBusy]=useState(false);
   const [preview,setPreview]=useState<{source:KnowledgeSource;chunks:KnowledgeChunk[]}|null>(null),[selectedFile,setSelectedFile]=useState<File|null>(null),[citations,setCitations]=useState<any[]>([]);
   useEffect(()=>{mounted.current=true;const controller=new AbortController(),sequence=++sourceSequence.current;if(companyId)listSources(companyId,controller.signal).then(rows=>{if(mounted.current&&sequence===sourceSequence.current)setSources(rows);}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable. Reload to retry.');});return()=>{mounted.current=false;querySequence.current++;searchController.current?.abort();controller.abort();};},[companyId]);
-  const sourceAction=async(source:KnowledgeSource,command:'approve'|'withdraw'|'retry'|'delete')=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');try{const rows=await sourceCommand(companyId,source,command);if(mounted.current){setSources(rows);setPreview(null);setTestResponse(null);setCitations([]);}}catch{if(mounted.current)setSourceError('Source change unconfirmed. Reload sources before retrying.');}finally{if(mounted.current)setSourceBusy(false);}};
+  const sourceAction=async(source:KnowledgeSource,command:'approve'|'withdraw'|'retry'|'delete')=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');invalidateFactSearch();try{const rows=await sourceCommand(companyId,source,command);if(mounted.current){setSources(rows);setPreview(null);setTestResponse(null);setCitations([]);}}catch{if(mounted.current)setSourceError('Source change unconfirmed. Reload sources before retrying.');}finally{if(mounted.current)setSourceBusy(false);}};
   const openPreview=async(source:KnowledgeSource)=>{if(!companyId)return;const sequence=++previewSequence.current;try{const result=await previewSource(companyId,source.id);if(mounted.current&&sequence===previewSequence.current)setPreview(result);}catch{if(mounted.current)setSourceError('Source preview unavailable.');}};
   const historySequence=useRef(0);const [historySource,setHistorySource]=useState<string|null>(null),[historyEvents,setHistoryEvents]=useState<any[]>([]),[historyNext,setHistoryNext]=useState<string|null>(null),[historyError,setHistoryError]=useState('');
   useEffect(()=>{historySequence.current++;setHistorySource(null);setHistoryEvents([]);setHistoryNext(null);setHistoryError('');},[companyId]);
@@ -90,6 +91,8 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   const [testResponse, setTestResponse] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
+  const invalidateFactSearch=()=>{querySequence.current++;searchController.current?.abort();setIsSearching(false);setTestResponse(null);setCitations([]);};
+
   // Add FAQ Modal State
   const [isAddFaqOpen, setIsAddFaqOpen] = useState(false);
   const [faqQuestion, setFaqQuestion] = useState('');
@@ -104,7 +107,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTestFactSearch=async(e:React.FormEvent)=>{
-    e.preventDefault();if(!companyId||!testQuery.trim())return;const sequence=++querySequence.current;searchController.current?.abort();const controller=new AbortController();searchController.current=controller;setIsSearching(true);setTestResponse(null);setCitations([]);
+    e.preventDefault();if(!companyId||sourceBusy||!testQuery.trim())return;const sequence=++querySequence.current;searchController.current?.abort();const controller=new AbortController();searchController.current=controller;setIsSearching(true);setTestResponse(null);setCitations([]);
     try{const result=await queryKnowledgeBaseApi({companyId,query:testQuery.trim()},controller.signal);if(mounted.current&&sequence===querySequence.current){setTestResponse(result.answer+(result.sourceWindowTruncated?'\nSearch is limited to the newest 20 approved sources.':'')+(result.faqWindowTruncated?'\nSearch is limited to the first 200 saved FAQs.':''));setCitations(result.citations);}}
     catch{if(mounted.current&&sequence===querySequence.current)setTestResponse('Saved-source search unavailable. No facts were verified.');}
     finally{if(mounted.current&&sequence===querySequence.current)setIsSearching(false);}
@@ -131,7 +134,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
     e.preventDefault();if(!companyId||sourceBusy)return;
     const file=selectedFile||new File([docContent],docName.toLowerCase().endsWith('.txt')||docName.toLowerCase().endsWith('.md')?docName:docName.replace(/\.[^.]+$/,'')+'.txt',{type:'text/plain'});
     if(!file.name.trim()||!file.size||file.size>SOURCE_MAX_BYTES){setSourceError('Provide a supported file or actual text, up to 2 MiB.');return;}
-    sourceSequence.current++;setSourceBusy(true);setSourceError('');try{const rows=await uploadSource(companyId,file);if(mounted.current){setSources(rows);setSelectedFile(null);setDocName('');setDocContent('');setIsAddDocOpen(false);}}
+    sourceSequence.current++;setSourceBusy(true);setSourceError('');invalidateFactSearch();try{const rows=await uploadSource(companyId,file);if(mounted.current){setSources(rows);setSelectedFile(null);setDocName('');setDocContent('');setIsAddDocOpen(false);}}
     catch{if(mounted.current)setSourceError('Upload unconfirmed. Original form retained. Reload sources before retrying.');}
     finally{if(mounted.current)setSourceBusy(false);}
   };
@@ -193,7 +196,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
           </div>
           <button
             type="submit"
-            disabled={isSearching || !testQuery.trim()}
+            disabled={sourceBusy || isSearching || !testQuery.trim()}
             className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5"
           >
             {isSearching ? (
@@ -241,21 +244,21 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
 
       <section className="bg-white border rounded-2xl p-5 space-y-3">
         <h2 className="font-bold">Private Source Files ({sources.length})</h2>
-        <button onClick={()=>{if(companyId){const sequence=++sourceSequence.current;void listSources(companyId).then(rows=>{if(mounted.current&&sequence===sourceSequence.current){setSources(rows);setSourceError('');setTestResponse(null);setCitations([]);previewSequence.current++;setPreview(null);}}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable.');});}}}>Reload sources</button>
-        <button disabled={sourceBusy||!companyId} onClick={()=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');void importRegisteredWebsite(companyId).then(result=>{if(mounted.current){setSources(result.sources);setPreview(null);setTestResponse(null);setCitations([]);if(result.status!=='STATIC_PREVIEW')setSourceError('Website import partial or unavailable. Review stored sources; JavaScript content and completeness are unverified.');}}).catch(()=>{if(mounted.current)setSourceError('Website import unconfirmed. Reload sources before retrying.');}).finally(()=>{if(mounted.current)setSourceBusy(false);});}}>Import registered website</button>
-        <p className="text-xs text-slate-500">Text PDF extraction depends on server support; scanned PDFs need OCR. DOCX extracts body text. Review text before approving use. Retrying clears approval. Deleting originals retains minimal lifecycle audit metadata.</p>
+        <button disabled={sourceBusy} onClick={()=>{if(companyId&&!sourceBusy){invalidateFactSearch();const sequence=++sourceSequence.current;void listSources(companyId).then(rows=>{if(mounted.current&&sequence===sourceSequence.current){setSources(rows);setSourceError('');setTestResponse(null);setCitations([]);previewSequence.current++;setPreview(null);}}).catch(()=>{if(mounted.current)setSourceError('Saved sources unavailable.');});}}}>Reload sources</button>
+        <button disabled={sourceBusy||!companyId} onClick={()=>{if(!companyId||sourceBusy)return;sourceSequence.current++;previewSequence.current++;setSourceBusy(true);setSourceError('');invalidateFactSearch();void importRegisteredWebsite(companyId).then(result=>{if(mounted.current){setSources(result.sources);setPreview(null);setTestResponse(null);setCitations([]);if(result.status!=='STATIC_PREVIEW')setSourceError('Website import partial or unavailable. Review stored sources; JavaScript content and completeness are unverified.');}}).catch(error=>{if(mounted.current)setSourceError(error instanceof WebsiteImportSetupError?error.message:'Website import unconfirmed. Reload sources before retrying.');}).finally(()=>{if(mounted.current)setSourceBusy(false);});}}>Import registered website</button>
+        <p className="text-xs text-slate-500">Text PDF extraction depends on server support; scanned PDFs need OCR. DOCX extracts body text. Uploads queue server-side extraction. Review text before approving use. Retrying queues a new run and clears approval. Deleting originals retains minimal lifecycle audit metadata.</p>
         {sourceError&&<p role="alert" className="text-rose-700">{sourceError}</p>}
         {sources.map(source=><div key={source.id} className="border rounded-xl p-3 text-sm">
-          <strong>{source.filename}</strong>{source.sourceUrl&&<p className="text-xs">Snapshot: {source.sourceUrl} · {source.fetchedAtMs?new Date(source.fetchedAtMs).toISOString():'Fetch time unavailable'}</p>}<div>{source.state} · {source.byteSize} bytes · {source.approved?'Approved for search':'Not approved'}</div>
+          <strong>{source.filename}</strong>{source.sourceUrl&&<p className="text-xs">Snapshot: {source.sourceUrl} · {source.fetchedAtMs?formatPlatformDateTime(source.fetchedAtMs):'Fetch time unavailable'}</p>}<div>{source.state} · {source.byteSize} bytes · {source.approved?'Approved for search':'Not approved'}</div>{source.extractionJobId&&<p className="text-xs">Ingestion job: {source.ingestionJobStatus||'Status unavailable'}. Processing requires the server worker; reload sources for updated state.</p>}
           {source.code&&<p className="text-xs">{sourceExplanation(source.code)}</p>}
           <button onClick={()=>void loadHistory(source.id)} className="mr-3">Source history</button>
           <button disabled={sourceBusy} onClick={()=>void openPreview(source)} className="mr-3">Review extracted text</button>
-          <button disabled={sourceBusy} onClick={()=>void sourceAction(source,'retry')} className="mr-3">Retry extraction</button>
+          <button disabled={sourceBusy||['QUEUED','RUNNING','RETRY_WAIT'].includes(source.ingestionJobStatus||'')} onClick={()=>void sourceAction(source,'retry')} className="mr-3">Retry extraction</button>
           <button disabled={sourceBusy} onClick={()=>void sourceAction(source,'delete')} className="mr-3">Delete source</button>
           <button onClick={()=>{if(companyId)void downloadSource(companyId,source).catch(()=>{if(mounted.current)setSourceError('Download unavailable.');});}}>Download original</button>
         </div>)}
-        {historySource&&<section aria-label="Source lifecycle history" className="border rounded-xl p-3"><h3>Source lifecycle history</h3><p className="text-xs">Recorded source transitions since this feature was enabled; older events are not backfilled. Deleting original bytes retains this minimal audit metadata.</p><button onClick={()=>void loadHistory(historySource)}>Reload source history</button>{historyError&&<p role="alert">{historyError}</p>}{!historyError&&!historyEvents.length&&<p>No recorded source events loaded.</p>}{historyEvents.map(event=><p key={event.id} className="text-xs">{event.event} · revision {event.sourceVersion} · {event.state} · {new Date(event.recordedAtMs).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</p>)}{historyNext&&<button onClick={()=>void loadHistory(historySource,historyNext)}>Load older source events</button>}</section>}
-        {citations.map(citation=><div key={citation.label} className="text-xs border-t pt-2">[{citation.label}] {citation.title} · version {citation.sourceVersion}{citation.page?` · page ${citation.page}`:''}</div>)}
+        {historySource&&<section aria-label="Source lifecycle history" className="border rounded-xl p-3"><h3>Source lifecycle history</h3><p className="text-xs">Recorded source transitions since this feature was enabled; older events are not backfilled. Deleting original bytes retains this minimal audit metadata.</p><button onClick={()=>void loadHistory(historySource)}>Reload source history</button>{historyError&&<p role="alert">{historyError}</p>}{!historyError&&!historyEvents.length&&<p>No recorded source events loaded.</p>}{historyEvents.map(event=><p key={event.id} className="text-xs">{event.event} · revision {event.sourceVersion} · {event.state} · {formatPlatformDateTime(event.recordedAtMs)}</p>)}{historyNext&&<button onClick={()=>void loadHistory(historySource,historyNext)}>Load older source events</button>}</section>}
+        {citations.map(citation=><div key={citation.label} className="text-xs border-t pt-2">[{citation.label}] {citation.title} · version {citation.sourceVersion}{citation.page?` · page ${citation.page}`:''}{citation.sourceUrl&&<span> · {citation.sourceUrl}{citation.fetchedAtMs!=null?' · '+formatPlatformDateTime(citation.fetchedAtMs):''}</span>}</div>)}
       </section>
       {preview&&<section className="bg-slate-50 border p-5 rounded-xl space-y-3">
         <h3 className="font-bold">Extraction preview: {preview.source.filename}</h3>

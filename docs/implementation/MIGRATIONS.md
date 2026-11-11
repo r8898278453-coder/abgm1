@@ -1,6 +1,6 @@
 # Immutable migration authoring — 10 November 2026 IST
 
-P00-05 is locally validated. Current source target is031/51 canonical tables; deployed live schema is unverified.030_private_knowledge_sources is the first real v1 SQL manifest. No production migration has been applied in this continuation. Disposable extension fixtures derive the next registry ID;032 is the next free product ID. See KNOWLEDGE_SOURCES.md for storage/parser and rollout requirements.
+P00-05 is locally validated. Current source target is032/51 canonical tables; deployed live schema is unverified.030_private_knowledge_sources is the first real v1 SQL manifest. No production migration has been applied in this continuation. Disposable extension fixtures derive the next registry ID;033 is the next free product ID. See KNOWLEDGE_SOURCES.md for storage/parser and rollout requirements.
 
 ## Historical identities001–029
 
@@ -25,7 +25,7 @@ Define actual future changes with `defineSqlMigration` in manifestV1.ts. There i
 ```ts
 import {defineSqlMigration} from './manifestV1';
 export const migration = defineSqlMigration({
-  name: '032_real_change',
+  name: '033_real_change',
   preflight: [],
   statements: [
     `CREATE TABLE IF NOT EXISTS example_records (
@@ -60,4 +60,6 @@ Evidence: [migration-manifest-and-ledger.json](evidence/migration-manifest-and-l
 
 `npm run db:status` and `npm run db:verify` share the canonical verifier/report owner. They print bounded schema metadata and missing-contract identifiers, exit0 only for consistent READY and close their command-owned pool. Unknown/future/failed/malformed ledger evidence cannot pass merely because tables exist. They provide no100-percent-safe, loss-free-upgrade or production-readiness guarantee. Connection diagnostics omit configured binding values and raw error text; production connection failures remain blocked rather than claim a memory fallback. These are real DB readers when invoked by an operator; only db:check:sources is metadata-only with no connection.
 
-Current product target031_website_source_provenance (51 tables); next product ID032. Adds nullable original URL/fetch-ms to existing knowledge_sources with compatibility preflight and readiness shape checks. Historical001–030 unchanged. Manifest fixtures derive next free ID. Fresh/upgrade/replay and uploaded export restore were verified locally; no production DDL.
+Previous product checkpoint031_website_source_provenance (51 tables), extended by032 below. Adds nullable original URL/fetch-ms to existing knowledge_sources with compatibility preflight and readiness shape checks. Historical001–030 unchanged. Manifest fixtures derive next free ID. Fresh/upgrade/replay and uploaded export restore were verified locally; no production DDL.
+
+Current target032_knowledge_ingestion_queue adds nullable source job/attempt references; table count51 unchanged and next product033. Short/non-null job references and incorrect attempt shapes refuse preflight/readiness; missing partial columns recover idempotently. Historical001–031 are unchanged. Actual queued processing needs coordinated worker/server deployment; no production DDL here.

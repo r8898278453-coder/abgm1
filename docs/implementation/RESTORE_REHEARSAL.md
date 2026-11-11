@@ -1,8 +1,8 @@
-# Copied SQL restore rehearsal — 10 November 2026 IST
+# Copied SQL restore rehearsal — 11 November 2026 IST
 
 This is a local compatibility rehearsal, not a production rollback or disaster-recovery acceptance. The uploaded export stays outside the repository. Never commit SQL dumps, row hashes, credentials or customer records to evidence.
 
-Latest continuation verifies030_private_knowledge_sources (51 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: private-knowledge-sources.json. This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
+Latest continuation verifies032_knowledge_ingestion_queue (51 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: [durable-knowledge-ingestion.json](evidence/durable-knowledge-ingestion.json). This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
 
 Previous continuation additionally verified029_public_lead_intakes (50 canonical tables). The same unchanged export reaches READY, preserves all original business rows and5 ledger identities, and source/bundled replay applies0. See [public-inquiry-recovery.json](evidence/public-inquiry-recovery.json). Earlier028 observations below retain their original evidence scope; this remains a disposable-copy rehearsal rather than a live restore.
 
@@ -37,3 +37,5 @@ MySQL DDL can commit independently of the migration ledger. On a failed local re
 For production, first verify the actual deployed revision/engine, a current restorable backup of DB and private assets, account grants, disk/time limits and maintenance/worker-pause procedure. Rehearse against that current copy; this historical export cannot establish present-day recoverability. A production restore must be tested on an isolated target with row/ownership/file checks before an approved cutover. Its recovery path restores the complete known backup into an isolated target and verifies the matching application version; destructive down migrations are not supplied. Production migration, data replacement, DNS/deploy and resumed customer work remain separate decisions. No production change was performed here.
 
 Latest website provenance rehearsal: uploaded export restores READY through031 with51 canonical tables, original business rows/five historical ledger identities preserved and source/bundle repeat applied0. New provenance columns and restricted application lifecycle pass. No production restore or DDL performed.
+
+Queued-ingestion rehearsal: uploaded export reaches READY through032 with51 tables, original business rows/five historical ledger identities preserved and source/bundled replay applied0. No production data/DDL touched.

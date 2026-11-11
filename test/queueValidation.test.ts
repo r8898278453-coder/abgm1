@@ -27,3 +27,5 @@ const nurture = parseQueueRequest({ job_type: 'lead_nurture', payload: { leadId:
 assert.equal(await queueResourceBelongsToCompany(nurture, 'owner', repo), true);
 assert.equal(await queueResourceBelongsToCompany(nurture, 'foreign', repo), false);
 console.log('Queue admission: aliases, payload/schedule/type restrictions and resource ownership checks passed.');
+
+assert.throws(()=>parseQueueRequest({job_type:'knowledge_extract',payload:{sourceId:'foreign-source',sourceVersion:'1'}})); // Internal admission owns source/lease binding; public arbitrary jobs cannot bypass it.

@@ -18,3 +18,7 @@ const redirect=transport([{status:302,headers:{location:'https://other.example/'
 console.log('Website snapshot transport: checked DNS pinned to socket, exact bounded bytes, same-origin redirect, cross-origin refusal, unsupported/compressed/oversize response rejection and no credential forwarding passed.');
 
 await assert.rejects(fetchWebsitePage('https://example.com',{resolve:async()=>{throw new Error('private-host-provider-detail');}}),error=>error instanceof Error&&error.message==='WEBSITE_FETCH_FAILED');
+
+for(const address of ['192.0.2.1','198.51.100.1','203.0.113.1','2001:0000:0000:0000:0000:0000:0000:0001','2001:0db8:0000:0000:0000:0000:0000:0001','2001:0020::1','3fff::1','2606:4700::1%lo'])assert.equal(publicWebsiteAddress(address),false,address);
+for(const address of ['192.2.1.1','198.51.99.1','203.0.114.1','2001:4860:4860::8888'])assert.equal(publicWebsiteAddress(address),true,address);
+console.log('Website address policy: precise special-purpose subnets reject expanded IPv6/private/documentation forms without denying unrelated public IPv4 or normal2001 global addresses.');

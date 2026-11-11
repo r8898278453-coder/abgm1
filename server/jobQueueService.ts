@@ -1,8 +1,10 @@
+import {executeKnowledgeExtractionJob,recoverKnowledgeIngestion} from './knowledgeIngestion';
 import {publishingExecutionBlock} from './publishingExecutionControls';
 import type {PauseReason} from './queueSql';
 import { scheduledPostKey } from './scheduledPublishing';
 import { isScheduledTimePassed } from './scheduleTime';
 import {
+  getDbPool,
   claimNextJob,
   renewJobLease,
   completeJob,
@@ -89,6 +91,7 @@ export async function executeJob(
     };
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     switch (jobType) {
+      case 'knowledge_extract': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeKnowledgeExtractionJob(pool,job);}
       case 'publishing': {
         const postId = payload?.postId;
         if (!postId) {
@@ -307,6 +310,8 @@ export async function tickJobQueue(
     timestamp: new Date().toISOString(),
   };
 
+  if(!(batchSize>0))return summary;
+  if(canStart()&&!isGlobalEmergencyStopActive())try{const pool=await getDbPool();if(pool)await recoverKnowledgeIngestion(pool,canStart);}catch{console.warn('[JobQueue] Knowledge admission/reconciliation unavailable');}
   for (let i = 0; i < batchSize; i++) {
     if (!canStart()) break;
     const job = await claimNextJob(workerId);

@@ -1,3 +1,4 @@
+import {recoverKnowledgeIngestion} from '../server/knowledgeIngestion';
 import assert from 'node:assert/strict';
 import { createWorkBudget, runBudgetedStages } from '../server/workBudget';
 import { processActionOutbox } from '../server/actionOutbox';
@@ -36,9 +37,11 @@ assert.equal(await db.getDbPool(),null,'Budget test must never write a configure
 const { tickJobQueue } = await import('../server/jobQueueService');
 const first = await db.enqueueJob({company_id:'budget-fixture',job_type:'unsupported_fixture',payload:{}});
 const second = await db.enqueueJob({company_id:'budget-fixture',job_type:'unsupported_fixture',payload:{}});
-let gates = 0;
-const summary = await tickJobQueue('budget-worker',5,() => gates++ === 0);
+const summary = await tickJobQueue('budget-worker',5,() => first.status!=='FAILED'); // A pure budget signal closes when the active handler settles, independent of admission/read checks.
 assert.equal(summary.processedCount,1);
 assert.equal((await db.getJobById(first.id))?.status,'FAILED');
 assert.equal((await db.getJobById(second.id))?.status,'QUEUED');
+assert.equal((await tickJobQueue('budget-stopped',5,()=>false)).processedCount,0);assert.equal((await db.getJobById(second.id))?.status,'QUEUED');
 console.log('Cooperative budget: monotonic deadline, explicit deferred stages, active settlement, next-claim blocking, admission recheck and outbox pre-acquisition stop passed.');
+
+await recoverKnowledgeIngestion({getConnection:async()=>{throw new Error('Must not acquire source recovery SQL after budget');}} as any,()=>false);

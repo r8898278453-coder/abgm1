@@ -2,7 +2,7 @@
 
 This document outlines the standard deployment architecture, pre-flight checks, and operations for the **Aaditech BGA / LocalPulse** multi-tenant platform.
 
-**Current migration target:031;51 canonical tables. Earlier batch notes describe their original prerequisites. No production migration has been applied here.**
+**Current migration target:032;51 canonical tables. Earlier batch notes describe their original prerequisites. No production migration has been applied here.**
 
 ---
 
@@ -495,3 +495,5 @@ Prepared schema030_private_knowledge_sources adds the51st table using immutable 
 `npm run deploy:validate` now emits structured PREREQUISITES_PASS/FAIL evidence and exits1 for missing client/server build files, Node below20, unavailable configured database, or any noncanonical/contradictory schema readiness. The installed @google/genai dependency requires Node20+, which is the release preflight minimum; the validated local toolchain remains Node24.19.0. Development memory mode cannot pass this release command. Both build paths must be regular files. The command closes its owned database pool, excludes raw database errors and may include only allowlisted transport codes. It performs no migration or repair. Passing these local/configured checks does not establish Hostinger runtime, deployed commit, cron, backups, provider acceptance or approval to release.
 
 Website source provenance031 adds nullable URL/fetch-time columns to knowledge_sources. Coordinate schema/server/frontend rollout separately; older binaries reject the newer ledger. The manifest uses MariaDB-compatible idempotent ADD COLUMN IF NOT EXISTS; confirm actual host engine. Registered import requires tested direct HTTPS DNS pinning/egress; proxy-only environments need a supported design preserving these guards. No production migration or website fetch was performed. See docs/implementation/WEBSITE_IMPORT.md.
+
+Durable source ingestion032: pause/update all server and worker instances together, apply reviewed migration separately and verify READY before resuming. The existing queue/dispatcher must actually run; a QUEUED acknowledgement proves persistence only. Verify source/queue/audit/outbox DML grants, lease overlap/restart, parser availability and private capacity. Parser7.3.0 has explicit CommonJS support for server.cjs; Node24.19.0 remains locally validated. Direct pinned TLS egress/site policy still needs hosting acceptance. See docs/implementation/KNOWLEDGE_INGESTION_QUEUE.md. No production rollout performed.

@@ -1,9 +1,14 @@
-import {isIP} from 'node:net';
+import {BlockList,isIP} from 'node:net';
 export class WebsiteImportError extends Error{constructor(public code:string){super(code);}}
-/** Conservative global-unicast policy; private, mapped and special-purpose ranges refuse. */
+const blocked4=new BlockList();
+for(const [address,prefix]of [['0.0.0.0',8],['10.0.0.0',8],['100.64.0.0',10],['127.0.0.0',8],['169.254.0.0',16],['172.16.0.0',12],['192.0.0.0',24],['192.0.2.0',24],['192.88.99.0',24],['192.168.0.0',16],['198.18.0.0',15],['198.51.100.0',24],['203.0.113.0',24],['224.0.0.0',4],['240.0.0.0',4]] as const)blocked4.addSubnet(address,prefix,'ipv4');
+const global6=new BlockList();global6.addSubnet('2000::',3,'ipv6');
+const blocked6=new BlockList();for(const [address,prefix]of [['2001::',23],['2001:db8::',32],['2002::',16],['3fff::',20]] as const)blocked6.addSubnet(address,prefix,'ipv6');
+/** Conservative global unicast, using native subnet matching for compressed/expanded addresses. */
 export function publicWebsiteAddress(address:string){
- if(isIP(address)===4){const [a,b]=address.split('.').map(Number);return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&(b===168||b===0||b===2||b===88)||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19||b===51)||a===203&&b===0);}
- if(isIP(address)===6){const first=parseInt(address.split(':')[0],16);return first>=0x2000&&first<=0x3fff&&first!==0x2001&&first!==0x3fff&&!/^2002:/i.test(address);}
+ if(address.includes('%'))return false;
+ if(isIP(address)===4)return!blocked4.check(address,'ipv4');
+ if(isIP(address)===6)return global6.check(address,'ipv6')&&!blocked6.check(address,'ipv6');
  return false;
 }
 export function websiteImportUrl(value:string,origin?:string){

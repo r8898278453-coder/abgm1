@@ -28,7 +28,7 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
     COUNT(CASE WHEN status = 'FAILED' THEN 1 END) AS failedJobs FROM job_queue WHERE company_id = ?`,[company]);
   const [pending]:any=await sql.query("SELECT COUNT(*) AS pendingApprovals FROM content_posts WHERE company_id = ? AND status = 'pending_approval'",[company]);
   const [uncertain]:any=await sql.query("SELECT COUNT(*) AS uncertainPublications FROM publishing_dispatch_claims WHERE company_id = ? AND (status = 'UNKNOWN' OR (status = 'IN_PROGRESS' AND started_at < DATE_SUB(NOW(),INTERVAL 5 MINUTE)))",[company]);
-  const [knowledge]:any=await sql.query("SELECT COUNT(CASE WHEN extraction_state='EXTRACTED' AND approved_at IS NULL THEN 1 END) knowledgeAwaitingApproval,COUNT(CASE WHEN extraction_state='PROCESSING' THEN 1 END) knowledgeExtractionRunning,COUNT(CASE WHEN extraction_state IN ('STORED','FAILED','UNSUPPORTED','NEEDS_OCR') THEN 1 END) knowledgeExtractionBlocked FROM knowledge_sources WHERE company_id=?",[company]);
+  const [knowledge]:any=await sql.query("SELECT COUNT(CASE WHEN extraction_state='EXTRACTED' AND approved_at IS NULL THEN 1 END) knowledgeAwaitingApproval,COUNT(CASE WHEN extraction_state='PROCESSING' THEN 1 END) knowledgeExtractionRunning,COUNT(CASE WHEN extraction_state IN ('STORED','QUEUED','FAILED','UNSUPPORTED','NEEDS_OCR') THEN 1 END) knowledgeExtractionBlocked FROM knowledge_sources WHERE company_id=?",[company]);
   const [sourceActivity]:any=await sql.query(`SELECT
    COUNT(CASE WHEN event_type='KNOWLEDGE_STORED' THEN 1 END) knowledgeStored,
    COUNT(CASE WHEN event_type='KNOWLEDGE_EXTRACTION_SETTLED' THEN 1 END) knowledgeExtractionsSettled,

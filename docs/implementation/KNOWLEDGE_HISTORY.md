@@ -1,12 +1,12 @@
 # Source lifecycle history and daily accountability
 
-11 November2026 IST. Source schema031/51 unchanged; no new migration/table. Earlier phase acceptance, durable queued ingestion and full fact governance remain open.
+11 November2026 IST. Current source schema032/51; history reused the existing ledger without a new table. Durable queued ingestion is now implemented as described in KNOWLEDGE_INGESTION_QUEUE.md; whole-import orchestration and phase/fact governance gates remain open.
 
 ## One existing ledger, atomic transitions
 
 Source operations now append domain-specific KNOWLEDGE events to the existing autonomous_audit_logs ledger inside the transaction that changes the source. Upload/import storage, extraction start/settlement, approval, withdrawal and deletion either commit their mutation/event together or roll back together. Same-byte replay makes no state change and invents no new storage event. Actor is the authenticated server user ID for HTTP commands, or system for internal callers. No caller-supplied actor is accepted.
 
-Each event contains only source ID, source revision, fixed transition/state, actor ID and DB timestamp. Source URL, filename, original bytes, extracted text, provider bodies and credentials are not copied into details. The module exposes no history edit/delete operation. This is application-level append-only history, not cryptographic tamper evidence or protection against privileged direct DB changes. Existing generic scoped audit readers can also see these safe domain events.
+Each event contains only source ID, source revision, fixed transition/state, actor ID, DB timestamp and optional queue job/lease-attempt identifiers. Source URL, filename, original bytes, extracted text, provider bodies and credentials are not copied into details. The module exposes no history edit/delete operation. This is application-level append-only history, not cryptographic tamper evidence or protection against privileged direct DB changes. Existing generic scoped audit readers can also see these safe domain events.
 
 Deleting a source removes its original bytes/text row but preserves minimal lifecycle events, including a deletion tombstone. It does not claim erasure from backups or the entire audit ledger. There is no synthetic backfill for pre-feature uploads/approvals; an old source may have only its later recorded transitions. Failed unauthorized/invalid commands are not falsely recorded as completed source mutations.
 
@@ -26,4 +26,6 @@ CSV uses fixed numeric labels only, and the existing digest formatter validates 
 
 Restricted disposable MariaDB tests inject an audit INSERT failure and prove the source mutation/revision rolls back. Actual lifecycle, foreign-client reads, retained deletion events, same-second revision order,50-row pagination, large unsigned revisions, exact IST boundaries and cross-session timezone counts are verified. Native fixtures also prove a deleted source still contributes daily storage/deletion/approval counts. Unit and browser fixtures verify DTO privacy, bad cursor rejection, older-page loading and late-client result fencing. Default regressions, TypeScript/build and full workspace browser checks are recorded in EXECUTION.md.
 
-This provides durable source transition history, not completed durable ingestion queue/admission or full import-run/attempt orchestration. Import failures before a source exists have no source lifecycle event. Shared usage budgets, fact conflict/precedence, approval of structured business facts, all-workflow reconciliation, audit retention/performance acceptance on hosting and actual provider/hosting release gates remain open.
+Source transition history now participates in durable queue admission/attempt settlement. Whole-website import orchestration/grouping remains incomplete. Import failures before a source exists have no source lifecycle event. Shared usage budgets, fact conflict/precedence, approval of structured business facts, all-workflow reconciliation, audit retention/performance acceptance on hosting and actual provider/hosting release gates remain open.
+
+Queued events and worker lease attempts are now recorded. Settled/attention report counts include reconciled cancelled/interrupted runs, including runs that never reached the parser. Original/hash checks, queue fencing and worker/deploy limits are in KNOWLEDGE_INGESTION_QUEUE.md.

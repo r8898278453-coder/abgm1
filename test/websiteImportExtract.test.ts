@@ -15,3 +15,5 @@ const unavailable=await previewWebsiteImport(source.url,{fetchPage:async()=>{thr
 assert.throws(()=>extractWebsitePage({...source,bytes:Buffer.from('<div>'.repeat(300)+'deep text'+'</div>'.repeat(300))}),/WEBSITE_COMPLEXITY_LIMIT/);
 assert.throws(()=>extractWebsitePage({...source,bytes:Buffer.from('<p>'+'x'.repeat(140000)+'</p>')}),/WEBSITE_TEXT_LIMIT/);
 const plain=extractWebsitePage({...source,contentType:'text/plain',bytes:Buffer.from('Actual plain-text pricing INR 25000')});assert.equal(plain.text,'Actual plain-text pricing INR 25000');
+
+assert.equal(extractWebsitePage({...source,contentType:'TEXT/PLAIN;CHARSET=UTF-8',bytes:Buffer.from('Literal <premium>')}).text,'Literal <premium>');

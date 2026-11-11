@@ -1,3 +1,4 @@
+import {enqueueKnowledgeExtraction} from './knowledgeIngestion';
 import {readKnowledgeHistory} from './knowledgeHistory';
 import {validWorkspaceRevision} from '../shared/workspaceRevision';
 import crypto from 'node:crypto';
@@ -7,12 +8,11 @@ import type {Express,Request,RequestHandler} from 'express';
 import type {Pool} from 'mysql2/promise';
 import multer from 'multer';
 import {SOURCE_MAX_BYTES,knowledgeQueryInput,sourceRevisionInput} from '../shared/knowledge';
-import {KnowledgeError,listKnowledgeSources,storeKnowledgeSource,claimKnowledgeExtraction,settleKnowledgeExtraction,approveKnowledgeSource,withdrawKnowledgeApproval,deleteKnowledgeSource,downloadKnowledgeSource,previewKnowledgeSource,readKnowledgeExcerpts} from './knowledgeStore';
-import {extractKnowledge} from './knowledgeExtraction';
+import {KnowledgeError,listKnowledgeSources,storeKnowledgeSource,approveKnowledgeSource,withdrawKnowledgeApproval,deleteKnowledgeSource,downloadKnowledgeSource,previewKnowledgeSource,readKnowledgeExcerpts} from './knowledgeStore';
 import {retrieveKnowledge} from './knowledgeRetrieval';
 const multipart=multer({storage:multer.memoryStorage(),limits:{fileSize:SOURCE_MAX_BYTES,files:1,fields:0,parts:1}}).single('file');
-export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;access:(user:any,company:string)=>Promise<any>;pool:()=>Promise<Pool|null>;profile:(company:string)=>Promise<{data:any;version:string}>;rateLimit:RequestHandler;registeredWebsite?:(company:string)=>Promise<string|null>;websitePreview?:typeof previewWebsiteImport}){
- const run=async(company:string,id:string,pool:Pool,expectedVersion?:string,actor='system')=>{const claim=await claimKnowledgeExtraction(pool,company,id,expectedVersion,actor),result=await extractKnowledge(claim.filename,claim.bytes,claim.website);await settleKnowledgeExtraction(pool,company,id,claim.version,result,actor);};
+export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;access:(user:any,company:string)=>Promise<any>;pool:()=>Promise<Pool|null>;profile:(company:string)=>Promise<{data:any;version:string}>;rateLimit:RequestHandler;registeredWebsite?:(company:string)=>Promise<string|null>;websitePreview?:typeof previewWebsiteImport;runExtraction?:typeof enqueueKnowledgeExtraction}){
+ const run=deps.runExtraction||enqueueKnowledgeExtraction;
  const route=(method:'get'|'post'|'delete',path:string,handler:(req:Request,res:any,company:string,pool:Pool,user:any)=>Promise<void>)=>app[method](path,deps.rateLimit,async(req,res)=>{
   res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
    const params=req.params as Record<string,string>,company=params.id;if(!company||company.length>64||params.sourceId&&params.sourceId.length>64||(Object.keys(req.query).length&&!path.endsWith('/history')))throw new KnowledgeError(400,'KNOWLEDGE_SCOPE_INVALID');
@@ -22,7 +22,7 @@ export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Pr
  route('post','/api/companies/:id/knowledge/import-website',async(req,res,company,pool,user)=>{
   if(!req.body||Array.isArray(req.body)||Object.keys(req.body).length)throw new KnowledgeError(400,'WEBSITE_IMPORT_BODY_INVALID');
   const registered=await deps.registeredWebsite?.(company);if(!registered)throw new KnowledgeError(409,'REGISTERED_WEBSITE_REQUIRED');
-  const root=websiteImportUrl(registered);const result=await(deps.websitePreview||previewWebsiteImport)(root.href);const imported:string[]=[];
+  let root:URL;try{root=websiteImportUrl(registered);}catch{throw new KnowledgeError(409,'REGISTERED_WEBSITE_UNSUPPORTED');}const result=await(deps.websitePreview||previewWebsiteImport)(root.href);const imported:string[]=[];
   for(const page of result.pages){websiteImportUrl(page.url,root.origin);const name='website-'+crypto.createHash('sha256').update(page.url).digest('hex').slice(0,20)+'.html';const source=await storeKnowledgeSource(pool,company,name,page.originalBytes,{url:page.url,fetchedAtMs:Date.parse(page.fetchedAt),mediaType:page.contentType},user.id);if(!source.reused)await run(company,source.id,pool,undefined,user.id);imported.push(source.id);}
   res.json({success:true,companyId:company,importedSourceIds:imported,status:result.status,failures:result.failures,truncated:result.truncated,sources:await listKnowledgeSources(pool,company)});
  });

@@ -1,5 +1,5 @@
 import { appendQueueEvent } from './queueEvents';
-import type { Pool } from 'mysql2/promise';
+import type { Pool,PoolConnection } from 'mysql2/promise';
 import type { DbJobQueue } from './db';
 
 /** Claim and state transition share one retained connection and transaction. */
@@ -64,12 +64,13 @@ export function ownsJobLease(job: DbJobQueue, lease?: QueueLease): boolean {
     !!job.locked_at && Date.parse(job.locked_at) >= Date.now() - 5 * 60 * 1000;
 }
 
-async function settleSqlJob(pool: Pool, id: string, sql: string, values: unknown[], event: string, lease?: QueueLease): Promise<DbJobQueue | null> {
+async function settleSqlJob(pool: Pool, id: string, sql: string, values: unknown[], event: string, lease?: QueueLease,project?:(connection:PoolConnection)=>Promise<void>): Promise<DbJobQueue | null> {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     const [update]: any = await connection.query(sql, values);
     if (!update.affectedRows) { await connection.commit(); return null; }
+    if(project)await project(connection);
     await appendQueueEvent(connection, id, event, { workerId: lease?.workerId });
     const [rows]: any = await connection.query('SELECT * FROM job_queue WHERE id = ?', [id]);
     const row = rows[0];
@@ -83,21 +84,21 @@ async function settleSqlJob(pool: Pool, id: string, sql: string, values: unknown
   } finally { connection.release(); }
 }
 
-export async function completeSqlJob(pool: Pool, id: string, result?: Record<string, any>, lease?: QueueLease): Promise<DbJobQueue | null> {
+export async function completeSqlJob(pool: Pool, id: string, result?: Record<string, any>, lease?: QueueLease,project?:(connection:PoolConnection)=>Promise<void>): Promise<DbJobQueue | null> {
   const guard = leaseCondition(lease);
   return settleSqlJob(pool, id,
     `UPDATE job_queue SET status = 'SUCCEEDED', result = ?, locked_at = NULL, locked_by = NULL, error_message = NULL, updated_at = NOW()
-     WHERE id = ? AND ${guard.sql}`, [result ? JSON.stringify(result) : null, id, ...guard.values], 'JOB_SUCCEEDED', lease);
+     WHERE id = ? AND ${guard.sql}`, [result ? JSON.stringify(result) : null, id, ...guard.values], 'JOB_SUCCEEDED', lease,project);
 }
 
-export async function failSqlJob(pool: Pool, id: string, error: string, retryable = true, lease?: QueueLease): Promise<DbJobQueue | null> {
+export async function failSqlJob(pool: Pool, id: string, error: string, retryable = true, lease?: QueueLease,project?:(connection:PoolConnection)=>Promise<void>): Promise<DbJobQueue | null> {
   const guard = leaseCondition(lease);
   return settleSqlJob(pool, id,
     `UPDATE job_queue SET
        scheduled_for = CASE WHEN ? AND (attempts - deferrals) < max_attempts THEN DATE_ADD(NOW(), INTERVAL (GREATEST(attempts - deferrals, 1) * 30) SECOND) ELSE scheduled_for END,
        status = CASE WHEN ? AND (attempts - deferrals) < max_attempts THEN 'RETRY_WAIT' ELSE 'FAILED' END,
        error_message = ?, locked_at = NULL, locked_by = NULL, updated_at = NOW()
-     WHERE id = ? AND ${guard.sql}`, [retryable, retryable, error, id, ...guard.values], 'JOB_FAILED', lease);
+     WHERE id = ? AND ${guard.sql}`, [retryable, retryable, error, id, ...guard.values], 'JOB_FAILED', lease,project);
 }
 
 export async function renewSqlJobLease(pool: Pool, id: string, lease: QueueLease): Promise<boolean> {

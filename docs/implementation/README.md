@@ -55,3 +55,5 @@ Website importer foundation: [WEBSITE_IMPORT.md](WEBSITE_IMPORT.md) describes th
 Current registered website source workflow: schema031/51, private originals and URL/time provenance, review/search/retry and Knowledge UI. See WEBSITE_IMPORT.md; queue/history/conflict/hosting gates remain open.
 
 Current source lifecycle history and durable daily source counts: [KNOWLEDGE_HISTORY.md](KNOWLEDGE_HISTORY.md). Schema031/51 unchanged; durable ingestion queue remains pending.
+
+Current source pipeline: schema032/51 and durable queue/worker recovery with private originals, source history and unapproved outcomes. [KNOWLEDGE_INGESTION_QUEUE.md](KNOWLEDGE_INGESTION_QUEUE.md) records runtime/hosting requirements and remaining import/fact/agency gates.

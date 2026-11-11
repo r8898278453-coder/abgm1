@@ -1,0 +1,58 @@
+{
+  "date_ist": "2026-11-11",
+  "schema": {
+    "latest": "032_knowledge_ingestion_queue",
+    "canonical_tables": 51,
+    "historical_001_through_031_unchanged": true,
+    "next_product_migration": "033"
+  },
+  "default_programs": 94,
+  "routes": {
+    "declarations": 148,
+    "registrations": 29,
+    "collisions": 0
+  },
+  "verified": [
+    "Default HTTP uploads and registered snapshots acknowledge durable QUEUED sources",
+    "Atomic source/job/event/outbox admission and settlement with injected rollback",
+    "Eight concurrent admissions produce one job; stale lease results cannot overwrite recovered attempts",
+    "Cancelled/exhausted jobs reconcile without automatic restart; fast retry preserves prior terminal history",
+    "Orphan STORED originals recover; deleted and foreign-company payloads cannot recreate or read source bytes",
+    "Original bytes checked before processing/download and before approval/settlement; binary SQL hash comparisons avoid collation errors",
+    "Queued HTML and plain snapshots preserve provenance, require approval and support saved-source citations",
+    "UI queue truth, active retry refusal, actionable saved-website errors and pending-query invalidation",
+    "Explicit CommonJS parser export and bundled externalized parser smoke",
+    "Exact public subnet policy, DNS/socket pinning regression and case-insensitive MIME parsing"
+  ],
+  "validation": {
+    "typescript": "passed",
+    "build": "passed; existing client chunk warning",
+    "native_sql": "restricted disposable MariaDB10.11.19 passed through032; no production access",
+    "browser": "targeted knowledge workflow and full workspace passed",
+    "uploaded_export_restore": {
+      "ready": true,
+      "business_rows_preserved": true,
+      "original_ledger_identities_preserved": 5,
+      "source_and_bundled_replay_applied": 0
+    }
+  },
+  "production_changes": false,
+  "real_website_fetches": false,
+  "customer_sends": false,
+  "deployed": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 11,
+    "blocked": 1,
+    "planned": 73
+  },
+  "phase_acceptance": false,
+  "remaining": [
+    "Hosted worker/cron permissions, egress and live release/restore acceptance",
+    "Whole-website fetch-run orchestration; fetching/preview still request-bound",
+    "Shared admission/site policies, retention and performance acceptance",
+    "Structured fact conflicts/precedence and automatic consumers",
+    "Agency roles/security and all remaining phase gates"
+  ]
+}

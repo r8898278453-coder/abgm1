@@ -6,14 +6,15 @@ const ignored=new Set(['script','style','template','noscript','svg','canvas','if
 const blocks=new Set(['p','div','section','article','main','h1','h2','h3','h4','li','br','tr','dt','dd']);
 /** Static text only. HTML is parsed as data; no scripts, resources or browser are executed. */
 export function extractWebsitePage(page:WebsitePage){
- if(!/^text\/(?:html|plain)(?:;|$)/i.test(page.contentType))throw new WebsiteImportError('WEBSITE_RESPONSE_UNSUPPORTED');
+ const mediaType=page.contentType.toLowerCase();
+ if(!/^text\/(?:html|plain)(?:;|$)/i.test(mediaType))throw new WebsiteImportError('WEBSITE_RESPONSE_UNSUPPORTED');
  if(page.bytes.length>256*1024)throw new WebsiteImportError('WEBSITE_BYTE_LIMIT');
- const declared=/charset\s*=\s*["']?([^\s;"'>]+)/i.exec(page.contentType)?.[1];
+ const declared=/charset\s*=\s*["']?([^\s;"'>]+)/i.exec(mediaType)?.[1];
  if(declared&&!/^(utf-8|utf8|us-ascii)$/i.test(declared))throw new WebsiteImportError('WEBSITE_ENCODING_UNSUPPORTED');
  let html:string;try{html=new TextDecoder('utf-8',{fatal:true}).decode(page.bytes);}catch{throw new WebsiteImportError('WEBSITE_ENCODING_UNSUPPORTED');}
  const origin=websiteImportUrl(page.url).origin,links=new Set<string>();let title='',nodes=0,size=0;const text:string[]=[];
  const append=(value:string)=>{size+=value.length;if(size>128*1024)throw new WebsiteImportError('WEBSITE_TEXT_LIMIT');text.push(value);};
- if(page.contentType.startsWith('text/plain'))append(html);
+ if(mediaType.startsWith('text/plain'))append(html);
  else{
   const tree:any=parse(html);const stack:Array<{node:any;depth:number;inTitle:boolean;closing?:boolean}>=[{node:tree,depth:0,inTitle:false}];
   while(stack.length){const {node,depth,inTitle,closing}=stack.pop()!;if(closing){append('\n');continue;}if(++nodes>50000||depth>256)throw new WebsiteImportError('WEBSITE_COMPLEXITY_LIMIT');
