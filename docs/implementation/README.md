@@ -59,3 +59,5 @@ Current source lifecycle history and durable daily source counts: [KNOWLEDGE_HIS
 Current source pipeline: schema032/51 and durable queue/worker recovery with private originals, source history and unapproved outcomes. [KNOWLEDGE_INGESTION_QUEUE.md](KNOWLEDGE_INGESTION_QUEUE.md) records runtime/hosting requirements and remaining import/fact/agency gates.
 
 Durable website-run continuation (11 November2026 IST): background202 admission, existing worker, atomic page/source-job/result groups, no-page/partial history, scoped cancellation and client/lease/site fencing. Schema032/51 unchanged. See WEBSITE_IMPORT.md and evidence/durable-website-imports.json. Shared budgets/site/fact/agency/hosting gates remain open; task/phase acceptance unchanged.
+
+Website-import daily accountability now adds five distinct run-transition counts and three current import backlog fields through the existing report/UI/CSV/digest. Commit is snapshot persistence, not extraction/approval; retry counts can overlap. See WEBSITE_IMPORT_REPORTING.md. Full agency/reporting phase gates remain open.

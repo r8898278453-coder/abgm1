@@ -39,7 +39,7 @@ try {
   const controlStates:Record<string,any>={A:{version:'0',paused:false,channels:[],dailyPostLimit:null,quota:{date:'2026-11-04',reservedPosts:0,remaining:null},updatedBy:null,updatedAtMs:null},B:{version:'0',paused:false,channels:[],dailyPostLimit:null,quota:{date:'2026-11-04',reservedPosts:0,remaining:null},updatedBy:null,updatedAtMs:null}};
   const controlHistory:Record<string,any[]>={A:[],B:[]};let failControlHistory=false;
   const controlWrites:any[]=[];let controlConflict=false,holdControlPatch=false,failControlRead=false;let signalControlPatch:(()=>void)|undefined;let signalControlFlushed:(()=>void)|undefined;
-  let failDailyReport=false,holdDailyReport=false;let signalDailyReport:(()=>void)|undefined;let signalDailyFlushed:(()=>void)|undefined;
+  let failDailyReport=false,incompleteDailyReport=false,holdDailyReport=false;let signalDailyReport:(()=>void)|undefined;let signalDailyFlushed:(()=>void)|undefined;
   let signalNotify: (() => void) | undefined;
   let verificationLimited=false;
   let holdReview=false,conflictReview=false,reviewCount=0;
@@ -168,7 +168,7 @@ try {
       const company=url.pathname.split('/')[3],date=url.searchParams.get('date')!;
       if(failDailyReport){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,error:'Unavailable'})});return;}
       if(holdDailyReport && company==='A' && date==='2000-01-02'){heldDailyRequest=true;signalDailyReport?.();await new Promise<void>(resolve=>{releaseDailyReport=resolve;});}
-      body={success:true,report:{date,timeZone:'Asia/Kolkata',generatedAt:'2026-11-03T02:30:00Z',activity:{completedJobs:company==='A'?(date==='2000-01-01'?9:7):0,failedJobs:0,pausedJobs:company==='A'?1:0,approvedPosts:0,rescheduledPosts:0,admittedPosts:company==='A'?3:0,controlChanges:company==='A'?2:0,messageRequests:company==='A'?2:0,apiAcceptedMessages:company==='A'?1:0,websiteInquiries:company==='A'?2:0,inquiryAlertsAccepted:company==='A'?1:0,knowledgeStored:0,knowledgeExtractionsSettled:0,knowledgeExtractionsBlocked:0,knowledgeApprovals:0,knowledgeWithdrawals:0,knowledgeDeleted:0},backlog:{waitingJobs:company==='A'?4:0,runningJobs:0,failedJobs:0,pendingApprovals:0,uncertainPublications:0,unconfirmedMessages:0,inquiryAlertsNotAttempted:0,inquiryAlertsUnconfirmed:0,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0}}};
+      body={success:true,report:{date,timeZone:'Asia/Kolkata',generatedAt:'2026-11-03T02:30:00Z',activity:{completedJobs:company==='A'?(date==='2000-01-01'?9:7):0,failedJobs:0,pausedJobs:company==='A'?1:0,approvedPosts:0,rescheduledPosts:0,admittedPosts:company==='A'?3:0,controlChanges:company==='A'?2:0,messageRequests:company==='A'?2:0,apiAcceptedMessages:company==='A'?1:0,websiteInquiries:company==='A'?2:0,inquiryAlertsAccepted:company==='A'?1:0,knowledgeStored:0,knowledgeExtractionsSettled:0,knowledgeExtractionsBlocked:0,knowledgeApprovals:0,knowledgeWithdrawals:0,knowledgeDeleted:0,websiteImportsQueued:company==='A'?3:0,websiteImportsCommitted:company==='A'?2:0,websiteImportsWithFailures:company==='A'?1:0,websiteImportsPaused:company==='A'?1:0,websiteImportsCancelled:company==='A'?1:0},backlog:{waitingJobs:company==='A'?4:0,runningJobs:0,failedJobs:0,pendingApprovals:0,uncertainPublications:0,unconfirmedMessages:0,inquiryAlertsNotAttempted:0,inquiryAlertsUnconfirmed:0,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:company==='A'?1:0,websiteImportsRunning:company==='A'?1:0,websiteImportsFailed:company==='A'?1:0}}};if(incompleteDailyReport)delete body.report.activity.websiteImportsQueued;
     }
     else if(url.pathname==='/api/content-posts' && route.request().method()==='GET')body={success:true,companyId:url.searchParams.get('companyId'),posts:url.searchParams.get('companyId')==='A'?[workflowPost,...plannedPosts]:[]};
     else if(url.pathname.endsWith('/workflow-history'))body={success:true,history:url.searchParams.has('before')?workflowHistory.slice(2):workflowHistory.slice(0,2),nextBefore:url.searchParams.has('before')?null:'2'};
@@ -347,6 +347,8 @@ try {
   await workReport.getByLabel('Message requests API-accepted',{exact:true}).filter({hasText:'1'}).waitFor();
   await workReport.getByLabel('Posts admitted for publishing',{exact:true}).filter({hasText:'3'}).waitFor();
   await workReport.getByLabel('Publishing control changes',{exact:true}).filter({hasText:'2'}).waitFor();
+  await workReport.getByLabel('Website imports queued',{exact:true}).filter({hasText:'3'}).waitFor();await workReport.getByLabel('Website snapshot groups committed',{exact:true}).filter({hasText:'2'}).waitFor();await workReport.getByLabel('Website imports currently failed',{exact:true}).filter({hasText:'1'}).waitFor();
+  incompleteDailyReport=true;await workReport.getByRole('button',{name:'Refresh work report',exact:true}).click();await workReport.getByRole('alert').waitFor();assert.equal(await workReport.getByRole('button',{name:'Download work report CSV'}).count(),0);incompleteDailyReport=false;await workReport.getByRole('button',{name:'Refresh work report',exact:true}).click();await workReport.getByLabel('Website imports queued',{exact:true}).filter({hasText:'3'}).waitFor();
   const reportDownload=page.waitForEvent('download');await workReport.getByRole('button',{name:'Download work report CSV'}).click();
   assert.match((await reportDownload).suggestedFilename(),/^recorded-work-\d{4}-\d{2}-\d{2}-IST\.csv$/);
 
@@ -362,7 +364,7 @@ try {
   await workReport.getByLabel('Completed jobs',{exact:true}).filter({hasText:'0'}).waitFor();
   const reportFlushed=new Promise<void>(resolve=>{signalDailyFlushed=resolve;});releaseDailyReport!();holdDailyReport=false;await reportFlushed;
   await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
-  assert.equal(await workReport.getByLabel('Completed jobs',{exact:true}).innerText(),'0');
+  assert.equal(await workReport.getByLabel('Completed jobs',{exact:true}).innerText(),'0');assert.equal(await workReport.getByLabel('Website imports queued',{exact:true}).innerText(),'0');
   await page.locator('header select').first().selectOption('A');
   await workReport.getByLabel('Completed jobs',{exact:true}).filter({hasText:'7'}).waitFor();
   const history = page.getByRole('region', { name: 'Automation action history' });

@@ -1,0 +1,55 @@
+{
+  "date_ist": "2026-11-11",
+  "schema": "032 /51 unchanged; next033",
+  "default_programs": 94,
+  "routes": {
+    "declarations": 150,
+    "registrations": 29,
+    "collisions": 0
+  },
+  "activity_metrics": [
+    "websiteImportsQueued",
+    "websiteImportsCommitted",
+    "websiteImportsWithFailures",
+    "websiteImportsPaused",
+    "websiteImportsCancelled"
+  ],
+  "backlog_metrics": [
+    "websiteImportsWaiting",
+    "websiteImportsRunning",
+    "websiteImportsFailed"
+  ],
+  "semantics": "Distinct run IDs per transition in selected half-open IST day; counts may overlap. Backlog is current and a subset of generic jobs. Commit is snapshots persisted, not extraction/approval or marketing success.",
+  "actual_fixture_reconciliation": {
+    "admitted": 15,
+    "committed": 5,
+    "with_failure_records": 5,
+    "cancelled": 6,
+    "current_failed": 4,
+    "real_website_fetches": 0
+  },
+  "validation": {
+    "default_regressions": "94 passed with production credentials excluded",
+    "native_sql": "restricted disposable MariaDB10.11.19 full suite; actual runs plus exact IST boundaries, repeated events, overlap, pause/cancel/exhaustion, type/tenant exclusion, source-independent history and alternate SQL session timezone passed",
+    "browser": "full workspace; visible metrics, incomplete-report export refusal and late-client isolation passed",
+    "typescript": "passed",
+    "build": "passed; existing chunk warning",
+    "targeted_report": "all eight missing metrics refuse CSV/digest; fixed numeric CSV coverage38 CRLF entries passed"
+  },
+  "production_changes": false,
+  "customer_sends": false,
+  "deployed": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 11,
+    "blocked": 1,
+    "planned": 73
+  },
+  "phase_acceptance": false,
+  "remaining": [
+    "All-workflow plan-versus-done reconciliation and late amendments",
+    "Authorized agency aggregates, retention/performance and hosting acceptance",
+    "Structured fact/consumer, agency/security and other phase prerequisites"
+  ]
+}

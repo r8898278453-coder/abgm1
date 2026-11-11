@@ -1039,10 +1039,32 @@ try {
   const knowledgeReportEvents=[['KNOWLEDGE_STORED','STORED',dayBounds.start],['KNOWLEDGE_EXTRACTION_SETTLED','EXTRACTED',dayBounds.start+1],['KNOWLEDGE_EXTRACTION_SETTLED','NEEDS_OCR',dayBounds.start+2],['KNOWLEDGE_APPROVED','EXTRACTED',dayBounds.start+3],['KNOWLEDGE_APPROVAL_WITHDRAWN','EXTRACTED',dayBounds.start+4],['KNOWLEDGE_DELETED','DELETED',dayBounds.end-1],['KNOWLEDGE_STORED','STORED',dayBounds.start-1],['KNOWLEDGE_DELETED','DELETED',dayBounds.end]] as const;
   for(const [index,[event,state,at]]of knowledgeReportEvents.entries())await pool.query('INSERT INTO autonomous_audit_logs(id,company_id,action_id,actor,event_type,details,timestamp) VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))',['report-source-event-'+index,'report-company','report-source','fixture',event,JSON.stringify({sourceVersion:String(index),state}),at/1000]);
   await pool.query('INSERT INTO autonomous_audit_logs(id,company_id,action_id,actor,event_type,details,timestamp) VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))',['foreign-source-event','foreign-report-company','report-source','fixture','KNOWLEDGE_STORED',JSON.stringify({sourceVersion:'0',state:'STORED'}),dayBounds.start/1000]);
+  // Website imports use durable run/event type, not mutable source rows or scraped text.
+  for(const [id,company,status] of [['report-web-success','report-company','SUCCEEDED'],['report-web-wait','report-company','QUEUED'],['report-web-running','report-company','RUNNING'],['report-web-failed','report-company','FAILED'],['report-web-cancel','report-company','CANCELLED'],['report-web-foreign','report-other','SUCCEEDED']]){
+   await enqueueSqlJob(pool,{id,company_id:company,job_type:'website_import',payload:{websiteUrl:'https://private-report-site.example/'},status:'QUEUED',attempts:0,max_attempts:3,scheduled_for:new Date(Date.now()+86400000).toISOString()});
+   await pool.query('UPDATE job_queue SET status=? WHERE id=?',[status,id]);
+  }
+  const websiteReportEvents=[
+   ['report-web-success','report-company','JOB_QUEUED','QUEUED',dayBounds.start],
+   ['report-web-success','report-company','JOB_QUEUED','QUEUED',dayBounds.start+1000],
+   ['report-web-success','report-company','JOB_FAILED','RETRY_WAIT',dayBounds.start+2000],
+   ['report-web-success','report-company','JOB_FAILED','RETRY_WAIT',dayBounds.start+3000],
+   ['report-web-success','report-company','JOB_DEFERRED','RETRY_WAIT',dayBounds.start+4000],
+   ['report-web-success','report-company','JOB_DEFERRED','RETRY_WAIT',dayBounds.start+5000],
+   ['report-web-success','report-company','JOB_SUCCEEDED','SUCCEEDED',dayBounds.end-1000],
+   ['report-web-failed','report-company','JOB_ATTEMPTS_EXHAUSTED','FAILED',dayBounds.start+1000],
+   ['report-web-failed','report-company','JOB_SUCCEEDED','SUCCEEDED',dayBounds.end],
+   ['report-web-cancel','report-company','JOB_CANCELLED','CANCELLED',dayBounds.start],
+   ['report-web-cancel','report-company','JOB_CANCELLED','CANCELLED',dayBounds.start+1000],
+   ['report-web-wait','report-company','JOB_QUEUED','QUEUED',dayBounds.end],
+   ['report-web-running','report-company','JOB_QUEUED','QUEUED',dayBounds.start-1000],
+   ['report-web-foreign','report-other','JOB_SUCCEEDED','SUCCEEDED',dayBounds.start],
+  ] as const;
+  for(const [index,[jobId,company,event,status,at]]of websiteReportEvents.entries())await pool.query('INSERT INTO job_action_events(id,job_id,company_id,event_type,job_status,attempt,recorded_at) VALUES (?,?,?,?,?,1,FROM_UNIXTIME(?))',['report-web-event-'+index,jobId,company,event,status,at/1000]);
   const dayReport=await readDailyWorkReport(pool,'report-company','2026-11-03');
-  assert.deepEqual(dayReport.activity,{completedJobs:1,failedJobs:1,pausedJobs:1,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1});
-  assert.deepEqual(dayReport.backlog,{waitingJobs:1,runningJobs:1,failedJobs:1,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0});
-  assert.ok(!JSON.stringify(dayReport).includes('private'));
+  assert.deepEqual(dayReport.activity,{completedJobs:2,failedJobs:3,pausedJobs:2,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1,websiteImportsQueued:1,websiteImportsCommitted:1,websiteImportsWithFailures:2,websiteImportsPaused:1,websiteImportsCancelled:1});
+  assert.deepEqual(dayReport.backlog,{waitingJobs:2,runningJobs:2,failedJobs:2,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:1,websiteImportsRunning:1,websiteImportsFailed:1});
+  assert.ok(!JSON.stringify(dayReport).includes('private'));assert.ok(!JSON.stringify(dayReport).includes('https://'));assert.equal(dayReport.activity.websiteImportsCommitted,1,'source rows are not required to preserve committed import history');
   const emptyDayReport=await readDailyWorkReport(pool,'empty-report-company','2026-11-03');assert.ok(Object.values(emptyDayReport.activity).every(count=>count===0));
   const timezoneDayPool=mysql.createPool({host:'127.0.0.1',port,user:'root',password:'',database,connectionLimit:1});
   try{await timezoneDayPool.query("SET time_zone = '+09:00'");const alternate=await readDailyWorkReport(timezoneDayPool,'report-company','2026-11-03');assert.deepEqual(alternate.activity,dayReport.activity);assert.deepEqual(alternate.backlog,dayReport.backlog);}finally{await timezoneDayPool.end();}

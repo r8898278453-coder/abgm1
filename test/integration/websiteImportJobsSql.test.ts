@@ -1,3 +1,5 @@
+import {readDailyWorkReport} from '../../server/dailyWorkReport';
+import {platformDateKey} from '../../shared/dailyWorkReport';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import express from 'express';
@@ -44,6 +46,7 @@ try{
  stage='invalid-current-website';await enqueueWebsiteImport(pool,a,root,'fixture');const invalidCurrent=await claim();await pool.query('UPDATE companies SET website=? WHERE id=?',['http://unsupported.example/',a]);assert.equal((await executeWebsiteImportJob(pool,invalidCurrent,async()=>{throw new Error('MUST_NOT_FETCH');})).error,'WEBSITE_REGISTERED_URL_CHANGED');await pool.query('UPDATE companies SET website=? WHERE id=?',[root,a]);
  stage='pagination';for(let i=0;i<3;i++){const item=await enqueueWebsiteImport(pool,a,root,'fixture');await cancelWebsiteImport(pool,a,item.run.id,'fixture');}
  const first=await call(historyPath,200);assert.equal(first.runs.length,10);assert.ok(first.nextBefore);const older=await call(historyPath+'?before='+first.nextBefore,200);assert.ok(older.runs.length>0);assert.ok(older.runs.every((row:any)=>!first.runs.some((known:any)=>known.id===row.id)));await call(`/api/companies/${b}/knowledge/website-imports?before=${first.nextBefore}`,409);
+ stage='actual-run-report';const actualReport=await readDailyWorkReport(pool,a,platformDateKey());assert.equal(actualReport.activity.websiteImportsQueued,15);assert.equal(actualReport.activity.websiteImportsCommitted,5);assert.equal(actualReport.activity.websiteImportsWithFailures,5);assert.equal(actualReport.activity.websiteImportsCancelled,6);assert.equal(actualReport.activity.websiteImportsPaused,0);assert.equal(actualReport.backlog.websiteImportsFailed,4);assert.equal(actualReport.backlog.websiteImportsWaiting,0);assert.equal(actualReport.backlog.websiteImportsRunning,0);assert.ok(!JSON.stringify(actualReport).includes(root));
  console.log('Website import SQL/HTTP: durable 202/no-fetch admission, concurrent dedupe, scoped history/cancel, original/job/outbox atomicity, unchanged approval preservation, no-page and partial history, running cancellation, stale lease recovery, registered-site recheck and bounded pagination passed.');
 }catch(error:any){console.log(JSON.stringify({fixture:'website-import-jobs',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/websiteImportJobsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
 finally{release?.();await new Promise<void>(resolve=>server.close(()=>resolve()));for(const company of[a,b]){for(const table of['job_action_outbox','job_action_events','job_action_runs','job_queue','autonomous_audit_logs','knowledge_sources','companies'])await pool.query(`DELETE FROM ${table} WHERE ${table==='companies'?'id':'company_id'}=?`,[company]);}await pool.end();}

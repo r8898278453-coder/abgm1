@@ -29,3 +29,5 @@ Restricted disposable MariaDB tests inject an audit INSERT failure and prove the
 Source transition history now participates in durable queue admission/attempt settlement. Whole-website import runs now persist separately in the existing queue ledger. Import failures before a source exists have a run outcome but no source lifecycle event. Shared usage budgets, fact conflict/precedence, approval of structured business facts, all-workflow reconciliation, audit retention/performance acceptance on hosting and actual provider/hosting release gates remain open.
 
 Queued events and worker lease attempts are now recorded. Settled/attention report counts include reconciled cancelled/interrupted runs, including runs that never reached the parser. Original/hash checks, queue fencing and worker/deploy limits are in KNOWLEDGE_INGESTION_QUEUE.md.
+
+Website-import daily accountability now adds five distinct run-transition counts and three current import backlog fields through the existing report/UI/CSV/digest. Commit is snapshot persistence, not extraction/approval; retry counts can overlap. See WEBSITE_IMPORT_REPORTING.md. Full agency/reporting phase gates remain open.
