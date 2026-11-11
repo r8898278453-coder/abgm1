@@ -1,5 +1,7 @@
 # Grouped agency team workflows — 12 November 2026 IST
 
+Current local acceptance (12 November2026 IST): [ACCEPTANCE_TEN.md](ACCEPTANCE_TEN.md) accepts the original criteria for P02-01, P03-01/04/06 and P04-01/02/03/04/07/08 after the complete13-step matrix. These decisions supersede older in-progress notes for those tasks only. Schema034/60 unchanged. Full phase/hosting/provider/production gates and explicitly separate extension limits remain open; generated STATUS.md is current.
+
 This continuation delivers ten connected user workflows, completing more of the existing agency foundation instead of opening ten unrelated parent packages. These are ten child deliverables, not ten fully accepted tracker packages or phases. Schema034/60 and historical001–034 remain unchanged; next migration035. No production database, hosting deployment, provider request, customer message or billing change.
 
 | Deliverable | Canonical implementation | Local acceptance |

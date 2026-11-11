@@ -49,7 +49,7 @@ export async function extractKnowledge(filename:string,bytes:Buffer,website?:{ur
   if(extension==='.html'&&website){const page=extractWebsitePage({url:website.url,bytes,contentType:website.contentType||'text/html;charset=utf-8'});const extracted=chunks([page.text]);if(extracted.state==='EXTRACTED')extracted.code='WEBSITE_STATIC_TEXT';return extracted;}
   if(['.txt','.md'].includes(extension)){if(bytes.subarray(0,5).toString()==='%PDF-'||bytes.subarray(0,4).equals(Buffer.from([80,75,3,4])))return result('UNSUPPORTED','FILE_SIGNATURE_MISMATCH');try{return chunks([new TextDecoder('utf-8',{fatal:true}).decode(bytes)]);}catch{return result('UNSUPPORTED','UTF8_REQUIRED');}}
   if(extension==='.docx'){
-   if(bytes.readUInt16LE(0)!==0x4b50)return result('FAILED','DOCX_SIGNATURE_INVALID');
+   if(bytes.length<4||!bytes.subarray(0,4).equals(Buffer.from([80,75,3,4])))return result('FAILED','DOCX_SIGNATURE_INVALID');
    const zip=await JSZip.loadAsync(bytes);if(Object.keys(zip.files).length>256)return result('FAILED','DOCX_ENTRY_LIMIT');
    const extracted=chunks([xmlText(await boundedZipText(zip))]);if(extracted.state==='EXTRACTED')extracted.code='DOCX_BODY_TEXT_ONLY';return extracted;
   }

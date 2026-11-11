@@ -561,6 +561,11 @@
       "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:id/onboarding/legacy-import-batch",
+      "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:id/operations",
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"

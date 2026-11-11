@@ -1,3 +1,4 @@
+import type {OPERATION_STATES} from '../shared/operationStates';
 import {publishingExecutionBlock,type PublicationExecutionMode} from './publishingExecutionControls';
 import {publishingSourceVersion} from './publishingSource';
 import { metaPublishingText } from './metaPublishingText';
@@ -32,7 +33,7 @@ export { isPostAlreadyPublished };
 // In-flight publishing locks to prevent concurrent executions for the same post (Idempotency Mutex)
 const activePublishingLocks = new Set<string>();
 
-export type ProviderStatus = 'PUBLISHED' | 'FAILED' | 'UNKNOWN' | 'NOT_CONFIGURED';
+export type ProviderStatus = keyof typeof OPERATION_STATES.publication;
 export type ErrorCategory = 'PERMANENT' | 'RETRYABLE' | 'TIMEOUT_UNKNOWN';
 
 export interface ProviderDispatchResult {

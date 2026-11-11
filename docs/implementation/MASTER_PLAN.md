@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.18 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.19 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Current ten-parent local acceptance — 12 November2026 IST
+
+ACCEPTANCE_TEN.md reviews the unchanged original criteria for P02-01, P03-01/04/06 and P04-01/02/03/04/07/08. All ten are now locally validated after a complete thirteen-step matrix. This consolidates delivered foundations plus bulk legacy migration/reconciliation, source integrity and parser/state/PWA hardening; it does not equate child workflow counts to parent completions. Current totals18 validated/17 in_progress/1 blocked/57 planned; no phase accepted. Schema034/60 unchanged; next035. Hosting/provider/production gates remain separate.
 
 ### Current saved onboarding/business-memory checkpoint — 12 November2026 IST
 

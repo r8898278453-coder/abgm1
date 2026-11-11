@@ -1,5 +1,7 @@
 # Saved onboarding and legacy business-memory intake
 
+Current local acceptance (12 November2026 IST): [ACCEPTANCE_TEN.md](ACCEPTANCE_TEN.md) accepts the original criteria for P02-01, P03-01/04/06 and P04-01/02/03/04/07/08 after the complete13-step matrix. These decisions supersede older in-progress notes for those tasks only. Schema034/60 unchanged. Full phase/hosting/provider/production gates and explicitly separate extension limits remain open; generated STATUS.md is current.
+
 12 November2026 IST. This grouped continuation implements twelve connected deliverables under existing P02/P03/P04 work packages; it does not claim twelve complete parent packages. P04-07 and P04-08 now in progress. Schema034/60 and historical001–034 are unchanged; next035. No production deployment/migration, external provider invocation, customer message or billing change.
 
 ## Delivered together

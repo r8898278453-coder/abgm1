@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run np
 
 Schema target: 034_agency_security_foundation; 60 canonical tables. Registered default regression programs: 100 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 27 / 1 / 57.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 18 / 17 / 1 / 57.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -14,9 +14,9 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | --- | ---: | ---: | ---: | ---: |
 | P00 | 3 | 2 | 1 | 0 |
 | P01 | 4 | 5 | 0 | 1 |
-| P02 | 1 | 5 | 0 | 2 |
-| P03 | 0 | 6 | 0 | 1 |
-| P04 | 0 | 8 | 0 | 1 |
+| P02 | 2 | 4 | 0 | 2 |
+| P03 | 3 | 3 | 0 | 1 |
+| P04 | 6 | 2 | 0 | 1 |
 | P05 | 0 | 0 | 0 | 11 |
 | P06 | 0 | 0 | 0 | 8 |
 | P07 | 0 | 0 | 0 | 8 |
@@ -36,7 +36,7 @@ A gate is accepted only when its own tracker status is validated and its require
 - P01-10: planned — Reliability and isolation gate.
 - P02-08: planned — Canonical architecture compatibility gate.
 - P03-07: planned — Agency and client isolation gate.
-- P04-03: in_progress — Implement PDF TXT Markdown DOCX extraction and OCR gate.
+- P04-03: validated — Implement PDF TXT Markdown DOCX extraction and OCR gate.
 - P04-09: planned — Business memory and onboarding gate.
 - P05-11: planned — Marketing parity and publication gate.
 - P06-08: planned — CRM and channel truth gate.
@@ -68,30 +68,30 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P01-08 | in_progress | Persist scoped stops usage reservations and execution policy | P00-06 |
 | P01-09 | in_progress | Remove confirmed simulated success and unsupported capability badges | P00-06, P01-08 |
 | P01-10 | planned | Reliability and isolation gate | P00-06, P01-09 |
-| P02-01 | in_progress | Freeze shared contracts and route compatibility map | P01-10 |
-| P02-02 | in_progress | Extract route modules and database seams mechanically | P01-10, P02-01 |
+| P02-01 | validated | Freeze shared contracts and route compatibility map | P01-10 |
+| P02-02 | in_progress | Extract route modules and database seams mechanically | P01-10 |
 | P02-03 | in_progress | Extract workspace state request transport and typed feature clients | P01-10, P02-02 |
 | P02-04 | validated | Make forward migrations the sole schema authority | P01-10, P02-03 |
 | P02-05 | in_progress | Implement session revocation CSRF and persistent limit policy | P01-10 |
 | P02-06 | in_progress | Create canonical integration registry and legacy alias mapping | P01-10, P02-05 |
 | P02-07 | planned | Implement reusable OAuth lifecycle and safe network primitives | P01-10, P02-06 |
 | P02-08 | planned | Canonical architecture compatibility gate | P01-10, P02-07 |
-| P03-01 | in_progress | Add agency memberships and backfill existing owners | P02-08 |
-| P03-02 | in_progress | Apply canonical RBAC to every tenant operation | P02-08, P03-01 |
+| P03-01 | validated | Add agency memberships and backfill existing owners | P02-08 |
+| P03-02 | in_progress | Apply canonical RBAC to every tenant operation | P02-08 |
 | P03-03 | in_progress | Persist locations geography locale and client lifecycle under fixed IST policy | P02-08, P03-02 |
-| P03-04 | in_progress | Replace local agency branch UI and establish scoped app shell | P02-08, P03-03 |
-| P03-05 | in_progress | Define capability packs goals and operational limits | P02-08, P03-04 |
-| P03-06 | in_progress | Secure PWA and client browser storage boundaries | P02-08, P03-05 |
-| P03-07 | planned | Agency and client isolation gate | P02-08, P03-06 |
-| P04-01 | in_progress | Implement private source storage and truthful ingestion runs | P03-07 |
-| P04-02 | in_progress | Implement bounded website importer and extracted fact provenance | P03-07, P04-01 |
-| P04-03 | in_progress | Implement PDF TXT Markdown DOCX extraction and OCR gate | P03-07, P04-02 |
-| P04-04 | in_progress | Build approved facts FAQs revisions and conflict review | P03-07, P04-03 |
-| P04-05 | in_progress | Implement tenant-scoped retrieval and AI grounding contracts | P03-07, P04-04 |
+| P03-04 | validated | Replace local agency branch UI and establish scoped app shell | P02-08, P03-03 |
+| P03-05 | in_progress | Define capability packs goals and operational limits | P02-08 |
+| P03-06 | validated | Secure PWA and client browser storage boundaries | P02-08, P03-05 |
+| P03-07 | planned | Agency and client isolation gate | P02-08 |
+| P04-01 | validated | Implement private source storage and truthful ingestion runs | P03-07 |
+| P04-02 | validated | Implement bounded website importer and extracted fact provenance | P03-07 |
+| P04-03 | validated | Implement PDF TXT Markdown DOCX extraction and OCR gate | P03-07 |
+| P04-04 | validated | Build approved facts FAQs revisions and conflict review | P03-07 |
+| P04-05 | in_progress | Implement tenant-scoped retrieval and AI grounding contracts | P03-07 |
 | P04-06 | in_progress | Connect review content chat and sales draft consumers to shared knowledge | P03-07, P04-05 |
-| P04-07 | in_progress | Replace onboarding and knowledge picker with resumable real workflow | P03-07, P04-06 |
-| P04-08 | in_progress | Migrate legacy knowledge JSON and preserve user-entered content | P03-07, P04-07 |
-| P04-09 | planned | Business memory and onboarding gate | P03-07, P04-08 |
+| P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow | P03-07, P04-06 |
+| P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content | P03-07 |
+| P04-09 | planned | Business memory and onboarding gate | P03-07 |
 | P05-01 | planned | Complete authorized Google account and location connection | P04-09 |
 | P05-02 | planned | Make local profile audit and growth scoring evidence-based | P04-09, P05-01 |
 | P05-03 | planned | Harden keyword research rank grids and competitor refresh | P04-09, P05-02 |

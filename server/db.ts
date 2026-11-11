@@ -1,3 +1,4 @@
+import type {OPERATION_STATES} from '../shared/operationStates';
 import {integrationDefinition} from '../shared/integrationRegistry';
 import {IntegrationAccessError} from './integrationAccess';
 import {attachOwnerAgency} from './agencyPolicy';
@@ -414,7 +415,7 @@ export interface DbAutonomousAuditLog {
   timestamp?: string;
 }
 
-export type JobQueueStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'RETRY_WAIT' | 'FAILED' | 'CANCELLED';
+export type JobQueueStatus = keyof typeof OPERATION_STATES.job;
 
 export interface DbJobQueue {
   deferrals?:number;

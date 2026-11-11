@@ -1,3 +1,4 @@
+import {importLegacyBatch} from './legacyKnowledge';
 import type {Express,Request} from 'express';
 import type {Pool} from 'mysql2/promise';
 import {readOnboarding,saveOnboarding,importLegacyKnowledge} from './onboarding';
@@ -12,4 +13,5 @@ export function registerOnboardingRoutes(app:Express,deps:{auth:(req:Request)=>P
  route('get','/api/companies/:id/onboarding',(_,pool,user,company)=>readOnboarding(pool,company,user));
  route('put','/api/companies/:id/onboarding',(req,pool,user,company)=>saveOnboarding(pool,company,user,req.body));
  route('post','/api/companies/:id/onboarding/legacy-import',(req,pool,user,company)=>importLegacyKnowledge(pool,company,user,req.body));
+ route('post','/api/companies/:id/onboarding/legacy-import-batch',(req,pool,user,company)=>importLegacyBatch(pool,company,user,req.body));
 }

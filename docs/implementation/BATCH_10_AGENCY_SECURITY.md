@@ -1,5 +1,7 @@
 # Grouped agency and security delivery
 
+Current local acceptance (12 November2026 IST): [ACCEPTANCE_TEN.md](ACCEPTANCE_TEN.md) accepts the original criteria for P02-01, P03-01/04/06 and P04-01/02/03/04/07/08 after the complete13-step matrix. These decisions supersede older in-progress notes for those tasks only. Schema034/60 unchanged. Full phase/hosting/provider/production gates and explicitly separate extension limits remain open; generated STATUS.md is current.
+
 12 November2026 IST. This group takes the ten requested tracker packages together, plus their directly connected agency UI package (P03-04). Current target034_agency_security_foundation /60 canonical tables; next035. Historical001–033 identities are unchanged. No production migration, deployment, external messaging or provider action performed.
 
 Continuation: AGENCY_TEAM_WORKFLOWS.md closes the previously pending membership editor, loaded-client search, location-edit and name-setting slices. Remaining-column statements below describe the original checkpoint; full branding, analytics, scalable search and earlier gate acceptance remain pending.

@@ -1,3 +1,5 @@
+import {OPERATION_STATES,operationMeaning} from '../shared/operationStates';
+import {legacyStatementBytes,reconcileLegacyKnowledge} from '../server/legacyKnowledge';
 import assert from 'node:assert/strict';
 import {onboardingCommand,classifyLegacyKnowledge} from '../shared/onboarding';
 const profile={name:'Clinic',category:'Health',city:'',phone:'',website:'https://example.invalid',brandTone:'Professional',preferredLanguage:'Hindi',targetAudience:''};
@@ -7,3 +9,8 @@ const original={knowledge_base:{documents:[{name:'Legacy.pdf',textContent:'PDF u
 const before=JSON.stringify(original),rows=classifyLegacyKnowledge(original);assert.equal(JSON.stringify(original),before);assert.equal(rows.length,5);assert.equal(rows[0].classification,'NEEDS_ORIGINAL');assert.equal(rows[1].text,'Appointments require confirmation.');assert.equal(rows[2].classification,'NEEDS_ORIGINAL');assert.equal(rows[3].text,'Question: Opening hours?\nAnswer: By appointment.');assert.equal(rows[4].classification,'NEEDS_ORIGINAL');assert.equal(classifyLegacyKnowledge({knowledge_base:{documents:'invalid',faqs:null}}).length,0);
 assert.equal(classifyLegacyKnowledge({knowledge_base:{documents:Array.from({length:201},()=>({name:'x',textContent:'Original text'}))}}).length,200);
 console.log('Onboarding contracts: exact revisions, strict review completion, private URL rejection, preserved legacy statements/FAQ text and honest placeholder classification passed.');
+
+assert.equal(operationMeaning('job','API_ACCEPTED'),null);assert.equal(operationMeaning('message','SUCCEEDED'),null);assert.equal(operationMeaning('publication','DELIVERED'),null);assert.match(operationMeaning('message','API_ACCEPTED')!,/delivery unconfirmed/);assert.match(operationMeaning('ingestion','EXTRACTED')!,/approval still separate/);assert.equal(operationMeaning('job','__proto__'),null);
+assert.equal(Object.keys(OPERATION_STATES.job).length,6);
+const textRow=rows[1],bytes=legacyStatementBytes(textRow);assert.match(bytes.toString(),/user-entered|User-entered/);assert.throws(()=>legacyStatementBytes(rows[0]));
+const reconciled=await reconcileLegacyKnowledge({query:async()=>[[]]} as any,'fixture',rows);assert.equal(reconciled[0].reconciliation,'NEEDS_ORIGINAL');assert.equal(reconciled[1].reconciliation,'NOT_IMPORTED');assert.ok(!JSON.stringify(reconciled).includes('Appointments require confirmation.'));

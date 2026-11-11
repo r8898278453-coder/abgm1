@@ -50,7 +50,9 @@
     "docs:status": "node --import tsx server/scripts/implementationStatus.ts",
     "docs:check": "node --import tsx server/scripts/implementationStatus.ts --check",
     "test:browser:agency": "node --import tsx test/browser/agencyWorkspace.test.ts",
-    "test:browser:onboarding": "node --import tsx test/browser/onboardingWorkflow.test.ts"
+    "test:browser:onboarding": "node --import tsx test/browser/onboardingWorkflow.test.ts",
+    "test:browser:pwa": "node --import tsx test/browser/privatePwa.test.ts",
+    "acceptance:ten": "node --import tsx server/scripts/acceptanceTen.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

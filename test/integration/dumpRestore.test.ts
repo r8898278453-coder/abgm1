@@ -50,6 +50,7 @@ try{
  assert.deepEqual(report.missingCanonicalColumns,[]);
  }finally{await fresh.end();await admin.query(`DROP DATABASE ${freshDatabase}`);}
  report.appliedNames=upgrade.appliedNames;report.schemaStatus=verification.status;report.missingColumns=verification.missingColumns;report.missingIndexes=verification.missingIndexes;report.missingConstraints=verification.missingConstraints;assert.equal(verification.status,'READY');
+ const [agencyOwners]:any=await pool.query("SELECT COUNT(*) count FROM companies c LEFT JOIN agency_clients ac ON ac.company_id=c.id LEFT JOIN agencies a ON a.id=ac.agency_id AND a.owner_user_id=c.user_id LEFT JOIN agency_memberships m ON m.agency_id=a.id AND m.user_id=c.user_id AND m.role='OWNER' WHERE a.id IS NULL OR m.user_id IS NULL");assert.equal(Number(agencyOwners[0].count),0);report.originalOwnerMappingsPreserved=true;
  const after=await snapshot(pool,columns);assert.deepEqual(after,before);report.businessRowsPreserved=true;
  const [afterLedger]:any=await pool.query('SELECT migration_name,checksum FROM schema_migrations ORDER BY migration_name');for(const row of ledger)assert.ok(afterLedger.some((r:any)=>r.migration_name===row.migration_name&&r.checksum===row.checksum));report.originalLedgerPreserved=true;
  stage='bundled-ledger';await mkdir('node_modules/.cache',{recursive:true});

@@ -1,3 +1,4 @@
+import {formatPlatformDateTime} from '../shared/platformTime';
 import {apiRequest} from './services/authService';
 import {workspaceDraft} from './services/workspaceDraft';
 import {canonicalJson} from '../shared/canonicalJson';
@@ -772,7 +773,7 @@ export default function App() {
             <div role="status" className="bg-white border border-amber-200 rounded-2xl p-6 space-y-3">
               <h2 className="font-bold">Workspace unavailable — changes are paused</h2>
               <p>{workspaceLoadState === 'offline' && cachedSnapshotAt
-                ? `A cached snapshot exists from ${new Date(cachedSnapshotAt).toLocaleString()}. Reconnect to view or edit this workspace.`
+                ? `A cached snapshot exists from ${formatPlatformDateTime(cachedSnapshotAt)}. Reconnect to view or edit this workspace.`
                 : 'The workspace could not be loaded. Reconnect before making changes.'}</p>
               <button className="rounded-lg bg-indigo-600 text-white px-4 py-2" onClick={() => {
                 const company = companies.find(c => c.id === activeCompanyId);

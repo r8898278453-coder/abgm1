@@ -1,5 +1,7 @@
 # Production Deployment Guide
 
+12 November2026 IST: ten parent packages are locally accepted per docs/implementation/ACCEPTANCE_TEN.md. This is not a deployment acceptance: actual Hostinger/runtime/provider/phase gates remain open. Schema034/60 unchanged; coordinate server/client/worker versions. Bulk legacy intake adds one authenticated management endpoint, preserving the existing single-record path; originals stay unapproved and no source data is made public.
+
 12 November2026 IST onboarding continuation uses existing034/60 schema and canonical worker: deploy matching server/client artifacts together; no request DDL. Setup close reloads the workspace revision after direct draft/completion writes. Website/PDF processing still requires a functioning worker and configured permissions. See docs/implementation/ONBOARDING_WORKFLOWS.md. No production action performed.
 
 12 November2026 IST team continuation adds agency-name/assignment/location edit APIs and real management UI on unchanged034/60 schema. See docs/implementation/AGENCY_TEAM_WORKFLOWS.md for contracts, roles, expectedName ABA limitation, location revisions and rollout gates. No production deployment was performed.
