@@ -39,3 +39,5 @@ Frontend integration loads and test/save responses are scoped to actor/client an
 ## Evidence
 
 See [security and integration evidence](evidence/security-and-integration-boundaries.json), [route inventory](evidence/route-contract-inventory.json) and EXECUTION.md. Source inventory remains138 declarations/135 terminal handlers with3 shared AI chain entries; recovery extraction increases imported registrations to27. Billing is excluded. No production database, hosting, provider send or deployment was performed by these tests.
+
+Current coordinated dependency:034/60 tables (next035), with agency/client assignments, conservative request-local roles, archive pause, revocation-aware bearer auth and provider registry aliases. Source/fact structures and historical001–033 identities are unchanged. Use BATCH_10_AGENCY_SECURITY.md and STATUS.md for current role/rollout/acceptance limits; older totals above retain their historical evidence scope.

@@ -1,6 +1,7 @@
+import {isSessionRevoked} from './securityStore';
 import crypto from 'crypto';
 import express from 'express';
-import { findUserById, DbUser, verifyPassword, hashPassword, PBKDF2_ITERATIONS } from './db';
+import { findUserById, getDbPool, DbUser, verifyPassword, hashPassword, PBKDF2_ITERATIONS } from './db';
 
 export { verifyPassword, hashPassword, PBKDF2_ITERATIONS };
 
@@ -207,6 +208,7 @@ export async function getAuthUserFromRequest(req: express.Request): Promise<DbUs
     const binding=passwordBinding(user);
     if(!crypto.timingSafeEqual(Buffer.from(binding,'hex'),Buffer.from(payload.pv,'hex')))return null;
 
+    const pool=await getDbPool();if(pool&&await isSessionRevoked(pool,payload.jti,user.id))return null;
     return user;
   } catch {
     return null;

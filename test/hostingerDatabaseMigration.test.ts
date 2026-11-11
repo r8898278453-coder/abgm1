@@ -1,3 +1,4 @@
+import {AGENCY_TABLE_COLUMNS} from '../server/migrations/034_agency_security_foundation';
 import {INDEX_REQUIREMENTS} from '../server/schemaIndexes';
 import { strict as assert } from 'assert';
 import {
@@ -100,6 +101,9 @@ class MockMySqlConnection {
       return [{ affectedRows: 1 } as any, []];
     }
 
+    if(cleanSql.startsWith('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES t')&&cleanSql.includes('t.ENGINE'))return [[],[]];
+    if(cleanSql.startsWith('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES t')&&cleanSql.includes("'agencies'"))return [[],[]];
+    if(cleanSql.includes("TABLE_NAME IN ('agencies','agency_memberships'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...Object.entries(AGENCY_TABLE_COLUMNS).flatMap(([TABLE_NAME,names])=>names.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME})))],[]];
     // Native SQL covers this manifest preflight; the contract harness models a compatible/absent source table.
     if(cleanSql.includes("COLUMN_TYPE NOT LIKE '%unsigned%'"))return [[],[]];
     if(cleanSql.startsWith('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES t')&&cleanSql.includes("TABLE_NAME='knowledge_sources'")||cleanSql.startsWith('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES t')&&cleanSql.includes("TABLE_NAME='knowledge_facts'"))return [[],[]];

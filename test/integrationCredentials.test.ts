@@ -3,7 +3,7 @@ import {resolveIntegrationInput,explicitIntegrationCompany} from '../server/inte
 import {inspectDomainIntegration} from '../server/domainIntegrationEvidence';
 import {publicIntegrationCheck} from '../server/integrationCheckResult';
 import {maskIntegrationCredentials} from '../shared/integrationCredentials';
-let reads=0;const deps={access:async(_:any,company:string)=>({authorized:company==='A',status:403}),read:async(company:string,provider:string)=>{reads++;return {company_id:company,provider,credentials:{smtpPass:'private-smtp-password',apiKey:'private-key',provider:'smtp'}};}};
+let reads=0;const deps={access:async(_:any,company:string)=>({authorized:company==='A',status:403}),read:async(company:string,provider:string)=>{reads++;if(provider!=='smtp')return null;return {company_id:company,provider,credentials:{smtpPass:'private-smtp-password',apiKey:'private-key',provider:'smtp'}};}};
 for(const query of [{},{companyId:'A',company_id:'B'},{companyId:['A']},{companyId:'A',unknown:'field'}])assert.throws(()=>explicitIntegrationCompany(query));assert.equal(explicitIntegrationCompany({company_id:'A'}),'A');
 await assert.rejects(resolveIntegrationInput({provider:'smtp',credentials:{}},{},deps));assert.equal(reads,0);
 await assert.rejects(resolveIntegrationInput({companyId:'B',provider:'smtp',credentials:{}},{},deps));assert.equal(reads,0);

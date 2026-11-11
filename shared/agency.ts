@@ -1,0 +1,10 @@
+import {z} from 'zod';import {validWorkspaceRevision} from './workspaceRevision';
+export const AGENCY_ROLES=['OWNER','ADMIN','STAFF','APPROVER','VIEWER'] as const;export type AgencyRole=typeof AGENCY_ROLES[number];export type AgencyOperation='read'|'write'|'approve'|'execute'|'manage';
+export const ROLE_CAPABILITIES:Record<AgencyRole,readonly AgencyOperation[]>={OWNER:['read','write','approve','execute','manage'],ADMIN:['read','write','approve','execute','manage'],STAFF:['read','write'],APPROVER:['read','approve'],VIEWER:['read']};
+export const CAPABILITY_PACKS={local_service:['content','crm','local_seo','reviews'],local_appointments:['content','crm','local_seo','reviews','appointments'],b2b:['content','crm','sales'],product:['content','crm','catalog']} as const;
+export const revision=z.string().refine(validWorkspaceRevision);
+export const operationsInput=z.object({expectedVersion:revision,status:z.enum(['ACTIVE','ARCHIVED']),pack:z.enum(['local_service','local_appointments','b2b','product']),locale:z.enum(['en-IN','hi-IN']),dailyActionLimit:z.number().int().min(0).max(500)}).strict();
+export const locationInput=z.object({name:z.string().trim().min(1).max(160),address:z.string().trim().max(500).nullable(),city:z.string().trim().max(160).nullable(),latitude:z.number().min(-90).max(90).nullable(),longitude:z.number().min(-180).max(180).nullable()}).strict().refine(v=>(v.latitude===null)===(v.longitude===null),'Coordinates must be supplied together');
+export const memberInput=z.object({userId:z.string().min(1).max(64),role:z.enum(['ADMIN','STAFF','APPROVER','VIEWER'])}).strict();
+export function roleAllows(role:unknown,operation:AgencyOperation){return typeof role==='string'&&Object.hasOwn(ROLE_CAPABILITIES,role)&&ROLE_CAPABILITIES[role as AgencyRole].includes(operation);}
+export function clientRoleWithin(member:unknown,client:unknown){return typeof client==='string'&&Object.hasOwn(ROLE_CAPABILITIES,client)&&ROLE_CAPABILITIES[client as AgencyRole].every(op=>roleAllows(member,op));}

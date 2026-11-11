@@ -1,5 +1,8 @@
 # P00-06 baseline and contract review — 10 November 2026 IST
 
+Current grouped-delivery checkpoint:034_agency_security_foundation /60 tables, next035;001–033 unchanged. Eleven linked work packages are in progress with exact scope/compatibility/limits in BATCH_10_AGENCY_SECURITY.md; STATUS.md gives current counts. Earlier schema totals below are historical. No production action.
+
+
 Current status is generated in STATUS.md from all93 tasks. Source target033/52; private structured fact review and current regression evidence are in KNOWLEDGE_FACTS.md and EXECUTION.md. Earlier numerical checkpoints below are historical. Baseline hosting acceptance remains open.
 
 

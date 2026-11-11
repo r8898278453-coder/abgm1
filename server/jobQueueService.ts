@@ -1,3 +1,4 @@
+import {clientArchived} from './agencyPolicy';
 import {executeWebsiteImportJob} from './websiteImportJobs';
 import {executeKnowledgeExtractionJob,recoverKnowledgeIngestion} from './knowledgeIngestion';
 import {publishingExecutionBlock} from './publishingExecutionControls';
@@ -91,6 +92,7 @@ export async function executeJob(
       return {jobId,jobType,status:'SKIPPED' as const,error:reason};
     };
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
+    const operationsPool=await getDbPool();if(operationsPool&&await clientArchived(operationsPool,companyId))return await defer('CLIENT_ARCHIVED');
     switch (jobType) {
       case 'website_import': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeWebsiteImportJob(pool,job);}
       case 'knowledge_extract': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeKnowledgeExtractionJob(pool,job);}

@@ -19,6 +19,7 @@ export function getStoredToken(): string | null {
 
 export function setStoredSession(token: string, user: AuthUser) {
   try {
+    if(getStoredUser()?.id!==user.id)clearStoredSession();
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch (err) {
@@ -40,10 +41,14 @@ export function clearStoredSession() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(ACTIVE_COMPANY_KEY);
+    for(const key of Object.keys(localStorage))if(key.startsWith('localpulse_app_state_')||key.startsWith('localpulse_workspace_'))localStorage.removeItem(key);
+    if(typeof navigator!=='undefined')navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_PRIVATE_STATE'});
   } catch (err) {
     console.warn('Failed to clear session:', err);
   }
 }
+
+export async function revokeStoredSession(){try{await apiRequest('/api/auth/logout',{method:'POST',body:'{}',signal:AbortSignal.timeout(5000)});return true;}catch{return false;}}
 
 export function getStoredActiveCompanyId(): string | null {
   try {
@@ -77,14 +82,17 @@ export async function apiRequest<T>(url: string, options: RequestInit = {}): Pro
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const resolvedUrl = url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+  if(!url.startsWith('/')||url.startsWith('//')||url.includes('\\'))throw new Error('Only local API paths are allowed');
+  const resolvedUrl = `${API_BASE_URL}${url}`;
 
   const response = await fetch(resolvedUrl, {
     ...options,
     headers,
   });
 
+  if(token!==getStoredToken())throw new Error('Session changed during request');
   const data = await response.json().catch(() => null);
+  if(token!==getStoredToken())throw new Error('Session changed during request');
   if (!response.ok) {
     throw new ApiRequestError(data?.error || `Request failed with status ${response.status}`, response.status);
   }

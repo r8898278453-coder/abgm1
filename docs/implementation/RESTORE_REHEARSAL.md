@@ -1,5 +1,8 @@
 # Copied SQL restore rehearsal — 11 November 2026 IST
 
+Current grouped-delivery checkpoint:034_agency_security_foundation /60 tables, next035;001–033 unchanged. Eleven linked work packages are in progress with exact scope/compatibility/limits in BATCH_10_AGENCY_SECURITY.md; STATUS.md gives current counts. Earlier schema totals below are historical. No production action.
+
+
 This is a local compatibility rehearsal, not a production rollback or disaster-recovery acceptance. The uploaded export stays outside the repository. Never commit SQL dumps, row hashes, credentials or customer records to evidence.
 
 Latest continuation verifies033_structured_knowledge_facts (52 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: [structured-knowledge-facts.json](evidence/structured-knowledge-facts.json). This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
@@ -41,3 +44,5 @@ Latest website provenance rehearsal: uploaded export restores READY through031 w
 Queued-ingestion rehearsal: uploaded export reaches READY through032 with51 tables, original business rows/five historical ledger identities preserved and source/bundled replay applied0. No production data/DDL touched.
 
 Structured-fact rehearsal: unchanged uploaded export reaches033 READY/52 canonical tables, preserves all original business rows and five historical ledger identities, and source/bundled replay applies0. Canonical probe writes roll back. No production DB or provider access.
+
+Grouped agency/security rehearsal through034 reaches READY/60 canonical tables and backfills owner data in new tables while preserving every original business-table row and five ledger identities. Source/bundled replay0; canonical probe writes roll back. No live database restore or DDL occurred.

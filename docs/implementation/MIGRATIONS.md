@@ -1,5 +1,8 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+Current grouped-delivery checkpoint:034_agency_security_foundation /60 tables, next035;001–033 unchanged. Eleven linked work packages are in progress with exact scope/compatibility/limits in BATCH_10_AGENCY_SECURITY.md; STATUS.md gives current counts. Earlier schema totals below are historical. No production action.
+
+
 ## Current forward extension:033 structured knowledge facts
 
 Schema target033_structured_knowledge_facts /52 canonical tables; next product034. Existing001–032 source/ledger identities unchanged. New fact table supports immutable candidates/current review revisions, minimal audit and source references without a source-delete FK that would silently erase review evidence. Manifest preflight/readiness refuse incompatible existing fact shapes. See KNOWLEDGE_FACTS.md and current STATUS.md. Older checkpoint numbers below retain their dated scope.
@@ -68,3 +71,5 @@ Evidence: [migration-manifest-and-ledger.json](evidence/migration-manifest-and-l
 Previous product checkpoint031_website_source_provenance (51 tables), extended by032 below. Adds nullable original URL/fetch-ms to existing knowledge_sources with compatibility preflight and readiness shape checks. Historical001–030 unchanged. Manifest fixtures derive next free ID. Fresh/upgrade/replay and uploaded export restore were verified locally; no production DDL.
 
 Current target032_knowledge_ingestion_queue adds nullable source job/attempt references; table count51 unchanged and next product033. Short/non-null job references and incorrect attempt shapes refuse preflight/readiness; missing partial columns recover idempotently. Historical001–031 are unchanged. Actual queued processing needs coordinated worker/server deployment; no production DDL here.
+
+034 adds eight new InnoDB tables for agencies/members/client mappings/assignments, operating settings/locations, current-token revocations and persistent security windows. It backfills owner mappings and default operating rows using existing company owner IDs without rewriting old business rows. Compatibility preflight/readiness reject missing/short role/ID/revision fields and wrong required index shapes. New company creation extends the same ownership transaction. This does not accept preexisting corrupt ownership mappings: runtime rejects agency-owner/company-owner mismatch. Historical001–033 are unchanged; the next product ID is035 and disposable fixtures derive it dynamically. Uploaded export through034/60 preserves all original rows/five identities and source/bundle replay0. See BATCH_10_AGENCY_SECURITY.md.

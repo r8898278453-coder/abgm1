@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 033_structured_knowledge_facts; 52 canonical tables. Registered default regression programs: 98 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 034_agency_security_foundation; 60 canonical tables. Registered default regression programs: 99 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 13 / 1 / 71.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 24 / 1 / 60.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -14,8 +14,8 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | --- | ---: | ---: | ---: | ---: |
 | P00 | 3 | 2 | 1 | 0 |
 | P01 | 4 | 5 | 0 | 1 |
-| P02 | 1 | 0 | 0 | 7 |
-| P03 | 0 | 0 | 0 | 7 |
+| P02 | 1 | 5 | 0 | 2 |
+| P03 | 0 | 6 | 0 | 1 |
 | P04 | 0 | 6 | 0 | 3 |
 | P05 | 0 | 0 | 0 | 11 |
 | P06 | 0 | 0 | 0 | 8 |
@@ -68,20 +68,20 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P01-08 | in_progress | Persist scoped stops usage reservations and execution policy | P00-06 |
 | P01-09 | in_progress | Remove confirmed simulated success and unsupported capability badges | P00-06, P01-08 |
 | P01-10 | planned | Reliability and isolation gate | P00-06, P01-09 |
-| P02-01 | planned | Freeze shared contracts and route compatibility map | P01-10 |
-| P02-02 | planned | Extract route modules and database seams mechanically | P01-10, P02-01 |
-| P02-03 | planned | Extract workspace state request transport and typed feature clients | P01-10, P02-02 |
+| P02-01 | in_progress | Freeze shared contracts and route compatibility map | P01-10 |
+| P02-02 | in_progress | Extract route modules and database seams mechanically | P01-10, P02-01 |
+| P02-03 | in_progress | Extract workspace state request transport and typed feature clients | P01-10, P02-02 |
 | P02-04 | validated | Make forward migrations the sole schema authority | P01-10, P02-03 |
-| P02-05 | planned | Implement session revocation CSRF and persistent limit policy | P01-10 |
-| P02-06 | planned | Create canonical integration registry and legacy alias mapping | P01-10, P02-05 |
+| P02-05 | in_progress | Implement session revocation CSRF and persistent limit policy | P01-10 |
+| P02-06 | in_progress | Create canonical integration registry and legacy alias mapping | P01-10, P02-05 |
 | P02-07 | planned | Implement reusable OAuth lifecycle and safe network primitives | P01-10, P02-06 |
 | P02-08 | planned | Canonical architecture compatibility gate | P01-10, P02-07 |
-| P03-01 | planned | Add agency memberships and backfill existing owners | P02-08 |
-| P03-02 | planned | Apply canonical RBAC to every tenant operation | P02-08, P03-01 |
-| P03-03 | planned | Persist locations geography locale and client lifecycle under fixed IST policy | P02-08, P03-02 |
-| P03-04 | planned | Replace local agency branch UI and establish scoped app shell | P02-08, P03-03 |
-| P03-05 | planned | Define capability packs goals and operational limits | P02-08, P03-04 |
-| P03-06 | planned | Secure PWA and client browser storage boundaries | P02-08, P03-05 |
+| P03-01 | in_progress | Add agency memberships and backfill existing owners | P02-08 |
+| P03-02 | in_progress | Apply canonical RBAC to every tenant operation | P02-08, P03-01 |
+| P03-03 | in_progress | Persist locations geography locale and client lifecycle under fixed IST policy | P02-08, P03-02 |
+| P03-04 | in_progress | Replace local agency branch UI and establish scoped app shell | P02-08, P03-03 |
+| P03-05 | in_progress | Define capability packs goals and operational limits | P02-08, P03-04 |
+| P03-06 | in_progress | Secure PWA and client browser storage boundaries | P02-08, P03-05 |
 | P03-07 | planned | Agency and client isolation gate | P02-08, P03-06 |
 | P04-01 | in_progress | Implement private source storage and truthful ingestion runs | P03-07 |
 | P04-02 | in_progress | Implement bounded website importer and extracted fact provenance | P03-07, P04-01 |

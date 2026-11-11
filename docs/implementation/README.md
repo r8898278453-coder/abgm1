@@ -1,5 +1,8 @@
 # ABGM1 implementation blueprint
 
+Current grouped-delivery checkpoint:034_agency_security_foundation /60 tables, next035;001–033 unchanged. Eleven linked work packages are in progress with exact scope/compatibility/limits in BATCH_10_AGENCY_SECURITY.md; STATUS.md gives current counts. Earlier schema totals below are historical. No production action.
+
+
 Current implementation status: [STATUS.md](STATUS.md) is generated from all93 tracker entries, phase states and dependencies. Refresh with npm run docs:status; verify with npm run docs:check. Current schema033/52 adds reviewed business facts; [KNOWLEDGE_FACTS.md](KNOWLEDGE_FACTS.md) documents scope/limits. No phase or production deployment is accepted by this checkpoint.
 
 

@@ -8,6 +8,26 @@
       "owner": "server.ts"
     },
     {
+      "method": "GET",
+      "path": "/api/agencies",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agencies/:agencyId/members",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/agencies/:agencyId/members",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/agencies/:agencyId/members/:userId",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/ai/chat",
       "owner": "server.ts",
@@ -76,9 +96,14 @@
       "owner": "server.ts"
     },
     {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "owner": "server/sessionRoutes.ts#registerSessionRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/auth/me",
-      "owner": "server.ts"
+      "owner": "server/sessionRoutes.ts#registerSessionRoutes"
     },
     {
       "method": "POST",
@@ -178,12 +203,12 @@
     {
       "method": "GET",
       "path": "/api/companies",
-      "owner": "server.ts"
+      "owner": "server/companyRoutes.ts#registerCompanyRoutes"
     },
     {
       "method": "POST",
       "path": "/api/companies",
-      "owner": "server.ts"
+      "owner": "server/companyRoutes.ts#registerCompanyRoutes"
     },
     {
       "method": "GET",
@@ -254,6 +279,11 @@
       "method": "DELETE",
       "path": "/api/companies/:id/assets/:assetId",
       "owner": "server.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/assignments",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
     {
       "method": "GET",
@@ -477,8 +507,33 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:id/locations",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/locations",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/locations/:locationId",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/notification-status",
       "owner": "server/notificationStatusRoutes.ts#registerNotificationStatus"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id/operations",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/operations",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
     {
       "method": "POST",
@@ -786,5 +841,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 29
+  "registrationCount": 32
 }

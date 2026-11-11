@@ -39,6 +39,7 @@ import { Sparkles, Building2, Loader2, AlertTriangle, ArrowRight } from 'lucide-
 import {
   getStoredUser,
   clearStoredSession,
+  revokeStoredSession,
   fetchUserCompanies,
   fetchCompanyData,
   saveCompanyData,
@@ -404,7 +405,7 @@ export default function App() {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-    if (clearSession) clearStoredSession();
+    if (clearSession){void revokeStoredSession();clearStoredSession();}
     setUser(null);
     setCompanies([]);
     setActiveCompanyId(null);

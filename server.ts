@@ -1,3 +1,8 @@
+import {registerCompanyRoutes} from './server/companyRoutes';
+import {verifyAuthToken} from './server/auth';
+import {registerSessionRoutes,persistentLoginLimit} from './server/sessionRoutes';
+import {registerAgencyRoutes} from './server/agencyRoutes';
+import {agencyClientAccess,agencyRequestContext} from './server/agencyPolicy';
 import {createDraftModel} from './server/draftModel';
 import {generateKnowledgeDraft,KnowledgeDraftError,knowledgeDraftInput} from './server/knowledgeDrafts';
 import {registerInternalCampaignRoutes} from './server/internalCampaignRoutes';
@@ -316,6 +321,8 @@ app.use(
   })
 );
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(agencyRequestContext);
+registerAgencyRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 
 // Ensure /uploads directory exists gracefully on startup
 const UPLOADS_BASE_DIR = path.join(process.cwd(), 'uploads');
@@ -462,7 +469,7 @@ app.post('/api/auth/register', registerRateLimiter, validateBody(registerSchema)
 });
 
 // User login (protected with rate limiting, brute-force account lockout & Zod schema validation)
-app.post('/api/auth/login', loginProtectionMiddleware, validateBody(loginSchema), async (req, res) => {
+app.post('/api/auth/login', persistentLoginLimit({pool:getDbPool,required:()=>process.env.NODE_ENV==='production'||process.env.IS_PRODUCTION==='true'}),loginProtectionMiddleware, validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -538,29 +545,7 @@ app.post('/api/auth/login', loginProtectionMiddleware, validateBody(loginSchema)
 
 registerPasswordRecoveryRoutes(app,{forgotLimit:forgotPasswordRateLimiter,forgotValidate:validateBody(forgotPasswordSchema),resetValidate:validateBody(resetPasswordSchema),configured:isEmailServiceConfigured,find:findUserByEmail,create:createPasswordResetToken,send:sendPasswordResetEmail,consume:consumePasswordReset,afterReset:async(id,req)=>{const user=await findUserById(id);if(user)recordSuccessfulLogin(req,user.email);}});
 
-// Current session verification
-app.get('/api/auth/me', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Unauthorized or session expired' });
-      return;
-    }
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        is_platform_admin: Boolean(user.is_platform_admin),
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerSessionRoutes(app,{auth:getAuthUserFromRequest,token:verifyAuthToken,pool:getDbPool});
 
 // ==================== MULTI-COMPANY APIS & TENANT AUTHORIZATION ==================== //
 
@@ -579,6 +564,7 @@ async function verifyCompanyWorkspaceAccess(
   if (!company) {
     return { authorized: false, error: 'Company workspace not found', status: 404 };
   }
+  const pool=await getDbPool();if(pool){const policy=await agencyClientAccess(pool,user,companyId);return {...policy,company};}
   if (company.user_id !== user.id && !user.is_platform_admin) {
     return { authorized: false, error: 'Access denied to this company workspace', status: 403 };
   }
@@ -613,53 +599,7 @@ async function resolveUserCompanyId(
   return { companyId: userCompanies[0].id, status: 200 };
 }
 
-// Get all companies for current user (or all platform companies if platform_admin)
-app.get('/api/companies', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const companies = user.is_platform_admin ? await getAllCompanies() : await getUserCompanies(user.id);
-    res.json({ success: true, companies });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Create new company profile
-app.post('/api/companies', validateBody(createCompanySchema), async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { name, legal_name, category, city, phone, website, google_place_id } = req.body;
-
-    const company = await createCompany({
-      user_id: user.id,
-      name,
-      legal_name,
-      category,
-      city,
-      phone,
-      website,
-      google_place_id,
-    });
-
-    // Send Telegram alert of new business onboarding if enabled
-    const alertMsg = `🏢 *NEW COMPANY ONBOARDED TO ABGA!*\n\n👑 *Owner:* ${user.full_name} (${user.email})\n🏢 *Business:* ${company.name}\n🏷️ *Category:* ${company.category}\n📍 *City:* ${company.city}\n🌐 *Domain:* bga.aaditechs.in`;
-    sendTelegramPushAlert(alertMsg).catch(() => {});
-
-    res.status(201).json({ success: true, company });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerCompanyRoutes(app,{auth:getAuthUserFromRequest,all:getAllCompanies,owned:getUserCompanies,create:createCompany,validate:validateBody(createCompanySchema),created:async(user,company)=>{const alertMsg=`🏢 *NEW COMPANY ONBOARDED TO ABGA!*\n\n👑 *Owner:* ${user.full_name} (${user.email})\n🏢 *Business:* ${company.name}\n🏷️ *Category:* ${company.category}\n📍 *City:* ${company.city}\n🌐 *Domain:* bga.aaditechs.in`;return sendTelegramPushAlert(alertMsg);}});
 
 registerCompanyDataRoutes(app,{auth:getAuthUserFromRequest,company:getCompanyById,access:verifyCompanyWorkspaceAccess,read:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};},save:async(company,data,version)=>{if(!await saveCompanyDataPayload(company,data,version))throw new Error('Workspace save unconfirmed');return companyDataVersion(data);}});
 
@@ -708,10 +648,10 @@ app.get('/api/companies/:id/growth-score', async (req, res) => {
         city: company.city,
         phone: company.phone || '',
         website: company.website || '',
-        address: `${company.city}, India`,
+        address: '',
         subCategory: company.category,
-        state: 'Maharashtra',
-        country: 'India',
+        state: '',
+        country: '',
         email: '',
         whatsapp: company.phone || '',
         description: '',

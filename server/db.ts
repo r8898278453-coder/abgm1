@@ -1,3 +1,6 @@
+import {integrationDefinition} from '../shared/integrationRegistry';
+import {IntegrationAccessError} from './integrationAccess';
+import {attachOwnerAgency} from './agencyPolicy';
 import {updateInternalCampaignSql} from './internalCampaignStore';
 import {isIntegrationSecret} from '../shared/integrationCredentials';
 import {consumePasswordResetSql} from './passwordResetStore';
@@ -1017,7 +1020,7 @@ export async function getUserCompanies(userId: string): Promise<DbCompany[]> {
   try {
     const db = await getDbPool();
     if (db) {
-      const [rows]: any = await db.query('SELECT * FROM companies WHERE user_id = ? ORDER BY created_at ASC', [userId]);
+      const [rows]:any=await db.query("SELECT DISTINCT c.* FROM companies c JOIN agency_clients ac ON ac.company_id=c.id JOIN agencies a ON a.id=ac.agency_id AND a.owner_user_id=c.user_id JOIN agency_memberships m ON m.agency_id=ac.agency_id LEFT JOIN client_assignments x ON x.company_id=c.id AND x.agency_id=ac.agency_id AND x.user_id=m.user_id WHERE m.user_id=? AND ((m.role='OWNER' AND a.owner_user_id=m.user_id) OR m.role='ADMIN' OR (m.role='STAFF' AND x.role IN ('STAFF','VIEWER')) OR (m.role='APPROVER' AND x.role IN ('APPROVER','VIEWER')) OR (m.role='VIEWER' AND x.role='VIEWER')) ORDER BY c.created_at ASC",[userId]);
       return rows as DbCompany[];
     }
   } catch (err: any) {
@@ -1077,10 +1080,12 @@ export async function createCompany(data: {
     created_at: new Date().toISOString(),
   };
 
+  let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
-      await db.query(
+      connected=true;const connection=await db.getConnection();try{await connection.beginTransaction();
+      await connection.query(
         `INSERT INTO companies (id, user_id, name, legal_name, category, city, phone, website, google_place_id, autopilot_enabled, score, rank_position, public_form_token)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -1099,9 +1104,11 @@ export async function createCompany(data: {
           newCompany.public_form_token,
         ]
       );
-      return newCompany;
+      await attachOwnerAgency(connection,newCompany.id,newCompany.user_id);await connection.commit();return newCompany;
+      }catch(e){await connection.rollback();throw e;}finally{connection.release();}
     }
   } catch (err: any) {
+    if(connected)throw new Error('COMPANY_CREATE_UNCONFIRMED');
     handleDbError('createCompany', err);
   }
 
@@ -1330,7 +1337,7 @@ export async function getCompanyIntegrations(companyId: string): Promise<DbInteg
   }));
 }
 
-export async function getCompanyIntegration(companyId: string, provider: string): Promise<DbIntegration | null> {
+export async function getCompanyIntegrationExact(companyId: string, provider: string): Promise<DbIntegration | null> {
   let connected=false;
   try {
     const db = await getDbPool();
@@ -1360,6 +1367,8 @@ export async function getCompanyIntegration(companyId: string, provider: string)
   const mem = inMemoryIntegrations.find((i) => i.company_id === companyId && i.provider === provider);
   return mem ? { ...mem, credentials: decryptCredentialsObject(mem.credentials || {}) } : null;
 }
+
+export async function getCompanyIntegration(companyId:string,provider:string):Promise<DbIntegration|null>{const definition=integrationDefinition(provider);if(!definition)return getCompanyIntegrationExact(companyId,provider);const rows=(await Promise.all([definition.canonical,...definition.aliases].map(name=>getCompanyIntegrationExact(companyId,name)))).filter(Boolean) as DbIntegration[];if(rows.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');return rows[0]||null;}
 
 export async function getCompanyIntegrationsByProvider(provider: string, requireDurable = false): Promise<DbIntegration[]> {
   let connected=false;

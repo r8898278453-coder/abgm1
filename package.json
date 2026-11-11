@@ -48,7 +48,8 @@
     "test:browser:campaigns": "node --import tsx test/browser/campaignPlanning.test.ts",
     "test:browser:facts": "node --import tsx test/browser/knowledgeFacts.test.ts",
     "docs:status": "node --import tsx server/scripts/implementationStatus.ts",
-    "docs:check": "node --import tsx server/scripts/implementationStatus.ts --check"
+    "docs:check": "node --import tsx server/scripts/implementationStatus.ts --check",
+    "test:browser:agency": "node --import tsx test/browser/agencyWorkspace.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

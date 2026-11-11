@@ -1,0 +1,76 @@
+{
+  "date_ist": "2026-11-12",
+  "requested_group": [
+    "P02-01",
+    "P02-02",
+    "P02-03",
+    "P02-05",
+    "P02-06",
+    "P03-01",
+    "P03-02",
+    "P03-03",
+    "P03-05",
+    "P03-06"
+  ],
+  "connected_ui_package": "P03-04",
+  "parent_packages_started": 11,
+  "full_parent_acceptance": false,
+  "schema": {
+    "latest": "034_agency_security_foundation",
+    "canonical_tables": 60,
+    "historical_001_through_033_unchanged": true,
+    "next_product_migration": "035"
+  },
+  "default_programs": 99,
+  "routes": {
+    "declarations": 167,
+    "registrations": 32,
+    "collisions": 0
+  },
+  "implemented": [
+    "Canonical company/session route owners and typed agency contracts",
+    "Private local-only session-fenced request transport and actor/logout cache purge",
+    "Hashed current-session revocation and DB-clock persistent login-IP windows",
+    "Distinct provider registry, raw-preserving alias lookup and duplicate alias refusal",
+    "Deterministic owner backfill and atomic new-company ownership mapping",
+    "Case-safe immutable owner, explicit client assignments and role ceilings",
+    "Request-local role operation isolation, conservative unknown mutations and archive restrictions",
+    "Persisted locations with real nullable geography and stale delete checks",
+    "Revision-bound lifecycle and planning packs, archive/autopilot-off atomicity and no auto-resume",
+    "Public-shell-only PWA without private API/upload fallback or offline sending",
+    "Real API-backed agency UI instead of fabricated branches/strict/white-label badges"
+  ],
+  "validation": {
+    "default_regressions": "99 passed with inherited production credentials excluded",
+    "native_sql": "restricted disposable MariaDB10.11.19 full fresh/upgrade/replay; owner-map mismatch refusal,8-way owner creation/operations CAS, roles/alias/archive rollback,12-way limits and hashed logout passed",
+    "browser": "agency fixture and full workspace passed; external traffic blocked",
+    "typescript": "passed",
+    "build": "passed; existing client chunk warning",
+    "uploaded_export": {
+      "ready_through": 34,
+      "tables": 60,
+      "original_business_rows_preserved": true,
+      "original_ledger_identities_preserved": 5,
+      "source_and_bundled_replay_applied": 0
+    }
+  },
+  "production_changes": false,
+  "customer_sends": false,
+  "deployed": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 24,
+    "blocked": 1,
+    "planned": 60
+  },
+  "phase_acceptance": false,
+  "remaining": [
+    "Full parent scopes listed individually in BATCH_10_AGENCY_SECURITY.md",
+    "Cookie/CSRF migration, logout-all, persistent account-failure policy and retention",
+    "Complete endpoint/worker role parity and all legacy scheduler/archive paths",
+    "Global usage reservations, complete agency navigation/goals/invitations and OAuth/hosting acceptance",
+    "All preceding and later unaccepted phase gates"
+  ],
+  "production_provider_actions": false
+}

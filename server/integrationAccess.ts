@@ -1,3 +1,4 @@
+import {integrationDefinition} from '../shared/integrationRegistry';
 import {z} from 'zod';
 import {isIntegrationSecret} from '../shared/integrationCredentials';
 export class IntegrationAccessError extends Error{constructor(public status:number,public code:string){super(code);}}
@@ -10,12 +11,13 @@ export function explicitIntegrationCompany(query:unknown){
 }
 export async function resolveIntegrationInput(input:unknown,user:any,deps:{access:(user:any,company:string)=>Promise<any>;read:(company:string,provider:string)=>Promise<any>}){
  const parsed=integrationInput.safeParse(input);if(!parsed.success)throw new IntegrationAccessError(400,'INTEGRATION_INPUT_INVALID');
- const {companyId,provider}=parsed.data,access=await deps.access(user,companyId);if(!access.authorized)throw new IntegrationAccessError(access.status,'INTEGRATION_WORKSPACE_DENIED');
- const existing=await deps.read(companyId,provider);if(existing&&(existing.company_id!==companyId||existing.provider!==provider))throw new IntegrationAccessError(503,'INTEGRATION_STORAGE_INVALID');
+ const {companyId,provider}=parsed.data,definition=integrationDefinition(provider);if(!definition)throw new IntegrationAccessError(400,'INTEGRATION_PROVIDER_UNSUPPORTED');
+ const access=await deps.access(user,companyId);if(!access.authorized)throw new IntegrationAccessError(access.status,'INTEGRATION_WORKSPACE_DENIED');
+ const candidates=await Promise.all([definition.canonical,...definition.aliases].map(name=>deps.read(companyId,name)));const configured=[...new Map(candidates.filter(Boolean).map(row=>[(row.id||row.provider)+':'+row.company_id,row])).values()];if(configured.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');const existing=configured[0]||null;const storedProvider=existing?.provider||definition.canonical;if(existing&&(existing.company_id!==companyId||![definition.canonical,...definition.aliases].includes(existing.provider)))throw new IntegrationAccessError(503,'INTEGRATION_STORAGE_INVALID');
  const merged:Record<string,string>=Object.fromEntries(Object.entries(existing?.credentials||{}).filter((entry):entry is [string,string]=>typeof entry[1]==='string'));for(const [key,value]of Object.entries(parsed.data.credentials)){
   if(value.includes('••••')){if(!isIntegrationSecret(key)||typeof existing?.credentials?.[key]!=='string'||!existing.credentials[key])throw new IntegrationAccessError(400,'INTEGRATION_SECRET_REQUIRED');merged[key]=existing.credentials[key];}
   else{if(value.startsWith('enc:v1:'))throw new IntegrationAccessError(400,'INTEGRATION_CIPHERTEXT_REJECTED');merged[key]=value.trim();}
  }
  if(!credentials.safeParse(merged).success)throw new IntegrationAccessError(400,'INTEGRATION_CREDENTIALS_TOO_LARGE');
- return {...parsed.data,credentials:merged,existing};
+ return {...parsed.data,provider:storedProvider,credentials:merged,existing};
 }
