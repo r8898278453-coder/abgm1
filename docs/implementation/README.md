@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+Saved onboarding continuation — 12 November2026 IST: [ONBOARDING_WORKFLOWS.md](ONBOARDING_WORKFLOWS.md) documents server resume/atomic completion, canonical source/website review, saved-only integration metadata and preserved legacy-text intake. [DELIVERY_AND_PENDING.md](DELIVERY_AND_PENDING.md) separates delivered scope and pending packages. Schema034/60 unchanged; current task counts are generated in STATUS.md; no phase/deployment acceptance.
+
 Current ten-workflow continuation (12 November2026 IST): [AGENCY_TEAM_WORKFLOWS.md](AGENCY_TEAM_WORKFLOWS.md) records real team/assignment UI, scoped assignment revocation, location revision edits, persisted agency name, client search and bounded role changes. Schema034/60 unchanged; current counts/prerequisites in STATUS.md. This is child-deliverable progress, not full-parent/phase acceptance or deployment.
 
 Current grouped-delivery checkpoint:034_agency_security_foundation /60 tables, next035;001–033 unchanged. Eleven linked work packages are in progress with exact scope/compatibility/limits in BATCH_10_AGENCY_SECURITY.md; STATUS.md gives current counts. Earlier schema totals below are historical. No production action.

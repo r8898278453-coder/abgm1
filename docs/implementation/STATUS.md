@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 034_agency_security_foundation; 60 canonical tables. Registered default regression programs: 99 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 034_agency_security_foundation; 60 canonical tables. Registered default regression programs: 100 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 25 / 1 / 59.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 27 / 1 / 57.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -16,7 +16,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P01 | 4 | 5 | 0 | 1 |
 | P02 | 1 | 5 | 0 | 2 |
 | P03 | 0 | 6 | 0 | 1 |
-| P04 | 0 | 6 | 0 | 3 |
+| P04 | 0 | 8 | 0 | 1 |
 | P05 | 0 | 0 | 0 | 11 |
 | P06 | 0 | 0 | 0 | 8 |
 | P07 | 0 | 0 | 0 | 8 |
@@ -89,8 +89,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P04-04 | in_progress | Build approved facts FAQs revisions and conflict review | P03-07, P04-03 |
 | P04-05 | in_progress | Implement tenant-scoped retrieval and AI grounding contracts | P03-07, P04-04 |
 | P04-06 | in_progress | Connect review content chat and sales draft consumers to shared knowledge | P03-07, P04-05 |
-| P04-07 | planned | Replace onboarding and knowledge picker with resumable real workflow | P03-07, P04-06 |
-| P04-08 | planned | Migrate legacy knowledge JSON and preserve user-entered content | P03-07, P04-07 |
+| P04-07 | in_progress | Replace onboarding and knowledge picker with resumable real workflow | P03-07, P04-06 |
+| P04-08 | in_progress | Migrate legacy knowledge JSON and preserve user-entered content | P03-07, P04-07 |
 | P04-09 | planned | Business memory and onboarding gate | P03-07, P04-08 |
 | P05-01 | planned | Complete authorized Google account and location connection | P04-09 |
 | P05-02 | planned | Make local profile audit and growth scoring evidence-based | P04-09, P05-01 |

@@ -1,0 +1,12 @@
+import {z} from 'zod';
+import {validWorkspaceRevision} from './workspaceRevision';
+const website=z.string().trim().max(2048).refine(value=>{if(!value)return true;try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash;}catch{return false;}},'Use an HTTPS website without credentials, query or fragment');
+export const onboardingProfile=z.object({name:z.string().trim().min(1).max(160),category:z.string().trim().min(1).max(160),city:z.string().trim().max(160),phone:z.string().trim().max(64),website,brandTone:z.string().trim().min(1).max(160),preferredLanguage:z.enum(['English','Hindi','Hinglish','Marathi']),targetAudience:z.string().trim().max(2000)}).strict();
+export const onboardingCommand=z.object({expectedVersion:z.string().refine(validWorkspaceRevision),step:z.number().int().min(1).max(4),complete:z.boolean(),profile:onboardingProfile}).strict().refine(v=>!v.complete||v.step===4,'Review setup before completion');
+export type OnboardingProfile=z.infer<typeof onboardingProfile>;
+export type LegacyKnowledgeRecord={id:string;name:string;kind:'DOCUMENT'|'FAQ';classification:'USER_ENTERED_TEXT'|'NEEDS_ORIGINAL';text:string|null};
+/** Existing text is a user statement, never proof of original binary extraction. */
+export function classifyLegacyKnowledge(payload:any):LegacyKnowledgeRecord[]{
+ const docs=Array.isArray(payload?.knowledge_base?.documents)?payload.knowledge_base.documents:[],faqs=Array.isArray(payload?.knowledge_base?.faqs)?payload.knowledge_base.faqs:[];
+ return [...docs.slice(0,200).map((d:any,index:number)=>{const raw=typeof d?.textContent==='string'?d.textContent.trim():'';const placeholder=/^(?:uploaded|processed|indexed|extracted)\s+(?:pdf|document|file)|^(?:pdf|document|file)\s+(?:uploaded|processed|indexed)|(?:placeholder|content will be extracted|extraction pending)/i.test(raw);const text=raw&&!placeholder?raw:null;return{id:'document:'+index,name:typeof d?.name==='string'?d.name.slice(0,160):'Legacy document',kind:'DOCUMENT' as const,classification:text?'USER_ENTERED_TEXT' as const:'NEEDS_ORIGINAL' as const,text};}),...faqs.slice(0,200).map((f:any,index:number)=>{const q=typeof f?.question==='string'?f.question.trim():'',a=typeof f?.answer==='string'?f.answer.trim():'';const text=q&&a?`Question: ${q}\nAnswer: ${a}`:null;return{id:'faq:'+index,name:q.slice(0,160)||'Legacy FAQ',kind:'FAQ' as const,classification:text?'USER_ENTERED_TEXT' as const:'NEEDS_ORIGINAL' as const,text};})];
+}

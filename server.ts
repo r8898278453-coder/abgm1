@@ -1,3 +1,4 @@
+import {registerOnboardingRoutes} from './server/onboardingRoutes';
 import {registerCompanyRoutes} from './server/companyRoutes';
 import {verifyAuthToken} from './server/auth';
 import {registerSessionRoutes,persistentLoginLimit} from './server/sessionRoutes';
@@ -601,6 +602,7 @@ async function resolveUserCompanyId(
 
 registerCompanyRoutes(app,{auth:getAuthUserFromRequest,all:getAllCompanies,owned:getUserCompanies,create:createCompany,validate:validateBody(createCompanySchema),created:async(user,company)=>{const alertMsg=`🏢 *NEW COMPANY ONBOARDED TO ABGA!*\n\n👑 *Owner:* ${user.full_name} (${user.email})\n🏢 *Business:* ${company.name}\n🏷️ *Category:* ${company.category}\n📍 *City:* ${company.city}\n🌐 *Domain:* bga.aaditechs.in`;return sendTelegramPushAlert(alertMsg);}});
 
+registerOnboardingRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool,access:verifyCompanyWorkspaceAccess});
 registerCompanyDataRoutes(app,{auth:getAuthUserFromRequest,company:getCompanyById,access:verifyCompanyWorkspaceAccess,read:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};},save:async(company,data,version)=>{if(!await saveCompanyDataPayload(company,data,version))throw new Error('Workspace save unconfirmed');return companyDataVersion(data);}});
 
 // ==================== GROWTH INTELLIGENCE SCORE APIS ==================== //

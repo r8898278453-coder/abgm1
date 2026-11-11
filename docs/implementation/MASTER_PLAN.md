@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.17 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.18 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Current saved onboarding/business-memory checkpoint — 12 November2026 IST
+
+ONBOARDING_WORKFLOWS.md records twelve connected deliverables: actual server draft/resume/completion, existing registered-site/source review, saved-only connection metadata, preserved legacy classification/atomic text-source import and binary session fences. P04-07/08 in progress; full intake/consumer/migration/hosting gates remain open. Existing034/60 workspace/knowledge/queue schema reused, no new migration. DELIVERY_AND_PENDING.md explains the current delivered versus remaining project scope; STATUS.md retains all canonical task states.
 
 ### Current ten-workflow team continuation — 12 November2026 IST
 

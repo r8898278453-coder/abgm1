@@ -1,0 +1,43 @@
+{
+  "date_ist": "2026-11-12",
+  "delivered_child_workflows": 12,
+  "newly_started_parent_packages": [
+    "P04-07",
+    "P04-08"
+  ],
+  "full_parent_acceptance": false,
+  "phase_acceptance": false,
+  "schema": 34,
+  "canonical_tables": 60,
+  "migration_changes": false,
+  "default_programs_passed": 100,
+  "routes": {
+    "declarations": 174,
+    "registrations": 33,
+    "collisions": 0
+  },
+  "native_sql": "Disposable restricted MariaDB10.11.19 full fresh/upgrade/replay plus8-way completion/source replay, role/scope refusal, original+queue+audit rollback, legacy preservation and size boundaries",
+  "browser": "Onboarding source/profile/website/review/resume/uncertainty/stale-client/binary-session fixture plus full workspace",
+  "typescript": "passed",
+  "build": "passed; existing chunk warning",
+  "prior_copied_export_evidence": "agency-security-group.json; schema unchanged, restore not rerun",
+  "tracker": {
+    "validated": 8,
+    "blocked": 1,
+    "in_progress": 27,
+    "planned": 57
+  },
+  "production_changes": false,
+  "provider_actions": false,
+  "customer_sends": false,
+  "deployment": false,
+  "billing_changes": false,
+  "remaining_document": "DELIVERY_AND_PENDING.md",
+  "limits": [
+    "Uses currently saved website; draft website must be completed before importing the new URL",
+    "Worker must actually process queued intake; no fabricated completion or OCR",
+    "Legacy classifier is heuristic; original JSON retained; bounded200 documents and200 FAQs with truncation disclosed",
+    "No full consumer/migration/role/OAuth/hosting/reporting gate acceptance",
+    "Full source intake pagination and automated profile suggestions remain pending"
+  ]
+}

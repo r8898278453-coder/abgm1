@@ -1,5 +1,7 @@
 # Production Deployment Guide
 
+12 November2026 IST onboarding continuation uses existing034/60 schema and canonical worker: deploy matching server/client artifacts together; no request DDL. Setup close reloads the workspace revision after direct draft/completion writes. Website/PDF processing still requires a functioning worker and configured permissions. See docs/implementation/ONBOARDING_WORKFLOWS.md. No production action performed.
+
 12 November2026 IST team continuation adds agency-name/assignment/location edit APIs and real management UI on unchanged034/60 schema. See docs/implementation/AGENCY_TEAM_WORKFLOWS.md for contracts, roles, expectedName ABA limitation, location revisions and rollout gates. No production deployment was performed.
 
 Current source schema target034 /60 canonical tables; next migration035. This continuation adds private structured fact candidates/review and query governance. All001–032 files remain unchanged. Apply033 only through the canonical migration CLI in a separately authorized coordinated release, after backup/restore/hosting checks. Existing binaries reject the newer ledger. See docs/implementation/KNOWLEDGE_FACTS.md and generated STATUS.md; older release checkpoints below are historical. No deployment performed here.

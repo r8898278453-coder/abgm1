@@ -49,7 +49,8 @@
     "test:browser:facts": "node --import tsx test/browser/knowledgeFacts.test.ts",
     "docs:status": "node --import tsx server/scripts/implementationStatus.ts",
     "docs:check": "node --import tsx server/scripts/implementationStatus.ts --check",
-    "test:browser:agency": "node --import tsx test/browser/agencyWorkspace.test.ts"
+    "test:browser:agency": "node --import tsx test/browser/agencyWorkspace.test.ts",
+    "test:browser:onboarding": "node --import tsx test/browser/onboardingWorkflow.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

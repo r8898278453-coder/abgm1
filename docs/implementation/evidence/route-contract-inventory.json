@@ -547,6 +547,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:id/onboarding",
+      "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/onboarding",
+      "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/onboarding/legacy-import",
+      "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/operations",
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
@@ -861,5 +876,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 32
+  "registrationCount": 33
 }

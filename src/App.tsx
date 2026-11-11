@@ -437,7 +437,7 @@ export default function App() {
 
   // Debounced editable-profile saves; observed metrics never create profile writes.
   useEffect(() => {
-    if (!activeCompanyId || isLoadingCompanyData || !isLiveMode || workspaceLoadState !== 'ready' || workspaceWritePaused) {
+    if (isOnboardingOpen || !activeCompanyId || isLoadingCompanyData || !isLiveMode || workspaceLoadState !== 'ready' || workspaceWritePaused) {
       return;
     }
 
@@ -516,6 +516,7 @@ export default function App() {
     isLiveMode,
     workspaceLoadState,
     workspaceWritePaused,
+    isOnboardingOpen,
     workspaceSaveEpoch,
     business,
     reviews,
@@ -1018,9 +1019,10 @@ export default function App() {
       <OnboardingModal
         key={`${user?.id}:${activeCompanyId}:${isOnboardingOpen}`}
         isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
+        onClose={() => {setIsOnboardingOpen(false);const company=companies.find(c=>c.id===activeCompanyId);if(company)void loadCompanyData(company);}}
+        companyId={activeCompanyId||undefined}
         business={business}
-        onComplete={(updated) => setBusiness(updated)}
+        onComplete={(updated) => {setBusiness(updated);setCompanies(current=>current.map(company=>company.id===activeCompanyId?{...company,name:updated.name,category:updated.category,city:updated.city,phone:updated.phone,website:updated.website}:company));}}
       />
 
       {/* Floating 24/7 Ask AI Copilot (Section 24 & 66) */}

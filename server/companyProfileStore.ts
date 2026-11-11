@@ -1,6 +1,6 @@
 import type {Pool} from 'mysql2/promise';
 import {validWorkspaceRevision,WorkspaceConflict} from '../shared/workspaceRevision';
-export async function readCompanyProfile(pool:Pool,company:string){
+export async function readCompanyProfile(pool:Pick<Pool,'query'>,company:string){
  const [rows]:any=await pool.query('SELECT data_payload,CAST(revision AS CHAR) AS revision FROM company_profiles_data WHERE company_id=? LIMIT 1',[company]);
  if(!rows.length)return {data:null,version:'0'};
  const row=rows[0],data=typeof row.data_payload==='string'?JSON.parse(row.data_payload):row.data_payload;

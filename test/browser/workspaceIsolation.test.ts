@@ -36,6 +36,7 @@ try {
     localStorage.setItem('abga_user_profile', JSON.stringify(user));
     localStorage.setItem('abga_active_company_id', 'A');
   }, { user });
+  const setupDrafts:Record<string,any>={};
   const controlStates:Record<string,any>={A:{version:'0',paused:false,channels:[],dailyPostLimit:null,quota:{date:'2026-11-04',reservedPosts:0,remaining:null},updatedBy:null,updatedAtMs:null},B:{version:'0',paused:false,channels:[],dailyPostLimit:null,quota:{date:'2026-11-04',reservedPosts:0,remaining:null},updatedBy:null,updatedAtMs:null}};
   const controlHistory:Record<string,any[]>={A:[],B:[]};let failControlHistory=false;
   const controlWrites:any[]=[];let controlConflict=false,holdControlPatch=false,failControlRead=false;let signalControlPatch:(()=>void)|undefined;let signalControlFlushed:(()=>void)|undefined;
@@ -250,6 +251,13 @@ try {
       const second = url.searchParams.get('after') === '1';
       body = { success: true, available: true, nextCursor: company === 'A' ? (second ? '3' : '1') : '0', latestRevision: company === 'A' ? '3' : '0', events: company === 'A' ? [{ id: second ? 'a2' : 'a1', revision: second ? '2' : '1', job_id: 'Alpha-private-job', job_type: 'seo_scan', event_type: second ? 'JOB_SUCCEEDED' : 'JOB_QUEUED', job_status: second ? 'SUCCEEDED' : 'QUEUED', attempt: second ? 1 : 0, reason_code: null, recorded_at: '2026-11-02T10:00:00Z' },...(second?[{id:'a3',revision:'3',job_id:'Alpha-private-job',job_type:'seo_scan',event_type:'JOB_DEFERRED',job_status:'RETRY_WAIT',attempt:2,reason_code:'CLIENT_HOLIDAY_PAUSED',recorded_at:'2026-11-02T10:01:00Z'}]:[])] : [] };
     }
+    else if (/\/companies\/[AB]\/onboarding$/.test(url.pathname)) {
+      const company=url.pathname.split('/')[3],record=companies.find(c=>c.id===company)!;
+      if(route.request().method()==='PUT'){const input=route.request().postDataJSON();assert.equal(input.expectedVersion,profileVersions[company]);profileVersions[company]=String(BigInt(profileVersions[company])+1n);setupDrafts[company]=input;body={success:true,companyId:company,version:profileVersions[company],step:input.step,status:input.complete?'COMPLETED':'DRAFT'};}
+      else body={success:true,companyId:company,canManage:true,legacyTotal:0,legacyTruncated:false,version:profileVersions[company],step:setupDrafts[company]?.step||1,status:setupDrafts[company]?'DRAFT':'NOT_STARTED',profile:setupDrafts[company]?.profile||{name:record.name,category:record.category,city:record.city,phone:record.phone,website:record.website,brandTone:'Professional',preferredLanguage:'English',targetAudience:''},legacy:[],integrations:[]};
+    }
+    else if (/\/companies\/[AB]\/knowledge\/sources$/.test(url.pathname)) body={success:true,companyId:url.pathname.split('/')[3],sources:[]};
+    else if (/\/companies\/[AB]\/knowledge\/website-imports$/.test(url.pathname)) body={success:true,companyId:url.pathname.split('/')[3],runs:[],nextBefore:null};
     else if (/\/companies\/[AB]\/data$/.test(url.pathname)) {
       const company = url.pathname.split('/')[3];
       if (route.request().method() === 'PUT') {
@@ -491,15 +499,15 @@ try {
   await page.setViewportSize({width:1440,height:1000});
   await page.getByTitle('Business Setup Wizard').click();
   let setup=page.getByRole('dialog',{name:'Business setup'});
-  await setup.getByRole('button',{name:'Next Step'}).click();
-  await setup.getByRole('button',{name:'Next Step'}).click();
-  await setup.getByText(/Saved profile flags only/).waitFor();
+  await setup.getByRole('button',{name:'Save and continue'}).click();
+  await setup.getByRole('button',{name:'Save and continue'}).click();
+  await setup.getByText(/Server metadata only/).waitFor();
   assert.equal(await setup.getByText('Connected',{exact:true}).count(),0);
-  await setup.getByRole('button',{name:'Next Step'}).click();
-  await setup.getByText(/no provider audit, scan or campaign has run/).waitFor();
+  await setup.getByRole('button',{name:'Save and continue'}).click();
+  await setup.getByText(/It does not claim a rank scan/).waitFor();
   await setup.getByRole('button',{name:'Close business setup'}).click();
   await page.getByTitle('Business Setup Wizard').click();
-  await setup.getByText('1. Business Identity & Profile',{exact:true}).waitFor();
+  await setup.getByText('Review before saving',{exact:true}).waitFor();
   await setup.getByRole('button',{name:'Close business setup'}).click();
   await page.setViewportSize({width:1280,height:720});
   console.log('Browser stage: review-collection');
