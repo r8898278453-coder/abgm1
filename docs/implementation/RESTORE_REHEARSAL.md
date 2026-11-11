@@ -2,7 +2,7 @@
 
 This is a local compatibility rehearsal, not a production rollback or disaster-recovery acceptance. The uploaded export stays outside the repository. Never commit SQL dumps, row hashes, credentials or customer records to evidence.
 
-Latest continuation verifies032_knowledge_ingestion_queue (51 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: [durable-knowledge-ingestion.json](evidence/durable-knowledge-ingestion.json). This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
+Latest continuation verifies033_structured_knowledge_facts (52 canonical tables). The unchanged uploaded export reaches READY, preserves all original business rows/five ledger identities and source/bundled replay applies0. Evidence: [structured-knowledge-facts.json](evidence/structured-knowledge-facts.json). This is a disposable-copy rehearsal, not live disaster-recovery acceptance. Earlier029/028 notes retain their historical scope.
 
 Previous continuation additionally verified029_public_lead_intakes (50 canonical tables). The same unchanged export reaches READY, preserves all original business rows and5 ledger identities, and source/bundled replay applies0. See [public-inquiry-recovery.json](evidence/public-inquiry-recovery.json). Earlier028 observations below retain their original evidence scope; this remains a disposable-copy rehearsal rather than a live restore.
 
@@ -39,3 +39,5 @@ For production, first verify the actual deployed revision/engine, a current rest
 Latest website provenance rehearsal: uploaded export restores READY through031 with51 canonical tables, original business rows/five historical ledger identities preserved and source/bundle repeat applied0. New provenance columns and restricted application lifecycle pass. No production restore or DDL performed.
 
 Queued-ingestion rehearsal: uploaded export reaches READY through032 with51 tables, original business rows/five historical ledger identities preserved and source/bundled replay applied0. No production data/DDL touched.
+
+Structured-fact rehearsal: unchanged uploaded export reaches033 READY/52 canonical tables, preserves all original business rows and five historical ledger identities, and source/bundled replay applies0. Canonical probe writes roll back. No production DB or provider access.

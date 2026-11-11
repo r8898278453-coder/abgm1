@@ -1,0 +1,7 @@
+import assert from 'node:assert/strict';
+import {parseTasks,renderTaskStatus,refreshImplementationStatus} from '../server/scripts/implementationStatus';
+const csv='task_id,phase,title,depends_on,status,implementation_evidence\nP00-01,P00,"Inspect, baseline",,validated,fixture\nP00-02,P00,"Hosting ""read"" gate",P00-01,blocked,unavailable\n';const tasks=parseTasks(csv);assert.equal(tasks[0].title,'Inspect, baseline');assert.equal(tasks[1].title,'Hosting "read" gate');const output=renderTaskStatus(tasks,{date:'2026-11-11',schema:'033_fixture',tables:52,programs:96});assert.match(output,/1 \/ 0 \/ 1 \/ 0/);assert.match(output,/P00-02: blocked/);assert.match(output,/registry size is not proof/);
+for(const [input,pattern]of [[csv.replace('P00-02,P00','P00-01,P00'),/DUPLICATE/],[csv.replace(',blocked,',',complete,'),/TASK_INVALID/],[csv.replace('gate",P00-01','gate",P99-01'),/DEPENDENCY_MISSING/],[csv.replace('baseline",,validated','baseline",P00-02,validated'),/CYCLE/],[csv+'"unterminated',/CSV_INVALID/]] as const)assert.throws(()=>parseTasks(input),pattern);
+await refreshImplementationStatus(process.cwd(),true);console.log('Implementation tracking: CSV quoting, duplicate/status/dependency/cycle validation, accurate phase/gate totals and generated-document drift guard passed without database access.');
+
+assert.throws(()=>parseTasks(csv.replace('Inspect, baseline\"','Inspect, baseline\"invalid')),/CSV_INVALID/);

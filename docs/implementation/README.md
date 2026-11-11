@@ -1,5 +1,8 @@
 # ABGM1 implementation blueprint
 
+Current implementation status: [STATUS.md](STATUS.md) is generated from all93 tracker entries, phase states and dependencies. Refresh with npm run docs:status; verify with npm run docs:check. Current schema033/52 adds reviewed business facts; [KNOWLEDGE_FACTS.md](KNOWLEDGE_FACTS.md) documents scope/limits. No phase or production deployment is accepted by this checkpoint.
+
+
 Prepared: 2 November 2026. This is the implementation plan, not a claim that the features are implemented.
 
 ## Start here

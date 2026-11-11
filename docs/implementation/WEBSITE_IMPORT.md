@@ -1,6 +1,6 @@
 # Registered website source import
 
-11 November2026 IST. P04-02 remains in progress; prerequisite and phase gates remain open. Schema032/51 tables is unchanged by this batch; next product migration033. No live website fetch, production migration or deployment was performed in validation.
+11 November2026 IST. P04-02 remains in progress; prerequisite and phase gates remain open. Current coordinated target033/52; import itself added no migration beyond032. Next product034. No live website fetch, production migration or deployment was performed in validation.
 
 ## Durable user flow
 
@@ -18,7 +18,7 @@ All fetched page originals, their source histories, fresh knowledge_extract jobs
 
 Each successful page stores exact private original bytes, media type, original URL and fetch epoch milliseconds in knowledge_sources. Fresh sources are QUEUED and unapproved. Parent SUCCEEDED means snapshots were committed; it does not mean extraction, approval or business verification finished. Separate source jobs perform bounded parsing. Existing authenticated download, exact-revision review/approval/withdraw/delete and approved-only quoted search apply. Source retry uses saved bytes, retains provenance and clears approval; only a new import refetches current website content.
 
-Company-wide content SHA deduplication remains: identical bytes reuse the first source ID, original URL/time and review state without another extraction job. A new URL/time is not invented for replay. Changed bytes create another unapproved source; old approved snapshots are not automatically withdrawn. Review contradictory content manually; structured conflict/precedence/supersession remains pending. Existing50-source/32MiB quotas apply to the atomic page group. Deleting a source does not erase the minimal historical run reference; deleting source bytes is not full audit/backups erasure.
+Company-wide content SHA deduplication remains: identical bytes reuse the first source ID, original URL/time and review state without another extraction job. A new URL/time is not invented for replay. Changed bytes create another unapproved source; old approved snapshots are not automatically withdrawn. Review contradictory content manually; structured key-based review/manual precedence is in KNOWLEDGE_FACTS.md; semantic conflicts and automatic snapshot supersession remain pending. Existing50-source/32MiB quotas apply to the atomic page group. Deleting a source does not erase the minimal historical run reference; deleting source bytes is not full audit/backups erasure.
 
 ## History and UI
 
@@ -38,8 +38,10 @@ Product transport uses directly pinned TLS. Proxy-only egress requires an explic
 
 ## Evidence and open gates
 
-See [durable-website-imports.json](evidence/durable-website-imports.json), EXECUTION.md and KNOWLEDGE_INGESTION_QUEUE.md. Native restricted MariaDB tests cover default202 admission/no source creation before workers,8-way reuse, auth/history/cancel scope, exact snapshots/approved-only citations, unchanged replay, no-page and partial history, second-page/outbox rollback, running cancellation, stale lease takeover, registered-site changes before/during fetch, invalid configuration and keyset pages. Chromium verifies async status, cancellation, partial details/provenance and late history/admission across client switches. Schema032 export-restore evidence from the preceding batch remains applicable; schema files are unchanged.
+See [durable-website-imports.json](evidence/durable-website-imports.json), EXECUTION.md and KNOWLEDGE_INGESTION_QUEUE.md. Native restricted MariaDB tests cover default202 admission/no source creation before workers,8-way reuse, auth/history/cancel scope, exact snapshots/approved-only citations, unchanged replay, no-page and partial history, second-page/outbox rollback, running cancellation, stale lease takeover, registered-site changes before/during fetch, invalid configuration and keyset pages. Chromium verifies async status, cancellation, partial details/provenance and late history/admission across client switches. The current uploaded export is also rehearsed through033 in structured-knowledge-facts.json; source/import historical identities are unchanged.
 
-Remaining: shared per-site/global admission/usage accounting, robots/domain ownership and refresh policies, fact conflict/precedence/freshness, OCR/renderer support where needed, automatic marketing/sales consumers, retention/performance and actual hosting worker/cron/egress canary, and preceding agency/security gates. This batch does not complete P04 or all phases.
+Remaining: shared per-site/global admission/usage accounting, robots/domain ownership and refresh policies, semantic fact conflicts/freshness, OCR/renderer support where needed, automatic marketing/sales consumers, retention/performance and actual hosting worker/cron/egress canary, and preceding agency/security gates. This batch does not complete P04 or all phases.
 
 Website-import daily accountability now adds five distinct run-transition counts and three current import backlog fields through the existing report/UI/CSV/digest. Commit is snapshot persistence, not extraction/approval; retry counts can overlap. See WEBSITE_IMPORT_REPORTING.md. Full agency/reporting phase gates remain open.
+
+Current coordinated schema target is033/52 tables (next034). Structured key-based fact candidates/review/manual precedence and source invalidation are implemented as documented in KNOWLEDGE_FACTS.md. Full semantic conflict detection, automatic consumers and earlier/later acceptance gates remain open; current task states are generated in STATUS.md. Earlier032 figures above describe their historical batch.

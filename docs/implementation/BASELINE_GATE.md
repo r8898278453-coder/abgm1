@@ -1,5 +1,8 @@
 # P00-06 baseline and contract review — 10 November 2026 IST
 
+Current status is generated in STATUS.md from all93 tasks. Source target033/52; private structured fact review and current regression evidence are in KNOWLEDGE_FACTS.md and EXECUTION.md. Earlier numerical checkpoints below are historical. Baseline hosting acceptance remains open.
+
+
 Status: in progress. P00-05's local migration strategy acceptance is complete; the whole P00 phase is not accepted. This review makes remaining evidence explicit and does not request production actions or stop independent local implementation.
 
 | Baseline item | Current evidence | Remaining acceptance |

@@ -1,3 +1,4 @@
+import {structuredKnowledgeFacts,FACTS_CONFLICT_SQL} from './migrations/033_structured_knowledge_facts';
 import {knowledgeIngestionQueue} from './migrations/032_knowledge_ingestion_queue';
 import {websiteSourceProvenance} from './migrations/031_website_source_provenance';
 import {privateKnowledgeSources} from './migrations/030_private_knowledge_sources';
@@ -65,6 +66,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'knowledge_facts',
   'knowledge_sources',
   'public_lead_intakes',
   'schema_migrations',
@@ -120,6 +122,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  knowledge_facts:['PRIMARY','idx_facts_company_key'],
   knowledge_sources:['PRIMARY','idx_knowledge_company_created','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','idx_public_intake_created','idx_public_intake_notification'],
   dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY','idx_dispatcher_status'],
@@ -171,6 +174,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  knowledge_facts:['PRIMARY','fk_facts_company'],
   knowledge_sources:['PRIMARY','fk_knowledge_company','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','fk_public_intake_company'],
   dispatcher_state:['PRIMARY'],dispatcher_ticks:['PRIMARY'],
@@ -790,6 +794,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   privateKnowledgeSources,
   websiteSourceProvenance,
   knowledgeIngestionQueue,
+  structuredKnowledgeFacts,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1094,10 +1099,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const historyNames=new Set(historyColumns.map((row:any)=>row.COLUMN_NAME));
       for(const name of ['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'])if(!historyNames.has(name))missingColumns.push(`publication_workflow_audit.${name}`);
 
-      const [controlColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('knowledge_sources','publication_execution_controls','publication_control_audit','publication_admission_reservations','message_dispatch_intents','message_delivery_receipts','company_profiles_data','dispatcher_state','dispatcher_ticks','autonomous_actions','reviews','public_lead_intakes')");
-      for(const [table,names] of Object.entries({knowledge_sources:['extraction_job_id','extraction_attempt','source_url','fetched_at_ms','id','company_id','filename','media_type','byte_size','content_sha','content_bytes','extraction_state','extraction_code','extracted_text','chunks_json','revision','claimed_at','approved_by','approved_at','created_at','updated_at'],public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']})){
+      const [controlColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('knowledge_sources','publication_execution_controls','publication_control_audit','publication_admission_reservations','message_dispatch_intents','message_delivery_receipts','company_profiles_data','dispatcher_state','dispatcher_ticks','autonomous_actions','reviews','public_lead_intakes','knowledge_facts')");
+      for(const [table,names] of Object.entries({knowledge_facts:['id','company_id','fact_key','value_text','origin','source_id','source_revision','chunk_index','page_number','excerpt_start','excerpt_end','status','revision','created_at','updated_at'],knowledge_sources:['extraction_job_id','extraction_attempt','source_url','fetched_at_ms','id','company_id','filename','media_type','byte_size','content_sha','content_bytes','extraction_state','extraction_code','extracted_text','chunks_json','revision','claimed_at','approved_by','approved_at','created_at','updated_at'],public_lead_intakes:['company_id','request_key','input_hash','lead_id','notification_state','created_at','updated_at'],autonomous_actions:['recommendation_id','payload','source_evidence','approval_status','execution_state','provider_response','verification_state','error','executed_at'],reviews:['reply_status','external_review_id','retrieved_at','provenance_status'],dispatcher_state:['cursor_key','next_group','updated_at'],dispatcher_ticks:['slot_key','owner_token','first_group','status','stage_states','started_at','finished_at'],company_profiles_data:['company_id','data_payload','revision'],message_delivery_receipts:['company_id','event_key','phone_number_id','provider_id','status','occurred_at_ms','error_code','received_at'],message_dispatch_intents:['company_id','request_key','input_hash','actor_id','status','claim_token','provider_id','sender_id','created_at','updated_at'],publication_admission_reservations:['company_id','quota_day','post_id','claim_token','recorded_at'],publication_execution_controls:['company_id','paused','paused_channels','revision','updated_by','updated_at','daily_post_limit'],publication_control_audit:['id','company_id','revision','actor_id','before_state','after_state','recorded_at']})){
         for(const name of names)if(!controlColumns.some((row:any)=>row.TABLE_NAME===table&&row.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
       }
+      const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const websiteUrlShape=controlColumns.find((row:any)=>row.TABLE_NAME==='knowledge_sources'&&row.COLUMN_NAME==='source_url');
       const websiteTimeShape=controlColumns.find((row:any)=>row.TABLE_NAME==='knowledge_sources'&&row.COLUMN_NAME==='fetched_at_ms');
       if(!websiteUrlShape||websiteUrlShape.DATA_TYPE!=='varchar'||Number(websiteUrlShape.CHARACTER_MAXIMUM_LENGTH)<2048||!websiteTimeShape||websiteTimeShape.DATA_TYPE!=='bigint'||!String(websiteTimeShape.COLUMN_TYPE).includes('unsigned'))missingConstraints.push('knowledge_sources.website_provenance_shape');

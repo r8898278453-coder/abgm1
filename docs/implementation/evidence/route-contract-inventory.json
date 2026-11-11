@@ -386,6 +386,36 @@
       "owner": "server/observationHistoryRoutes.ts#registerObservationHistoryRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:id/knowledge/facts",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/facts",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/facts/:factId/approve",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/facts/:factId/delete",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/facts/:factId/reject",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:id/knowledge/facts/:factId/withdraw",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:id/knowledge/import-website",
       "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"

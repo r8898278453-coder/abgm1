@@ -1,3 +1,4 @@
+import {readKnowledgeFacts,createKnowledgeFact,changeKnowledgeFact} from './knowledgeFacts';
 import {enqueueKnowledgeExtraction} from './knowledgeIngestion';
 import {readKnowledgeHistory} from './knowledgeHistory';
 import {validWorkspaceRevision} from '../shared/workspaceRevision';
@@ -18,6 +19,9 @@ export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Pr
    const access=await deps.access(user,company);if(!access.authorized){res.status(access.status).json({success:false,error:'Knowledge workspace access denied'});return;}const pool=await deps.pool();if(!pool)throw new KnowledgeError(503,'KNOWLEDGE_STORAGE_UNAVAILABLE');await handler(req,res,company,pool,user);
   }catch(error){res.status(error instanceof KnowledgeError?error.status:503).json({success:false,error:error instanceof KnowledgeError?error.code:'Knowledge operation unavailable or unconfirmed'});}
  });
+ route('get','/api/companies/:id/knowledge/facts',async(_,res,company,pool)=>res.json({success:true,companyId:company,facts:await readKnowledgeFacts(pool,company)}));
+ route('post','/api/companies/:id/knowledge/facts',async(req,res,company,pool,user)=>{const created=await createKnowledgeFact(pool,company,req.body,user.id);res.status(created.reused?200:201).json({success:true,companyId:company,...created,facts:await readKnowledgeFacts(pool,company)});});
+ for(const command of ['approve','withdraw','reject','delete'] as const)route('post',`/api/companies/:id/knowledge/facts/:factId/${command}`,async(req,res,company,pool,user)=>{await changeKnowledgeFact(pool,company,req.params.factId as string,command,req.body,user.id);res.json({success:true,companyId:company,facts:await readKnowledgeFacts(pool,company)});});
  route('post','/api/companies/:id/knowledge/import-website',async(req,res,company,pool,user)=>{
   if(!req.body||Array.isArray(req.body)||Object.keys(req.body).length)throw new KnowledgeError(400,'WEBSITE_IMPORT_BODY_INVALID');
   const registered=await deps.registeredWebsite?.(company);if(!registered)throw new KnowledgeError(409,'REGISTERED_WEBSITE_REQUIRED');
@@ -40,7 +44,7 @@ export function registerKnowledgeRoutes(app:Express,deps:{auth:(req:Request)=>Pr
  route('get','/api/companies/:id/knowledge/sources/:sourceId/download',async(req,res,company,pool)=>{const source=await downloadKnowledgeSource(pool,company,req.params.sourceId as string);res.set({'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="source"; filename*=UTF-8''${encodeURIComponent(source.filename).replace(/'/g,'%27')}`,'Content-Security-Policy':"default-src 'none'; sandbox"}).send(source.content_bytes);});
  route('get','/api/companies/:id/knowledge/sources/:sourceId/preview',async(req,res,company,pool)=>res.json({success:true,companyId:company,...await previewKnowledgeSource(pool,company,req.params.sourceId as string)}));
  app.post('/api/ai/knowledge/query',deps.rateLimit,async(req,res)=>{
-  res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}const parsed=knowledgeQueryInput.safeParse(req.body);if(!parsed.success)throw new KnowledgeError(400,'KNOWLEDGE_QUERY_INVALID');const {companyId,query}=parsed.data,access=await deps.access(user,companyId);if(!access.authorized){res.status(access.status).json({success:false,error:'Knowledge workspace access denied'});return;}const pool=await deps.pool();if(!pool)throw new KnowledgeError(503,'KNOWLEDGE_STORAGE_UNAVAILABLE');const profile=await deps.profile(companyId),sources=await readKnowledgeExcerpts(pool,companyId);res.json(retrieveKnowledge(companyId,query,profile.data,profile.version,sources));}
+  res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}const parsed=knowledgeQueryInput.safeParse(req.body);if(!parsed.success)throw new KnowledgeError(400,'KNOWLEDGE_QUERY_INVALID');const {companyId,query}=parsed.data,access=await deps.access(user,companyId);if(!access.authorized){res.status(access.status).json({success:false,error:'Knowledge workspace access denied'});return;}const pool=await deps.pool();if(!pool)throw new KnowledgeError(503,'KNOWLEDGE_STORAGE_UNAVAILABLE');const profile=await deps.profile(companyId),sources=await readKnowledgeExcerpts(pool,companyId),facts=await readKnowledgeFacts(pool,companyId);res.json(retrieveKnowledge(companyId,query,profile.data,profile.version,sources,facts));}
   catch(error){res.status(error instanceof KnowledgeError?error.status:503).json({success:false,error:error instanceof KnowledgeError?error.code:'Saved knowledge unavailable'});}
  });
 }

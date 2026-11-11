@@ -1,0 +1,59 @@
+{
+  "date_ist": "2026-11-11",
+  "schema": {
+    "latest": "033_structured_knowledge_facts",
+    "canonical_tables": 52,
+    "historical_001_through_032_unchanged": true,
+    "next_product_migration": "034"
+  },
+  "default_programs": 96,
+  "routes": {
+    "declarations": 156,
+    "registrations": 29,
+    "collisions": 0
+  },
+  "implemented": [
+    "Immutable scoped manual/source fact candidates with exact source revision/chunk/page/quote offsets",
+    "Exact same active candidate dedupe and200-record quota/no hidden conflict truncation",
+    "Company-locked exact-revision review and8-way approval single writer",
+    "Explicit all-conflict replacement and approved manual precedence",
+    "Atomic fact/source checks, replacement withdrawals and minimal audit rollback",
+    "Source withdrawal/retry/deletion/reapproval invalidates dependent eligibility",
+    "Known governed-key/value queries abstain on conflict or missing eligible approval without raw-source fallback",
+    "Reviewed facts UI explicit replacement, uncertainty/reload gate, stale source refusal and client fences",
+    "Generated complete93-task/phase/gate/dependency status and strict CSV/drift validation"
+  ],
+  "validation": {
+    "default_regressions": "96 passed with production credentials excluded",
+    "targeted": "final strict CSV/foreign-fact/alias/quote/precedence tests passed",
+    "native_sql": "restricted disposable MariaDB10.11.19 fresh/005-upgrade/replay and actual fact HTTP/source/approval/conflict/rollback/tenant/deletion cases passed",
+    "browser": "facts review, saved-source knowledge workflow and full workspace passed; external traffic blocked",
+    "typescript": "passed",
+    "build": "passed; existing client chunk warning",
+    "uploaded_export_restore": {
+      "ready_through": 33,
+      "tables": 52,
+      "original_business_rows_preserved": true,
+      "original_ledger_identities_preserved": 5,
+      "source_and_bundled_repeat_applied": 0
+    }
+  },
+  "production_changes": false,
+  "real_website_fetches": false,
+  "customer_sends": false,
+  "deployed": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 12,
+    "blocked": 1,
+    "planned": 72
+  },
+  "phase_acceptance": false,
+  "remaining": [
+    "Semantic contradictions across different keys/unstructured prose and full freshness policy",
+    "Automatic marketing/sales model consumers, usage accounting and onboarding",
+    "Agency/RBAC/security/integration/hosting prerequisites and subsequent phases",
+    "Full reporting reconciliation, retention/performance and separately authorized release"
+  ]
+}

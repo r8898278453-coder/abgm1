@@ -1,12 +1,12 @@
 # Durable source ingestion queue
 
-11 November2026 IST. Current schema032/51 tables; no production migration/deploy or real website fetch performed. This completes the local background source-processing slice, not P04/all platform acceptance.
+11 November2026 IST. Current schema033/52 tables; no production migration/deploy or real website fetch performed. This completes the local background source-processing slice, not P04/all platform acceptance.
 
 ## Admission and worker ownership
 
 New file uploads and registered website snapshots store private immutable original bytes first, then admit a knowledge_extract job. The initial HTTP acknowledgement creates a source, not an extraction result: metadata normally reports QUEUED. Source state/revision/approval clearing, queue intent, source history, queue journal and outbox commit atomically at admission. Same-byte reupload returns the existing source and does not start another job. A failed admission can leave the original STORED; bounded dispatcher recovery admits those originals later without pretending extraction happened.
 
-Migration032 adds nullable extraction_job_id and extraction_attempt to knowledge_sources, with compatibility preflight and readiness shape checks. Existing001–031 files and table count51 remain unchanged. Next product ID033. Validated SQL engine is MariaDB10.11.19; idempotent ADD COLUMN IF NOT EXISTS needs separate actual-host compatibility confirmation.
+Migration032 adds nullable extraction_job_id and extraction_attempt to knowledge_sources, with compatibility preflight and readiness shape checks. Existing001–031 files and table count51 remain unchanged. Current fact extension033/52 is in KNOWLEDGE_FACTS.md; next product ID034. Validated SQL engine is MariaDB10.11.19; idempotent ADD COLUMN IF NOT EXISTS needs separate actual-host compatibility confirmation.
 
 The existing dispatcher queue stage runs bounded source recovery before claiming jobs, then handles knowledge_extract through the standard queue worker. Public arbitrary job enqueue does not accept this internal type; the authorized source API owns admission/source binding. Eight contenders for one loaded source revision admit one job. Active QUEUED/RUNNING/RETRY_WAIT jobs reject another source retry. A fresh retry after a terminal job creates a new run and clears approval immediately.
 
@@ -26,7 +26,7 @@ Deleting an original fences any later result; a queued/running job that finds th
 
 Original byte length/SHA256 are checked before parsing and authenticated attachment download. Approval and queue settlement also require matching original length/hash; settlement binds to the claimed original digest. Comparisons cast hash values to binary to avoid ASCII/hash-function collation conflicts. Changed/damaged originals cannot be approved or silently indexed; remove the damaged source and upload a trusted original. These are application/data integrity checks, not cryptographic protection against privileged changes to the entire database/audit trail.
 
-Website snapshots keep original URL, fetch time and response media type through queued processing/retries. HTML/plain text parsing preserves that distinction, including literal angle brackets in plain text. Retry extracts saved bytes; it does not refetch the site. Changed website bytes create another unapproved snapshot; unchanged-byte replay retains first source identity/provenance/review state. Structured conflict/precedence and automatic supersession remain separate work.
+Website snapshots keep original URL, fetch time and response media type through queued processing/retries. HTML/plain text parsing preserves that distinction, including literal angle brackets in plain text. Retry extracts saved bytes; it does not refetch the site. Changed website bytes create another unapproved snapshot; unchanged-byte replay retains first source identity/provenance/review state. Structured key-based review/manual precedence is implemented in KNOWLEDGE_FACTS.md; semantic conflicts and automatic snapshot supersession remain separate work.
 
 Queue payload/result, source history and outbox omit original/extracted text: they carry identifiers, states, fixed codes and source revisions only. Source history additionally records queue job/attempt identifiers. Actor comes from server auth or the worker, never browser input. Saved-source search still reads only approved text with citations; there is no automatic campaign/reply/sales consumption or auto-approval.
 
@@ -34,7 +34,7 @@ Queue payload/result, source history and outbox omit original/extracted text: th
 
 Knowledge cards show QUEUED/PROCESSING and the real linked queue status, explain the worker prerequisite and disable retries while a run is active. Reload adopts current persisted state. Source mutations invalidate/abort pending fact queries so an older approved result cannot reappear after withdrawal/deletion/retry. Source refresh/search are disabled while a source mutation is pending. Missing/unsupported registered website configuration provides actionable setup guidance, with document upload as an alternative. Snapshot/history/citation times use the shared IST formatter.
 
-A running dispatcher/approved cron invocation, schema032, appropriate source/queue/audit/outbox DML grants and parser capabilities are deployment prerequisites. A saved QUEUED record is not evidence that Hostinger has a functioning worker. Pause/update all server/worker instances together; an older running worker does not know the new job type. Older startup binaries also reject the newer ledger. Verify actual hosting, private DB capacity/permissions, scheduling overlap/restart and an isolated canary before release. No such production rollout occurred here.
+A running dispatcher/approved cron invocation, schema033, appropriate source/fact/queue/audit/outbox DML grants and parser capabilities are deployment prerequisites. A saved QUEUED record is not evidence that Hostinger has a functioning worker. Pause/update all server/worker instances together; an older running worker does not know the new job type. Older startup binaries also reject the newer ledger. Verify actual hosting, private DB capacity/permissions, scheduling overlap/restart and an isolated canary before release. No such production rollout occurred here.
 
 ## Runtime compatibility and tests
 
@@ -46,4 +46,6 @@ Native tests cover real queued HTTP upload,8-way admission, approval/retry fence
 
 Website fetching now also uses durable website_import parent jobs with atomic page-group/source-job persistence, no-page failure history and scoped cancellation. See WEBSITE_IMPORT.md for the current contract; extraction remains a separate unapproved child stage.
 
-Remaining: shared admission/usage/retention/performance policy, site/robots/domain ownership policy, fact conflict/precedence and freshness, automatic marketing/sales consumers, complete agency roles and actual hosting/provider acceptance. No claim of complete platform automation or all phases finished is made.
+Remaining: shared admission/usage/retention/performance policy, site/robots/domain ownership policy, semantic fact conflicts and freshness, automatic marketing/sales consumers, complete agency roles and actual hosting/provider acceptance. No claim of complete platform automation or all phases finished is made.
+
+Current coordinated schema target is033/52 tables (next034). Structured key-based fact candidates/review/manual precedence and source invalidation are implemented as documented in KNOWLEDGE_FACTS.md. Full semantic conflict detection, automatic consumers and earlier/later acceptance gates remain open; current task states are generated in STATUS.md. Earlier032 figures above describe their historical batch.

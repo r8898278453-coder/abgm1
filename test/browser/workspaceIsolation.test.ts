@@ -164,6 +164,7 @@ try {
       }else if(failControlRead){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,error:'Unavailable'})});return;}
       body={success:true,controls:controlStates[company]};
     }
+    else if(url.pathname.endsWith('/knowledge/facts')){assert.equal(route.request().method(),'GET');body={success:true,companyId:url.pathname.split('/')[3],facts:[]};}
     else if(url.pathname.endsWith('/daily-work-report')){
       const company=url.pathname.split('/')[3],date=url.searchParams.get('date')!;
       if(failDailyReport){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,error:'Unavailable'})});return;}
@@ -724,7 +725,7 @@ try {
   await page.waitForTimeout(650);
   await page.getByRole('button', { name: 'Add FAQ', exact: true }).click();
   await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Beta support policy?');
-  await page.locator('textarea').first().fill('Beta-only answer');
+  await page.getByRole('dialog',{name:'Add Grounded FAQ',exact:true}).locator('textarea').fill('Beta-only answer');
   const saved = page.waitForRequest(r => r.method() === 'PUT' && r.url().endsWith('/api/companies/B/data'));
   await page.getByRole('button', { name: 'Save to AI Memory', exact: true }).click();
   const saveRequest = await saved;
@@ -737,7 +738,7 @@ try {
   failWrites = true;
   await page.getByRole('button', { name: 'Add FAQ', exact: true }).click();
   await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Unsaved Beta question?');
-  await page.locator('textarea').first().fill('Unsaved Beta answer');
+  await page.getByRole('dialog',{name:'Add Grounded FAQ',exact:true}).locator('textarea').fill('Unsaved Beta answer');
   await page.getByRole('button', { name: 'Save to AI Memory', exact: true }).click();
   await page.getByText('Not saved — reload workspace before saving.', { exact: true }).waitFor();
   assert.equal(await page.getByText('Saved to server', { exact: true }).count(), 0);
@@ -748,9 +749,9 @@ try {
   console.log('Browser stage: cross-tab-profile-conflict');
   profileVersions.B=String(BigInt(profileVersions.B)+1n); // Another tab/server writer wins after this view loaded.
   const beforeConflict=writes.length;
-  await page.getByRole('button',{name:'Add FAQ',exact:true}).click();await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Stale revision question?');await page.locator('textarea').first().fill('Stale answer');await page.getByRole('button',{name:'Save to AI Memory',exact:true}).click();
+  await page.getByRole('button',{name:'Add FAQ',exact:true}).click();await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Stale revision question?');await page.getByRole('dialog',{name:'Add Grounded FAQ',exact:true}).locator('textarea').fill('Stale answer');await page.getByRole('button',{name:'Save to AI Memory',exact:true}).click();
   await page.getByRole('button',{name:'Reload workspace before saving',exact:true}).waitFor();assert.equal(writes.length,beforeConflict+1);
-  await page.getByRole('button',{name:'Add FAQ',exact:true}).click();await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Must not auto-retry?');await page.locator('textarea').first().fill('No blind retry');await page.getByRole('button',{name:'Save to AI Memory',exact:true}).click();await page.waitForTimeout(1700);assert.equal(writes.length,beforeConflict+1);
+  await page.getByRole('button',{name:'Add FAQ',exact:true}).click();await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Must not auto-retry?');await page.getByRole('dialog',{name:'Add Grounded FAQ',exact:true}).locator('textarea').fill('No blind retry');await page.getByRole('button',{name:'Save to AI Memory',exact:true}).click();await page.waitForTimeout(1700);assert.equal(writes.length,beforeConflict+1);
   await page.getByRole('button',{name:'Reload workspace before saving',exact:true}).click();await page.getByRole('heading',{name:'Beta Software Knowledge Base & Fact Memory'}).waitFor();await page.waitForTimeout(720);
 
   console.log('Browser stage: pending-save');
@@ -758,7 +759,7 @@ try {
   const saveStarted = new Promise<void>(resolve => { signalSave = resolve; });
   await page.getByRole('button', { name: 'Add FAQ', exact: true }).click();
   await page.getByPlaceholder('e.g., Do you provide support after launch?').fill('Delayed Beta question?');
-  await page.locator('textarea').first().fill('Delayed Beta answer');
+  await page.getByRole('dialog',{name:'Add Grounded FAQ',exact:true}).locator('textarea').fill('Delayed Beta answer');
   await page.getByRole('button', { name: 'Save to AI Memory', exact: true }).click();
   await Promise.race([saveStarted,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Pending-save request did not start')),10000))]);
   delayAlpha = false;

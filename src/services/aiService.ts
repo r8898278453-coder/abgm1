@@ -104,8 +104,8 @@ export async function generateMarketingContent(
 }
 
 export interface KnowledgeQueryPayload {companyId:string;query:string;}
-export interface KnowledgeQueryResult {success:boolean;companyId:string;answer:string;isGrounded:boolean;status:'MATCHES'|'NO_MATCH';mode:string;citations:Array<{label:string;title:string;excerpt:string;sourceId:string;sourceVersion:string;page:number|null;contentSha:string}>;sourceWindowTruncated:boolean;faqWindowTruncated?:boolean;}
+export interface KnowledgeQueryResult {success:boolean;companyId:string;answer:string;isGrounded:boolean;status:'MATCHES'|'NO_MATCH'|'CONFLICT_REVIEW_REQUIRED'|'FACT_APPROVAL_REQUIRED';mode:string;citations:Array<{label:string;title:string;excerpt:string;sourceId:string;sourceVersion:string;page:number|null;contentSha:string|null}>;sourceWindowTruncated:boolean;faqWindowTruncated?:boolean;}
 export async function queryKnowledgeBaseApi(params:KnowledgeQueryPayload,signal?:AbortSignal):Promise<KnowledgeQueryResult>{
  const result:any=await requestAi('/api/ai/knowledge/query',params,signal);
- if(result?.success!==true||result.companyId!==params.companyId||typeof result.answer!=='string'||!['MATCHES','NO_MATCH'].includes(result.status)||!Array.isArray(result.citations))throw new Error('Saved knowledge response unconfirmed.');return result;
+ if(result?.success!==true||result.companyId!==params.companyId||typeof result.answer!=='string'||!['MATCHES','NO_MATCH','CONFLICT_REVIEW_REQUIRED','FACT_APPROVAL_REQUIRED'].includes(result.status)||typeof result.isGrounded!=='boolean'||!Array.isArray(result.citations)||result.status!=='MATCHES'&&(result.isGrounded||result.citations.length>0))throw new Error('Saved knowledge response unconfirmed.');return result;
 }

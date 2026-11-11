@@ -1,5 +1,10 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+## Current forward extension:033 structured knowledge facts
+
+Schema target033_structured_knowledge_facts /52 canonical tables; next product034. Existing001–032 source/ledger identities unchanged. New fact table supports immutable candidates/current review revisions, minimal audit and source references without a source-delete FK that would silently erase review evidence. Manifest preflight/readiness refuse incompatible existing fact shapes. See KNOWLEDGE_FACTS.md and current STATUS.md. Older checkpoint numbers below retain their dated scope.
+
+
 P00-05 is locally validated. Current source target is032/51 canonical tables; deployed live schema is unverified.030_private_knowledge_sources is the first real v1 SQL manifest. No production migration has been applied in this continuation. Disposable extension fixtures derive the next registry ID;033 is the next free product ID. See KNOWLEDGE_SOURCES.md for storage/parser and rollout requirements.
 
 ## Historical identities001–029

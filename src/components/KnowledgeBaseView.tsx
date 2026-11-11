@@ -1,3 +1,4 @@
+import {KnowledgeFactsView} from './KnowledgeFactsView';
 import {formatPlatformDateTime} from '../../shared/platformTime';
 import {websiteImportHistory,cancelWebsiteRun,sourceHistory,importRegisteredWebsite,WebsiteImportSetupError,listSources,uploadSource,sourceCommand,previewSource,downloadSource} from '../services/knowledgeSources';
 import {SOURCE_MAX_BYTES,sourceExplanation,type KnowledgeSource,type KnowledgeChunk,type WebsiteImportRun} from '../../shared/knowledge';
@@ -287,6 +288,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
         {preview.source.approved&&<button disabled={sourceBusy} onClick={()=>void sourceAction(preview.source,'withdraw')}>Stop using this source</button>}
         <button onClick={()=>{previewSequence.current++;setPreview(null);}} className="ml-4">Close preview</button>
       </section>}
+      {companyId&&<KnowledgeFactsView companyId={companyId} sources={sources} disabled={sourceBusy} onBusy={setSourceBusy} onChange={invalidateFactSearch}/>}
       <p className="text-xs text-slate-500">Legacy document and FAQ edits are workspace drafts until the workspace save status confirms them.</p>
       {/* Two Columns: Uploaded Documents & Verified Business FAQs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -383,14 +385,15 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
 
       {/* Add FAQ Modal */}
       {isAddFaqOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div role="dialog" aria-modal="true" aria-labelledby="add-faq-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <h3 id="add-faq-title" className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-indigo-600" /> Add Grounded FAQ
               </h3>
               <button
                 onClick={() => setIsAddFaqOpen(false)}
+                aria-label="Close FAQ editor"
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-4 h-4" />

@@ -1,5 +1,8 @@
 # Production Deployment Guide
 
+Current source schema target033 /52 canonical tables; next migration034. This continuation adds private structured fact candidates/review and query governance. All001–032 files remain unchanged. Apply033 only through the canonical migration CLI in a separately authorized coordinated release, after backup/restore/hosting checks. Existing binaries reject the newer ledger. See docs/implementation/KNOWLEDGE_FACTS.md and generated STATUS.md; older release checkpoints below are historical. No deployment performed here.
+
+
 This document outlines the standard deployment architecture, pre-flight checks, and operations for the **Aaditech BGA / LocalPulse** multi-tenant platform.
 
 **Current migration target:032;51 canonical tables. Earlier batch notes describe their original prerequisites. No production migration has been applied here.**
