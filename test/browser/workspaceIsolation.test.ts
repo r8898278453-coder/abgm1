@@ -231,6 +231,7 @@ try {
       const input=route.request().postDataJSON();const mode=input.businessName;
       if(mode==='Alpha Clinic'){assert.equal(input.companyId,'A');planAiCalls++;if(planAiCalls===3){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false})});return;}body={caption:'AI educational fixture draft',headline:`AI draft ${planAiCalls}`,hashtags:['#Fixture']};await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});return;}
 
+      if(mode==='knowledge-conflict'||mode==='knowledge-changed'){await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({success:false,error:mode==='knowledge-conflict'?'KNOWLEDGE_REVIEW_REQUIRED':'KNOWLEDGE_CHANGED'})});return;}
       const status=mode==='limited'?429:mode==='unauthenticated'?401:mode==='offline'?503:200;
       body=mode==='valid'?(url.pathname.endsWith('reply-review')?{replyText:'Verified fixture draft'}:{caption:'Verified fixture caption',hashtags:['#Fixture']}):{replyText:' ',caption:123,error:'private-provider-diagnostic'};
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});return;
@@ -291,7 +292,7 @@ try {
   await page.goto(origin);
   const generationChecks=await page.evaluate(async()=>{
     const ai=await import(/* @vite-ignore */ String('/src/services/aiService.ts'));const outcomes=[];
-    for(const mode of ['limited','unauthenticated','offline','malformed']){
+    for(const mode of ['limited','unauthenticated','offline','malformed','knowledge-conflict','knowledge-changed']){
       for(const kind of ['review','content']){
         try{if(kind==='review')await ai.generateReviewReply({businessName:mode,reviewText:'fixture',rating:5,reviewerName:'Fixture'});else await ai.generateMarketingContent({businessName:mode});outcomes.push('UNEXPECTED_SUCCESS');}
         catch(error){outcomes.push((error as Error).message);}
@@ -302,8 +303,8 @@ try {
     const aborted=new AbortController();aborted.abort();let cancelled=false;try{await ai.generateMarketingContent({businessName:'valid'},aborted.signal);}catch{cancelled=true;}
     return {outcomes,reply,content,cancelled};
   });
-  assert.equal(generationChecks.outcomes.length,8);assert.ok(generationChecks.outcomes.every(value=>value!=='UNEXPECTED_SUCCESS'&&!value.includes('private-provider')));
-  assert.equal(generationChecks.reply,'Verified fixture draft');assert.equal(generationChecks.content.caption,'Verified fixture caption');assert.ok(generationChecks.cancelled);
+  assert.equal(generationChecks.outcomes.length,12);assert.ok(generationChecks.outcomes.every(value=>value!=='UNEXPECTED_SUCCESS'&&!value.includes('private-provider')));
+  assert.ok(generationChecks.outcomes.some(text=>text.includes('Review conflicting')));assert.ok(generationChecks.outcomes.some(text=>text.includes('Business facts changed')));assert.equal(generationChecks.reply,'Verified fixture draft');assert.equal(generationChecks.content.caption,'Verified fixture caption');assert.ok(generationChecks.cancelled);
 
   console.log('Browser stage: publication-controls');
   const controlsPanel=page.getByRole('region',{name:'Workspace publishing controls'});

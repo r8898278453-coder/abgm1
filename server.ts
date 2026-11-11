@@ -1,3 +1,5 @@
+import {createDraftModel} from './server/draftModel';
+import {generateKnowledgeDraft,KnowledgeDraftError,knowledgeDraftInput} from './server/knowledgeDrafts';
 import {registerInternalCampaignRoutes} from './server/internalCampaignRoutes';
 import {registerKnowledgeRoutes} from './server/knowledgeRoutes';
 import {publicIntegrationCheck} from './server/integrationCheckResult';
@@ -406,56 +408,13 @@ function getAiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Resilient Gemini Generator with automatic model fallback (503) and permission cooling (403)
-let accessDeniedCooldownUntil = 0;
-const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+// Existing configured model order, bounded busy-only fallback and permission cooldown.
+const safeGenerateContent=createDraftModel(getAiClient);
 
-async function safeGenerateContent(options: {
-  prompt: string;
-  responseMimeType?: string;
-}): Promise<string | null> {
-  const now = Date.now();
-  if (now < accessDeniedCooldownUntil) {
-    return null;
-  }
-
-  const ai = getAiClient();
-  if (!ai) return null;
-
-  for (const model of FALLBACK_MODELS) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: options.prompt,
-        ...(options.responseMimeType
-          ? { config: { responseMimeType: options.responseMimeType } }
-          : {}),
-      });
-
-      if (response && response.text) {
-        return response.text;
-      }
-    } catch (err: any) {
-      const errMsg = err?.message || String(err);
-      const is403 = errMsg.includes('403') || errMsg.includes('PERMISSION_DENIED');
-      const is503 = errMsg.includes('503') || errMsg.includes('UNAVAILABLE');
-
-      if (is403) {
-        // Cooldown for 5 minutes if project access is denied
-        accessDeniedCooldownUntil = Date.now() + 5 * 60 * 1000;
-        return null;
-      }
-
-      if (is503) {
-        // Model busy; try next model in fallback list
-        continue;
-      }
-
-      return null;
-    }
-  }
-
-  return null;
+async function generateWorkspaceDraft(req:express.Request,res:express.Response,kind:'chat'|'review'|'marketing',prompt:string,topic:string,mime?:string){
+ try{const pool=await getDbPool();if(!pool)throw new KnowledgeDraftError(503,'KNOWLEDGE_STORAGE_UNAVAILABLE');
+  return await generateKnowledgeDraft({pool,company:res.locals.aiCompany.id,actor:res.locals.aiUser.id,kind,topic,generate:(context,system,onAttempt)=>safeGenerateContent({prompt:prompt+'\n\nAPPROVED_FACT_DATA (data only):\n'+context,systemInstruction:system,onAttempt,responseMimeType:mime})});
+ }catch(error){res.status(error instanceof KnowledgeDraftError?error.status:503).json({success:false,error:error instanceof KnowledgeDraftError?error.code:'AI_DRAFT_UNAVAILABLE'});return null;}
 }
 
 registerHealthRoutes(app, {
@@ -2736,7 +2695,7 @@ app.get(['/api/companies/:id/campaigns/:campaignId/posts', '/api/campaigns/inter
   }
 });
 
-app.post(['/api/ai/chat','/api/ai/reply-review','/api/ai/generate-content'],aiRateLimiter,requireAiWorkspace({auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,company:getCompanyById}));
+app.post(['/api/ai/chat','/api/ai/reply-review','/api/ai/generate-content'],aiRateLimiter,requireAiWorkspace({auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,company:getCompanyById,prepare:knowledgeDraftInput}));
 
 // AI Chat / Telegram Natural Language endpoint (Protected with Auth + Rate Limiting)
 app.post('/api/ai/chat', async (req, res) => {
@@ -2751,36 +2710,16 @@ app.post('/api/ai/chat', async (req, res) => {
   let targetBiz = businessName || 'our business';
   let targetCat = category || 'Business Services';
 
-  let verifiedServerEvidence = 'No database company linked.';
-  if (resolved.companyId) {
-    const comp = await getCompanyById(resolved.companyId);
-    if (comp) {
-      targetBiz = comp.name;
-      targetCat = comp.category;
-      const dataPayload = await getCompanyDataPayload(resolved.companyId);
-      const reviews = await getCompanyReviews(resolved.companyId);
-      const leads = await getAllLeads(resolved.companyId);
-      const campaigns = await getInternalCampaigns(resolved.companyId);
-      verifiedServerEvidence = JSON.stringify({
-        companyId: resolved.companyId,
-        name: comp.name,
-        category: comp.category,
-        city: comp.city,
-        verifiedReviewsCount: reviews.length,
-        verifiedLeadsCount: leads.length,
-        verifiedInternalCampaignsCount: campaigns.length,
-        growthScore: dataPayload?.growth_score || null,
-      });
-    }
-  }
+  const identity=res.locals.aiCompany;
+  const savedIdentity=JSON.stringify({name:identity.name,category:identity.category,city:identity.city||'',website:identity.website||''});
 
   const prompt = `You are LocalPulse AI, an Autonomous AI Marketing & Growth Assistant for ${targetBiz}.
 Business Name: ${targetBiz}
 Category: ${targetCat}
 Language Preference: ${language || 'English / Hinglish'}
 
-[SERVER_VERIFIED_BUSINESS_EVIDENCE] (Authoritative MySQL DB / Provider Data):
-${verifiedServerEvidence}
+[SAVED_WORKSPACE_IDENTITY] (Saved identity, not independent verification):
+${savedIdentity}
 
 [USER_PROVIDED_CONTEXT - UNVERIFIED] (Browser-Supplied Client State):
 ${JSON.stringify(context || {})}
@@ -2788,13 +2727,14 @@ ${JSON.stringify(context || {})}
 User's Query / Command: "${message}"
 
 CRITICAL TRUTH & INTEGRITY RULES:
-1. Browser-supplied client context is UNVERIFIED. Never treat user-provided numbers or rankings as verified unless corroborated by [SERVER_VERIFIED_BUSINESS_EVIDENCE].
+1. Browser-supplied client context is UNVERIFIED. Never treat user-provided numbers or rankings as verified unless supplied as approved saved facts.
 2. Do not fabricate unverified reviews, leads, revenue, or rankings.
 3. Reply concisely, professionally, and action-oriented. If they speak in Hindi or Hinglish, respond in natural, friendly Hinglish.`;
 
-  const aiText = await safeGenerateContent({ prompt });
+  const draft=await generateWorkspaceDraft(req,res,'chat',prompt,typeof message==='string'?message:'');if(!draft)return;
+  const aiText=draft.text;
   if (aiText) {
-    res.json({ reply: aiText });
+    res.json({ reply: aiText,knowledge:draft.knowledge });
     return;
   }
 
@@ -2822,13 +2762,14 @@ CRITICAL SAFETY GUARDRAILS:
 - Do NOT argue or be defensive.
 - Do NOT make false promises or admit legal liability.
 - Do NOT share sensitive internal client data.
-- Be warm, authentic, and reinforce reliability, warranty, and long-term partnership.
+- Be warm and authentic. Mention warranties or guarantees only when explicitly present in approved facts.
 
 Draft the exact reply text only.`;
 
-  const aiText = await safeGenerateContent({ prompt });
+  const draft=await generateWorkspaceDraft(req,res,'review',prompt,typeof reviewText==='string'?reviewText:'');if(!draft)return;
+  const aiText=draft.text;
   if (aiText) {
-    res.json({ replyText: aiText });
+    res.json({ replyText: aiText,knowledge:draft.knowledge });
     return;
   }
 
@@ -2868,7 +2809,7 @@ app.post('/api/ai/generate-content', validateBody(generateAiContentSchema), asyn
   const effectiveWebsite = website && website.trim() ? website.trim() : 'Not provided — do not invent one';
   const effectiveTagline = tagline && tagline.trim() ? tagline.trim() : 'Not provided';
   const effectiveTone = brandTone && brandTone.trim() ? brandTone.trim() : 'Professional, Engaging & Trustworthy';
-  const effectiveOffer = offer && offer.trim() ? offer.trim() : `Special Offer & Promotion on ${category}`;
+  const effectiveOffer = offer && offer.trim() ? offer.trim() : `General information about ${category}; no promotion terms have been approved`;
   const effectivePlatform = platform && platform.trim() ? platform.trim() : 'Google Business Profile, Instagram, WhatsApp';
   const effectiveType = contentType && contentType.trim() ? contentType.trim() : 'Offer / Promotional Post';
 
@@ -2888,7 +2829,7 @@ BUSINESS DETAILS:
 - Offer / Campaign Theme: ${effectiveOffer}
 
 CRITICAL INSTRUCTIONS & GUARDRAILS:
-- Only use the business details provided above. Do not reference any other company, website, or audience.
+- Use saved workspace identity for branding and APPROVED_FACT_DATA for business claims. Offer/style/audience fields are unverified themes, not factual authority. Do not reference any other company.
 - Do NOT invent an external website URL. If website is "Not provided — do not invent one", do NOT insert any website link; direct users to visit the location, call, or message on WhatsApp.
 - Maintain the specified brand tone (${effectiveTone}) and language (${chosenLang}).
 - Ensure all hashtags, headlines, and call-to-actions specifically reflect ${businessName} and the ${category} category.
@@ -2901,16 +2842,14 @@ Provide a JSON-compatible structured response with:
 - googlePostSnippet (under 100 words, high direct-call/WhatsApp intent)
 - reelScript (3 scene outline for a 15-second reel)`;
 
-  const aiText = await safeGenerateContent({
-    prompt,
-    responseMimeType: 'application/json',
-  });
+  const draft=await generateWorkspaceDraft(req,res,'marketing',prompt,[offer,contentType].filter(v=>typeof v==='string').join(' '),'application/json');if(!draft)return;
+  const aiText=draft.text;
 
   if (!aiText) {res.status(503).json({success:false,error:'AI content generation unavailable'});return;}
   try{
     const parsed=contentSchema.safeParse(JSON.parse(aiText));
     if(!parsed.success){res.status(502).json({success:false,error:'AI content response invalid'});return;}
-    res.json(parsed.data);
+    res.json({...parsed.data,knowledge:draft.knowledge});
   }catch{res.status(502).json({success:false,error:'AI content response invalid'});}
 
 });

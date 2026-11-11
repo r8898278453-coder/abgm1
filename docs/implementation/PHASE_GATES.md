@@ -1,4 +1,4 @@
-# Phase gate decisions — 11 November2026 IST
+# Phase gate decisions — 12 November2026 IST
 
 [STATUS.md](STATUS.md) is generated from TASKS.csv and contains the current phase counts, all93 task states, unresolved immediate dependencies and explicit blockers. Run npm run docs:status after tracker changes; npm run docs:check rejects drift. MASTER_PLAN.md remains the specification; EXECUTION.md/evidence retain historical validation records.
 
@@ -7,3 +7,5 @@ No phase is accepted by this continuation. P00 hosting/runtime/cron/backup evide
 Current source target033/52 tables includes structured fact governance. P04-01/02/03/04/05 are in progress; private ingestion, website runs, extraction, history/reporting and key-based conflict review are locally implemented foundations. Full semantic fact/consumer/onboarding and earlier agency/security gates remain open. P09's existing report improvements do not accept all-workflow plan-versus-done reconciliation/agency reporting.
 
 Production migrations, customer/provider sends, deployments, canary observation and final release require their stated evidence and separate authorization. Billing remains excluded. Earlier numerical progress notes belong to their dated EXECUTION/evidence checkpoints and must not override current generated status.
+
+12 November2026 consumer checkpoint: reviewed structured facts now guide authorized chat, review-reply and marketing drafts with conflict/stale-context checks and private attempt records. Outputs still require review; this does not connect every autonomous/sales workflow. See KNOWLEDGE_DRAFTS.md and generated STATUS.md. Schema033/52 unchanged.

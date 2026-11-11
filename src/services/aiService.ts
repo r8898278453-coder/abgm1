@@ -32,12 +32,13 @@ function getAiHeaders(): Record<string, string> {
   return headers;
 }
 
+const knowledgeDraftErrors:Record<string,string>={KNOWLEDGE_REVIEW_REQUIRED:'Review conflicting or unapproved business facts before generating this draft.',KNOWLEDGE_CHANGED:'Business facts changed during generation. Review current facts and generate a new draft.',KNOWLEDGE_CONTEXT_TOO_LARGE:'Approved business facts exceed the draft context limit. Reduce the active facts and try again.'};
 async function requestAi(path:string,params:unknown,signal?:AbortSignal):Promise<unknown>{
  try{
   const response=await fetch(`${API_BASE_URL}${path}`,{method:'POST',headers:getAiHeaders(),body:JSON.stringify(params),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(10000)]):AbortSignal.timeout(10000)});
-  if(!response.ok)throw new Error(response.status===429?'AI rate limit reached. Please retry later.':response.status===401?'Sign in to use AI generation.':'AI generation unavailable. Please retry later.');
+  if(!response.ok){let message=response.status===429?'AI rate limit reached. Please retry later.':response.status===401?'Sign in to use AI generation.':'AI generation unavailable. Please retry later.';if(response.status===409){try{const error=await response.json();message=knowledgeDraftErrors[error?.error]||message;}catch{}}throw new Error(message);}
   return await response.json();
- }catch(error){if(signal?.aborted)throw error;throw new Error(error instanceof Error&&['AI rate limit reached. Please retry later.','Sign in to use AI generation.'].includes(error.message)?error.message:'AI generation unavailable. Please retry later.');}
+ }catch(error){if(signal?.aborted)throw error;throw new Error(error instanceof Error&&['AI rate limit reached. Please retry later.','Sign in to use AI generation.',...Object.values(knowledgeDraftErrors)].includes(error.message)?error.message:'AI generation unavailable. Please retry later.');}
 }
 
 export async function askAiChat(params: {

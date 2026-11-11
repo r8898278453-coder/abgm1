@@ -49,3 +49,5 @@ Website fetching now also uses durable website_import parent jobs with atomic pa
 Remaining: shared admission/usage/retention/performance policy, site/robots/domain ownership policy, semantic fact conflicts and freshness, automatic marketing/sales consumers, complete agency roles and actual hosting/provider acceptance. No claim of complete platform automation or all phases finished is made.
 
 Current coordinated schema target is033/52 tables (next034). Structured key-based fact candidates/review/manual precedence and source invalidation are implemented as documented in KNOWLEDGE_FACTS.md. Full semantic conflict detection, automatic consumers and earlier/later acceptance gates remain open; current task states are generated in STATUS.md. Earlier032 figures above describe their historical batch.
+
+12 November2026 consumer checkpoint: reviewed structured facts now guide authorized chat, review-reply and marketing drafts with conflict/stale-context checks and private attempt records. Outputs still require review; this does not connect every autonomous/sales workflow. See KNOWLEDGE_DRAFTS.md and generated STATUS.md. Schema033/52 unchanged.

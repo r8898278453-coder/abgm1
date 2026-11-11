@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.14 • updated 11 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.15 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Current reviewed-fact draft consumer checkpoint — 12 November2026 IST
+
+Three authorized user-requested draft flows (chat/review/marketing) now use approved structured facts, related-key conflict checks, stale-context discard, basic output validation and minimal durable provider-attempt/outcome evidence. A shared model adapter preserves configured fallback/cooldown while fencing audit uncertainty and empty/unknown replay. KNOWLEDGE_DRAFTS.md states the exact scope, review requirement and remaining autonomous/semantic/budget/hosting gates. Schema033/52 unchanged; P04-06 is now in progress, no phase accepted. Use generated STATUS.md for current task counts.
 
 ### Current structured-fact governance checkpoint — 11 November2026 IST
 

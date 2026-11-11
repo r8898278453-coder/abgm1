@@ -47,3 +47,5 @@ Actual hosting must support coordinated schema/server/workers, pinned runtime, D
 Website import now acknowledges202 with durable run metadata; history/cancellation live beside source operations. Fetching no longer holds the HTTP request open. Parent success means snapshots committed, not extraction/approval. See WEBSITE_IMPORT.md for the full current contract.
 
 Current coordinated schema target is033/52 tables (next034). Structured key-based fact candidates/review/manual precedence and source invalidation are implemented as documented in KNOWLEDGE_FACTS.md. Full semantic conflict detection, automatic consumers and earlier/later acceptance gates remain open; current task states are generated in STATUS.md. Earlier032 figures above describe their historical batch.
+
+12 November2026 consumer checkpoint: reviewed structured facts now guide authorized chat, review-reply and marketing drafts with conflict/stale-context checks and private attempt records. Outputs still require review; this does not connect every autonomous/sales workflow. See KNOWLEDGE_DRAFTS.md and generated STATUS.md. Schema033/52 unchanged.

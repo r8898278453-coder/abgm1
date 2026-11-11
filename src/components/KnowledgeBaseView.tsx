@@ -161,7 +161,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
           </div>
           <h1 className="text-2xl font-black tracking-tight">{business.name} Knowledge Base & Fact Memory</h1>
           <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
-            Store client files privately and review source excerpts with citations. Approved files are used in this search; automatic use in campaigns and replies is not enabled yet. Saved FAQs remain manual business statements.
+            Store client files privately and review source excerpts with citations. Approved files support this search. Reviewed structured facts also guide user-requested chat, review and marketing drafts; review outputs before sending or publishing. Saved FAQs remain manual business statements.
           </p>
         </div>
 
