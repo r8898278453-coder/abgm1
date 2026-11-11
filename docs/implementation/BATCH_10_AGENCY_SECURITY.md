@@ -2,6 +2,8 @@
 
 12 November2026 IST. This group takes the ten requested tracker packages together, plus their directly connected agency UI package (P03-04). Current target034_agency_security_foundation /60 canonical tables; next035. Historical001–033 identities are unchanged. No production migration, deployment, external messaging or provider action performed.
 
+Continuation: AGENCY_TEAM_WORKFLOWS.md closes the previously pending membership editor, loaded-client search, location-edit and name-setting slices. Remaining-column statements below describe the original checkpoint; full branding, analytics, scalable search and earlier gate acceptance remain pending.
+
 ## Package-by-package delivery
 
 | Tracker | Delivered code and local evidence | Full-package acceptance still open |

@@ -1,5 +1,7 @@
 # Authentication and integration continuation — 10 November 2026 IST
 
+Current ten-workflow continuation (12 November2026 IST): [AGENCY_TEAM_WORKFLOWS.md](AGENCY_TEAM_WORKFLOWS.md) records real team/assignment UI, scoped assignment revocation, location revision edits, persisted agency name, client search and bounded role changes. Schema034/60 unchanged; current counts/prerequisites in STATUS.md. This is child-deliverable progress, not full-parent/phase acceptance or deployment.
+
 These repairs support P01 reliability and preparatory P02 security/integration work. They do not complete P02-05 session/cookie/rate-limit work, the P02-06 integration registry, OAuth lifecycle, or production acceptance. Product schema stays029/50; no historical migration changed.
 
 ## Password reset and bearer compatibility

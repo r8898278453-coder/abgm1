@@ -1,18 +1,22 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.16 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.17 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
 ## 1. How to use this plan
 
-This is the canonical implementation specification. TASKS.csv is its ordered work index, not a second specification. EXECUTION.md holds progress and evidence. Do not start all phases together. Complete the next dependency-ready task and its acceptance gate, record evidence, then continue. The approved plan and tracker now live under docs/implementation/ in the application checkout. Use this copy exclusively; do not maintain divergent internal/external plans.
+This is the canonical implementation specification. TASKS.csv is its ordered work index, not a second specification. EXECUTION.md holds progress and evidence. Implement dependency-related deliverables in coherent groups of at least ten where practical, as requested by the owner. Order dependent mutations within each group; do not accept later phases before their prerequisite gates. Record exact delivered scope and evidence, then continue. The approved plan and tracker now live under docs/implementation/ in the application checkout. Use this copy exclusively; do not maintain divergent internal/external plans.
 
 Implementation was authorized in subsequent user requests and continues in this checkout. Keep cumulative changes and update the tracker/evidence after validation. Production publishing/deployment and database migrations remain separate from local implementation; none have been performed in this continuation.
 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Current ten-workflow team continuation — 12 November2026 IST
+
+AGENCY_TEAM_WORKFLOWS.md maps ten connected UI/API deliverables and their parent IDs: member list/add/role/remove, assignment list/save/revoke, location edit, agency name and client search. Existing schema034/60 is reused; no new migration. Role changes preserve narrower grants instead of widening every client assignment. P09-06 begins persisted name settings only; branding/domains and all full-parent/phase gates remain explicitly open. STATUS.md remains generated from canonical TASKS.csv.
 
 ### Current grouped agency/security checkpoint — 12 November2026 IST
 

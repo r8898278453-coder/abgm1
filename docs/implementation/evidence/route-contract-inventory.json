@@ -13,6 +13,11 @@
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
     {
+      "method": "PUT",
+      "path": "/api/agencies/:agencyId",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/agencies/:agencyId/members",
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
@@ -281,8 +286,18 @@
       "owner": "server.ts"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:id/assignments",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
       "method": "PUT",
       "path": "/api/companies/:id/assignments",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id/assignments/:userId",
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
     {
@@ -517,6 +532,11 @@
     },
     {
       "method": "DELETE",
+      "path": "/api/companies/:id/locations/:locationId",
+      "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
+    },
+    {
+      "method": "PUT",
       "path": "/api/companies/:id/locations/:locationId",
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },

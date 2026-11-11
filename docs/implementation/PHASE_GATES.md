@@ -1,5 +1,7 @@
 # Phase gate decisions — 12 November2026 IST
 
+Current ten-workflow continuation (12 November2026 IST): [AGENCY_TEAM_WORKFLOWS.md](AGENCY_TEAM_WORKFLOWS.md) records real team/assignment UI, scoped assignment revocation, location revision edits, persisted agency name, client search and bounded role changes. Schema034/60 unchanged; current counts/prerequisites in STATUS.md. This is child-deliverable progress, not full-parent/phase acceptance or deployment.
+
 Generated STATUS.md is the current source for all93 task states, phase counts, prerequisites and explicit blockers. Refresh with npm run docs:status; docs:check rejects drift. EXECUTION.md/evidence retain historical checkpoints; MASTER_PLAN.md remains the specification.
 
 The grouped agency/security continuation starts eleven parent packages together without accepting incomplete prerequisites. See BATCH_10_AGENCY_SECURITY.md for the exact ten requested IDs plus connected P03-04 UI, delivered tests and remaining full-package scope. P00 hosting evidence and complete P01/P02/P03 gate acceptance remain open. Later source/fact/draft foundations do not close those gates.

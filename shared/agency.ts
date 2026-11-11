@@ -8,3 +8,12 @@ export const locationInput=z.object({name:z.string().trim().min(1).max(160),addr
 export const memberInput=z.object({userId:z.string().min(1).max(64),role:z.enum(['ADMIN','STAFF','APPROVER','VIEWER'])}).strict();
 export function roleAllows(role:unknown,operation:AgencyOperation){return typeof role==='string'&&Object.hasOwn(ROLE_CAPABILITIES,role)&&ROLE_CAPABILITIES[role as AgencyRole].includes(operation);}
 export function clientRoleWithin(member:unknown,client:unknown){return typeof client==='string'&&Object.hasOwn(ROLE_CAPABILITIES,client)&&ROLE_CAPABILITIES[client as AgencyRole].every(op=>roleAllows(member,op));}
+
+/** Preserve narrower grants; incomparable role changes retain read-only access. */
+export function boundedAssignmentRole(current:unknown,membership:unknown):Exclude<AgencyRole,'OWNER'>{
+ if(clientRoleWithin(membership,current)&&current!=='OWNER')return current as Exclude<AgencyRole,'OWNER'>;
+ if(clientRoleWithin(current,membership)&&membership!=='OWNER')return membership as Exclude<AgencyRole,'OWNER'>;
+ return 'VIEWER';
+}
+export const agencyNameInput=z.object({expectedName:z.string().min(1).max(160),name:z.string().trim().min(1).max(160)}).strict();
+export const locationEditInput=z.object({expectedVersion:revision,name:z.string().trim().min(1).max(160),address:z.string().trim().max(500).nullable(),city:z.string().trim().max(160).nullable(),latitude:z.number().min(-90).max(90).nullable(),longitude:z.number().min(-180).max(180).nullable()}).strict().refine(v=>(v.latitude===null)===(v.longitude===null),'Coordinates must be supplied together');

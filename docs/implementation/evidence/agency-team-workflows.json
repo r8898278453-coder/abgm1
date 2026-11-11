@@ -1,0 +1,47 @@
+{
+  "date_ist": "2026-11-12",
+  "delivered_child_workflows": 10,
+  "parent_packages": [
+    "P02-01",
+    "P02-03",
+    "P03-01",
+    "P03-02",
+    "P03-03",
+    "P03-04",
+    "P09-06"
+  ],
+  "full_parent_acceptance": false,
+  "phase_acceptance": false,
+  "schema": 34,
+  "canonical_tables": 60,
+  "migration_changes": false,
+  "default_programs_passed": 99,
+  "native_sql": "Disposable restricted MariaDB10.11.19 fresh/upgrade/replay plus eight-way name/location edits, role preservation, assignment revoke and rollback passed",
+  "browser": "Extended agency ten workflows and full workspace passed",
+  "typescript": "passed",
+  "build": "passed; existing chunk warning",
+  "prior_copied_export_evidence": "agency-security-group.json; unchanged schema, not rerun",
+  "production_changes": false,
+  "customer_sends": false,
+  "deployment": false,
+  "billing_changes": false,
+  "tracker": {
+    "validated": 8,
+    "in_progress": 25,
+    "blocked": 1,
+    "planned": 59
+  },
+  "limitations": [
+    "Full parent scopes and hosting/provider gates remain open",
+    "Name value comparison does not detect ABA",
+    "Role editors retain existing command semantics; full optimistic concurrency remains pending",
+    "Client search filters loaded authorized companies; server pagination pending",
+    "Name setting only; no domain/SSL/logo white-label activation",
+    "No new invitation/ownership-transfer/retention/cookie/CSRF implementation"
+  ],
+  "routes": {
+    "declarations": 171,
+    "registrations": 32,
+    "collisions": 0
+  }
+}

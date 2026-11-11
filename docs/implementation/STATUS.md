@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run np
 
 Schema target: 034_agency_security_foundation; 60 canonical tables. Registered default regression programs: 99 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 24 / 1 / 60.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 8 / 25 / 1 / 59.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -21,7 +21,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P06 | 0 | 0 | 0 | 8 |
 | P07 | 0 | 0 | 0 | 8 |
 | P08 | 0 | 0 | 0 | 10 |
-| P09 | 0 | 0 | 0 | 8 |
+| P09 | 0 | 1 | 0 | 7 |
 | P10 | 0 | 0 | 0 | 8 |
 
 ## Explicit blockers
@@ -134,7 +134,7 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P09-03 | planned | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
 | P09-04 | planned | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
 | P09-05 | planned | Deliver optional client report and approval portal | P08-10, P09-04 |
-| P09-06 | planned | Persist agency settings and decide white-label domain scope | P08-10, P09-05 |
+| P09-06 | in_progress | Persist agency settings and decide white-label domain scope | P08-10, P09-05 |
 | P09-07 | planned | Finish responsive mobile accessibility and operational UX | P08-10, P09-06 |
 | P09-08 | planned | Agency accountability acceptance gate | P08-10, P09-07 |
 | P10-01 | planned | Complete security privacy retention and key-recovery review | P09-08 |
