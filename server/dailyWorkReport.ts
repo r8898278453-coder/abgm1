@@ -29,7 +29,15 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   const [pending]:any=await sql.query("SELECT COUNT(*) AS pendingApprovals FROM content_posts WHERE company_id = ? AND status = 'pending_approval'",[company]);
   const [uncertain]:any=await sql.query("SELECT COUNT(*) AS uncertainPublications FROM publishing_dispatch_claims WHERE company_id = ? AND (status = 'UNKNOWN' OR (status = 'IN_PROGRESS' AND started_at < DATE_SUB(NOW(),INTERVAL 5 MINUTE)))",[company]);
   const [knowledge]:any=await sql.query("SELECT COUNT(CASE WHEN extraction_state='EXTRACTED' AND approved_at IS NULL THEN 1 END) knowledgeAwaitingApproval,COUNT(CASE WHEN extraction_state='PROCESSING' THEN 1 END) knowledgeExtractionRunning,COUNT(CASE WHEN extraction_state IN ('STORED','FAILED','UNSUPPORTED','NEEDS_OCR') THEN 1 END) knowledgeExtractionBlocked FROM knowledge_sources WHERE company_id=?",[company]);
+  const [sourceActivity]:any=await sql.query(`SELECT
+   COUNT(CASE WHEN event_type='KNOWLEDGE_STORED' THEN 1 END) knowledgeStored,
+   COUNT(CASE WHEN event_type='KNOWLEDGE_EXTRACTION_SETTLED' THEN 1 END) knowledgeExtractionsSettled,
+   COUNT(CASE WHEN event_type='KNOWLEDGE_EXTRACTION_SETTLED' AND JSON_UNQUOTE(JSON_EXTRACT(details,'$.state')) IN ('FAILED','UNSUPPORTED','NEEDS_OCR') THEN 1 END) knowledgeExtractionsBlocked,
+   COUNT(CASE WHEN event_type='KNOWLEDGE_APPROVED' THEN 1 END) knowledgeApprovals,
+   COUNT(CASE WHEN event_type='KNOWLEDGE_APPROVAL_WITHDRAWN' THEN 1 END) knowledgeWithdrawals,
+   COUNT(CASE WHEN event_type='KNOWLEDGE_DELETED' THEN 1 END) knowledgeDeleted
+   FROM autonomous_audit_logs WHERE company_id=? AND timestamp>=FROM_UNIXTIME(?) AND timestamp<FROM_UNIXTIME(?) AND event_type IN ('KNOWLEDGE_STORED','KNOWLEDGE_EXTRACTION_SETTLED','KNOWLEDGE_APPROVED','KNOWLEDGE_APPROVAL_WITHDRAWN','KNOWLEDGE_DELETED')`,[company,start/1000,end/1000]);
   const counts=(row:any)=>Object.fromEntries(Object.entries(row).map(([key,value])=>{const count=Number(value);if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');return [key,count];}));
-  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0])},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0])}} as DailyWorkReport;
+  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0])},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0])}} as DailyWorkReport;
  });
 }

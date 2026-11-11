@@ -417,6 +417,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:id/knowledge/sources/:sourceId/history",
+      "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/knowledge/sources/:sourceId/preview",
       "owner": "server/knowledgeRoutes.ts#registerKnowledgeRoutes"
     },

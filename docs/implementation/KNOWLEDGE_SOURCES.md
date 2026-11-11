@@ -54,3 +54,5 @@ Extraction retry is now revision-bound at the locked claim: stale tabs cannot cl
 New extractions prefer whitespace within the final100 characters of each1200-character chunk and avoid splitting UTF16 surrogate pairs. Offsets remain exact normalized-page spans; very long tokens may still hit the hard bound. Existing approved chunks are not rewritten automatically: deliberate revision-bound retry clears approval before regenerated chunks can be reviewed.
 
 Registered website source import is now available in the authenticated Knowledge view. Source target031 adds original URL/fetch-ms; internal HTML/text snapshots retain original bytes and remain unapproved. Retry retains provenance and clears approval. See WEBSITE_IMPORT.md for endpoint/limits and same-byte replay/refresh/conflict semantics.
+
+Source transitions now append minimal durable audit events atomically; deleting original bytes retains that metadata. History UI and6 IST source activity counters are available. Old events are not backfilled. See KNOWLEDGE_HISTORY.md; durable ingestion queue remains pending.

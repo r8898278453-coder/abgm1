@@ -53,3 +53,5 @@ Campaign reliability continuation: internal planning truth, scoped mutation ackn
 11 November2026 website snapshot foundation: P04-02 now in_progress; no acceptance gate promoted. Current tracker8 validated,11 in_progress,1 blocked,73 planned. Prior numerical checkpoints above are historical. See WEBSITE_IMPORT.md.
 
 Website source persistence continuation:031/51 source target, scoped registered website import, original provenance and approval UI verified locally. No phase accepted;8 validated,11 in_progress,1 blocked,73 planned. See WEBSITE_IMPORT.md.
+
+Atomic source history/daily accountability continuation verified locally; schema031/51 unchanged,93 isolated programs, native SQL and Chromium/build. Counts remain8 validated,11 in_progress,1 blocked,73 planned; no phase accepted. See KNOWLEDGE_HISTORY.md.

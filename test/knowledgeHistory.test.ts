@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import {readKnowledgeHistory,KNOWLEDGE_EVENTS} from '../server/knowledgeHistory';
+const withConnection=(pool:any)=>({...pool,getConnection:async()=>({query:async(sql:string,args:any[])=>sql.startsWith('SELECT')?pool.query(sql,args):[[],[]],commit:async()=>{},rollback:async()=>{},release:()=>{},destroy:()=>{}})});
+let reads=0;const pool={query:async(sql:string,args:any[])=>{reads++;assert.ok(sql.includes('company_id=? AND action_id=?'));assert.deepEqual(args.slice(0,2),['A','source']);assert.deepEqual(args.slice(2,2+KNOWLEDGE_EVENTS.length),[...KNOWLEDGE_EVENTS]);if(args.length>2+KNOWLEDGE_EVENTS.length){assert.equal(args.at(-1),'21');assert.ok(sql.includes('<CAST(? AS UNSIGNED)'));}return[Array.from({length:51},(_,index)=>({id:'event-'+index,actor:'owner',event_type:'KNOWLEDGE_EXTRACTION_SETTLED',details:JSON.stringify({sourceVersion:String(70-index),state:'EXTRACTED',privateText:'private-source-content'}),recorded_ms:1}))];}} as any;
+const history=await readKnowledgeHistory(withConnection(pool),'A','source');assert.equal(history.events.length,50);assert.equal(history.nextBeforeVersion,'21');assert.ok(!JSON.stringify(history).includes('private-source-content'));await readKnowledgeHistory(withConnection(pool),'A','source','21');
+await assert.rejects(readKnowledgeHistory(withConnection(pool),'A','source','-1'));assert.equal(reads,2);
+await assert.rejects(readKnowledgeHistory(withConnection({query:async()=>[[{event_type:'KNOWLEDGE_STORED',details:'{"sourceVersion":"0","state":"FAKE"}',recorded_ms:0}]]} as any),'A','source'));
+console.log('Knowledge history: canonical client/source scope, fixed event whitelist, bounded revision keyset cursor and private extra-field/state rejection passed.');

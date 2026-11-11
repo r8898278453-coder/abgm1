@@ -6,6 +6,7 @@ const programs=[
   "test/websiteImportExtract.test.ts",
   "test/knowledgeExtraction.test.ts",
   "test/knowledgeRoutes.test.ts",
+  "test/knowledgeHistory.test.ts",
   "test/internalCampaignRoutes.test.ts",
   "test/integrationCredentials.test.ts",
   "test/passwordRecoveryRoutes.test.ts",

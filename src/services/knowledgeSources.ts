@@ -1,3 +1,5 @@
+import {validWorkspaceRevision} from '../../shared/workspaceRevision';
+import {KNOWLEDGE_EVENT_TYPES} from '../../shared/knowledge';
 import {apiRequest,getStoredToken} from './authService';
 import {API_BASE_URL} from '../config/apiConfig';
 import type {KnowledgeSource,KnowledgeChunk} from '../../shared/knowledge';
@@ -12,3 +14,12 @@ export async function previewSource(company:string,id:string):Promise<{source:Kn
 export async function downloadSource(company:string,source:KnowledgeSource){const token=getStoredToken(),response=await fetch(API_BASE_URL+base(company)+'/'+encodeURIComponent(source.id)+'/download',{headers:token?{Authorization:'Bearer '+token}:{},signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('Download unavailable');const blob=await response.blob(),url=URL.createObjectURL(blob);try{const link=document.createElement('a');link.href=url;link.download=source.filename;link.click();}finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}}
 
 export async function importRegisteredWebsite(company:string){const data:any=await apiRequest(`/api/companies/${encodeURIComponent(company)}/knowledge/import-website`,{method:'POST',body:'{}'});const sources=collection(data,company);if(!['STATIC_PREVIEW','PARTIAL','UNAVAILABLE'].includes(data.status))throw new Error('Website import acknowledgement unavailable');return{sources,status:data.status};}
+
+export async function sourceHistory(company:string,id:string,before?:string){
+ const data:any=await apiRequest(base(company)+'/'+encodeURIComponent(id)+'/history'+(before!==undefined?'?beforeVersion='+encodeURIComponent(before):''));
+ if(data?.success!==true||data.companyId!==company||data.sourceId!==id||!Array.isArray(data.events)||data.events.length>50||data.nextBeforeVersion!==null&&!validWorkspaceRevision(data.nextBeforeVersion))throw new Error('Source history unavailable');
+ const states=new Set(['STORED','PROCESSING','EXTRACTED','NEEDS_OCR','UNSUPPORTED','FAILED','DELETED']);
+ for(let index=0;index<data.events.length;index++){const event=data.events[index];if(typeof event?.id!=='string'||typeof event.actor!=='string'||!KNOWLEDGE_EVENT_TYPES.includes(event.event)||!validWorkspaceRevision(event.sourceVersion)||!states.has(event.state)||!Number.isFinite(event.recordedAtMs)||!Number.isFinite(new Date(event.recordedAtMs).getTime())||before!==undefined&&BigInt(event.sourceVersion)>=BigInt(before)||index>0&&BigInt(event.sourceVersion)>=BigInt(data.events[index-1].sourceVersion))throw new Error('Source history unavailable');}
+ if(data.nextBeforeVersion!==null&&data.nextBeforeVersion!==data.events.at(-1)?.sourceVersion)throw new Error('Source history cursor unavailable');
+ return{events:data.events,nextBeforeVersion:data.nextBeforeVersion as string|null};
+}
