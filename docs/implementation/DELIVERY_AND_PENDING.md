@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
+
 Canonical tracker: 93 parent work packages. 21 locally validated; 15 in progress; 56 planned; 1 explicitly blocked. 72 packages have not reached full local acceptance. These counts do not measure a production completion percentage.
 
 STATUS.md and TASKS.csv contain every task ID, prerequisite and acceptance condition. No phase is currently accepted. A tested child workflow does not close its whole parent package. Local evidence does not establish the deployed Hostinger revision or real provider permissions. Billing remains excluded.

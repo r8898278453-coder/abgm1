@@ -62,17 +62,17 @@
     {
       "method": "POST",
       "path": "/api/ai/render-creative",
-      "owner": "server.ts"
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
       "method": "POST",
       "path": "/api/ai/render-reel",
-      "owner": "server.ts"
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
       "method": "GET",
       "path": "/api/ai/render-reel/:jobId/status",
-      "owner": "server.ts"
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
       "method": "POST",
@@ -896,5 +896,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 36
+  "registrationCount": 37
 }

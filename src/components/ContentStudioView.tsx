@@ -162,6 +162,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   const [renderedReelUrl, setRenderedReelUrl] = useState<string | null>(null);
   const [reelRenderError, setReelRenderError] = useState<string | null>(null);
   const reelPollIntervalRef = React.useRef<any>(null);
+  const reelRequestEpoch = React.useRef(0);
 
   // Clean up reel poll interval on unmount
   useEffect(() => {
@@ -369,7 +370,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
     try {
       const activeTemplate = templates.find((t) => t.id === (tId || selectedTemplateId)) || FALLBACK_TEMPLATES.find((t) => t.id === (tId || selectedTemplateId));
-      // Determine photo: explicitPhotoUrl > first uploaded photo > stock fallback
+      // Determine photo: explicitPhotoUrl > saved uploaded photo
       const photoToUse =
         explicitPhotoUrl ||
         (generatedPost.imageUrl?.startsWith('/uploads/') && !generatedPost.imageUrl.includes('/generated/')
@@ -380,7 +381,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         templateId: tId,
         paletteId: paletteIdToUse,
         contentType,
-        headline: generatedPost.headline || generatedPost.title || 'Exclusive Special Offer',
+        headline: generatedPost.headline || generatedPost.title || business.name,
         caption: generatedPost.caption,
         ctaText: generatedPost.cta || 'Contact Us Today',
         companyId: effectiveCompanyId,
@@ -420,6 +421,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       return;
     }
 
+    const epoch = ++reelRequestEpoch.current;
+    const current = () => mounted.current && reelRequestEpoch.current === epoch;
+
     if (reelPollIntervalRef.current) {
       clearInterval(reelPollIntervalRef.current);
       reelPollIntervalRef.current = null;
@@ -430,6 +434,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
     try {
       const res = await startReelRenderApi(generatedPost.reelScript, effectiveCompanyId);
+      if (!current()) return;
       if (!res.success || !res.jobId) {
         throw new Error(res.error || 'Failed to dispatch reel rendering job');
       }
@@ -439,21 +444,27 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         id: jobId,
         companyId: effectiveCompanyId,
         userId: '',
-        status: 'rendering',
-        progress: 5,
+        status: 'pending',
+        progress: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
 
-      // Poll every 2 seconds
+      // Avoid overlapping status requests and ignore late results after terminal state.
+      let polling = false;
       reelPollIntervalRef.current = setInterval(async () => {
+        if (polling || !current()) return;
+        polling = true;
         try {
           const statusRes = await getReelRenderStatusApi(jobId);
+          if (!current()) return;
+          if (!statusRes.success || !statusRes.job) throw new Error('Render status unavailable');
           if (statusRes.success && statusRes.job) {
             const currentJob = statusRes.job;
             setReelJob(currentJob);
 
             if (currentJob.status === 'completed') {
+              reelRequestEpoch.current++;
               if (reelPollIntervalRef.current) {
                 clearInterval(reelPollIntervalRef.current);
                 reelPollIntervalRef.current = null;
@@ -461,10 +472,11 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
               setIsRenderingReel(false);
               if (currentJob.videoUrl) {
                 setRenderedReelUrl(currentJob.videoUrl);
-                setScheduleSuccessToast('✓ 15-second viral local reel video rendered successfully!');
+                setScheduleSuccessToast('Reel video rendered successfully.');
                 setTimeout(() => setScheduleSuccessToast(null), 5000);
               }
             } else if (currentJob.status === 'failed') {
+              reelRequestEpoch.current++;
               if (reelPollIntervalRef.current) {
                 clearInterval(reelPollIntervalRef.current);
                 reelPollIntervalRef.current = null;
@@ -474,11 +486,18 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
             }
           }
         } catch (pollErr: any) {
-          console.warn('Reel job poll warning:', pollErr);
+          if (!current()) return;
+          if (reelPollIntervalRef.current) clearInterval(reelPollIntervalRef.current);
+          reelPollIntervalRef.current = null;
+          reelRequestEpoch.current++;
+          setIsRenderingReel(false);
+          setReelRenderError('Render status unavailable. Completion is unconfirmed.');
+        } finally {
+          polling = false;
         }
       }, 2000);
     } catch (err: any) {
-      if(!mounted.current)return;
+      if(!current())return;
       setIsRenderingReel(false);
       setReelRenderError(err?.message || 'Failed to start video rendering job.');
     }

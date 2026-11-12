@@ -1,0 +1,42 @@
+{
+  "dateIST": "2026-11-12",
+  "baseCommit": "86bf396",
+  "schema": "035_security_policy",
+  "canonicalTables": 63,
+  "defaultRegressionsPassed": 103,
+  "checksPassed": [
+    "npm run lint",
+    "npm run build",
+    "npm run docs:check",
+    "npm run routes:check",
+    "npm run test:browser:workspace",
+    "git diff --check"
+  ],
+  "actualCreativeSmoke": {
+    "pngSignatureVerified": true,
+    "sizeBytes": 55218,
+    "width": 1080,
+    "height": 1080,
+    "externalImages": false
+  },
+  "limitations": [
+    "No actual MP4 rendering",
+    "Reel jobs remain memory-backed; SQL queue pending",
+    "Reel capability defaults off; no environment changed",
+    "No new parent or phase accepted",
+    "No production DB, deployment or provider sends",
+    "Workspace browser regression is not dedicated reel polling acceptance"
+  ],
+  "codeSha256": {
+    "server/renderInputPolicy.ts": "7f4b05d768ca9cd40210ae957ddae1cad8a112b6991c432fb8f8e29c87c1a260",
+    "server/renderRoutes.ts": "cb7bf6c2bf997f8a8eb52eb22dcdb3c39001bf2756f9aac97c894a7ac2af2f84",
+    "server/agencyPolicy.ts": "b48818ae54bae3d6250cba63e9df2d8de9855b11d90af708257defa135450629",
+    "server/reelJobManager.ts": "5c2549d9c3fb8db86ad95918370ee7b7da3823447ac81b3da8c7044dee8ab2f8",
+    "server/scripts/testSuite.ts": "a0bea4b2dbe32c5ceb7a0bbe9556abbeeea950dfaaaed67767e0c6e8ce4920f3",
+    "server.ts": "0f79e1e91e5daf4e4dbbe2c8e4c818db530f9779b05ad1a52fbbe6dbbe1cad88",
+    "remotion/ReelComposition.tsx": "5f4f1245bf94ef41998064a6762388fca2d11f3d703d1f7342d202482fa6f71e",
+    "src/components/ContentStudioView.tsx": "dcee3c9363c133cbdb532aea19302e4cca9cbde50645e5c0d28c2a99f66bf16b",
+    "test/renderInputPolicy.test.ts": "ffd545ff23c2debb94847cabe66d15d3b2a13fa5323be39586c1d142e2e05d9c",
+    "test/renderRoutes.test.ts": "ab5592a7f2fdf8ab2dbe643abbfed63fbdecc73b0cbc479e529baf6cd60a6549"
+  }
+}

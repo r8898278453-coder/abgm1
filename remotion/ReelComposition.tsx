@@ -27,13 +27,6 @@ export const REEL_DURATION_IN_FRAMES = 450; // 15 seconds total (3 scenes x 5s)
 export const REEL_WIDTH = 1080;
 export const REEL_HEIGHT = 1920;
 
-// High quality generic fallbacks if no company photos exist
-const FALLBACK_SCENE_PHOTOS = [
-  'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1080&q=80',
-  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1080&q=80',
-  'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1080&q=80',
-];
-
 /**
  * Individual 5-second Scene Component with Ken Burns camera motion & animated captions
  */
@@ -111,14 +104,14 @@ const SceneSegment: React.FC<{
           justifyContent: 'center',
         }}
       >
-        <Img
+        {photoUrl && <Img
           src={photoUrl}
           style={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
           }}
-        />
+        />}
       </div>
 
       {/* Cinematic Multi-Layer Dark Vignette & Gradient Overlays */}
@@ -276,12 +269,7 @@ export const ReelComposition: React.FC<ReelCompositionProps> = ({
   businessName = 'Local Business',
   photoUrls = [],
 }) => {
-  // Ensure we have exactly 3 scenes (standard 15s viral reel format)
-  const normalizedScenes = scenes.length >= 3 ? scenes.slice(0, 3) : [
-    scenes[0] || { scene: 'Scene 1', visual: 'Hook & Problem', audio: 'Are you searching for quality services you can trust?' },
-    scenes[1] || { scene: 'Scene 2', visual: 'Value & Solution', audio: 'Our verified team provides top results across town.' },
-    scenes[2] || { scene: 'Scene 3', visual: 'Action & CTA', audio: 'Call or message us on WhatsApp today to get started!' },
-  ];
+  const normalizedScenes = Array.from({length:3}, (_,idx)=>scenes[idx] || {scene:`Scene ${idx+1}`,visual:'',audio:''});
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#090d16', fontFamily: 'sans-serif' }}>
@@ -289,8 +277,7 @@ export const ReelComposition: React.FC<ReelCompositionProps> = ({
       <Series>
         {normalizedScenes.map((scene, idx) => {
           const photo =
-            (photoUrls && photoUrls[idx]) ||
-            FALLBACK_SCENE_PHOTOS[idx % FALLBACK_SCENE_PHOTOS.length];
+            photoUrls[idx] || '';
 
           return (
             <Series.Sequence key={idx} durationInFrames={SCENE_DURATION_IN_FRAMES}>

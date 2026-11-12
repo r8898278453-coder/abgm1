@@ -1,5 +1,9 @@
 ## Ten-package security/policy implementation — 12 November2026 IST
 
+## Render input boundaries — 12 November2026 IST
+
+See RENDER_INPUT_BOUNDARIES.md for the delivered controls and explicit pending durable queue. Two regressions added (103 registered). Full103-program credential-isolated suite passed; npm run lint/build/docs:check/routes:check and Chromium workspace isolation passed. Actual local Satori/Resvg PNG smoke returned55,218 bytes at1080x1080 without external images. No MP4 rendering or production hosting exercised. Schema035/63 unchanged. Evidence: evidence/render-input-boundaries.json.
+
 Worked P02-02/03/05/06/07, P03-02/03/05 and P04-05/06 together. Added035/63 persistent user epochs/encrypted PKCE state/refresh leases; injected auth and integration metadata/catalog owners; shared bearer/cookie-CSRF transport across JSON/AI/files; opt-in Secure HttpOnly cookie negotiation, origin-safe login recovery, current/all-session revocation, persistent account/IP admission and explicit bounded retention. Previous-key decryption is bounded and crypto failures no longer log raw errors. Registry aliases now preserve actual rows on read/save/delete/global-provider lookup, refuse duplicates and canonicalize global company identity. Refresh fencing preserves account/location fields and refuses manual credential changes.
 
 Client goals/monthly targets and matching packs persist with CAS; optional shared IST admission counters reuse hashed security_limits for model drafts/message intents/publishing posts. Archive admission/manual publishing gates expanded. Goal changes cannot activate providers; uncovered action families remain explicit. Query fingerprints bind tenant/query/profile/source/fact revisions with zero-model-call metadata; draft policy refusal is audited and reported before generation. Broader workspace/role/OAuth/legacy action/consumer scopes remain open.

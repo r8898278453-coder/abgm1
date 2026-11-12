@@ -34,7 +34,7 @@ setInterval(() => {
       jobs.delete(id);
     }
   }
-}, 15 * 60 * 1000);
+}, 15 * 60 * 1000).unref();
 
 export function createReelJob(companyId: string, userId: string, scenesCount: number = 3): ReelRenderJob {
   const id = `job_reel_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
