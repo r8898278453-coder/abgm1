@@ -1,5 +1,7 @@
 # Changelog
 
+12 November2026: exact human-approved WhatsApp replies use server/approvedSalesMessages.ts and salesSendAuthorization.ts, existing queue/dispatcher/Meta adapter and ApprovedSalesMessagesPanel. Default off, schema039/74 (next040), no live activation. See docs/implementation/APPROVED_SALES_MESSAGES.md for scope, validation and remaining gates.
+
 ### 12 November2026 — bounded sales review workflows
 
 Added version-bound workflow approvals, immutable/idempotent enrollments, existing-queue review/handoff steps, human advancement, reply/opt-out/context exits, delayed aftercare presets and bounded recovery. Schema038/73. CRM/audit UI and evidence documents updated. Provider auto-send and booking remain gated; no live deployment.

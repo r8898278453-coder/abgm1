@@ -1,3 +1,4 @@
+import {APPROVED_SEND_COLUMNS} from '../server/migrations/039_approved_sales_messages';
 import {WORKFLOW_COLUMNS} from '../server/migrations/038_sales_workflows';
 import {SALES_COLUMNS} from '../server/migrations/037_sales_workspace';
 import {RENDER_APPROVAL_COLUMNS} from '../server/migrations/036_render_asset_approvals';
@@ -117,6 +118,7 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME='render_asset_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [RENDER_APPROVAL_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME LIKE 'sales_%'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(SALES_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
     if(cleanSql.includes("TABLE_NAME LIKE 'sales_workflow_%'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(WORKFLOW_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
+    if(cleanSql.includes("TABLE_NAME='sales_message_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [APPROVED_SEND_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[{COLUMN_NAME:'workflow_revision'},{COLUMN_NAME:'deferrals'},...['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'].map(COLUMN_NAME=>({COLUMN_NAME}))],[]];
     if (cleanSql.includes('INFORMATION_SCHEMA.TABLES')) {
       if (cleanSql.includes("TABLE_NAME = 'schema_migrations'")) {

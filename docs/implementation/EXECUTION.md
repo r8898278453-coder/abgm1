@@ -1,3 +1,7 @@
+# Approved reply continuation — 12 November2026 IST
+
+Exact scoped delivery and remaining gates: APPROVED_SALES_MESSAGES.md. Schema039/74; historical001–038 unchanged. 108 credential-isolated regressions, TypeScript/build, native MariaDB fresh/upgrade/replay and approved-reply concurrency/recovery, copied-export preservation/bundled replay, approved-reply/workflow/CRM/existing-workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/approved-sales-messages.json. Existing Vite chunk warning remains. No live message, production migration, deployment or flag activation.
+
 ## Ten-package security/policy implementation — 12 November2026 IST
 
 ## Review workflow continuation — 12 November2026 IST

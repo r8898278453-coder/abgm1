@@ -1,0 +1,106 @@
+{
+  "dateIST": "2026-11-12",
+  "baseCommit": "17e29b9",
+  "schema": "039_approved_sales_messages",
+  "canonicalTables": 74,
+  "historicalMigrations001Through038Changed": false,
+  "defaultRegressionsPassed": 108,
+  "targetParents": [
+    "P06-03",
+    "P06-05",
+    "P06-06",
+    "P07-03",
+    "P07-04",
+    "P07-07",
+    "P09-01"
+  ],
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 32,
+    "planned": 39,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:approved-sales",
+    "npm run test:browser:workflows",
+    "npm run test:browser:sales",
+    "npm run docs:check",
+    "npm run routes:check",
+    "npm run test:browser:workspace"
+  ],
+  "nativeSqlCoverage": [
+    "approval/outbox rollback",
+    "eight-way approval idempotency",
+    "default-off zero intents and provider calls",
+    "eight-way execution single provider owner and successor",
+    "sender credential rotation",
+    "inbound reply cancellation",
+    "unknown outcome quarantine and re-enrollment refusal",
+    "canonical acceptance reconciliation without successor after exit",
+    "approval expiry",
+    "canonical Meta adapter with intercepted fetch and synthetic credentials",
+    "reply during provider call records late acceptance without successor",
+    "stale claimed job recovery without resend",
+    "bounded history without credentials or private permits"
+  ],
+  "browserCoverage": [
+    "exact sender/recipient/text approval",
+    "default-off copy",
+    "unknown acknowledgment retained text and reload fence",
+    "stable retry key",
+    "no private browser permit",
+    "late-client response isolation"
+  ],
+  "restore": {
+    "result": "passed",
+    "schemaReady": true,
+    "canonicalTables": 74,
+    "repeatApplied": 0,
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "bundledLedgerReplay": "READY; applied0"
+  },
+  "routeInventory": {
+    "declarations": 201,
+    "registrations": 38,
+    "collisions": 0
+  },
+  "liveMessagesSent": 0,
+  "productionDatabaseChanged": false,
+  "environmentChanged": false,
+  "deployed": false,
+  "sendingFlagDefault": "off",
+  "reelRenderingDefault": "off",
+  "billing": "excluded",
+  "parentOrPhaseAccepted": false,
+  "remaining": [
+    "templates and media",
+    "email mailbox/read/bounce integration",
+    "calendar booking and reconciliation",
+    "automatic trigger enrollment and richer branching",
+    "verified fulfillment and review destinations",
+    "all-module report reconciliation and retention",
+    "Hostinger worker/provider/release acceptance"
+  ],
+  "sourceSha256": {
+    "server/approvedSalesMessages.ts": "d814c22918a58c47c49cac039c69065ad7ce4175966ed9f0ea1dce3532ad7afe",
+    "server/salesSendAuthorization.ts": "a8a2d92904c8631ff09311e8c8df9f7b8dddb6d34d199f2c81489471ba893ea9",
+    "server/migrations/039_approved_sales_messages.ts": "0477a6c138fbccb4493ff5b7a8a40075188b333c21a1c0dbc16c07e9f6783d97",
+    "shared/approvedSalesMessages.ts": "94a363aaf143b4ff90e09ffdd0089ee87e1545f97078f720449ceaf5ba2b5cdd",
+    "server/messageDispatchIntents.ts": "b813a26e76b8766b81d76abb9cbf3fed9cf8b92b3cf4c86b0281e6016168583d",
+    "server/salesWorkflows.ts": "7dc45ae334e4e187d9d61f683d3ca8531abe4474eac4a5b601a8e5db5098e926",
+    "server/salesWorkflowLifecycle.ts": "c63c8319bb76075a8bd70664fbecd3c7f8fba6304dccd4e66ff09daa92179871",
+    "server/salesRoutes.ts": "23d29ccc0bfe73a6f05592b905f4193641d4d05d0f6b43baa49e61efa033c520",
+    "server/jobQueueService.ts": "7dba7c11560774f4dd1291278803241def7c30adae7fb40e2e6f358fcb8103ec",
+    "src/components/ApprovedSalesMessagesPanel.tsx": "ea93829b6d770c0914c1863e7051bc7d4f509ef2583e36ac3420bcaf52f37beb",
+    "src/components/SalesWorkflowPanel.tsx": "99c86071381da972f70f52ed553e1fb7baf0cfea12285857c565af00e5a122e0",
+    "test/approvedSalesMessages.test.ts": "9551d3de872cb2af99bae1ec0f16f24ca2f3dfaa995248007fefd3a853dce495",
+    "test/integration/approvedSalesMessagesSql.test.ts": "7d49ed1aff00bd8e0bbc86148e851b69472a9d93044587fbd0f6c7c726eb8ca5",
+    "test/browser/approvedSalesMessages.test.ts": "b1824030262ab8a3599de403ce59f0261feedcf8c65d134079d0445b362407cd"
+  }
+}

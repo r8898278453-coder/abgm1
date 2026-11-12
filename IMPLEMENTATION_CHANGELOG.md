@@ -1,5 +1,7 @@
 # Implementation Changelog & Hardening Summary
 
+12 November2026: exact human-approved WhatsApp replies use server/approvedSalesMessages.ts and salesSendAuthorization.ts, existing queue/dispatcher/Meta adapter and ApprovedSalesMessagesPanel. Default off, schema039/74 (next040), no live activation. See docs/implementation/APPROVED_SALES_MESSAGES.md for scope, validation and remaining gates.
+
 All notable changes, architectural implementations, anti-fabrication enforcements, and security gates are documented herein.
 
 ---

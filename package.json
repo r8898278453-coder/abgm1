@@ -57,7 +57,8 @@
     "test:browser:render": "node --import tsx test/browser/renderOperations.test.ts",
     "worker:reels": "node dist/reel-queue-worker.cjs",
     "test:browser:sales": "node --import tsx test/browser/salesWorkspace.test.ts",
-    "test:browser:workflows": "node --import tsx test/browser/salesWorkflows.test.ts"
+    "test:browser:workflows": "node --import tsx test/browser/salesWorkflows.test.ts",
+    "test:browser:approved-sales": "node --import tsx test/browser/approvedSalesMessages.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

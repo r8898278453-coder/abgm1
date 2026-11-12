@@ -1,5 +1,8 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Latest approved-reply continuation (12 November2026 IST): [APPROVED_SALES_MESSAGES.md](APPROVED_SALES_MESSAGES.md) connects exact human-reviewed WhatsApp replies to the existing durable queue/dispatcher with cancellation, uncertainty recovery and scoped UI. Sending remains default off. Schema039/74, next040; historical001–038 unchanged. No parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest review-workflow continuation (12 November2026 IST): [SALES_REVIEW_WORKFLOWS.md](SALES_REVIEW_WORKFLOWS.md) records twelve connected workflow/queue/exit/recovery/UI deliverables. Schema038/73, next039; historical001–037 unchanged. Actual automated messages, calendar booking and full parent/phase acceptance remain gated. [STATUS.md](STATUS.md) gives current counts.
 
 Latest grouped sales delivery (12 November2026 IST): [SALES_TEN_AREA_BATCH.md](SALES_TEN_AREA_BATCH.md) records ten connected CRM/sales/reporting work areas, exact implemented workflows and remaining parent criteria. Schema037/70, next038; historical001–036 unchanged. Current counts are generated in [STATUS.md](STATUS.md). No parent/phase or production promotion.
@@ -8,7 +11,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Canonical tracker: 93 parent work packages. 21 locally validated; 15 in progress; 56 planned; 1 explicitly blocked. 72 packages have not reached full local acceptance. These counts do not measure a production completion percentage.
+Canonical tracker: 93 parent work packages. 21 locally validated; 32 in progress; 39 planned; 1 explicitly blocked. 72 packages have not reached full local acceptance. These counts do not measure a production completion percentage.
 
 STATUS.md and TASKS.csv contain every task ID, prerequisite and acceptance condition. No phase is currently accepted. A tested child workflow does not close its whole parent package. Local evidence does not establish the deployed Hostinger revision or real provider permissions. Billing remains excluded.
 

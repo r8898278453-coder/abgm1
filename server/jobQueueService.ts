@@ -1,3 +1,4 @@
+import {executeApprovedSalesMessage,recoverApprovedSalesMessages} from './approvedSalesMessages';
 import {executeSalesWorkflowJob,recoverSalesWorkflows} from './salesWorkflows';
 import {executeReelJob} from './reelJobs';
 import {clientArchived} from './agencyPolicy';
@@ -96,6 +97,7 @@ export async function executeJob(
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     const operationsPool=await getDbPool();if(operationsPool&&await clientArchived(operationsPool,companyId))return await defer('CLIENT_ARCHIVED');
     switch (jobType) {
+      case 'sales_workflow_send': {const pool=await getDbPool();if(!pool)throw new Error('APPROVED_SEND_STORAGE_UNAVAILABLE');return await executeApprovedSalesMessage(pool,job);}
       case 'sales_workflow_review': {const pool=await getDbPool();if(!pool)throw new Error('WORKFLOW_STORAGE_UNAVAILABLE');return await executeSalesWorkflowJob(pool,job);}
       case 'reel_render': {const pool=await getDbPool();if(!pool)throw new Error('REEL_STORAGE_UNAVAILABLE');return await executeReelJob(pool,job);}
       case 'website_import': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeWebsiteImportJob(pool,job);}
@@ -319,7 +321,7 @@ export async function tickJobQueue(
   };
 
   if(!(batchSize>0))return summary;
-  if(canStart()&&!isGlobalEmergencyStopActive())try{const pool=await getDbPool();if(pool){await recoverKnowledgeIngestion(pool,canStart);if(canStart())await recoverSalesWorkflows(pool,canStart);}}catch{console.warn('[JobQueue] Admission/reconciliation unavailable');}
+  if(canStart()&&!isGlobalEmergencyStopActive())try{const pool=await getDbPool();if(pool){await recoverKnowledgeIngestion(pool,canStart);if(canStart())await recoverApprovedSalesMessages(pool,canStart);if(canStart())await recoverSalesWorkflows(pool,canStart);}}catch{console.warn('[JobQueue] Admission/reconciliation unavailable');}
   for (let i = 0; i < batchSize; i++) {
     if (!canStart()) break;
     const job = await claimNextJob(workerId);

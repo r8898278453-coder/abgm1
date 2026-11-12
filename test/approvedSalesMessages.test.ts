@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+import {approveSalesMessageInput} from '../shared/approvedSalesMessages';
+import {approvedSalesSendingEnabled,salesSenderFingerprint} from '../server/salesSendAuthorization';
+const body={expectedVersion:'0',enrollmentVersion:'1',expectedSenderId:'123',expectedRecipient:'919999999999',requestKey:'a'.repeat(64),message:' Reviewed reply. ',note:'Reviewed exact recipient and content'};
+assert.equal(approveSalesMessageInput.parse(body).message,'Reviewed reply.');
+for(const change of [{claimToken:'a'.repeat(32)},{automatic:true},{templateName:'cold'},{expectedVersion:'01'},{expectedRecipient:'+919999999999'},{expectedSenderId:'unverified'},{message:''},{message:'a'.repeat(4097)},{note:'ok'}])assert.equal(approveSalesMessageInput.safeParse({...body,...change}).success,false);
+const saved=process.env.ENABLE_APPROVED_SALES_SEND;try{for(const flag of [undefined,'false','1','TRUE']){if(flag===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=flag;assert.equal(approvedSalesSendingEnabled(),false);}process.env.ENABLE_APPROVED_SALES_SEND='true';assert.equal(approvedSalesSendingEnabled(),true);}finally{if(saved===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=saved;}
+const sender:any={phoneNumberId:'123',accessToken:'synthetic-token',wabaId:'waba',appSecret:'synthetic-secret'};assert.notEqual(salesSenderFingerprint(sender),salesSenderFingerprint({...sender,accessToken:'rotated'}));assert.notEqual(salesSenderFingerprint(sender),salesSenderFingerprint({...sender,phoneNumberId:'456'}));assert.match(salesSenderFingerprint(sender),/^[a-f0-9]{64}$/);
+console.log('Approved sales contracts: exact revision/recipient/text, no browser permit/template/automatic injection, explicit default-off flag and sender rotation fingerprint passed.');

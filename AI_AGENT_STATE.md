@@ -1,5 +1,7 @@
 # AI Agent State
 
+12 November2026: exact human-approved WhatsApp replies use server/approvedSalesMessages.ts and salesSendAuthorization.ts, existing queue/dispatcher/Meta adapter and ApprovedSalesMessagesPanel. Default off, schema039/74 (next040), no live activation. See docs/implementation/APPROVED_SALES_MESSAGES.md for scope, validation and remaining gates.
+
 12 November2026 workflows: server/salesWorkflows.ts owns definitions/enrollments/review execution; salesWorkflowLifecycle.ts owns atomic source-event exits; shared/salesWorkflows.ts owns contracts/presets; SalesWorkflowPanel.tsx owns operator UI. Existing queue/audit/message/fact services remain canonical. Schema038/73; review tasks never imply provider delivery. See docs/implementation/SALES_REVIEW_WORKFLOWS.md.
 
 12 November2026 sales batch: server/salesWorkspace.ts owns CRM extensions, consent/inbox/qualification/import/report services; server/salesRoutes.ts mounts scoped APIs once; shared/salesWorkspace.ts owns contracts; SalesWorkspacePanel.tsx is the CRM/agency UI. Existing lead stages, message intents, verified webhook mapping and knowledge facts retain their canonical ownership. Forward037/70; see docs/implementation/SALES_TEN_AREA_BATCH.md for ten implemented areas and remaining parent acceptance.

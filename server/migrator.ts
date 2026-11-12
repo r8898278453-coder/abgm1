@@ -1,3 +1,4 @@
+import {approvedSalesMessages,APPROVED_SEND_COLUMNS,APPROVED_SEND_CHECK} from './migrations/039_approved_sales_messages';
 import {salesWorkflows,WORKFLOW_COLUMNS,WORKFLOW_CHECKS} from './migrations/038_sales_workflows';
 import {salesWorkspace,SALES_COLUMNS,SALES_CHECKS} from './migrations/037_sales_workspace';
 import {renderAssetApprovals,RENDER_APPROVAL_COLUMNS,RENDER_APPROVAL_CHECK} from './migrations/036_render_asset_approvals';
@@ -71,6 +72,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'sales_message_approvals',
   ...Object.keys(WORKFLOW_COLUMNS),
   ...Object.keys(SALES_COLUMNS),
   'render_asset_approvals',
@@ -810,6 +812,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   renderAssetApprovals,
   salesWorkspace,
   salesWorkflows,
+  approvedSalesMessages,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1121,6 +1124,9 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [approvedSendColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sales_message_approvals'");
+      for(const col of APPROVED_SEND_COLUMNS)if(!approvedSendColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('sales_message_approvals.'+col);
+      const [badApprovedSend]:any=await conn.query(APPROVED_SEND_CHECK.sql);if(badApprovedSend.length)missingConstraints.push('approved_sales_messages.shape');
       const [salesWorkflowColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'sales_workflow_%'");
       for(const [table,cols]of Object.entries(WORKFLOW_COLUMNS))for(const col of cols)if(!salesWorkflowColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===col))missingColumns.push(table+'.'+col);
       for(const check of WORKFLOW_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workflows.shape');}

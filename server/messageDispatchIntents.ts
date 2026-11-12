@@ -1,3 +1,5 @@
+import type {SalesSendPermit} from '../shared/approvedSalesMessages';
+import {validateApprovedSalesPermit} from './salesSendAuthorization';
 import {prepareSalesOutbound,salesSendEligibility,recordSalesBlock} from './salesWorkspace';
 import {admitClientAction} from './clientPolicy';
 import {canonicalJson} from '../shared/canonicalJson';
@@ -6,7 +8,7 @@ import type {Pool} from 'mysql2/promise';
 export class DispatchIntentError extends Error{constructor(public status:number,message:string){super(message);}}
 export interface DispatchResult{success:boolean;status?:string;messageId?:string;error?:string}
 /** No timeout takeover: a crashed/in-flight request is uncertain until separately reconciled. */
-export async function dispatchMessageIntent(pool:Pool,company:string,key:string,input:unknown,send:()=>Promise<DispatchResult>,actor='system'):Promise<DispatchResult&{reused:boolean;requestKey:string}>{
+export async function dispatchMessageIntent(pool:Pool,company:string,key:string,input:unknown,send:()=>Promise<DispatchResult>,actor='system',workflowPermit?:SalesSendPermit):Promise<DispatchResult&{reused:boolean;requestKey:string}>{
  if(!actor||actor.length>64||!company||company.length>64||!/^[a-f0-9]{64}$/.test(key))throw new DispatchIntentError(400,'Invalid message request key');
  const sender=typeof (input as any)?.sender==='string'&&/^\d{1,64}$/.test((input as any).sender)?(input as any).sender:null;
  const hash=createHash('sha256').update(canonicalJson(input)).digest('hex'),token=randomUUID();
@@ -26,7 +28,7 @@ export async function dispatchMessageIntent(pool:Pool,company:string,key:string,
   }
   await connection.commit();
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
- let result:DispatchResult|undefined;try{if(typeof (input as any)?.to==='string'){await prepareSalesOutbound(pool,company,key,input);const reason=await salesSendEligibility(pool,company,(input as any).to,Boolean((input as any).templateName),(input as any).mode==='automatic');if(reason){await recordSalesBlock(pool,company,key,reason,actor);result={success:false,status:'PAUSED'};}}}catch{result={success:false,status:'PAUSED'};}try{if(!result)await admitClientAction(pool,company,'MESSAGE',key);}catch{result={success:false,status:'PAUSED'};}if(!result){try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}}
+ let result:DispatchResult|undefined;try{if(typeof (input as any)?.to==='string'){await prepareSalesOutbound(pool,company,key,input);const permitReason=workflowPermit?await validateApprovedSalesPermit(pool,company,key,input,workflowPermit):null;const reason=permitReason||await salesSendEligibility(pool,company,(input as any).to,Boolean((input as any).templateName),(input as any).mode==='automatic'&&!workflowPermit);if(reason){await recordSalesBlock(pool,company,key,reason,actor);result={success:false,status:'PAUSED'};}}}catch{result={success:false,status:'PAUSED'};}try{if(!result)await admitClientAction(pool,company,'MESSAGE',key);}catch{result={success:false,status:'PAUSED'};}if(!result){try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}}
  const accepted=result.success===true&&typeof result.messageId==='string'&&!!result.messageId.trim()&&result.messageId.length<=255;
  const status=accepted?'API_ACCEPTED':result.status==='PAUSED'?'PAUSED':result.status==='REJECTED'?'REJECTED':'UNKNOWN';
  try{

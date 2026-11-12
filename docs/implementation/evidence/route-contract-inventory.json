@@ -302,6 +302,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/approved-messages",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/inbox",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -348,6 +353,11 @@
     {
       "method": "POST",
       "path": "/api/companies/:companyId/sales/workflow-enrollments/:enrollmentId/exit",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflow-tasks/:taskId/approve-message",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {

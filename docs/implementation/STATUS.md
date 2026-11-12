@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 038_sales_workflows; 73 canonical tables. Registered default regression programs: 107 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 039_approved_sales_messages; 74 canonical tables. Registered default regression programs: 108 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 31 / 1 / 40.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 32 / 1 / 39.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -18,7 +18,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P03 | 3 | 3 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
 | P05 | 0 | 2 | 0 | 9 |
-| P06 | 0 | 4 | 0 | 4 |
+| P06 | 0 | 5 | 0 | 3 |
 | P07 | 0 | 6 | 0 | 2 |
 | P08 | 0 | 2 | 0 | 8 |
 | P09 | 0 | 3 | 0 | 5 |
@@ -105,7 +105,7 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-11 | planned | Marketing parity and publication gate | P04-09, P05-10 |
 | P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
 | P06-02 | planned | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
-| P06-03 | planned | Implement message dispatch and real delivery states | P05-11, P06-02 |
+| P06-03 | in_progress | Implement message dispatch and real delivery states | P05-11, P06-02 |
 | P06-04 | planned | Add tenant email sender and reply/bounce integration | P05-11, P06-03 |
 | P06-05 | in_progress | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
 | P06-06 | in_progress | Replace per-message lead creation and build unified client inbox | P05-11, P06-05 |
