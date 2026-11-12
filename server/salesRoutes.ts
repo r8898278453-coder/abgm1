@@ -1,3 +1,4 @@
+import {saveSalesWorkflow,decideSalesWorkflow,enrollSalesWorkflow,completeSalesWorkflowTask,stopSalesWorkflow,readSalesWorkflows} from './salesWorkflows';
 import type {Express,Request} from 'express';
 import type {Pool} from 'mysql2/promise';
 import {agencyClientAccess} from './agencyPolicy';
@@ -6,6 +7,13 @@ import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOvervie
 export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('get',base+'/workflows','read',async(req,pool,user)=>({workflows:await readSalesWorkflows(pool,String(req.params.companyId)),canWrite:(await agencyClientAccess(pool,user,String(req.params.companyId),'write')).authorized,canApprove:(await agencyClientAccess(pool,user,String(req.params.companyId),'approve')).authorized}));
+ route('post',base+'/workflows','write',(req,pool,user)=>saveSalesWorkflow(pool,user,String(req.params.companyId),null,req.body,typeof req.headers['idempotency-key']==='string'?req.headers['idempotency-key']:undefined));
+ route('put',base+'/workflows/:workflowId','write',(req,pool,user)=>saveSalesWorkflow(pool,user,String(req.params.companyId),String(req.params.workflowId),req.body));
+ route('post',base+'/workflows/:workflowId/decision','approve',(req,pool,user)=>decideSalesWorkflow(pool,user,String(req.params.companyId),String(req.params.workflowId),req.body));
+ route('post',base+'/workflow-enrollments','write',(req,pool,user)=>enrollSalesWorkflow(pool,user,String(req.params.companyId),req.body));
+ route('post',base+'/workflow-enrollments/:enrollmentId/exit','write',(req,pool,user)=>stopSalesWorkflow(pool,user,String(req.params.companyId),String(req.params.enrollmentId),req.body));
+ route('post',base+'/workflow-tasks/:taskId/review','approve',(req,pool,user)=>completeSalesWorkflowTask(pool,user,String(req.params.companyId),String(req.params.taskId),req.body));
  route('get',base,'read',async(req,pool,user)=>({workspace:await readSalesWorkspace(pool,String(req.params.companyId)),canManage:(await agencyClientAccess(pool,user,String(req.params.companyId),'manage')).authorized,canWrite:(await agencyClientAccess(pool,user,String(req.params.companyId),'write')).authorized}));
  route('put',base+'/policy','manage',(req,pool,user)=>saveSalesPolicy(pool,user,String(req.params.companyId),req.body));
  route('put',base+'/permissions','manage',(req,pool,user)=>saveContactPermission(pool,user,String(req.params.companyId),req.body));

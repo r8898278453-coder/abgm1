@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 037_sales_workspace; 70 canonical tables. Registered default regression programs: 106 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 038_sales_workflows; 73 canonical tables. Registered default regression programs: 107 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 27 / 1 / 44.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 31 / 1 / 40.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -19,7 +19,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P04 | 7 | 1 | 0 | 1 |
 | P05 | 0 | 2 | 0 | 9 |
 | P06 | 0 | 4 | 0 | 4 |
-| P07 | 0 | 2 | 0 | 6 |
+| P07 | 0 | 6 | 0 | 2 |
 | P08 | 0 | 2 | 0 | 8 |
 | P09 | 0 | 3 | 0 | 5 |
 | P10 | 0 | 0 | 0 | 8 |
@@ -112,11 +112,11 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P06-07 | in_progress | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
 | P06-08 | planned | CRM and channel truth gate | P05-11, P06-07 |
 | P07-01 | in_progress | Implement grounded qualification and sales handoff | P06-08 |
-| P07-02 | planned | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
-| P07-03 | planned | Execute workflow steps through existing queue and policy | P06-08, P07-02 |
-| P07-04 | planned | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
+| P07-02 | in_progress | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
+| P07-03 | in_progress | Execute workflow steps through existing queue and policy | P06-08, P07-02 |
+| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
 | P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
-| P07-06 | planned | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
+| P07-06 | in_progress | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
 | P07-07 | in_progress | Expose review and bounded autopilot controls | P06-08, P07-06 |
 | P07-08 | planned | Marketing-to-appointment pilot gate | P06-08, P07-07 |
 | P08-01 | in_progress | Build client ICP exclusions prospect imports and source contracts | P07-08 |

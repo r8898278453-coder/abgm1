@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Latest review-workflow continuation (12 November2026 IST): [SALES_REVIEW_WORKFLOWS.md](SALES_REVIEW_WORKFLOWS.md) records twelve connected workflow/queue/exit/recovery/UI deliverables. Schema038/73, next039; historical001–037 unchanged. Actual automated messages, calendar booking and full parent/phase acceptance remain gated. [STATUS.md](STATUS.md) gives current counts.
+
 Latest grouped sales delivery (12 November2026 IST): [SALES_TEN_AREA_BATCH.md](SALES_TEN_AREA_BATCH.md) records ten connected CRM/sales/reporting work areas, exact implemented workflows and remaining parent criteria. Schema037/70, next038; historical001–036 unchanged. Current counts are generated in [STATUS.md](STATUS.md). No parent/phase or production promotion.
 
 Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE_REELS.md) supersedes earlier memory-queue/asset-approval pending notes. Schema036/64, next037; SQL recovery/cancellation, isolated resource-bounded worker, asset approval revisions and browser recovery are implemented. Rendering remains default off; Hostinger capability and full phase gates remain open. [STATUS.md](STATUS.md) gives current counts.

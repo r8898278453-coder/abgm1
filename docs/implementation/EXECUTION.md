@@ -1,5 +1,9 @@
 ## Ten-package security/policy implementation — 12 November2026 IST
 
+## Review workflow continuation — 12 November2026 IST
+
+See SALES_REVIEW_WORKFLOWS.md for delivered scope and explicit provider/booking limits. Forward038/73, historical001–037 unchanged. 107 credential-isolated programs, native workflow revision/replay/approval/exit/recovery/aftercare-delay/rollback/retry SQL, exact copied-export restore/replay, workflow/sales/existing-workspace Chromium, TypeScript/build and route/doc guards passed. Exact checks and source fingerprints are recorded in evidence/sales-review-workflows.json. No production writes, messages, activation or deployment.
+
 ## Ten-area CRM and sales continuation — 12 November2026 IST
 
 See SALES_TEN_AREA_BATCH.md for all ten parent mappings, delivered controls and remaining criteria. Forward037/70; historical001–036 unchanged. 106 credential-isolated regression programs, native SQL role/concurrency/replay/opt-out/qualification/report/rollback coverage, exact uploaded-export restore/replay, sales, existing workspace and agency Chromium, TypeScript/build,192-route/no-collision and generated-doc guards passed. Verification evidence/source fingerprints are recorded in evidence/sales-ten-area-batch.json; no production DB writes, provider sends, activation or deployment.

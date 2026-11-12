@@ -341,6 +341,41 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflow-enrollments",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflow-enrollments/:enrollmentId/exit",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflow-tasks/:taskId/review",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/workflows",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflows",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/workflows/:workflowId",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/workflows/:workflowId/decision",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:id/ai/executive-summary",
       "owner": "server.ts"

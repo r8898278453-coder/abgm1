@@ -1,5 +1,9 @@
 # Changelog
 
+### 12 November2026 — bounded sales review workflows
+
+Added version-bound workflow approvals, immutable/idempotent enrollments, existing-queue review/handoff steps, human advancement, reply/opt-out/context exits, delayed aftercare presets and bounded recovery. Schema038/73. CRM/audit UI and evidence documents updated. Provider auto-send and booking remain gated; no live deployment.
+
 ### 12 November2026 — grouped ten-area CRM/sales delivery
 
 Delivered lead reuse, persistent WhatsApp inbox, explicit contact permissions/STOP/final send guards, revisioned opportunities/qualification/review controls, bounded source-declared prospect import, honest manual attribution, IST sales reporting and authorized agency exceptions. Forward037/70. Ten parent tasks move from planned to in progress with exact remaining criteria; no phase/provider/production activation. See docs/implementation/SALES_TEN_AREA_BATCH.md.
