@@ -98,11 +98,16 @@
     {
       "method": "POST",
       "path": "/api/auth/login",
-      "owner": "server.ts"
+      "owner": "server/authRoutes.ts#registerAuthRoutes"
     },
     {
       "method": "POST",
       "path": "/api/auth/logout",
+      "owner": "server/sessionRoutes.ts#registerSessionRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout-all",
       "owner": "server/sessionRoutes.ts#registerSessionRoutes"
     },
     {
@@ -113,7 +118,7 @@
     {
       "method": "POST",
       "path": "/api/auth/register",
-      "owner": "server.ts"
+      "owner": "server/authRoutes.ts#registerAuthRoutes"
     },
     {
       "method": "POST",
@@ -547,6 +552,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:id/objective",
+      "owner": "server/clientPolicyRoutes.ts#registerClientPolicyRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id/objective",
+      "owner": "server/clientPolicyRoutes.ts#registerClientPolicyRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/onboarding",
       "owner": "server/onboardingRoutes.ts#registerOnboardingRoutes"
     },
@@ -673,7 +688,7 @@
     {
       "method": "GET",
       "path": "/api/integrations",
-      "owner": "server.ts"
+      "owner": "server/integrationMetadataRoutes.ts#registerIntegrationMetadataRoutes"
     },
     {
       "method": "DELETE",
@@ -881,5 +896,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 33
+  "registrationCount": 36
 }

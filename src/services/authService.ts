@@ -1,3 +1,4 @@
+import {sessionTransport,storedSessionToken,CSRF_KEY} from './sessionTransport';
 import {validWorkspaceRevision} from '../../shared/workspaceRevision';
 import {isConfirmedMessageAcceptance} from '../../shared/whatsAppOutcomes';
 import {messageRequestKey} from './messageRequestKeys';
@@ -9,13 +10,7 @@ const TOKEN_KEY = 'abga_auth_token';
 const USER_KEY = 'abga_user_profile';
 const ACTIVE_COMPANY_KEY = 'abga_active_company_id';
 
-export function getStoredToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
+export const getStoredToken=storedSessionToken;
 
 export function setStoredSession(token: string, user: AuthUser) {
   try {
@@ -38,7 +33,7 @@ export function getStoredUser(): AuthUser | null {
 
 export function clearStoredSession() {
   try {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(CSRF_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(ACTIVE_COMPANY_KEY);
     for(const key of Object.keys(localStorage))if(key.startsWith('localpulse_app_state_')||key.startsWith('localpulse_workspace_'))localStorage.removeItem(key);
@@ -78,15 +73,14 @@ export async function apiRequest<T>(url: string, options: RequestInit = {}): Pro
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  Object.assign(headers,sessionTransport().headers);
 
   if(!url.startsWith('/')||url.startsWith('//')||url.includes('\\'))throw new Error('Only local API paths are allowed');
   const resolvedUrl = `${API_BASE_URL}${url}`;
 
   const response = await fetch(resolvedUrl, {
     ...options,
+    credentials:options.credentials||sessionTransport().credentials,
     headers,
   });
 
@@ -103,12 +97,14 @@ export async function apiRequest<T>(url: string, options: RequestInit = {}): Pro
 // ---------------- AUTH APIS ---------------- //
 
 export async function loginUser(credentials: { email: string; password: string }): Promise<{ user: AuthUser; token: string }> {
-  const res = await apiRequest<{ success: boolean; user: AuthUser; token: string }>('/api/auth/login', {
+  const res = await apiRequest<{ success: boolean; user: AuthUser; token?: string;session?:{mode:string;csrf:string} }>('/api/auth/login', {
     method: 'POST',
+    headers:import.meta.env.VITE_AUTH_SESSION_MODE==='cookie'?{'X-Session-Transport':'cookie'}:{},
+    credentials:import.meta.env.VITE_AUTH_SESSION_MODE==='cookie'?'same-origin':'omit',
     body: JSON.stringify(credentials),
   });
-  setStoredSession(res.token, res.user);
-  return { user: res.user, token: res.token };
+  const token=res.session?.mode==='cookie'?'cookie-session:'+crypto.randomUUID():res.token;if(!token)throw new Error('Session acknowledgement unavailable');setStoredSession(token,res.user);if(res.session?.mode==='cookie')localStorage.setItem(CSRF_KEY,res.session.csrf);
+  return { user: res.user, token };
 }
 
 export async function registerUser(data: {
@@ -117,12 +113,14 @@ export async function registerUser(data: {
   full_name: string;
   role?: 'owner' | 'manager' | 'agency';
 }): Promise<{ user: AuthUser; token: string }> {
-  const res = await apiRequest<{ success: boolean; user: AuthUser; token: string }>('/api/auth/register', {
+  const res = await apiRequest<{ success: boolean; user: AuthUser; token?: string;session?:{mode:string;csrf:string} }>('/api/auth/register', {
     method: 'POST',
+    headers:import.meta.env.VITE_AUTH_SESSION_MODE==='cookie'?{'X-Session-Transport':'cookie'}:{},
+    credentials:import.meta.env.VITE_AUTH_SESSION_MODE==='cookie'?'same-origin':'omit',
     body: JSON.stringify(data),
   });
-  setStoredSession(res.token, res.user);
-  return { user: res.user, token: res.token };
+  const token=res.session?.mode==='cookie'?'cookie-session:'+crypto.randomUUID():res.token;if(!token)throw new Error('Session acknowledgement unavailable');setStoredSession(token,res.user);if(res.session?.mode==='cookie')localStorage.setItem(CSRF_KEY,res.session.csrf);
+  return { user: res.user, token };
 }
 
 export async function checkAuthSession(): Promise<AuthUser | null> {
@@ -130,9 +128,9 @@ export async function checkAuthSession(): Promise<AuthUser | null> {
   if (!token) return null;
 
   try {
-    const res = await apiRequest<{ success: boolean; user: AuthUser }>('/api/auth/me');
+    const res = await apiRequest<{ success: boolean; user: AuthUser;session?:{mode:string;csrf:string} }>('/api/auth/me');
     if (res.success && res.user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+      localStorage.setItem(USER_KEY, JSON.stringify(res.user));if(res.session?.mode==='cookie')localStorage.setItem(CSRF_KEY,res.session.csrf);
       return res.user;
     }
   } catch {
@@ -996,18 +994,17 @@ export async function uploadCompanyAssetApi(
   }
 
   const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  Object.assign(headers,sessionTransport().headers);
 
   const resolvedUrl = `${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/assets`;
   const response = await fetch(resolvedUrl, {
     method: 'POST',
-    headers,
+    credentials:sessionTransport().credentials,headers,
     body: formData,
   });
 
   const data = await response.json();
+  if(token!==getStoredToken())throw new Error('Session changed during upload');
   if (!response.ok) {
     throw new Error(data.error || `Asset upload failed with status ${response.status}`);
   }
@@ -1316,7 +1313,7 @@ export async function saveWebsiteConfigApi(companyId:string,config:Partial<Websi
 }
 export async function downloadStaticWebsiteZip(companyId:string,domain='bga.aaditechs.in',options:{signal?:AbortSignal;isCurrent?:()=>boolean}={}):Promise<void>{
  const token=getStoredToken();const current=()=>!options.signal?.aborted&&(!options.isCurrent||options.isCurrent())&&token===getStoredToken();
- const response=await fetch(`${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/website/export`,{headers:{...(token?{Authorization:`Bearer ${token}`}:{})},signal:options.signal});
+ const response=await fetch(`${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/website/export`,{headers:sessionTransport().headers,credentials:sessionTransport().credentials,signal:options.signal});
  if(!response.ok||!response.headers.get('content-type')?.includes('application/zip'))throw new Error('Website download was not confirmed');
  const blob=await response.blob();if(!current())throw new Error('Website download cancelled after workspace change');
  const url=window.URL.createObjectURL(blob);const link=document.createElement('a');try{link.href=url;link.download=`storefront-${domain.replace(/[^a-z0-9]/gi,'_')}.zip`;document.body.appendChild(link);if(current())link.click();else throw new Error('Website download cancelled');}finally{link.remove();window.URL.revokeObjectURL(url);}

@@ -1,3 +1,4 @@
+import {sessionTransport} from './sessionTransport';
 import {generatedText,contentSchema} from '../../shared/aiGeneration';
 import {z} from 'zod';
 import { getStoredToken } from './authService';
@@ -26,18 +27,16 @@ function getAiHeaders(): Record<string, string> {
     'Content-Type': 'application/json',
   };
   const token = getStoredToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  Object.assign(headers,sessionTransport().headers);
   return headers;
 }
 
-const knowledgeDraftErrors:Record<string,string>={KNOWLEDGE_REVIEW_REQUIRED:'Review conflicting or unapproved business facts before generating this draft.',KNOWLEDGE_CHANGED:'Business facts changed during generation. Review current facts and generate a new draft.',KNOWLEDGE_CONTEXT_TOO_LARGE:'Approved business facts exceed the draft context limit. Reduce the active facts and try again.'};
+const knowledgeDraftErrors:Record<string,string>={CLIENT_DAILY_LIMIT:'Client daily action limit reached. Review the client goal controls.',CLIENT_ARCHIVED:'This client is archived. Reactivate it before creating drafts.',KNOWLEDGE_REVIEW_REQUIRED:'Review conflicting or unapproved business facts before generating this draft.',KNOWLEDGE_CHANGED:'Business facts changed during generation. Review current facts and generate a new draft.',KNOWLEDGE_CONTEXT_TOO_LARGE:'Approved business facts exceed the draft context limit. Reduce the active facts and try again.'};
 async function requestAi(path:string,params:unknown,signal?:AbortSignal):Promise<unknown>{
- try{
-  const response=await fetch(`${API_BASE_URL}${path}`,{method:'POST',headers:getAiHeaders(),body:JSON.stringify(params),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(10000)]):AbortSignal.timeout(10000)});
-  if(!response.ok){let message=response.status===429?'AI rate limit reached. Please retry later.':response.status===401?'Sign in to use AI generation.':'AI generation unavailable. Please retry later.';if(response.status===409){try{const error=await response.json();message=knowledgeDraftErrors[error?.error]||message;}catch{}}throw new Error(message);}
-  return await response.json();
+ const identity=getStoredToken();try{
+  const response=await fetch(`${API_BASE_URL}${path}`,{method:'POST',credentials:sessionTransport().credentials,headers:getAiHeaders(),body:JSON.stringify(params),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(10000)]):AbortSignal.timeout(10000)});
+  if(!response.ok){let message=response.status===429?'AI rate limit reached. Please retry later.':response.status===401?'Sign in to use AI generation.':'AI generation unavailable. Please retry later.';if(response.status===409||response.status===429){try{const error=await response.json();message=knowledgeDraftErrors[error?.error]||message;}catch{}}throw new Error(message);}
+  const data=await response.json();if(identity!==getStoredToken())throw new Error('Session changed');return data;
  }catch(error){if(signal?.aborted)throw error;throw new Error(error instanceof Error&&['AI rate limit reached. Please retry later.','Sign in to use AI generation.',...Object.values(knowledgeDraftErrors)].includes(error.message)?error.message:'AI generation unavailable. Please retry later.');}
 }
 

@@ -1,5 +1,7 @@
 # Reviewed facts in AI drafts
 
+Current security/policy checkpoint (12 November2026 IST): [SECURITY_POLICY_GROUP.md](SECURITY_POLICY_GROUP.md) records035/63 (next036), opt-in cookie/epoch security, canonical aliases, PKCE/refresh groundwork and client goals/shared admissions. P02-05/P02-06/P04-05 are locally accepted; seven other targets remain partial. Historical001–034 unchanged; no phase, provider activation or deployment accepted. Older schema/status notes below describe earlier checkpoints; STATUS.md is current.
+
 12 November2026 IST. Schema033/52 is unchanged; next product migration034. P04-06 is in progress, not full business-memory or autonomous sales acceptance. No production/provider/customer send or deployment was performed.
 
 ## Connected consumer flows

@@ -1,3 +1,4 @@
+import {admitClientAction} from './clientPolicy';
 import {canonicalJson} from '../shared/canonicalJson';
 import {createHash,randomUUID} from 'node:crypto';
 import type {Pool} from 'mysql2/promise';
@@ -24,12 +25,12 @@ export async function dispatchMessageIntent(pool:Pool,company:string,key:string,
   }
   await connection.commit();
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
- let result:DispatchResult;try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}
+ let result:DispatchResult|undefined;try{await admitClientAction(pool,company,'MESSAGE',key);}catch{result={success:false,status:'PAUSED'};}if(!result){try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}}
  const accepted=result.success===true&&typeof result.messageId==='string'&&!!result.messageId.trim()&&result.messageId.length<=255;
  const status=accepted?'API_ACCEPTED':result.status==='PAUSED'?'PAUSED':result.status==='REJECTED'?'REJECTED':'UNKNOWN';
  try{
   const [saved]:any=await pool.query("UPDATE message_dispatch_intents SET status=?,provider_id=? WHERE company_id=? AND request_key=? AND claim_token=? AND status='IN_PROGRESS'",[status,accepted?result.messageId:null,company,key,token]);
   if(saved.affectedRows!==1)throw new Error('Settlement unconfirmed');
  }catch{return {success:false,status:'UNKNOWN',error:'Dispatch settlement unconfirmed. Do not resend blindly.',reused:false,requestKey:key};}
- return {success:accepted,status,...(accepted?{messageId:result.messageId}:{}),...(!accepted?{error:status==='PAUSED'?'Global execution stop is active':'Dispatch not confirmed. Review the stored request.'}:{}),reused:false,requestKey:key};
+ return {success:accepted,status,...(accepted?{messageId:result.messageId}:{}),...(!accepted?{error:status==='PAUSED'?'Execution paused by client or global policy':'Dispatch not confirmed. Review the stored request.'}:{}),reused:false,requestKey:key};
 }

@@ -15,7 +15,7 @@ function matchingExcerpt(text:string,terms:Set<string>){
  return {excerpt:text.slice(start,end),excerptStart:start,excerptEnd:end};
 }
 /** Extractive search only: quotes are stored text, never model-authored assertions. */
-export function retrieveKnowledge(company:string,query:string,profile:any,version:string,sources:{rows:any[];truncated:boolean},facts:KnowledgeFact[]=[]){
+function retrieveKnowledgeInternal(company:string,query:string,profile:any,version:string,sources:{rows:any[];truncated:boolean},facts:KnowledgeFact[]=[]){
  const terms=tokens(query),candidates:any[]=[];
  const add=(title:string,text:string,citation:any,searchText=text)=>{if(typeof text!=='string'||!text.trim())return;const words=tokens(searchText),score=[...terms].filter(term=>words.has(term)).length;if(score)candidates.push({score,title,...matchingExcerpt(text,terms),...citation});};
  if(facts.some(fact=>fact.companyId!==company))throw new Error('KNOWLEDGE_FACT_SCOPE_MISMATCH');
@@ -29,4 +29,9 @@ export function retrieveKnowledge(company:string,query:string,profile:any,versio
  for(const source of sources.rows)for(const chunk of Array.isArray(source.chunks)?source.chunks.slice(0,500):[])if(typeof chunk.text==='string')add(source.filename,chunk.text,{type:'APPROVED_SOURCE',sourceUrl:source.source_url||null,fetchedAtMs:source.fetched_at_ms==null?null:Number(source.fetched_at_ms),sourceId:source.id,sourceVersion:source.revision,contentSha:source.content_sha,page:chunk.page,chunkIndex:chunk.index});
  const citations=candidates.sort((a,b)=>b.score-a.score||a.sourceId.localeCompare(b.sourceId)).slice(0,5).map(({score,...row},index)=>({...row,label:'S'+(index+1)}));
  return {success:true,companyId:company,status:citations.length?'MATCHES':'NO_MATCH',mode:'EXTRACTIVE_SAVED_SOURCES',isGrounded:citations.length>0,answer:citations.length?citations.map(row=>`[${row.label}] ${row.excerpt}`).join('\n\n'):'No matching saved source was found. Add or approve source text, or refine the search.',citations,profileVersion:version,sourceWindowTruncated:sources.truncated,faqWindowTruncated:savedFaqs.length>200};
+}
+
+/** No model or answer cache is involved; fingerprints bind any downstream cache to scope and revisions. */
+export function retrieveKnowledge(company:string,query:string,profile:any,version:string,sources:{rows:any[];truncated:boolean},facts:KnowledgeFact[]=[]){
+ const result=retrieveKnowledgeInternal(company,query,profile,version,sources,facts);const fingerprint=crypto.createHash('sha256').update(JSON.stringify({company,query:query.trim().toLocaleLowerCase(),profileVersion:version,sources:sources.rows.map(s=>({id:s.id,version:s.revision,hash:s.content_sha})),facts:facts.map(f=>({id:f.id,version:f.version,eligible:f.eligible,status:f.status,sourceVersion:f.sourceVersion}))})).digest('hex');return{...result,retrieval:{fingerprint,companyId:company,profileVersion:version,modelCalls:0,mode:'EXTRACTIVE_NO_MODEL'}};
 }

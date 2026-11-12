@@ -549,24 +549,11 @@ export function encryptCredential(plainText: string): string {
   return `enc:v1:${iv.toString('hex')}:${tag}:${encrypted}`;
 }
 
-export function decryptCredential(cipherText: string): string {
-  if (!cipherText || typeof cipherText !== 'string') return '';
-  if (!cipherText.startsWith('enc:v1:')) return cipherText; // unencrypted legacy plaintext
-  try {
-    const parts = cipherText.split(':');
-    if (parts.length !== 5) return cipherText;
-    const [, , ivHex, tagHex, encryptedHex] = parts;
-    const iv = Buffer.from(ivHex, 'hex');
-    const tag = Buffer.from(tagHex, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', CRED_ENC_KEY, iv);
-    decipher.setAuthTag(tag);
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-  } catch (err) {
-    console.warn('[decryptCredential] Decryption failed:', err);
-    return '';
-  }
+function previousCredentialKeys():Buffer[]{const raw=process.env.CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS;if(!raw)return[];let values:unknown;try{values=JSON.parse(raw);}catch{throw new Error('Credential rotation configuration invalid');}if(!Array.isArray(values)||values.length>3||values.some(v=>typeof v!=='string'||v.length<16))throw new Error('Credential rotation configuration invalid');return values.map(value=>crypto.createHash('sha256').update(value).digest());}
+export function decryptCredential(cipherText:string):string{
+ if(!cipherText||typeof cipherText!=='string')return'';if(!cipherText.startsWith('enc:v1:'))return cipherText;const parts=cipherText.split(':');if(parts.length!==5)return'';const [,,ivHex,tagHex,encryptedHex]=parts;if(!/^[a-f0-9]{24}$/.test(ivHex)||!/^[a-f0-9]{32}$/.test(tagHex)||!/^([a-f0-9]{2})*$/.test(encryptedHex))return'';
+ for(const key of [CRED_ENC_KEY,...previousCredentialKeys()]){try{const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(ivHex,'hex'));decipher.setAuthTag(Buffer.from(tagHex,'hex'));return decipher.update(encryptedHex,'hex','utf8')+decipher.final('utf8');}catch{}}
+ return'';
 }
 
 export function encryptCredentialsObject(creds: Record<string, any>): Record<string, any> {
@@ -1372,17 +1359,17 @@ export async function getCompanyIntegrationExact(companyId: string, provider: st
 export async function getCompanyIntegration(companyId:string,provider:string):Promise<DbIntegration|null>{const definition=integrationDefinition(provider);if(!definition)return getCompanyIntegrationExact(companyId,provider);const rows=(await Promise.all([definition.canonical,...definition.aliases].map(name=>getCompanyIntegrationExact(companyId,name)))).filter(Boolean) as DbIntegration[];if(rows.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');return rows[0]||null;}
 
 export async function getCompanyIntegrationsByProvider(provider: string, requireDurable = false): Promise<DbIntegration[]> {
-  let connected=false;
+  const definition=integrationDefinition(provider),names=definition?[definition.canonical,...definition.aliases]:[provider];let connected=false;
   try {
     const db = await getDbPool();
     if (db) {
       connected=true;
       const [rows]: any = await db.query(
-        'SELECT id, company_id, provider, status, credentials, config, last_tested_at, last_error, created_at, updated_at FROM company_integrations WHERE provider = ?',
-        [provider]
+        `SELECT i.id,c.id company_id,i.provider,i.status,i.credentials,i.config,i.last_tested_at,i.last_error,i.created_at,i.updated_at FROM company_integrations i JOIN companies c ON c.id=i.company_id WHERE i.provider IN (${names.map(()=>'?').join(',')})`,
+        names
       );
       if (rows && Array.isArray(rows)) {
-        return rows.map((r: any) => {
+        if(new Set(rows.map((r:any)=>r.company_id)).size!==rows.length)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');return rows.map((r: any) => {
           const parsedCreds = r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : {};
           return {
             ...r,
@@ -1393,6 +1380,7 @@ export async function getCompanyIntegrationsByProvider(provider: string, require
       }
     }
   } catch (err: any) {
+    if(err instanceof IntegrationAccessError)throw err;
     if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     if (requireDurable) throw new Error('Integration storage unavailable');
     handleDbError('getCompanyIntegrationsByProvider', err);
@@ -1400,7 +1388,7 @@ export async function getCompanyIntegrationsByProvider(provider: string, require
 
   if (requireDurable) throw new Error('Integration storage unavailable');
   assertNotProductionFallback('getCompanyIntegrationsByProvider');
-  return inMemoryIntegrations.filter((i) => i.provider === provider).map((i) => ({
+  const selected=inMemoryIntegrations.filter(i=>names.includes(i.provider));if(new Set(selected.map(i=>i.company_id)).size!==selected.length)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');return selected.map((i) => ({
     ...i,
     credentials: decryptCredentialsObject(i.credentials || {}),
   }));
@@ -1428,7 +1416,7 @@ export async function saveCompanyIntegration(
     const db = await getDbPool();
     if (db) {
       connected=true;const connection=await db.getConnection();try{
-      await connection.beginTransaction();const [owners]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[companyId]);if(owners.length!==1)throw new Error('Integration workspace unavailable');
+      await connection.beginTransaction();const [owners]:any=await connection.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[companyId]);if(owners.length!==1)throw new Error('Integration workspace unavailable');const definition=integrationDefinition(provider),names=definition?[definition.canonical,...definition.aliases]:[provider];const [aliases]:any=await connection.query(`SELECT provider FROM company_integrations WHERE company_id=? AND provider IN (${names.map(()=>'?').join(',')}) FOR UPDATE`,[companyId,...names]);if(aliases.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');provider=aliases[0]?.provider||definition?.canonical||provider;
       await connection.query(
         `INSERT INTO company_integrations (id, company_id, provider, status, credentials, config, last_tested_at, last_error)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -1446,11 +1434,13 @@ export async function saveCompanyIntegration(
       }catch(error){await connection.rollback();throw error;}finally{connection.release();}
     }
   } catch (err: any) {
+    if(err instanceof IntegrationAccessError)throw err;
     if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
     handleDbError('saveCompanyIntegration', err);
   }
 
   assertNotProductionFallback('saveCompanyIntegration');
+  const definition=integrationDefinition(provider),names=definition?[definition.canonical,...definition.aliases]:[provider],aliases=inMemoryIntegrations.filter(i=>i.company_id===companyId&&names.includes(i.provider));if(aliases.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');provider=aliases[0]?.provider||definition?.canonical||provider;
   const existingIdx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);
   const record: DbIntegration = {
     id: existingIdx >= 0 ? inMemoryIntegrations[existingIdx].id : id,
@@ -1476,27 +1466,8 @@ export async function saveCompanyIntegration(
   };
 }
 
-export async function deleteCompanyIntegration(companyId: string, provider: string): Promise<boolean> {
-  let connected=false;
-  try {
-    const db = await getDbPool();
-    if (db) {
-      connected=true;
-      const [result]:any=await db.query('DELETE FROM company_integrations WHERE company_id = ? AND provider = ?', [companyId, provider]);
-      return result.affectedRows===1;
-    }
-  } catch (err: any) {
-    if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');
-    handleDbError('deleteCompanyIntegration', err);
-  }
-
-  assertNotProductionFallback('deleteCompanyIntegration');
-  const idx = inMemoryIntegrations.findIndex((i) => i.company_id === companyId && i.provider === provider);
-  if (idx >= 0) {
-    inMemoryIntegrations.splice(idx, 1);
-    return true;
-  }
-  return false;
+export async function deleteCompanyIntegration(companyId:string,provider:string):Promise<boolean>{
+ const definition=integrationDefinition(provider),names=definition?[definition.canonical,...definition.aliases]:[provider];let connected=false;try{const pool=await getDbPool();if(pool){connected=true;const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[companyId]);const [rows]:any=await c.query(`SELECT id FROM company_integrations WHERE company_id=? AND provider IN (${names.map(()=>'?').join(',')}) FOR UPDATE`,[companyId,...names]);if(rows.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');if(!rows.length){await c.commit();return false;}const [result]:any=await c.query('DELETE FROM company_integrations WHERE company_id=? AND id=?',[companyId,rows[0].id]);if(result.affectedRows!==1)throw new Error('Integration deletion unconfirmed');await c.commit();return true;}catch(e){await c.rollback();throw e;}finally{c.release();}}}catch(e){if(e instanceof IntegrationAccessError)throw e;if(connected)throw new Error('INTEGRATION_STORAGE_UNAVAILABLE');handleDbError('deleteCompanyIntegration',e);}assertNotProductionFallback('deleteCompanyIntegration');const rows=inMemoryIntegrations.filter(i=>i.company_id===companyId&&names.includes(i.provider));if(rows.length>1)throw new IntegrationAccessError(409,'INTEGRATION_ALIAS_CONFLICT');if(!rows.length)return false;inMemoryIntegrations.splice(inMemoryIntegrations.findIndex(i=>i.id===rows[0].id),1);return true;
 }
 
 // ---------------- GOOGLE PROFILE & PLACES DATA CACHE ---------------- //

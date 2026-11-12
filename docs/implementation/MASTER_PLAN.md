@@ -1,6 +1,6 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-Version 1.19 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.20 • updated 12 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
@@ -13,6 +13,10 @@ Implementation was authorized in subsequent user requests and continues in this 
 Earlier six user-facing workstreams remain intact: (1) reliability/agency isolation; (2) onboarding/business memory; (3) CRM/sales; (4) marketing/outcomes; (5) selective outbound/optimization; (6) agency reporting. Engineering phases P00–P10 below sequence these workstreams by dependency. The action ledger starts in P01; the reporting UI matures in P09. No reporting requirement is postponed until after execution systems are built.
 
 A plan can reduce conflicts and regressions, not guarantee zero errors. Every completion claim requires the evidence level stated in this plan. Credentials, provider approval, supported access and production verification remain explicit prerequisites; unavailable capabilities are marked blocked, not completed.
+
+### Current ten-package security/policy checkpoint — 12 November2026 IST
+
+SECURITY_POLICY_GROUP.md records P02-02/03/05/06/07, P03-02/03/05 and P04-05/06 as one coordinated implementation group. Original local criteria for session policy P02-05, canonical integration registry P02-06 and scoped extractive grounding P04-05 are accepted after the complete14-step101-program/SQL/restore/seven-browser/build/guard matrix. The other seven remain partial. Totals21 validated/15 in_progress/1 blocked/56 planned; no phase accepted.035/63 adds user security epochs, PKCE state and refresh leases; historical001–034 unchanged; next036. Cookie mode/provider OAuth/hosting are not activated by local implementation.
 
 ### Current ten-parent local acceptance — 12 November2026 IST
 

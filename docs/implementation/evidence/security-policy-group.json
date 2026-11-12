@@ -1,0 +1,95 @@
+{
+  "date_ist": "2026-11-12",
+  "targets": [
+    "P02-02",
+    "P02-03",
+    "P02-05",
+    "P02-06",
+    "P02-07",
+    "P03-02",
+    "P03-03",
+    "P03-05",
+    "P04-05",
+    "P04-06"
+  ],
+  "scope": "Grouped implementation evidence for ten packages; full acceptance is not inferred; see SECURITY_POLICY_GROUP.md",
+  "codeSha256": "6272657c256961938c37f83a478cf90574eeaa875b7518b3b10e7f62eb42b04c",
+  "fileCount": 445,
+  "steps": [
+    {
+      "step": "regressions",
+      "exitCode": 0,
+      "durationMs": 57216
+    },
+    {
+      "step": "typescript",
+      "exitCode": 0,
+      "durationMs": 9705
+    },
+    {
+      "step": "build",
+      "exitCode": 0,
+      "durationMs": 6929
+    },
+    {
+      "step": "native-sql",
+      "exitCode": 0,
+      "durationMs": 23456
+    },
+    {
+      "step": "uploaded-export",
+      "exitCode": 0,
+      "durationMs": 7929
+    },
+    {
+      "step": "session-browser",
+      "exitCode": 0,
+      "durationMs": 2210
+    },
+    {
+      "step": "agency-browser",
+      "exitCode": 0,
+      "durationMs": 4180
+    },
+    {
+      "step": "pwa-browser",
+      "exitCode": 0,
+      "durationMs": 1406
+    },
+    {
+      "step": "knowledge-browser",
+      "exitCode": 0,
+      "durationMs": 4404
+    },
+    {
+      "step": "fact-browser",
+      "exitCode": 0,
+      "durationMs": 3415
+    },
+    {
+      "step": "onboarding-browser",
+      "exitCode": 0,
+      "durationMs": 5125
+    },
+    {
+      "step": "workspace-browser",
+      "exitCode": 0,
+      "durationMs": 40681
+    },
+    {
+      "step": "route-guard",
+      "exitCode": 0,
+      "durationMs": 1535
+    },
+    {
+      "step": "docs-guard",
+      "exitCode": 0,
+      "durationMs": 402
+    }
+  ],
+  "productionChanges": false,
+  "providerActions": false,
+  "customerSends": false,
+  "deployed": false,
+  "billingChanges": false
+}

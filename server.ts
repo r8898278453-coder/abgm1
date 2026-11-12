@@ -1,3 +1,8 @@
+import {registerClientPolicyRoutes} from './server/clientPolicyRoutes';
+import {registerIntegrationMetadataRoutes} from './server/integrationMetadataRoutes';
+import {registerAuthRoutes} from './server/authRoutes';
+import {issueLoginSession} from './server/authResponse';
+import {browserSessionGuard} from './server/browserSession';
 import {registerOnboardingRoutes} from './server/onboardingRoutes';
 import {registerCompanyRoutes} from './server/companyRoutes';
 import {verifyAuthToken} from './server/auth';
@@ -302,6 +307,7 @@ const PORT = process.env.NODE_ENV === 'production' && process.env.PORT ? parseIn
 // Enterprise Security & Monitoring Middlewares
 app.use(securityHeadersMiddleware);
 app.use(corsMiddleware);
+app.use('/api',browserSessionGuard(verifyAuthToken,getAuthSecret));
 app.use(requestAuditLogger);
 
 // Enforce fail-fast cryptographic secret verification on boot
@@ -435,114 +441,7 @@ registerHealthRoutes(app, {
 // ==================== AUTHENTICATION APIS ==================== //
 
 // Register new user (protected with registration rate limiting & Zod schema validation)
-app.post('/api/auth/register', registerRateLimiter, validateBody(registerSchema), async (req, res) => {
-  try {
-    const { email, password, full_name, role } = req.body;
-
-    const existing = await findUserByEmail(email);
-    if (existing) {
-      res.status(409).json({ success: false, error: 'An account with this email already exists' });
-      return;
-    }
-
-    const user = await createUser({
-      email,
-      password,
-      full_name,
-      role,
-    });
-
-    const token = generateAuthToken(user);
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        is_platform_admin: Boolean(user.is_platform_admin),
-      },
-    });
-  } catch (err: any) {
-    res.status(503).json({ success: false, error: 'Authentication storage unavailable. Sign in or reload before retrying.' });
-  }
-});
-
-// User login (protected with rate limiting, brute-force account lockout & Zod schema validation)
-app.post('/api/auth/login', persistentLoginLimit({pool:getDbPool,required:()=>process.env.NODE_ENV==='production'||process.env.IS_PRODUCTION==='true'}),loginProtectionMiddleware, validateBody(loginSchema), async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ success: false, error: 'Email and password are required' });
-      return;
-    }
-
-    const user = await findUserByEmail(email);
-    if (!user) {
-      const lockStatus = recordFailedLogin(req, email);
-      if (lockStatus.isLocked) {
-        res.setHeader('Retry-After', (lockStatus.lockedForSeconds || 900).toString());
-        res.status(429).json({
-          success: false,
-          error: 'Account temporarily locked due to 5 consecutive failed login attempts. For security, please try again in 15 minutes.',
-          locked: true,
-          retryAfter: lockStatus.lockedForSeconds,
-        });
-        return;
-      }
-      res.status(401).json({
-        success: false,
-        error: 'Invalid email or password',
-        remainingAttempts: lockStatus.remainingAttempts,
-      });
-      return;
-    }
-
-    const isValid = verifyPassword(password, user.password_hash, user.salt);
-    if (!isValid) {
-      const lockStatus = recordFailedLogin(req, email);
-      if (lockStatus.isLocked) {
-        res.setHeader('Retry-After', (lockStatus.lockedForSeconds || 900).toString());
-        res.status(429).json({
-          success: false,
-          error: 'Account temporarily locked due to 5 consecutive failed login attempts. For security, please try again in 15 minutes.',
-          locked: true,
-          retryAfter: lockStatus.lockedForSeconds,
-        });
-        return;
-      }
-      res.status(401).json({
-        success: false,
-        error: 'Invalid email or password',
-        remainingAttempts: lockStatus.remainingAttempts,
-      });
-      return;
-    }
-
-    // Authentication succeeded: clear failed attempts for this email
-    recordSuccessfulLogin(req, email);
-
-    // Transparently upgrade legacy low-iteration hashes to OWASP 210,000 iterations
-    await upgradeUserPassword(user.id,password);
-    const currentUser=await findUserById(user.id);
-    if(!currentUser||!verifyPassword(password,currentUser.password_hash,currentUser.salt)){res.status(401).json({success:false,error:'Credentials changed. Sign in again.'});return;}
-    const token = generateAuthToken(currentUser);
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: currentUser.id,
-        email: currentUser.email,
-        full_name: currentUser.full_name,
-        role: currentUser.role,
-        is_platform_admin: Boolean(currentUser.is_platform_admin),
-      },
-    });
-  } catch (err: any) {
-    res.status(503).json({ success: false, error: 'Authentication storage unavailable. Sign in or reload before retrying.' });
-  }
-});
+registerAuthRoutes(app,{registerRateLimiter,registerValidation:validateBody(registerSchema),persistentLimit:persistentLoginLimit({pool:getDbPool,required:()=>process.env.NODE_ENV==='production'||process.env.IS_PRODUCTION==='true'}),loginProtectionMiddleware,loginValidation:validateBody(loginSchema),findUserByEmail,createUser,issueLoginSession,recordFailedLogin,recordSuccessfulLogin,verifyPassword,upgradeUserPassword,findUserById});
 
 registerPasswordRecoveryRoutes(app,{forgotLimit:forgotPasswordRateLimiter,forgotValidate:validateBody(forgotPasswordSchema),resetValidate:validateBody(resetPasswordSchema),configured:isEmailServiceConfigured,find:findUserByEmail,create:createPasswordResetToken,send:sendPasswordResetEmail,consume:consumePasswordReset,afterReset:async(id,req)=>{const user=await findUserById(id);if(user)recordSuccessfulLogin(req,user.email);}});
 
@@ -602,6 +501,7 @@ async function resolveUserCompanyId(
 
 registerCompanyRoutes(app,{auth:getAuthUserFromRequest,all:getAllCompanies,owned:getUserCompanies,create:createCompany,validate:validateBody(createCompanySchema),created:async(user,company)=>{const alertMsg=`🏢 *NEW COMPANY ONBOARDED TO ABGA!*\n\n👑 *Owner:* ${user.full_name} (${user.email})\n🏢 *Business:* ${company.name}\n🏷️ *Category:* ${company.category}\n📍 *City:* ${company.city}\n🌐 *Domain:* bga.aaditechs.in`;return sendTelegramPushAlert(alertMsg);}});
 
+registerClientPolicyRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerOnboardingRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool,access:verifyCompanyWorkspaceAccess});
 registerCompanyDataRoutes(app,{auth:getAuthUserFromRequest,company:getCompanyById,access:verifyCompanyWorkspaceAccess,read:async(company)=>{const data=await getCompanyDataPayload(company);return {data,version:companyDataVersion(data)};},save:async(company,data,version)=>{if(!await saveCompanyDataPayload(company,data,version))throw new Error('Workspace save unconfirmed');return companyDataVersion(data);}});
 
@@ -1698,206 +1598,7 @@ function maskSecret(val: string): string {
 const maskCredentialsObj=maskIntegrationCredentials;
 
 // Fetch configured integrations for a company
-app.get('/api/integrations', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    res.set('Cache-Control','no-store');
-    const companyId=explicitIntegrationCompany(req.query),access=await verifyCompanyWorkspaceAccess(user,companyId);
-    if(!access.authorized){res.status(access.status).json({success:false,error:'Integration workspace access denied'});return;}
-
-    const storedIntegrations = await getCompanyIntegrations(companyId);
-
-    // Also check server system-level env variables
-    const systemTelegramConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
-
-    // Standard list of providers
-    const providers = [
-      {
-        id: 'google_business',
-        name: 'Google Places API & Maps',
-        category: 'Google',
-        icon: '📍',
-        description: 'Syncs live Google Maps Place Details, customer reviews, operational hours & photos via Google Places API Key.',
-        docsUrl: 'https://developers.google.com/maps/documentation/places/web-service/overview',
-        requiredFields: [
-          { key: 'placeId', label: 'Google Place ID', placeholder: 'e.g. ChIJN1t_tDeuEmsRUsoyG83frY4', secret: false, required: true },
-          { key: 'apiKey', label: 'Google Maps / Places API Key', placeholder: 'AIzaSy...', secret: true, required: false },
-        ],
-      },
-      {
-        id: 'google_gmb_oauth',
-        name: 'Google Business Profile (OAuth API)',
-        category: 'Google',
-        icon: '🏢',
-        description: 'Direct owner management via Google Business Profile APIs (requires OAuth2 authorization).',
-        docsUrl: 'https://developers.google.com/my-business/content/basic-setup',
-        requiredFields: [
-          { key: 'accountId', label: 'Google Business Account ID', placeholder: 'e.g. accounts/10839281928391', secret: false, required: true },
-          { key: 'locationId', label: 'Location Resource Name', placeholder: 'e.g. locations/4829104829104', secret: false, required: true },
-          { key: 'oauthToken', label: 'OAuth2 Access / Refresh Token', placeholder: 'ya29.a0...', secret: true, required: true },
-        ],
-      },
-      {
-        id: 'google_search_console',
-        name: 'Google Search Console (API & Indexing)',
-        category: 'Google',
-        icon: '🔍',
-        description: 'Live organic search impressions, query clicks, average rankings, and indexation status via Google Search Console API.',
-        docsUrl: 'https://developers.google.com/webmaster-tools',
-        requiredFields: [
-          { key: 'siteUrl', label: 'Verified Property URL', placeholder: 'https://yourdomain.com or sc-domain:yourdomain.com', secret: false, required: true },
-          { key: 'clientEmail', label: 'Service Account Client Email', placeholder: 'gsc-service@your-project.iam.gserviceaccount.com', secret: false, required: true },
-          { key: 'privateKey', label: 'Service Account Private Key (PEM)', placeholder: '-----BEGIN PRIVATE KEY-----\n...', secret: true, required: true },
-        ],
-      },
-      {
-        id: 'local_seo_serp',
-        name: 'Local SERP & Maps Rank Scraper (DataForSEO / SerpAPI)',
-        category: 'SEO',
-        icon: '🎯',
-        description: 'Real provider-based 9-node geocoded Google Maps 3-Pack rank tracking across real latitude & longitude coordinates.',
-        docsUrl: 'https://dataforseo.com/apis/serp-api',
-        requiredFields: [
-          { key: 'provider', label: 'Engine Provider (dataforseo or serpapi)', placeholder: 'dataforseo', secret: false, required: true },
-          { key: 'login', label: 'DataForSEO Login / SerpAPI Key', placeholder: 'API Login or SerpAPI Key', secret: false, required: true },
-          { key: 'password', label: 'DataForSEO Password / Secret (if DataForSEO)', placeholder: '••••••••', secret: true, required: false },
-        ],
-      },
-      {
-        id: 'whatsapp_cloud',
-        name: 'WhatsApp Business Cloud Platform',
-        category: 'Messaging',
-        icon: '💬',
-        description: 'Official Meta Cloud API for instant lead auto-replies, quote dispatches & review collection.',
-        docsUrl: 'https://developers.facebook.com/docs/whatsapp/cloud-api',
-        requiredFields: [
-          { key: 'phoneNumberId', label: 'Phone Number ID', placeholder: '108429582910294', secret: false, required: true },
-          { key: 'accessToken', label: 'Meta System User Token (Permanent)', placeholder: 'EAA...', secret: true, required: true },
-          { key: 'wabaId', label: 'WhatsApp Business Account ID', placeholder: '395820194820194', secret: false, required: false },
-        ],
-      },
-      {
-        id: 'telegram_bot',
-        name: 'Telegram Bot Gateway',
-        category: 'Messaging',
-        icon: '✈️',
-        description: '24/7 Natural language command hub for instant approvals, morning briefs & urgent alerts.',
-        docsUrl: 'https://core.telegram.org/bots/api',
-        requiredFields: [
-          { key: 'botToken', label: 'Telegram Bot Token (from @BotFather)', placeholder: '123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ', secret: true, required: true },
-          { key: 'chatId', label: 'Telegram Chat ID / Group ID', placeholder: 'e.g. -100123456789 or 987654321', secret: false, required: false },
-        ],
-      },
-      {
-        id: 'meta_social',
-        name: 'Meta (Instagram & Facebook Pages)',
-        category: 'Meta',
-        icon: '📸',
-        description: 'Automates publishing of client showcases, carousel case studies, and reels to Instagram & Facebook.',
-        docsUrl: 'https://developers.facebook.com/docs/graph-api',
-        requiredFields: [
-          { key: 'accessToken', label: 'Page / User Access Token', placeholder: 'EAAB...', secret: true, required: true },
-          { key: 'pageId', label: 'Facebook Page ID', placeholder: '109283746520', secret: false, required: false },
-          { key: 'instagramId', label: 'Instagram Business Account ID', placeholder: '17841400293847', secret: false, required: false },
-        ],
-      },
-      {
-        id: 'meta_ads',
-        name: 'Meta Ads (Facebook & Instagram)',
-        category: 'Meta',
-        icon: '📊',
-        description: 'Verified ad spend, impressions, clicks, conversions & ROAS telemetry directly from Meta Marketing API.',
-        docsUrl: 'https://developers.facebook.com/docs/marketing-api',
-        requiredFields: [
-          { key: 'adAccountId', label: 'Ad Account ID (e.g. act_123456789 or 123456789)', placeholder: 'act_123456789012345', secret: false, required: true },
-          { key: 'accessToken', label: 'Meta System User Token (ads_read / ads_management)', placeholder: 'EAA...', secret: true, required: true },
-          { key: 'appSecret', label: 'Meta App Secret (optional HMAC signature validation)', placeholder: '••••••••', secret: true, required: false },
-        ],
-      },
-      {
-        id: 'transactional_email',
-        name: 'Transactional Email & SMTP Server',
-        category: 'Messaging',
-        icon: '📧',
-        description: 'Delivers enterprise password reset links, billing receipts, security alerts, and system notices.',
-        docsUrl: 'https://nodemailer.com/smtp/',
-        requiredFields: [
-          { key: 'provider', label: 'Engine (smtp, resend, sendgrid, or postmark)', placeholder: 'smtp', secret: false, required: true },
-          { key: 'smtpHost', label: 'SMTP Host / Server (if SMTP)', placeholder: 'smtp.hostinger.com or smtp.gmail.com', secret: false, required: false },
-          { key: 'smtpPort', label: 'SMTP Port (465 for SSL, 587 for TLS)', placeholder: '465', secret: false, required: false },
-          { key: 'smtpUser', label: 'SMTP Username / Auth Email', placeholder: 'noreply@yourdomain.com', secret: false, required: false },
-          { key: 'smtpPass', label: 'SMTP Password / App Password', placeholder: '••••••••••••••••', secret: true, required: false },
-          { key: 'apiKey', label: 'API Key / Token (if Resend/SendGrid/Postmark)', placeholder: 're_... or SG.... or token', secret: true, required: false },
-          { key: 'fromEmail', label: 'From Email Address', placeholder: 'noreply@aaditechs.in', secret: false, required: false },
-          { key: 'fromName', label: 'From Display Name', placeholder: 'Aaditech Growth Solution', secret: false, required: false },
-        ],
-      },
-      {
-        id: 'razorpay_gateway',
-        name: 'Razorpay Payments & Subscriptions',
-        category: 'Platform',
-        icon: '💳',
-        description: 'Accept client retainers, SaaS upgrades, and generate GST-compliant invoices automatically.',
-        docsUrl: 'https://razorpay.com/docs/payments/server-integration',
-        requiredFields: [
-          { key: 'keyId', label: 'Razorpay Key ID', placeholder: 'rzp_live_... or rzp_test_...', secret: false, required: true },
-          { key: 'keySecret', label: 'Razorpay Key Secret', placeholder: '••••••••••••••••', secret: true, required: true },
-        ],
-      },
-      {
-        id: 'website_cname',
-        name: 'Custom Domain DNS Evidence',
-        category: 'Platform',
-        icon: '🌐',
-        description: 'Checks ownership TXT and routing for this client’s registered domain. Hosting attachment and TLS require separate verification.',
-        docsUrl: 'https://developers.cloudflare.com/dns',
-        requiredFields: [
-          { key: 'websiteUrl', label: 'Production URL', placeholder: 'https://yourdomain.com', secret: false, required: true },
-          { key: 'webhookSecret', label: 'Inbound Webhook Secret (HMAC-SHA256)', placeholder: 'Optional signing key', secret: true, required: false },
-        ],
-      },
-    ];
-
-    const emailConfiguredOnServer = isEmailServiceConfigured();
-    const serverEmailConfig = getEmailProviderConfig();
-
-    const result = providers.map((p) => {
-      const stored = storedIntegrations.find((i) => i.provider === p.id);
-      let isConnected = false;
-      let statusText=stored?'Credentials saved; current permissions unverified':'Not configured';
-      let lastTestedAt = stored?.last_tested_at || null;
-      let lastError=stored?.last_error?'Previous check failed; recheck required':null;
-      let maskedCreds = stored ? maskCredentialsObj(stored.credentials || {}) : {};
-
-      if(!stored&&['telegram_bot','transactional_email','meta_ads'].includes(p.id)){isConnected=false;statusText='Client credentials not configured';}
-
-      return {
-        ...p,
-        connected: isConnected,
-        status: stored?(stored.status==='error'?'error':'saved'):'disconnected',
-        statusText,
-        lastTestedAt,
-        lastError,
-        maskedCredentials: maskedCreds,
-      };
-    });
-
-    res.json({
-      success: true,
-      companyId,
-      integrations: result,
-      systemTelegramConfigured,
-      systemEmailConfigured: emailConfiguredOnServer,
-    });
-  } catch (err: any) {
-    res.status(err instanceof IntegrationAccessError?err.status:503).json({success:false,error:err instanceof IntegrationAccessError?err.code:'Integration metadata unavailable'});
-  }
-});
+registerIntegrationMetadataRoutes(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess,getCompanyIntegrations,isEmailServiceConfigured});
 
 // Test integration credentials in real time against provider API
 app.post('/api/integrations/test', async (req, res) => {

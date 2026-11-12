@@ -38,6 +38,7 @@ export async function readAutomaticPublishingControlsFromSql(sql:ReadOnlySql,com
 export async function readAutomaticPublishingControls(pool:import('mysql2/promise').Pool,company:string){return withReadOnlySqlDeadline(pool,sql=>readAutomaticPublishingControlsFromSql(sql,company));}
 export async function readPublicationExecutionBlock(pool:import('mysql2/promise').Pool,company:string,mode:PublicationExecutionMode,platforms:string[]):Promise<PauseReason|null>{
  return withReadOnlySqlDeadline(pool,async sql=>{
+  const [clients]:any=await sql.query('SELECT status FROM client_operations WHERE company_id=?',[company]);if(clients[0]?.status==='ARCHIVED')return 'CLIENT_ARCHIVED';if(clients.length&&clients[0].status!=='ACTIVE')return 'EXECUTION_CONTROLS_UNAVAILABLE';
   const scoped=scopedPublicationBlock(await readScopedPublicationControlsFromSql(sql,company),platforms);
   if(scoped || mode==='manual')return scoped;
   const state=await readAutomaticPublishingControlsFromSql(sql,company);

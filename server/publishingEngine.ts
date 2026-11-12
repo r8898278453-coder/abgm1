@@ -1,3 +1,4 @@
+import {admitClientAction} from './clientPolicy';
 import type {OPERATION_STATES} from '../shared/operationStates';
 import {publishingExecutionBlock,type PublicationExecutionMode} from './publishingExecutionControls';
 import {publishingSourceVersion} from './publishingSource';
@@ -5,6 +6,7 @@ import { metaPublishingText } from './metaPublishingText';
 import type { PublishingClaim } from './publishingClaims';
 import crypto from 'crypto';
 import {
+  getDbPool,
   DbContentPost,
   claimPublishingDispatch,
   ownsPublishingDispatch,
@@ -495,7 +497,7 @@ export async function executePublishingJob(
       return { deferredReason,postId:post.id,companyId,status:state,overallStatus:state,finalPostStatus:post.status,platformResults:[],
         message:admission.status==='QUOTA_EXHAUSTED'?'Daily publishing admission limit reached. Retry on the next IST day or review the configured limit.':deferredReason?'Publishing paused by workspace/channel controls.':admission.status==='APPROVAL_REQUIRED'?'Approval required for the current content, schedule and publishing policy. Request approval, then approve for scheduled publishing.':'Durable publishing claim blocks duplicate dispatch; inspect current outcome before retrying',executedAt:new Date().toISOString() };
     }
-    dispatchClaim = admission.claim;
+    dispatchClaim = admission.claim;const policyPool=await getDbPool();if(policyPool){try{await admitClientAction(policyPool,companyId,'PUBLISH',post.id+':'+publishingSourceVersion(post));}catch(error:any){settled=await settlePublishingDispatch(dispatchClaim,'FAILED');return{postId:post.id,companyId,status:settled?'FAILED':'UNKNOWN',overallStatus:settled?'FAILED':'UNKNOWN',finalPostStatus:settled?'failed':post.status,platformResults:[],deferredReason:settled?(error?.code==='CLIENT_ARCHIVED'?'CLIENT_ARCHIVED':'PUBLICATION_QUOTA_EXHAUSTED'):undefined,message:'Client action admission paused before provider dispatch. Reload controls before retrying.',executedAt:new Date().toISOString()};}}
     // Set post status to 'publishing' while in flight
     await updateContentPostStatus(post.id, 'publishing', companyId);
 

@@ -1,5 +1,7 @@
 # Saved onboarding and legacy business-memory intake
 
+Current security/policy checkpoint (12 November2026 IST): [SECURITY_POLICY_GROUP.md](SECURITY_POLICY_GROUP.md) records035/63 (next036), opt-in cookie/epoch security, canonical aliases, PKCE/refresh groundwork and client goals/shared admissions. P02-05/P02-06/P04-05 are locally accepted; seven other targets remain partial. Historical001–034 unchanged; no phase, provider activation or deployment accepted. Older schema/status notes below describe earlier checkpoints; STATUS.md is current.
+
 Current local acceptance (12 November2026 IST): [ACCEPTANCE_TEN.md](ACCEPTANCE_TEN.md) accepts the original criteria for P02-01, P03-01/04/06 and P04-01/02/03/04/07/08 after the complete13-step matrix. These decisions supersede older in-progress notes for those tasks only. Schema034/60 unchanged. Full phase/hosting/provider/production gates and explicitly separate extension limits remain open; generated STATUS.md is current.
 
 12 November2026 IST. This grouped continuation implements twelve connected deliverables under existing P02/P03/P04 work packages; it does not claim twelve complete parent packages. P04-07 and P04-08 now in progress. Schema034/60 and historical001–034 are unchanged; next035. No production deployment/migration, external provider invocation, customer message or billing change.

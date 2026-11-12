@@ -41,6 +41,8 @@ export const corsMiddleware = cors({
   allowedHeaders: [
     'Content-Type',
     'Authorization',
+    'X-CSRF-Token',
+    'X-Session-Transport',
     'X-Requested-With',
     'Accept',
     'Origin',

@@ -1,3 +1,5 @@
+import {AgencyError} from './agencyPolicy';
+import {admitClientAction} from './clientPolicy';
 import {contentSchema,generatedText} from '../shared/aiGeneration';
 import crypto from 'node:crypto';
 import type {Pool} from 'mysql2/promise';
@@ -21,12 +23,13 @@ export async function recordKnowledgeDraft(pool:Pool,company:string,actor:string
  // No prompt, generated text, fact values, review bodies, keys, browser context or provider errors in audit.
  await pool.query('INSERT INTO autonomous_audit_logs(id,company_id,action_id,actor,event_type,details) VALUES (?,?,?,?,?,?)',[crypto.randomUUID(),company,requestId,actor,'AI_DRAFT_'+event,JSON.stringify(details)]);
 }
-export async function generateKnowledgeDraft(input:{pool:Pool;company:string;actor:string;kind:DraftKind;topic:string;generate:(context:string,system:string,attempt:(event:ModelAttempt)=>Promise<void>)=>Promise<string|null>},deps:{read?:typeof readKnowledgeFacts;record?:typeof recordKnowledgeDraft}={}){
+export async function generateKnowledgeDraft(input:{pool:Pool;company:string;actor:string;kind:DraftKind;topic:string;generate:(context:string,system:string,attempt:(event:ModelAttempt)=>Promise<void>)=>Promise<string|null>},deps:{read?:typeof readKnowledgeFacts;record?:typeof recordKnowledgeDraft;admit?:typeof admitClientAction}={}){
  const read=deps.read||readKnowledgeFacts,record=deps.record||recordKnowledgeDraft,id='aid_'+crypto.randomUUID().replaceAll('-','');
  const facts=await read(input.pool,input.company),context=buildKnowledgeDraftContext(input.company,facts);
  const basic={kind:input.kind,fingerprint:context.fingerprint,factRefs:context.refs,approvedCount:context.approvedCount,blockedCount:context.blockedKeys.length};
  const decision=retrieveKnowledge(input.company,input.topic,{},'0',{rows:[],truncated:false},facts);
  if(['CONFLICT_REVIEW_REQUIRED','FACT_APPROVAL_REQUIRED'].includes(decision.status)){await record(input.pool,input.company,input.actor,id,'BLOCKED',{...basic,reason:'KNOWLEDGE_REVIEW_REQUIRED'});throw new KnowledgeDraftError(409,'KNOWLEDGE_REVIEW_REQUIRED');}
+ try{await(deps.admit||admitClientAction)(input.pool,input.company,'AI_DRAFT',id);}catch(error){const code=error instanceof AgencyError?error.code:'CLIENT_POLICY_UNAVAILABLE';await record(input.pool,input.company,input.actor,id,'BLOCKED',{...basic,reason:code});throw new KnowledgeDraftError(error instanceof AgencyError?error.status:503,code);}
  await record(input.pool,input.company,input.actor,id,'REQUESTED',basic);
  let text:string|null;
  try{text=await input.generate(context.prompt,KNOWLEDGE_DRAFT_SYSTEM,async event=>{

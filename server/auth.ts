@@ -1,4 +1,6 @@
-import {isSessionRevoked} from './securityStore';
+import {sessionToken,browserRequestAllowed} from './browserSession';
+import {validWorkspaceRevision} from '../shared/workspaceRevision';
+import {isSessionRevoked,sessionEpoch} from './securityStore';
 import crypto from 'crypto';
 import express from 'express';
 import { findUserById, getDbPool, DbUser, verifyPassword, hashPassword, PBKDF2_ITERATIONS } from './db';
@@ -46,6 +48,7 @@ export interface TokenPayload {
   iat: number;       // Issued At timestamp (epoch seconds)
   exp: number;       // Expiry timestamp (epoch seconds)
   jti: string;       // Random token identifier; this is not a replay/revocation ledger
+  sv?: string;
   pv?: string;      // HMAC binding to the current stored password material
 }
 
@@ -84,7 +87,7 @@ function computeHmacSignature(data: string, secret: string): string {
  * It contains standard claims (sub, email, role, iat, exp, jti) and cannot be forged
  * without knowing the server's private AUTH_SECRET.
  */
-export function generateAuthToken(user: { id: string; email: string; role?: string;password_hash?:string;salt?:string }): string {
+export function generateAuthToken(user: { id: string; email: string; role?: string;password_hash?:string;salt?:string;auth_epoch?:string }): string {
   const header = {
     alg: 'HS256',
     typ: 'JWT',
@@ -97,7 +100,7 @@ export function generateAuthToken(user: { id: string; email: string; role?: stri
     role: user.role || 'owner',
     iat: nowSeconds,
     exp: nowSeconds + TOKEN_EXPIRY_SECONDS,
-    jti: crypto.randomBytes(16).toString('hex'),
+    jti: crypto.randomBytes(16).toString('hex'),sv:user.auth_epoch||'0',
   };
   if(user.password_hash&&user.salt)payload.pv=passwordBinding(user as {id:string;password_hash:string;salt:string});
 
@@ -163,6 +166,7 @@ export function verifyAuthToken(token: string): TokenPayload | null {
     }
 
     const nowSeconds = Math.floor(Date.now() / 1000);
+    if(payload.sv!==undefined&&!validWorkspaceRevision(payload.sv))return null;
     if (payload.iat<0||payload.iat>nowSeconds+30||payload.exp<=nowSeconds||payload.exp<=payload.iat||payload.exp-payload.iat>TOKEN_EXPIRY_SECONDS) {
       // Token has expired
       return null;
@@ -180,15 +184,8 @@ export function verifyAuthToken(token: string): TokenPayload | null {
  * and confirms the user exists in the database.
  */
 export async function getAuthUserFromRequest(req: express.Request): Promise<DbUser | null> {
-  const authHeader = req.headers.authorization;
-  if (typeof authHeader!=='string' || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.substring(7).trim();
-  if (!token) {
-    return null;
-  }
+  if(!browserRequestAllowed(req,verifyAuthToken,getAuthSecret))return null;
+  const token=sessionToken(req);if(!token)return null;
 
   const payload = verifyAuthToken(token);
   if (!payload||!payload.pv) {
@@ -208,7 +205,7 @@ export async function getAuthUserFromRequest(req: express.Request): Promise<DbUs
     const binding=passwordBinding(user);
     if(!crypto.timingSafeEqual(Buffer.from(binding,'hex'),Buffer.from(payload.pv,'hex')))return null;
 
-    const pool=await getDbPool();if(pool&&await isSessionRevoked(pool,payload.jti,user.id))return null;
+    const pool=await getDbPool();if(pool&&(await isSessionRevoked(pool,payload.jti,user.id)||await sessionEpoch(pool,user.id)!==(payload.sv||'0')))return null;
     return user;
   } catch {
     return null;

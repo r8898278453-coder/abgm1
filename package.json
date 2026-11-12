@@ -52,7 +52,8 @@
     "test:browser:agency": "node --import tsx test/browser/agencyWorkspace.test.ts",
     "test:browser:onboarding": "node --import tsx test/browser/onboardingWorkflow.test.ts",
     "test:browser:pwa": "node --import tsx test/browser/privatePwa.test.ts",
-    "acceptance:ten": "node --import tsx server/scripts/acceptanceTen.ts"
+    "acceptance:ten": "node --import tsx server/scripts/acceptanceTen.ts",
+    "test:browser:sessions": "node --import tsx test/browser/sessionTransport.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",
