@@ -293,6 +293,7 @@ async function dispatchPlatformWithRetry(
         if (!await canDispatch()) { lastErrorType = 'TIMEOUT_UNKNOWN'; lastErrorMessage = 'Publishing claim lost; reconciliation required'; break; }
         if(!await canStart()){lastErrorType='PERMANENT';lastErrorMessage='Publishing paused before provider attempt';break;}
         const waRes = await sendWhatsAppCloudMessage(waCreds, {
+          companyId:post.company_id,automatic:true,
           to: recipientPhone,
           message: `📢 *${post.title}*\n\n${post.headline ? '*' + post.headline + '*\n\n' : ''}${post.caption}\n\n${post.cta ? '👉 ' + post.cta : ''}`,
           mediaUrl: post.image_url,

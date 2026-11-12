@@ -1,3 +1,4 @@
+import {SalesWorkspacePanel} from './SalesWorkspacePanel';
 import {MessageDispatchStatus} from './MessageDispatchStatus';
 import {LEAD_STAGES} from '../../shared/leadStages';
 import React, { useState,useRef,useEffect } from 'react';
@@ -187,6 +188,7 @@ export const LeadsCrmView: React.FC<LeadsCrmViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {companyId&&dispatchKey&&<MessageDispatchStatus key={`${companyId}:${dispatchKey}`} companyId={companyId} requestKey={dispatchKey}/>}
+      {companyId&&<SalesWorkspacePanel key={companyId} companyId={companyId}/>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -1,3 +1,5 @@
+import {salesSendEligibility} from './salesWorkspace';
+import {getDbPool} from './db';
 import {resolveWhatsAppTenant} from './whatsAppTenant';
 import {isGlobalEmergencyStopActive} from './executionStop';
 import crypto from 'crypto';
@@ -27,6 +29,7 @@ export interface MetaSocialCredentials {
 }
 
 export interface WhatsAppSendOptions {
+  automatic?: boolean;
   to: string;
   message?: string;
   templateName?: string;
@@ -432,7 +435,8 @@ export async function publishToInstagram(options: InstagramPublishOptions): Prom
  */
 export async function sendWhatsAppCloudMessage(
   creds: WhatsAppCredentials,
-  options: WhatsAppSendOptions
+  options: WhatsAppSendOptions,
+  policyDependencies?:{eligibility:(company:string,to:string,template:boolean,automatic:boolean)=>Promise<string|null>}
 ): Promise<{
   success: boolean;
   status?: string;
@@ -502,6 +506,8 @@ export async function sendWhatsAppCloudMessage(
 
   try {
     if(isGlobalEmergencyStopActive())return {success:false,status:'PAUSED',error:'Global execution stop is active'};
+    if(!options.companyId)return{success:false,status:'PAUSED',error:'Explicit client and contact eligibility required'};
+    try{const reason=await (policyDependencies?.eligibility|| (async(company,to,template,automatic)=>{const pool=await getDbPool();if(!pool)return'SALES_STORAGE_UNAVAILABLE';return salesSendEligibility(pool,company,to,template,automatic);}))(options.companyId,cleanTo,Boolean(templateName),options.automatic===true);if(reason)return{success:false,status:'PAUSED',error:reason};}catch{return{success:false,status:'PAUSED',error:'Contact eligibility unavailable'};}
     const waRes = await fetch(`https://graph.facebook.com/v21.0/${creds.phoneNumberId}/messages`, {
       method: 'POST',
       headers: {

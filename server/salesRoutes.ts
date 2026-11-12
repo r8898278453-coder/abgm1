@@ -1,0 +1,19 @@
+import type {Express,Request} from 'express';
+import type {Pool} from 'mysql2/promise';
+import {agencyClientAccess} from './agencyPolicy';
+import type {AgencyOperation} from '../shared/agency';
+import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOverview,saveSalesPolicy,saveContactPermission,saveOpportunity,saveQualification,importProspects,linkInboxLead,SalesError} from './salesWorkspace';
+export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>}){
+ const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
+ const base='/api/companies/:companyId/sales';
+ route('get',base,'read',async(req,pool,user)=>({workspace:await readSalesWorkspace(pool,String(req.params.companyId)),canManage:(await agencyClientAccess(pool,user,String(req.params.companyId),'manage')).authorized,canWrite:(await agencyClientAccess(pool,user,String(req.params.companyId),'write')).authorized}));
+ route('put',base+'/policy','manage',(req,pool,user)=>saveSalesPolicy(pool,user,String(req.params.companyId),req.body));
+ route('put',base+'/permissions','manage',(req,pool,user)=>saveContactPermission(pool,user,String(req.params.companyId),req.body));
+ route('put',base+'/leads/:leadId/opportunity','write',(req,pool,user)=>saveOpportunity(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
+ route('put',base+'/leads/:leadId/qualification','write',(req,pool,user)=>saveQualification(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
+ route('post',base+'/prospects/import','write',(req,pool,user)=>importProspects(pool,user,String(req.params.companyId),req.body));
+ route('get',base+'/inbox','read',(req,pool)=>readSalesInbox(pool,String(req.params.companyId),req.query.before as string|undefined));
+ route('put',base+'/inbox/:messageId/link','write',(req,pool,user)=>linkInboxLead(pool,user,String(req.params.companyId),String(req.params.messageId),req.body));
+ route('get',base+'/report','read',async(req,pool)=>{const date=typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new SalesError(400,'SALES_DATE_INVALID');return{report:await readSalesReport(pool,String(req.params.companyId),date)};});
+ route('get','/api/agencies/:agencyId/sales-overview','read',async(req,pool,user)=>{const date=typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new SalesError(400,'SALES_DATE_INVALID');return{overview:await readAgencySalesOverview(pool,user,String(req.params.agencyId),date)};});
+}

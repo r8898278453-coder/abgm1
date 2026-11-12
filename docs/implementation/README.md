@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+Latest grouped sales delivery (12 November2026 IST): [SALES_TEN_AREA_BATCH.md](SALES_TEN_AREA_BATCH.md) records ten connected CRM/sales/reporting work areas, exact implemented workflows and remaining parent criteria. Schema037/70, next038; historical001–036 unchanged. Current counts are generated in [STATUS.md](STATUS.md). No parent/phase or production promotion.
+
 Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE_REELS.md) supersedes earlier memory-queue/asset-approval pending notes. Schema036/64, next037; SQL recovery/cancellation, isolated resource-bounded worker, asset approval revisions and browser recovery are implemented. Rendering remains default off; Hostinger capability and full phase gates remain open. [STATUS.md](STATUS.md) gives current counts.
 
 Latest continuation: [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md) covers twelve connected rendering controls, actual local PNG smoke and explicit pending durable reel queue/asset approval. Current counts: [STATUS.md](STATUS.md).

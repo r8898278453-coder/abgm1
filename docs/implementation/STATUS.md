@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 036_render_asset_approvals; 64 canonical tables. Registered default regression programs: 105 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 037_sales_workspace; 70 canonical tables. Registered default regression programs: 106 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 17 / 1 / 54.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 27 / 1 / 44.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -18,10 +18,10 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P03 | 3 | 3 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
 | P05 | 0 | 2 | 0 | 9 |
-| P06 | 0 | 0 | 0 | 8 |
-| P07 | 0 | 0 | 0 | 8 |
-| P08 | 0 | 0 | 0 | 10 |
-| P09 | 0 | 1 | 0 | 7 |
+| P06 | 0 | 4 | 0 | 4 |
+| P07 | 0 | 2 | 0 | 6 |
+| P08 | 0 | 2 | 0 | 8 |
+| P09 | 0 | 3 | 0 | 5 |
 | P10 | 0 | 0 | 0 | 8 |
 
 ## Explicit blockers
@@ -103,34 +103,34 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-09 | in_progress | Move reel state into durable jobs with resource limits | P04-09, P05-08 |
 | P05-10 | planned | Harden campaign linking ads telemetry and portable storefront capture | P04-09, P05-09 |
 | P05-11 | planned | Marketing parity and publication gate | P04-09, P05-10 |
-| P06-01 | planned | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
+| P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
 | P06-02 | planned | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
 | P06-03 | planned | Implement message dispatch and real delivery states | P05-11, P06-02 |
 | P06-04 | planned | Add tenant email sender and reply/bounce integration | P05-11, P06-03 |
-| P06-05 | planned | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
-| P06-06 | planned | Replace per-message lead creation and build unified client inbox | P05-11, P06-05 |
-| P06-07 | planned | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
+| P06-05 | in_progress | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
+| P06-06 | in_progress | Replace per-message lead creation and build unified client inbox | P05-11, P06-05 |
+| P06-07 | in_progress | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
 | P06-08 | planned | CRM and channel truth gate | P05-11, P06-07 |
-| P07-01 | planned | Implement grounded qualification and sales handoff | P06-08 |
+| P07-01 | in_progress | Implement grounded qualification and sales handoff | P06-08 |
 | P07-02 | planned | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
 | P07-03 | planned | Execute workflow steps through existing queue and policy | P06-08, P07-02 |
 | P07-04 | planned | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
 | P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
 | P07-06 | planned | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
-| P07-07 | planned | Expose review and bounded autopilot controls | P06-08, P07-06 |
+| P07-07 | in_progress | Expose review and bounded autopilot controls | P06-08, P07-06 |
 | P07-08 | planned | Marketing-to-appointment pilot gate | P06-08, P07-07 |
-| P08-01 | planned | Build client ICP exclusions prospect imports and source contracts | P07-08 |
+| P08-01 | in_progress | Build client ICP exclusions prospect imports and source contracts | P07-08 |
 | P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08, P08-01 |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes | P07-08, P08-02 |
 | P08-04 | planned | Connect outbound sequences to approved channel capabilities | P07-08, P08-03 |
-| P08-05 | planned | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
+| P08-05 | in_progress | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
 | P08-06 | planned | Implement bounded experiments and transparent recommendations | P07-08, P08-05 |
 | P08-07 | planned | Expose scoped developer API and signed event webhooks | P07-08, P08-06 |
 | P08-08 | planned | Implement first required external CRM connector or record defer decision | P07-08, P08-07 |
 | P08-09 | planned | Record gates for visitor identity MCP and advanced outbound extensions | P07-08, P08-08 |
 | P08-10 | planned | Outbound outcomes and optimization gate | P07-08, P08-09 |
-| P09-01 | planned | Build reconciled daily client report read model | P08-10 |
-| P09-02 | planned | Build agency overview and exception prioritization | P08-10, P09-01 |
+| P09-01 | in_progress | Build reconciled daily client report read model | P08-10 |
+| P09-02 | in_progress | Build agency overview and exception prioritization | P08-10, P09-01 |
 | P09-03 | planned | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
 | P09-04 | planned | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
 | P09-05 | planned | Deliver optional client report and approval portal | P08-10, P09-04 |

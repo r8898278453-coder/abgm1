@@ -1,3 +1,4 @@
+import {prepareSalesOutbound,salesSendEligibility,recordSalesBlock} from './salesWorkspace';
 import {admitClientAction} from './clientPolicy';
 import {canonicalJson} from '../shared/canonicalJson';
 import {createHash,randomUUID} from 'node:crypto';
@@ -25,7 +26,7 @@ export async function dispatchMessageIntent(pool:Pool,company:string,key:string,
   }
   await connection.commit();
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
- let result:DispatchResult|undefined;try{await admitClientAction(pool,company,'MESSAGE',key);}catch{result={success:false,status:'PAUSED'};}if(!result){try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}}
+ let result:DispatchResult|undefined;try{if(typeof (input as any)?.to==='string'){await prepareSalesOutbound(pool,company,key,input);const reason=await salesSendEligibility(pool,company,(input as any).to,Boolean((input as any).templateName),(input as any).mode==='automatic');if(reason){await recordSalesBlock(pool,company,key,reason,actor);result={success:false,status:'PAUSED'};}}}catch{result={success:false,status:'PAUSED'};}try{if(!result)await admitClientAction(pool,company,'MESSAGE',key);}catch{result={success:false,status:'PAUSED'};}if(!result){try{result=await send();}catch{result={success:false,status:'UNKNOWN'};}}
  const accepted=result.success===true&&typeof result.messageId==='string'&&!!result.messageId.trim()&&result.messageId.length<=255;
  const status=accepted?'API_ACCEPTED':result.status==='PAUSED'?'PAUSED':result.status==='REJECTED'?'REJECTED':'UNKNOWN';
  try{

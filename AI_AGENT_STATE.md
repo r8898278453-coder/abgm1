@@ -1,5 +1,7 @@
 # AI Agent State
 
+12 November2026 sales batch: server/salesWorkspace.ts owns CRM extensions, consent/inbox/qualification/import/report services; server/salesRoutes.ts mounts scoped APIs once; shared/salesWorkspace.ts owns contracts; SalesWorkspacePanel.tsx is the CRM/agency UI. Existing lead stages, message intents, verified webhook mapping and knowledge facts retain their canonical ownership. Forward037/70; see docs/implementation/SALES_TEN_AREA_BATCH.md for ten implemented areas and remaining parent acceptance.
+
 ## Current Phase: Phase 0 — Consolidation & Canonical Architecture
 - **Current Task**: Established ONE canonical implementation for every major capability across backend, rendering engines, database helpers, provider adapters, frontend views, and background schedulers.
 - **Consolidation Findings & Actions**:

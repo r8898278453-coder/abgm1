@@ -1,5 +1,9 @@
 ## Ten-package security/policy implementation — 12 November2026 IST
 
+## Ten-area CRM and sales continuation — 12 November2026 IST
+
+See SALES_TEN_AREA_BATCH.md for all ten parent mappings, delivered controls and remaining criteria. Forward037/70; historical001–036 unchanged. 106 credential-isolated regression programs, native SQL role/concurrency/replay/opt-out/qualification/report/rollback coverage, exact uploaded-export restore/replay, sales, existing workspace and agency Chromium, TypeScript/build,192-route/no-collision and generated-doc guards passed. Verification evidence/source fingerprints are recorded in evidence/sales-ten-area-batch.json; no production DB writes, provider sends, activation or deployment.
+
 ## Durable reel/asset approval continuation — 12 November2026 IST
 
 Forward036_render_asset_approvals /64 tables; historical001–035 unchanged. See DURABLE_REELS.md for exact scope and limits. 105 credential-isolated regression programs, native fresh/upgrade/SQL/UTC-IST/rollback/recovery tests, exact uploaded-export restore/replay, workspace and render Chromium workflows, TypeScript/build and route/doc guards passed. Actual isolated local Chromium MP4 smoke:373,613 bytes in52,001ms, no external images. Compiled queue worker default-off refusal checked without DB access. Verification outcomes/source fingerprints are recorded in evidence/durable-reels.json. Earlier memory-queue pending notes are historical. No production changes or deployment.

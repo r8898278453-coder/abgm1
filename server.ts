@@ -1,3 +1,4 @@
+import {registerSalesRoutes} from './server/salesRoutes';
 import {registerRenderRoutes} from './server/renderRoutes';
 import {registerClientPolicyRoutes} from './server/clientPolicyRoutes';
 import {registerIntegrationMetadataRoutes} from './server/integrationMetadataRoutes';
@@ -2515,6 +2516,8 @@ app.get('/api/templates/palettes', async (req, res) => {
   }
 });
 
+registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
+
 registerRenderRoutes(app,{auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,access:verifyCompanyWorkspaceAccess,limiter:aiRateLimiter,uploadsRoot:UPLOADS_BASE_DIR});
 
 // Production Lead Capture API (bga.aaditechs.in) - Protected with Authentication & IDOR filtering
@@ -2869,7 +2872,7 @@ registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process
         source: 'WhatsApp Cloud Inbound',
         notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
         ai_suggested_reply: `Namaste ${contactName}! ${compName} has received your message. A dedicated consultant will reply right here on WhatsApp shortly.`,
-      });
+      },{body:textBody,kind:message.type,mediaId:typeof (message.image?.id||message.document?.id)==='string'?(message.image?.id||message.document?.id).slice(0,255):undefined});
 
       if(!inserted)return;
       await sendTenantTelegram(matchedCompanyId,`New WhatsApp inbound message recorded for this workspace.`,{getCompanyIntegration,fetch});

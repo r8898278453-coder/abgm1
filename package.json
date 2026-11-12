@@ -55,7 +55,8 @@
     "acceptance:ten": "node --import tsx server/scripts/acceptanceTen.ts",
     "test:browser:sessions": "node --import tsx test/browser/sessionTransport.test.ts",
     "test:browser:render": "node --import tsx test/browser/renderOperations.test.ts",
-    "worker:reels": "node dist/reel-queue-worker.cjs"
+    "worker:reels": "node dist/reel-queue-worker.cjs",
+    "test:browser:sales": "node --import tsx test/browser/salesWorkspace.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

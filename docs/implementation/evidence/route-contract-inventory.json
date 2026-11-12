@@ -33,6 +33,11 @@
       "owner": "server/agencyRoutes.ts#registerAgencyRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/agencies/:agencyId/sales-overview",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/ai/chat",
       "owner": "server.ts",
@@ -289,6 +294,51 @@
       "method": "GET",
       "path": "/api/companies/:companyId/reel-jobs",
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/inbox",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/inbox/:messageId/link",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/opportunity",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/qualification",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/permissions",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/policy",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/prospects/import",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/report",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
       "method": "GET",
@@ -916,5 +966,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 37
+  "registrationCount": 38
 }

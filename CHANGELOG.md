@@ -1,5 +1,9 @@
 # Changelog
 
+### 12 November2026 — grouped ten-area CRM/sales delivery
+
+Delivered lead reuse, persistent WhatsApp inbox, explicit contact permissions/STOP/final send guards, revisioned opportunities/qualification/review controls, bounded source-declared prospect import, honest manual attribution, IST sales reporting and authorized agency exceptions. Forward037/70. Ten parent tasks move from planned to in progress with exact remaining criteria; no phase/provider/production activation. See docs/implementation/SALES_TEN_AREA_BATCH.md.
+
 ### 12 November2026 — durable reels and asset review
 
 Replaced ephemeral reel state with the SQL queue, restart/status recovery, cancellation, fenced resource-bounded workers and revision/hash-bound asset review. Content Studio exposes saved jobs and approval/cancellation outcomes. Schema036/64; default rendering stays off. See docs/implementation/DURABLE_REELS.md for verified local evidence and remaining Hostinger/library limits. No production deployment.

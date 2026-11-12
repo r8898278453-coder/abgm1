@@ -1,5 +1,7 @@
 # Codebase Map
 
+12 November2026 sales batch: server/salesWorkspace.ts owns CRM extensions, consent/inbox/qualification/import/report services; server/salesRoutes.ts mounts scoped APIs once; shared/salesWorkspace.ts owns contracts; SalesWorkspacePanel.tsx is the CRM/agency UI. Existing lead stages, message intents, verified webhook mapping and knowledge facts retain their canonical ownership. Forward037/70; see docs/implementation/SALES_TEN_AREA_BATCH.md for ten implemented areas and remaining parent acceptance.
+
 ## Architecture Overview
 - **Frontend**: React 18 + Vite SPA, Tailwind CSS, Lucide icons.
 - **Backend**: Express.js server (`server.ts`) with custom routing, JWT auth, rate limiting, and Vite middleware.
