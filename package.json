@@ -53,7 +53,9 @@
     "test:browser:onboarding": "node --import tsx test/browser/onboardingWorkflow.test.ts",
     "test:browser:pwa": "node --import tsx test/browser/privatePwa.test.ts",
     "acceptance:ten": "node --import tsx server/scripts/acceptanceTen.ts",
-    "test:browser:sessions": "node --import tsx test/browser/sessionTransport.test.ts"
+    "test:browser:sessions": "node --import tsx test/browser/sessionTransport.test.ts",
+    "test:browser:render": "node --import tsx test/browser/renderOperations.test.ts",
+    "worker:reels": "node dist/reel-queue-worker.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

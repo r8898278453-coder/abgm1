@@ -1,5 +1,9 @@
 ## Ten-package security/policy implementation — 12 November2026 IST
 
+## Durable reel/asset approval continuation — 12 November2026 IST
+
+Forward036_render_asset_approvals /64 tables; historical001–035 unchanged. See DURABLE_REELS.md for exact scope and limits. 105 credential-isolated regression programs, native fresh/upgrade/SQL/UTC-IST/rollback/recovery tests, exact uploaded-export restore/replay, workspace and render Chromium workflows, TypeScript/build and route/doc guards passed. Actual isolated local Chromium MP4 smoke:373,613 bytes in52,001ms, no external images. Compiled queue worker default-off refusal checked without DB access. Verification outcomes/source fingerprints are recorded in evidence/durable-reels.json. Earlier memory-queue pending notes are historical. No production changes or deployment.
+
 ## Render input boundaries — 12 November2026 IST
 
 See RENDER_INPUT_BOUNDARIES.md for the delivered controls and explicit pending durable queue. Two regressions added (103 registered). Full103-program credential-isolated suite passed; npm run lint/build/docs:check/routes:check and Chromium workspace isolation passed. Actual local Satori/Resvg PNG smoke returned55,218 bytes at1080x1080 without external images. No MP4 rendering or production hosting exercised. Schema035/63 unchanged. Evidence: evidence/render-input-boundaries.json.

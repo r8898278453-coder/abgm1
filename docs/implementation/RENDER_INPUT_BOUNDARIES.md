@@ -1,5 +1,7 @@
 # Render input boundaries — 12 November 2026 IST
 
+Superseded continuation: [DURABLE_REELS.md](DURABLE_REELS.md) delivers SQL jobs, recovery, cancellation, resource limits and asset approval records under036/64. The pending statements below describe the earlier f1b763d checkpoint. Rendering still defaults off and hosting remains unverified.
+
 This continuation hardens draft creative/reel inputs. It does not accept P05 or establish working video rendering on Hostinger.
 
 Delivered together:

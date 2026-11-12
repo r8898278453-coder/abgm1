@@ -1,3 +1,4 @@
+import {renderAssetApprovals,RENDER_APPROVAL_COLUMNS,RENDER_APPROVAL_CHECK} from './migrations/036_render_asset_approvals';
 import {securityPolicy,POLICY_COLUMNS,POLICY_CHECKS} from './migrations/035_security_policy';
 import {agencySecurityFoundation,AGENCY_TABLE_COLUMNS,AGENCY_COMPATIBILITY_CHECKS} from './migrations/034_agency_security_foundation';
 import {structuredKnowledgeFacts,FACTS_CONFLICT_SQL} from './migrations/033_structured_knowledge_facts';
@@ -68,6 +69,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'render_asset_approvals',
   ...Object.keys(POLICY_COLUMNS),
   ...Object.keys(AGENCY_TABLE_COLUMNS),
   'knowledge_facts',
@@ -801,6 +803,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   structuredKnowledgeFacts,
   agencySecurityFoundation,
   securityPolicy,
+  renderAssetApprovals,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1112,6 +1115,9 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [renderColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='render_asset_approvals'");
+      for(const col of RENDER_APPROVAL_COLUMNS)if(!renderColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('render_asset_approvals.'+col);
+      const [badRender]:any=await conn.query(RENDER_APPROVAL_CHECK.sql);if(badRender.length)missingConstraints.push('render_asset_approvals.shape');
       const [policyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('auth_user_security','oauth_states','oauth_refresh_locks')");
       for(const [table,names]of Object.entries(POLICY_COLUMNS))for(const name of names)if(!policyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
       for(const step of POLICY_CHECKS){const [bad]:any=await conn.query(step.sql);if(bad.length)missingConstraints.push('security_policy.shape');}

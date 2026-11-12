@@ -41,6 +41,7 @@ export interface RenderReelOptions {
   inputProps: ReelCompositionProps;
   outputPath: string;
   onProgress?: (progressPercent: number) => void;
+  browserExecutable?: string;
 }
 
 export interface RenderReelResult {
@@ -69,6 +70,8 @@ export async function renderReelVideo(options: RenderReelOptions): Promise<Rende
   const composition = await selectComposition({
     serveUrl,
     id: 'ReelVideo',
+    browserExecutable: options.browserExecutable,
+    timeoutInMilliseconds: 30000,
     inputProps: inputProps as unknown as Record<string, unknown>,
   });
 
@@ -80,7 +83,11 @@ export async function renderReelVideo(options: RenderReelOptions): Promise<Rende
     crf: 22, // Optimized encoding speed and pristine quality
     outputLocation: outputPath,
     inputProps: inputProps as unknown as Record<string, unknown>,
-    concurrency: 2, // Balance CPU utilization inside container
+    browserExecutable: options.browserExecutable,
+    timeoutInMilliseconds: 30000,
+    mediaCacheSizeInBytes: 64 * 1024 * 1024,
+    offthreadVideoCacheSizeInBytes: 64 * 1024 * 1024,
+    concurrency: 1, // Balance CPU utilization inside container
     onProgress: (p) => {
       const percent = Math.min(100, Math.round(p.progress * 100));
       if (onProgress) {

@@ -5,7 +5,7 @@
 - **Consolidation Findings & Actions**:
   - **Content Publishing**: Canonical `server/publishingEngine.ts` (`executePublishingJob`) via `POST /api/content-posts/:id/publish`. Migrated `ContentStudioView.tsx` from status-only patching to canonical state machine. `CalendarView.tsx` and `scheduler.ts` already use canonical engine.
   - **Scheduler**: Canonical `server/scheduler.ts` with hot-reload single-daemon guard (`global.__abga_scheduler_started`).
-  - **Video Rendering**: Canonical `server/reelJobManager.ts` + `server/reelRenderer.ts` + `remotion/*`.
+  - **Video Rendering**: Canonical `server/reelJobs.ts` + `server/reelRenderer.ts` + `remotion/*`.
   - **Google Integrations**: Canonical `POST /api/companies/:id/google-profile/sync` + Google Places Details API with review deduplication.
   - **Local SEO Rank Radar**: Canonical `server/localSeoProvider.ts` (`performRankScan`, `saveRankObservations`).
   - **Competitor Intelligence**: Canonical `server/competitorProvider.ts` (`fetchCompetitorObservation`, `calculateCompetitorChanges`).
@@ -20,7 +20,7 @@
   - **Data Status Badges**: Canonical `src/components/DataStatusBadge.tsx` (10 standard data classifications).
   - **Company Creation Baseline**: Cleaned `CreateCompanyModal.tsx` to provision empty arrays for keywords and competitors on initial setup.
 - **Completed Tasks**:
-  - **GAP-001**: Remotion 15s MP4 video rendering engine (`server/reelRenderer.ts`, `server/reelJobManager.ts`, `remotion/*`).
+  - **GAP-001**: Remotion 15s MP4 video rendering engine (`server/reelRenderer.ts`, `server/reelJobs.ts`, `remotion/*`).
   - **GAP-002**: `video_url` persistence across MySQL schema, server endpoints, and frontend Content Studio / Calendar views.
   - **GAP-003**: MySQL Self-Healing Columns (`video_url`, `custom_domains`, `website_configs`, `invoices`, `subscriptions`).
   - **GAP-004**: Per-tenant Multi-Company Isolation and RBAC across company resources.
@@ -45,3 +45,5 @@
 - **Known Blockers**: None.
 - **Status**: Complete Phase 0 Consolidation.
 
+
+12 November2026 continuation: durable SQL reel jobs replace the memory manager. Rendering defaults off; see docs/implementation/DURABLE_REELS.md for worker capability, approvals and exact evidence.

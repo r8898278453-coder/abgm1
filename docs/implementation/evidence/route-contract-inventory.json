@@ -70,6 +70,11 @@
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/ai/render-reel/:jobId/cancel",
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/ai/render-reel/:jobId/status",
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
@@ -222,6 +227,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/asset-approvals",
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/asset-approvals/:assetId",
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/daily-work-report",
       "owner": "server/dailyWorkReportRoutes.ts#registerDailyWorkReport"
     },
@@ -269,6 +284,11 @@
       "method": "GET",
       "path": "/api/companies/:companyId/publication-controls/history",
       "owner": "server/publicationControlRoutes.ts#registerPublicationControls"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/reel-jobs",
+      "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
       "method": "GET",

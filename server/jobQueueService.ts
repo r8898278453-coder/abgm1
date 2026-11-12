@@ -1,3 +1,4 @@
+import {executeReelJob} from './reelJobs';
 import {clientArchived} from './agencyPolicy';
 import {executeWebsiteImportJob} from './websiteImportJobs';
 import {executeKnowledgeExtractionJob,recoverKnowledgeIngestion} from './knowledgeIngestion';
@@ -94,6 +95,7 @@ export async function executeJob(
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     const operationsPool=await getDbPool();if(operationsPool&&await clientArchived(operationsPool,companyId))return await defer('CLIENT_ARCHIVED');
     switch (jobType) {
+      case 'reel_render': {const pool=await getDbPool();if(!pool)throw new Error('REEL_STORAGE_UNAVAILABLE');return await executeReelJob(pool,job);}
       case 'website_import': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeWebsiteImportJob(pool,job);}
       case 'knowledge_extract': {const pool=await getDbPool();if(!pool)throw new Error('KNOWLEDGE_STORAGE_UNAVAILABLE');return await executeKnowledgeExtractionJob(pool,job);}
       case 'publishing': {

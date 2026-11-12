@@ -1,3 +1,4 @@
+import {RenderOperationsPanel} from './RenderOperationsPanel';
 import {formatPlatformDateTime} from '../../shared/platformTime';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -161,17 +162,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   const [reelJob, setReelJob] = useState<ReelRenderJobInfo | null>(null);
   const [renderedReelUrl, setRenderedReelUrl] = useState<string | null>(null);
   const [reelRenderError, setReelRenderError] = useState<string | null>(null);
-  const reelPollIntervalRef = React.useRef<any>(null);
+  const [reelHistoryRefresh,setReelHistoryRefresh]=useState(0);
   const reelRequestEpoch = React.useRef(0);
-
-  // Clean up reel poll interval on unmount
-  useEffect(() => {
-    return () => {
-      if (reelPollIntervalRef.current) {
-        clearInterval(reelPollIntervalRef.current);
-      }
-    };
-  }, []);
 
   // Load server template definitions
   useEffect(() => {
@@ -415,92 +407,13 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
     }
   };
 
+  const adoptReelJob=(job:ReelRenderJobInfo)=>{setReelJob(job);setIsRenderingReel(job.status==='pending'||job.status==='rendering');if(job.status==='completed'&&job.videoUrl)setRenderedReelUrl(job.videoUrl);if(job.status==='failed')setReelRenderError(job.error||'Reel rendering failed.');};
   const handleRenderReel = async () => {
-    if (!generatedPost.reelScript || generatedPost.reelScript.length === 0) {
-      setPostActionError('No reel script available to render. Please generate content first.');
-      return;
-    }
-
-    const epoch = ++reelRequestEpoch.current;
-    const current = () => mounted.current && reelRequestEpoch.current === epoch;
-
-    if (reelPollIntervalRef.current) {
-      clearInterval(reelPollIntervalRef.current);
-      reelPollIntervalRef.current = null;
-    }
-
-    setIsRenderingReel(true);
-    setReelRenderError(null);
-
-    try {
-      const res = await startReelRenderApi(generatedPost.reelScript, effectiveCompanyId);
-      if (!current()) return;
-      if (!res.success || !res.jobId) {
-        throw new Error(res.error || 'Failed to dispatch reel rendering job');
-      }
-
-      const jobId = res.jobId;
-      setReelJob({
-        id: jobId,
-        companyId: effectiveCompanyId,
-        userId: '',
-        status: 'pending',
-        progress: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-
-      // Avoid overlapping status requests and ignore late results after terminal state.
-      let polling = false;
-      reelPollIntervalRef.current = setInterval(async () => {
-        if (polling || !current()) return;
-        polling = true;
-        try {
-          const statusRes = await getReelRenderStatusApi(jobId);
-          if (!current()) return;
-          if (!statusRes.success || !statusRes.job) throw new Error('Render status unavailable');
-          if (statusRes.success && statusRes.job) {
-            const currentJob = statusRes.job;
-            setReelJob(currentJob);
-
-            if (currentJob.status === 'completed') {
-              reelRequestEpoch.current++;
-              if (reelPollIntervalRef.current) {
-                clearInterval(reelPollIntervalRef.current);
-                reelPollIntervalRef.current = null;
-              }
-              setIsRenderingReel(false);
-              if (currentJob.videoUrl) {
-                setRenderedReelUrl(currentJob.videoUrl);
-                setScheduleSuccessToast('Reel video rendered successfully.');
-                setTimeout(() => setScheduleSuccessToast(null), 5000);
-              }
-            } else if (currentJob.status === 'failed') {
-              reelRequestEpoch.current++;
-              if (reelPollIntervalRef.current) {
-                clearInterval(reelPollIntervalRef.current);
-                reelPollIntervalRef.current = null;
-              }
-              setIsRenderingReel(false);
-              setReelRenderError(currentJob.error || 'Video rendering encountered an issue.');
-            }
-          }
-        } catch (pollErr: any) {
-          if (!current()) return;
-          if (reelPollIntervalRef.current) clearInterval(reelPollIntervalRef.current);
-          reelPollIntervalRef.current = null;
-          reelRequestEpoch.current++;
-          setIsRenderingReel(false);
-          setReelRenderError('Render status unavailable. Completion is unconfirmed.');
-        } finally {
-          polling = false;
-        }
-      }, 2000);
-    } catch (err: any) {
-      if(!current())return;
-      setIsRenderingReel(false);
-      setReelRenderError(err?.message || 'Failed to start video rendering job.');
-    }
+    if(!generatedPost.reelScript?.length)return;
+    const newAttempt=Boolean(reelJob&&['completed','failed','cancelled'].includes(reelJob.status));
+    const epoch=++reelRequestEpoch.current;setReelJob(null);setRenderedReelUrl(null);setIsRenderingReel(true);setReelRenderError(null);
+    try{const result=await startReelRenderApi(generatedPost.reelScript,effectiveCompanyId,newAttempt);if(!mounted.current||epoch!==reelRequestEpoch.current)return;if(!result.success||!result.job||result.job.companyId!==effectiveCompanyId)throw new Error('Render admission unconfirmed. Reload saved jobs.');adoptReelJob(result.job);setReelHistoryRefresh(x=>x+1);}
+    catch(error:any){if(!mounted.current||epoch!==reelRequestEpoch.current)return;setIsRenderingReel(false);setReelRenderError(error?.message||'Render admission unconfirmed. Reload saved jobs before retrying.');setReelHistoryRefresh(x=>x+1);}
   };
 
   const handleSaveBrandKit = async () => {
@@ -1039,6 +952,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
             </div>
           </div>
 
+          <RenderOperationsPanel key={effectiveCompanyId} companyId={effectiveCompanyId} refresh={reelHistoryRefresh+assets.length} selectedJobId={reelJob?.id} onJob={adoptReelJob}/>
+
           {/* Feedback Messages */}
           {assetActionError && (
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs shadow-2xs">
@@ -1112,7 +1027,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   </p>
                 </div>
                 <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-xl">
-                  {uploadedPhotos.length === 0 ? '0 Photos (Using Stock Fallback)' : `${uploadedPhotos.length} Real Photos`}
+                  {uploadedPhotos.length === 0 ? '0 Photos (Solid background)' : `${uploadedPhotos.length} Real Photos`}
                 </span>
               </div>
 
@@ -1694,7 +1609,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-slate-700 font-bold flex items-center gap-1.5 text-[11px]">
                     <Camera className="w-3.5 h-3.5 text-indigo-600" />
-                    Creative Image Source ({uploadedPhotos.length > 0 ? `${uploadedPhotos.length} Business Photos` : 'Stock Fallback'})
+                    Creative Image Source ({uploadedPhotos.length > 0 ? `${uploadedPhotos.length} Business Photos` : 'Solid background'})
                   </span>
                   <button
                     onClick={() => setActiveTab('assets')}
@@ -2086,7 +2001,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   ) : isRenderingReel ? (
                     <span className="text-xs text-indigo-700 font-bold bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
-                      Rendering ({reelJob?.progress || 0}%)
+                      {reelJob?.status==='pending'?'Queued':'Rendering; progress unavailable'}
                     </span>
                   ) : (
                     <span className="text-xs text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full">
@@ -2107,7 +2022,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                     {isRenderingReel ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Rendering Video ({reelJob?.progress || 0}%)...
+                        {reelJob?.status==='pending'?'Queued for rendering':'Rendering; progress unavailable'}
                       </>
                     ) : renderedReelUrl ? (
                       <>
@@ -2141,33 +2056,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 )}
               </div>
 
-              {/* Real-time Rendering Progress */}
-              {isRenderingReel && (
-                <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                      {(reelJob?.progress || 0) < 20
-                        ? 'Preparing Remotion composition bundle...'
-                        : (reelJob?.progress || 0) < 85
-                        ? `Rendering 450 vertical video frames (${reelJob?.progress || 0}%)...`
-                        : 'Encoding high-definition H.264 MP4 with ffmpeg...'}
-                    </span>
-                    <span className="font-mono">{reelJob?.progress || 0}%</span>
-                  </div>
-
-                  <div className="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${reelJob?.progress || 5}%` }}
-                    />
-                  </div>
-
-                  <p className="text-[11px] text-indigo-700/80">
-                    Server-side headless browser is rendering your business video. Rendering usually takes 15–30 seconds.
-                  </p>
-                </div>
-              )}
+              {isRenderingReel&&<p className="text-xs text-indigo-700">{reelJob?.status==='pending'?'Render queued. Waiting for worker capacity.':'Rendering is in progress; a measured percentage is unavailable.'} Check saved reel jobs below for cancellation or recovery.</p>}
 
               {/* Error Display */}
               {reelRenderError && (

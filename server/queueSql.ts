@@ -116,7 +116,7 @@ export async function cancelSqlJob(pool: Pool, id: string, companyId?: string): 
     companyId ? [id, companyId] : [id], 'JOB_CANCELLED');
 }
 
-export const PAUSE_REASONS=['CLIENT_ARCHIVED','GLOBAL_EMERGENCY_STOP','CLIENT_AUTOPILOT_PAUSED','CLIENT_HOLIDAY_PAUSED','EXECUTION_CONTROLS_UNAVAILABLE','PUBLICATION_PAUSED','PUBLICATION_CHANNEL_PAUSED','PUBLICATION_QUOTA_EXHAUSTED'] as const;
+export const PAUSE_REASONS=['CLIENT_ARCHIVED','GLOBAL_EMERGENCY_STOP','CLIENT_AUTOPILOT_PAUSED','CLIENT_HOLIDAY_PAUSED','EXECUTION_CONTROLS_UNAVAILABLE','PUBLICATION_PAUSED','PUBLICATION_CHANNEL_PAUSED','PUBLICATION_QUOTA_EXHAUSTED','REEL_RENDERING_DISABLED','REEL_CAPACITY_BUSY'] as const;
 export type PauseReason=typeof PAUSE_REASONS[number];
 export async function deferSqlJob(pool:Pool,id:string,reason:PauseReason,lease?:QueueLease):Promise<DbJobQueue|null>{
  if(!PAUSE_REASONS.includes(reason))throw new Error('INVALID_PAUSE_REASON');

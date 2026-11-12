@@ -1082,8 +1082,8 @@ export interface ReelRenderJobInfo {
   id: string;
   companyId: string;
   userId: string;
-  status: 'pending' | 'rendering' | 'completed' | 'failed';
-  progress: number;
+  status: 'pending' | 'rendering' | 'completed' | 'failed' | 'cancelled';
+  progress: number | null;
   createdAt: number;
   updatedAt: number;
   videoUrl?: string;
@@ -1100,6 +1100,7 @@ export interface StartReelRenderResponse {
   status: 'pending' | 'rendering';
   message: string;
   checkStatusUrl: string;
+  job?: ReelRenderJobInfo;
   error?: string;
 }
 
@@ -1111,16 +1112,20 @@ export interface GetReelStatusResponse {
 
 export async function startReelRenderApi(
   reelScript: any[],
-  companyId?: string
+  companyId?: string,
+  newAttempt=false
 ): Promise<StartReelRenderResponse> {
+  if(!companyId)throw new Error('Select a client before rendering.');
+  let identity=await messageRequestKey(`reel:${getStoredUser()?.id}:${companyId}`,{reelScript,companyId});
+  if(newAttempt){identity.clear();identity=await messageRequestKey(`reel:${getStoredUser()?.id}:${companyId}`,{reelScript,companyId});}
   return apiRequest<StartReelRenderResponse>('/api/ai/render-reel', {
-    method: 'POST',
+    method: 'POST',headers:{'Idempotency-Key':identity.key},
     body: JSON.stringify({ reelScript, companyId }),
   });
 }
 
-export async function getReelRenderStatusApi(jobId: string): Promise<GetReelStatusResponse> {
-  return apiRequest<GetReelStatusResponse>(`/api/ai/render-reel/${encodeURIComponent(jobId)}/status`);
+export async function getReelRenderStatusApi(jobId: string, companyId: string): Promise<GetReelStatusResponse> {
+  return apiRequest<GetReelStatusResponse>(`/api/ai/render-reel/${encodeURIComponent(jobId)}/status?companyId=${encodeURIComponent(companyId)}`);
 }
 
 // ---------------- BILLING, INVOICE LEDGER & SUBSCRIPTIONS API CLIENTS ---------------- //
@@ -1364,3 +1369,9 @@ export async function fetchAutonomousStatusApi(companyId?: string): Promise<{
 
 
 
+
+export interface RenderAssetReview {id:string;url:string;asset_type:'photo'|'logo';label?:string;revision:string;status:'UNREVIEWED'|'APPROVED'|'REVOKED';license_note?:string;}
+export async function fetchRenderAssetReviews(company:string){const res=await apiRequest<{success:boolean;companyId:string;assets:RenderAssetReview[]}>(`/api/companies/${encodeURIComponent(company)}/asset-approvals`);if(!res.success||res.companyId!==company||!Array.isArray(res.assets))throw new Error('Asset review unavailable');return res.assets;}
+export async function reviewRenderAssetApi(company:string,asset:string,expectedRevision:string,decision:'APPROVED'|'REVOKED',licenseNote:string){const result=await apiRequest<{success:boolean;companyId:string;assetId:string;revision:string;status:string}>(`/api/companies/${encodeURIComponent(company)}/asset-approvals/${encodeURIComponent(asset)}`,{method:'POST',body:JSON.stringify({expectedRevision,decision,licenseNote})});if(!result.success||result.companyId!==company||result.assetId!==asset||result.revision!==String(BigInt(expectedRevision)+1n)||result.status!==decision)throw new Error('Asset review unconfirmed. Reload before retrying.');return result;}
+export async function fetchReelJobs(company:string){const res=await apiRequest<{success:boolean;jobs:ReelRenderJobInfo[]}>(`/api/companies/${encodeURIComponent(company)}/reel-jobs`);if(!res.success||!Array.isArray(res.jobs)||res.jobs.some(j=>j.companyId!==company))throw new Error('Render history unavailable');return res.jobs;}
+export async function cancelReelApi(company:string,id:string){const res=await apiRequest<{success:boolean;companyId:string;jobId:string;status:string}>(`/api/ai/render-reel/${encodeURIComponent(id)}/cancel`,{method:'POST',body:JSON.stringify({companyId:company})});if(!res.success||res.companyId!==company||res.jobId!==id||res.status!=='cancelled')throw new Error('Cancellation unconfirmed. Reload status.');}

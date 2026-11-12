@@ -5,7 +5,7 @@
 - **Backend**: Express.js server (`server.ts`) with custom routing, JWT auth, rate limiting, and Vite middleware.
 - **Rendering Engines & Services**:
   - Node Canvas template graphic renderer (`server/templateRenderer.ts`).
-  - Remotion server-side 9:16 vertical video reel engine with ffmpeg bundle (`server/reelRenderer.ts`, `server/reelJobManager.ts`, `remotion/*`).
+  - Remotion server-side 9:16 vertical video reel engine with ffmpeg bundle (`server/reelRenderer.ts`, `server/reelJobs.ts`, `remotion/*`).
   - Centralized Meta & WhatsApp Cloud API service (`server/metaWhatsAppService.ts`).
   - Billing & Webhook Idempotency service (`server/billingService.ts`).
   - Deterministic Growth Intelligence engine (`server/growthScoreEngine.ts`).
@@ -22,7 +22,7 @@
 - **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `App.tsx` (`handlePublishPost`), `DashboardView.tsx`, `CalendarView.tsx`, `ContentStudioView.tsx`.
 - **CRM Leads & Pipeline**: `server/db.ts` (`getAllLeads`, `updateLeadStatus`, `createLead`) + `PATCH /api/leads/:id/stage`. Callers: `App.tsx` (`handleUpdateLeadStage`), `LeadsCrmView.tsx`.
 - **Scheduler**: `server/scheduler.ts` (single in-process node-cron daemon with hot-reload guard `global.__abga_scheduler_started`).
-- **Video Reel Rendering**: `server/reelJobManager.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`) + `remotion/*`.
+- **Video Reel Rendering**: `server/reelJobs.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`) + `remotion/*`.
 - **Google Integrations**: `POST /api/companies/:id/google-profile/sync` & `GET /api/companies/:id/google-profile` in `server.ts` with Places Details API & review deduplication.
 - **Local SEO Rank Radar**: `server/localSeoProvider.ts` (`resolveRankProvider`, `performRankScan`) + `POST /api/companies/:id/rank-radar/scan` & `/refresh-all` + `rank_observations` table.
 - **Competitor Intelligence**: `server/competitorProvider.ts` (`resolveCompetitorProvider`, `calculateCompetitorChanges`) + `POST /api/companies/:id/competitors` & `/refresh-all` + `competitor_observations` table.
@@ -123,3 +123,5 @@
 - Dev Server: `npm run dev` (running `tsx server.ts` on port 3000)
 - Build: `npm run build` (`vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs`)
 - Start: `npm run start` (`node dist/server.cjs`)
+
+12 November2026 continuation: durable SQL reel jobs replace the memory manager. Rendering defaults off; see docs/implementation/DURABLE_REELS.md for worker capability, approvals and exact evidence.

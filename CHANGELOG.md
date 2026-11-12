@@ -1,5 +1,9 @@
 # Changelog
 
+### 12 November2026 — durable reels and asset review
+
+Replaced ephemeral reel state with the SQL queue, restart/status recovery, cancellation, fenced resource-bounded workers and revision/hash-bound asset review. Content Studio exposes saved jobs and approval/cancellation outcomes. Schema036/64; default rendering stays off. See docs/implementation/DURABLE_REELS.md for verified local evidence and remaining Hostinger/library limits. No production deployment.
+
 All notable changes to this project will be documented in this file.
 
 ## [1.34.0] - 2026-10-21
