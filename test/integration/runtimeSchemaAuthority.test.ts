@@ -9,7 +9,7 @@ try{
  const [identity]:any=await pool.query('SELECT @@hostname AS hostname');assert.equal(identity[0].hostname,process.env.LOCAL_SQL_CONTAINER_ID);
  const [tables]:any=await pool.query('SHOW TABLES');
  if(process.env.RUNTIME_EXPECT_EMPTY==='1'){assert.equal(tables.length,0);await assert.rejects(inspectDatabaseStartup({production:true,getDbPool,verifySchema}),/DATABASE_SCHEMA_NOT_READY/);}else{
-  assert.equal(tables.length,76);
+  assert.equal(tables.length,77);
   const [users]:any=await pool.query('SELECT id FROM users WHERE email=?',[process.env.INITIAL_ADMIN_EMAIL]);assert.equal(users.length,0);
   assert.equal((await inspectDatabaseStartup({production:true,getDbPool,verifySchema})).status,'READY');
  }

@@ -1,5 +1,8 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Latest verified-event continuation (13 November2026 IST): [WHATSAPP_EVENT_TIME.md](WHATSAPP_EVENT_TIME.md) adds provider-clock persistence, stale/expired history, delayed STOP, atomic replay/conflict guards, mapped-batch retry handling and scoped event-history UI. Schema041/77, next042; historical001–040 unchanged. Sender-resolution and operator-replay limits are explicit; no parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest inquiry enrollment continuation (13 November2026 IST): [SALES_INQUIRY_RULES.md](SALES_INQUIRY_RULES.md) adds explicit client opt-in, verified inbound capture and duplicate-safe queue enrollment into an exact approved review workflow, with source/rule cancellation, recovery and scoped UI. Schema040/76, next041; historical001–039 unchanged. Exact message approval/sending remains separate and default off. No parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
 
 
@@ -14,7 +17,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.25 • updated 13 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.26 • updated 13 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

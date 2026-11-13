@@ -1,3 +1,7 @@
+# Verified WhatsApp event-time/replay continuation — 13 November2026 IST
+
+Scope/compatibility and remaining gates: WHATSAPP_EVENT_TIME.md. 110 credential-isolated regressions, TypeScript/build, native signed HTTP/SQL/provider-time/replay/quarantine/rollback coverage, uploaded-export data/ledger preservation and bundled replay, provider-history/CRM/inquiry/workflow/approved-reply/workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/whatsapp-event-time.json. Existing Vite chunk warning remains. Schema041/77; historical001–040 unchanged. No live sends, production migration, environment activation or deployment.
+
 # Inquiry review enrollment — 13 November2026 IST
 
 Scope and remaining acceptance: SALES_INQUIRY_RULES.md. 109 credential-isolated programs, TypeScript/build, native MariaDB migration/source/worker/revocation/admission-bound tests, copied-export data/ledger preservation and bundled replay, inquiry/workflow/approved-reply/CRM/workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/sales-inquiry-rules.json. Existing Vite chunk warning remains. Forward040/76; historical001–039 unchanged. No live sends, production migration, deployment or environment change.

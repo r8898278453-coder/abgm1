@@ -1,5 +1,8 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Latest verified-event continuation (13 November2026 IST): [WHATSAPP_EVENT_TIME.md](WHATSAPP_EVENT_TIME.md) adds provider-clock persistence, stale/expired history, delayed STOP, atomic replay/conflict guards, mapped-batch retry handling and scoped event-history UI. Schema041/77, next042; historical001–040 unchanged. Sender-resolution and operator-replay limits are explicit; no parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest inquiry enrollment continuation (13 November2026 IST): [SALES_INQUIRY_RULES.md](SALES_INQUIRY_RULES.md) adds explicit client opt-in, verified inbound capture and duplicate-safe queue enrollment into an exact approved review workflow, with source/rule cancellation, recovery and scoped UI. Schema040/76, next041; historical001–039 unchanged. Exact message approval/sending remains separate and default off. No parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
 
 

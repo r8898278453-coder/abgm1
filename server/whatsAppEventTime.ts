@@ -1,0 +1,4 @@
+/** SQL fragments only for the canonical sales_inbox_messages table. Historical rows retain explicitly unverified arrival-time compatibility. */
+export const actionableInboundSql="COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.automationRelevant')),'true')='true'";
+export const inboundOccurredSql="CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.verifiedProviderTime'))='true' THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.providerOccurredAtMs')) AS UNSIGNED) ELSE UNIX_TIMESTAMP(created_at)*1000 END";
+export async function hasWhatsAppInboundConflict(sql:{query:(sql:string,values?:any[])=>Promise<any>},company:string,contactHash:string){const [rows]:any=await sql.query('SELECT event_key FROM whatsapp_inbound_events WHERE company_id=? AND contact_hash=? AND conflicted=1 LIMIT 1',[company,contactHash]);return rows.length>0;}

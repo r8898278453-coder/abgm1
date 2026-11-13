@@ -59,7 +59,8 @@
     "test:browser:sales": "node --import tsx test/browser/salesWorkspace.test.ts",
     "test:browser:workflows": "node --import tsx test/browser/salesWorkflows.test.ts",
     "test:browser:approved-sales": "node --import tsx test/browser/approvedSalesMessages.test.ts",
-    "test:browser:inquiry": "node --import tsx test/browser/salesInquiryRules.test.ts"
+    "test:browser:inquiry": "node --import tsx test/browser/salesInquiryRules.test.ts",
+    "test:browser:whatsapp-events": "node --import tsx test/browser/whatsAppEventHistory.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

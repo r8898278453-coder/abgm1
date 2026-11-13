@@ -1,3 +1,4 @@
+import {whatsAppInboundEvents,INBOUND_EVENT_COLUMNS,INBOUND_EVENT_CHECK} from './migrations/041_whatsapp_inbound_events';
 import {salesInquiryRules,INQUIRY_COLUMNS,INQUIRY_CHECKS} from './migrations/040_sales_inquiry_rules';
 import {approvedSalesMessages,APPROVED_SEND_COLUMNS,APPROVED_SEND_CHECK} from './migrations/039_approved_sales_messages';
 import {salesWorkflows,WORKFLOW_COLUMNS,WORKFLOW_CHECKS} from './migrations/038_sales_workflows';
@@ -73,6 +74,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'whatsapp_inbound_events',
   ...Object.keys(INQUIRY_COLUMNS),
   'sales_message_approvals',
   ...Object.keys(WORKFLOW_COLUMNS),
@@ -816,6 +818,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   salesWorkflows,
   approvedSalesMessages,
   salesInquiryRules,
+  whatsAppInboundEvents,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1127,6 +1130,9 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [inboundEventColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='whatsapp_inbound_events'");
+      for(const col of INBOUND_EVENT_COLUMNS)if(!inboundEventColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('whatsapp_inbound_events.'+col);
+      const [badInboundEvent]:any=await conn.query(INBOUND_EVENT_CHECK.sql);if(badInboundEvent.length)missingConstraints.push('whatsapp_inbound_events.shape');
       const [inquiryColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('sales_inquiry_rules','sales_inquiry_events')");
       for(const [table,cols]of Object.entries(INQUIRY_COLUMNS))for(const col of cols)if(!inquiryColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===col))missingColumns.push(table+'.'+col);
       for(const check of INQUIRY_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_inquiry.shape');}

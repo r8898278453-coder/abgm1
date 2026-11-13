@@ -1,3 +1,5 @@
+Current continuation: [WHATSAPP_EVENT_TIME.md](WHATSAPP_EVENT_TIME.md) adds provider timestamps and history-only stale/expired intake. Actionable inquiry counters exclude these history-only rows; delayed STOP and conflict quarantine still exit work. Current schema041/77.
+
 # Automatic inquiry review enrollment — 13 November 2026 IST
 
 Clients can opt in to turn a new verified WhatsApp inquiry into an internal workflow review automatically. The default is disabled. This batch automates enrollment, not message approval. Exact WhatsApp reply approval and the default-off sending flag remain separate.

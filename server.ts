@@ -33,7 +33,7 @@ import {registerCompanyDataRoutes} from './server/companyDataRoutes';
 import {registerAdCampaignRoutes} from './server/adCampaignRoutes';
 import {inspectDatabaseStartup} from './server/databaseStartup';
 import {recordWhatsAppInboundLead,describeWhatsAppInbound} from './server/whatsAppInbound';
-import {registerWhatsAppWebhook} from './server/whatsAppWebhook';
+import {registerWhatsAppWebhook,whatsAppWebhookBodyParser} from './server/whatsAppWebhook';
 import {recordMessageReceipt} from './server/messageDeliveryReceipts';
 import {registerMessageDispatchStatus,readMessageDispatchStatus} from './server/messageDispatchStatus';
 import {dispatchMessageIntent,DispatchIntentError} from './server/messageDispatchIntents';
@@ -317,6 +317,7 @@ try {
     process.exit(1);
   }
 }
+app.use('/api/whatsapp/webhook',whatsAppWebhookBodyParser);
 app.use(
   express.json({
     limit: '5mb',
@@ -2848,7 +2849,7 @@ app.get('/api/whatsapp/webhook', (req, res) => {
   }
 });
 
-registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process.env.META_APP_SECRET,resolve:(phoneNumberId,wabaId)=>findCompanyByWhatsAppIdentifier({phoneNumberId,wabaId},true),receipt:async(company,input)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable receipt storage unavailable');await recordMessageReceipt(pool,company,input);},inbound:async(matchedCompanyId,message,contact)=>{
+registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process.env.META_APP_SECRET,resolve:(phoneNumberId,wabaId)=>findCompanyByWhatsAppIdentifier({phoneNumberId,wabaId},true),receipt:async(company,input)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable receipt storage unavailable');await recordMessageReceipt(pool,company,input);},inbound:async(matchedCompanyId,message,contact,source)=>{
  const inboundPool=await getDbPool();if(!inboundPool)throw new Error('Inbound storage unavailable');
       const {phone:fromPhone,name:contactName,body:textBody}=describeWhatsAppInbound(message,contact);
 
@@ -2872,7 +2873,7 @@ registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process
         source: 'WhatsApp Cloud Inbound',
         notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
         ai_suggested_reply: `Namaste ${contactName}! ${compName} has received your message. A dedicated consultant will reply right here on WhatsApp shortly.`,
-      },{body:textBody,kind:message.type,mediaId:typeof (message.image?.id||message.document?.id)==='string'?(message.image?.id||message.document?.id).slice(0,255):undefined});
+      },{body:textBody,kind:message.type,mediaId:typeof (message.image?.id||message.document?.id)==='string'?(message.image?.id||message.document?.id).slice(0,255):undefined},source);
 
       if(!inserted)return;
       await sendTenantTelegram(matchedCompanyId,`New WhatsApp inbound message recorded for this workspace.`,{getCompanyIntegration,fetch});
