@@ -1,3 +1,4 @@
+import {captureSalesInquiry} from './salesInquiryRules';
 import {exitSalesWorkflows} from './salesWorkflowLifecycle';
 import crypto from 'node:crypto';
 import type {Pool,PoolConnection} from 'mysql2/promise';
@@ -31,6 +32,7 @@ export async function inboundSalesMessage(c:PoolConnection,company:string,provid
  await c.query("INSERT INTO sales_inbox_messages(id,company_id,lead_id,channel,direction,contact_hash,provider_ref,body,metadata_json) VALUES (?,?,?,'WHATSAPP','INBOUND',?,?,?,?)",[messageId,company,leadId,hash,providerId,body,JSON.stringify({kind:message?.kind||'text',mediaId:message?.mediaId||null,identity:candidates.length>1?'AMBIGUOUS':'LINKED'})]);
  if(/^(stop|unsubscribe|opt out|cancel|band karo)$/i.test(body.trim())){await c.query("INSERT INTO sales_contact_permissions(company_id,channel,contact_hash,revision,state,evidence,actor_id) VALUES (?,'WHATSAPP',?,1,'OPTED_OUT','Verified inbound opt-out','webhook') ON DUPLICATE KEY UPDATE revision=revision+1,state='OPTED_OUT',evidence='Verified inbound opt-out',actor_id='webhook'",[company,hash]);}
  await exitSalesWorkflows(c,company,/^(stop|unsubscribe|opt out|cancel|band karo)$/i.test(body.trim())?'CONTACT_OPTED_OUT':'CONTACT_REPLIED','webhook',{contactHash:hash});
+ await captureSalesInquiry(c,company,messageId,leadId,hash,/^(stop|unsubscribe|opt out|cancel|band karo)$/i.test(body.trim()));
  await agencyAudit(c,company,'webhook','SALES_INBOUND_SAVED',{messageId,leadId,identity:candidates.length>1?'AMBIGUOUS':'LINKED',optOut:/^(stop|unsubscribe|opt out|cancel|band karo)$/i.test(body.trim())});return leadId;
 }
 export async function prepareSalesOutbound(pool:Pool,company:string,requestKey:string,input:any){if(typeof input?.to!=='string')return;const hash=contactHash('WHATSAPP',input.to),c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[company]);const matches=await leadCandidates(c,company,input.to);await c.query("INSERT IGNORE INTO sales_inbox_messages(id,company_id,lead_id,channel,direction,contact_hash,provider_ref,dispatch_key,body,metadata_json) VALUES (?,?,?,'WHATSAPP','OUTBOUND',?,?,?,?,?)",[salesHash('outbound:'+company+':'+requestKey),company,matches.length===1?matches[0].id:null,hash,requestKey,requestKey,String(input.message||input.text||'[Template message]').slice(0,8192),JSON.stringify({template:typeof input.templateName==='string'?input.templateName:null})]);await c.commit();}catch(e){await c.rollback();throw e;}finally{c.release();}}

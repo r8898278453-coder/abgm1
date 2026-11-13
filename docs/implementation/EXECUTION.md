@@ -1,3 +1,7 @@
+# Inquiry review enrollment — 13 November2026 IST
+
+Scope and remaining acceptance: SALES_INQUIRY_RULES.md. 109 credential-isolated programs, TypeScript/build, native MariaDB migration/source/worker/revocation/admission-bound tests, copied-export data/ledger preservation and bundled replay, inquiry/workflow/approved-reply/CRM/workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/sales-inquiry-rules.json. Existing Vite chunk warning remains. Forward040/76; historical001–039 unchanged. No live sends, production migration, deployment or environment change.
+
 # Approved reply continuation — 12 November2026 IST
 
 Exact scoped delivery and remaining gates: APPROVED_SALES_MESSAGES.md. Schema039/74; historical001–038 unchanged. 108 credential-isolated regressions, TypeScript/build, native MariaDB fresh/upgrade/replay and approved-reply concurrency/recovery, copied-export preservation/bundled replay, approved-reply/workflow/CRM/existing-workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/approved-sales-messages.json. Existing Vite chunk warning remains. No live message, production migration, deployment or flag activation.

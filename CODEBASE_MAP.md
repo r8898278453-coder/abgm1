@@ -1,5 +1,7 @@
 # Codebase Map
 
+13 November2026: opt-in automatic inquiry review enrollment uses salesInquiryRules.ts, existing verified inbound transaction/workflow snapshot/shared queue and SalesInquiryRulePanel. Schema040/76 (next041), default rule disabled, message sending separately approved/default off. See docs/implementation/SALES_INQUIRY_RULES.md.
+
 12 November2026: exact human-approved WhatsApp replies use server/approvedSalesMessages.ts and salesSendAuthorization.ts, existing queue/dispatcher/Meta adapter and ApprovedSalesMessagesPanel. Default off, schema039/74 (next040), no live activation. See docs/implementation/APPROVED_SALES_MESSAGES.md for scope, validation and remaining gates.
 
 12 November2026 workflows: server/salesWorkflows.ts owns definitions/enrollments/review execution; salesWorkflowLifecycle.ts owns atomic source-event exits; shared/salesWorkflows.ts owns contracts/presets; SalesWorkflowPanel.tsx owns operator UI. Existing queue/audit/message/fact services remain canonical. Schema038/73; review tasks never imply provider delivery. See docs/implementation/SALES_REVIEW_WORKFLOWS.md.

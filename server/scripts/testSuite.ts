@@ -4,6 +4,7 @@ import {isolatedTestEnvironment} from './testEnvironment';
 const programs=[
   "test/salesWorkflows.test.ts",
   "test/approvedSalesMessages.test.ts",
+  "test/salesInquiryRules.test.ts",
   "test/salesWorkspace.test.ts",
   "test/reelStorage.test.ts",
   "test/reelProcess.test.ts",

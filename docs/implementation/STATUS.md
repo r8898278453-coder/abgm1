@@ -1,8 +1,8 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-12 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-13 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 039_approved_sales_messages; 74 canonical tables. Registered default regression programs: 108 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 040_sales_inquiry_rules; 76 canonical tables. Registered default regression programs: 109 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 32 / 1 / 39.
 

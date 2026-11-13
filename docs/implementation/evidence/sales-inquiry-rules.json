@@ -1,0 +1,111 @@
+{
+  "dateIST": "2026-11-13",
+  "baseCommit": "09dc871",
+  "schema": "040_sales_inquiry_rules",
+  "canonicalTables": 76,
+  "nextMigration": "041",
+  "historicalMigrations001Through039Changed": false,
+  "defaultRegressionsPassed": 109,
+  "targetParents": [
+    "P07-02",
+    "P07-03",
+    "P07-04",
+    "P07-07",
+    "P06-05",
+    "P06-06",
+    "P09-01"
+  ],
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 32,
+    "planned": 39,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm run lint",
+    "npm run build",
+    "npm test",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:inquiry",
+    "npm run test:browser:workflows",
+    "npm run test:browser:approved-sales",
+    "npm run test:browser:sales",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "disabled by default with no automatic backfill",
+    "manage/approve/execute role boundary and eight-way exact rule CAS",
+    "inbox/marker/event/job/outbox source rollback",
+    "eight-way webhook dedupe",
+    "eight-way worker execution: one enrollment and one review task, zero message intents",
+    "new reply/STOP and changed rule cancellation",
+    "pause deferral preserves failure budget",
+    "lost worker commit acknowledgement reconciliation",
+    "enrollment/outbox rollback and safe retry",
+    "expiry and missing-job recovery",
+    "actual ADMIN membership revocation blocks pending enrollment",
+    "rolling250 and pending25 admission ceilings",
+    "scoped no-store HTTP roles"
+  ],
+  "browserCoverage": [
+    "explicit disabled default",
+    "exact approved workflow version/evidence",
+    "unknown commit acknowledgment retained draft and reload without duplicate save",
+    "disabled rule removes target",
+    "late-client response isolation",
+    "existing workflow/reply/CRM/workspace regression"
+  ],
+  "restore": {
+    "result": "passed",
+    "schemaReady": true,
+    "canonicalTables": 76,
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "repeatApplied": 0,
+    "bundledLedgerReplay": "READY; applied0"
+  },
+  "routeInventory": {
+    "declarations": 203,
+    "registrations": 38,
+    "collisions": 0
+  },
+  "liveMessagesSent": 0,
+  "productionDatabaseChanged": false,
+  "environmentSettingsChanged": false,
+  "deployed": false,
+  "defaultInquiryRuleEnabled": false,
+  "messageApprovalSeparate": true,
+  "salesSendingDefault": "off",
+  "reelRenderingDefault": "off",
+  "billing": "excluded",
+  "parentOrPhaseAccepted": false,
+  "remaining": [
+    "email mailbox/read/bounce provider integration",
+    "actual calendar booking/reconciliation",
+    "richer workflow branching",
+    "automatic response generation and template/media capabilities",
+    "verified fulfillment/aftercare/review destination integration",
+    "all-module report reconciliation/retention",
+    "live Hostinger provider/worker/release acceptance"
+  ],
+  "sourceSha256": {
+    "server/salesInquiryRules.ts": "5a1b17ad42ef4ea3887dd779dfeb69e48862807e45e1779ddeca805fc530a865",
+    "shared/salesInquiryRules.ts": "7f1b0aec3ce6b57cd8bb82c716397c08546924416608ef28628158a32419b67f",
+    "server/migrations/040_sales_inquiry_rules.ts": "f70ce9b7800e8789b78a1f400c43c706813f15c2cc914129bb5f66e778cbb2b3",
+    "server/salesWorkflows.ts": "216bcfc2fb9cf3ffdbe0def26edccb8a02fdfbddc7cee4e984c5acb7dc792831",
+    "server/salesWorkflowLifecycle.ts": "dceca0aea725930460d73ca75ff1ae4dc38911adc00dea0d7210d594ef40e21b",
+    "server/salesWorkspace.ts": "45a4f012a117e2938b52192dd1f192267c7649b6b095b67fcf9912d85f51bbae",
+    "server/jobQueueService.ts": "d78f439b27ad4789ff5526412d06a3987c997706419934734840af5a5acfac45",
+    "server/salesRoutes.ts": "0445cb3ad4efb40c231e02a3b70dd2bf8a2e3ad794073116c281f033d5ee13dd",
+    "server/migrator.ts": "b32cf799014fea24bb0501fb8f7d023f7abee42a982ceccc78f1f6c1ef417108",
+    "src/components/SalesInquiryRulePanel.tsx": "60942ec1aa4396c9b809b0ce57c24a2046e8cd3772e4f6a452f63028f9013cc3",
+    "src/components/SalesWorkflowPanel.tsx": "db52b4fb97b11b8d3d00142bb2af02d4fb900f8ed576e81ef9b84d60f5bd7451",
+    "test/salesInquiryRules.test.ts": "7fa9a73cbb9dcc485702fa9a54b5975ab7a23403407eee06d1f52269df52a5ad",
+    "test/integration/salesInquiryRulesSql.test.ts": "e40b2f13dcd62758c2657b303ccf9fa3f63475281adc60fec9f6cf10e000bb22",
+    "test/browser/salesInquiryRules.test.ts": "4495b47f88d545951af115076259a8f17e200b5dcc0452a6ab2acfe992cea60c"
+  }
+}
