@@ -1,3 +1,4 @@
+import {CONFLICT_COLUMNS,CONFLICT_EVENT_COLUMNS} from '../server/migrations/042_whatsapp_conflict_reviews';
 import {INBOUND_EVENT_COLUMNS} from '../server/migrations/041_whatsapp_inbound_events';
 import {INQUIRY_COLUMNS} from '../server/migrations/040_sales_inquiry_rules';
 import {APPROVED_SEND_COLUMNS} from '../server/migrations/039_approved_sales_messages';
@@ -121,7 +122,9 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME LIKE 'sales_%'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(SALES_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
     if(cleanSql.includes("TABLE_NAME IN ('sales_inquiry_rules','sales_inquiry_events')")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(INQUIRY_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
     if(cleanSql.includes("TABLE_NAME LIKE 'sales_workflow_%'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(WORKFLOW_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
-    if(cleanSql.includes("TABLE_NAME='whatsapp_inbound_events'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [INBOUND_EVENT_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.includes("TABLE_NAME IN ('whatsapp_conflict_observations','whatsapp_conflict_reviews')")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [Object.entries(CONFLICT_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
+    if(cleanSql.includes("COLUMN_NAME IN ('conflict_revision','resolved_revision','review_revision')")&&cleanSql.includes("DATA_TYPE<>'bigint'"))return [[],[]];
+    if(cleanSql.includes("TABLE_NAME='whatsapp_inbound_events'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...INBOUND_EVENT_COLUMNS,...CONFLICT_EVENT_COLUMNS].map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME='sales_message_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [APPROVED_SEND_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[{COLUMN_NAME:'workflow_revision'},{COLUMN_NAME:'deferrals'},...['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'].map(COLUMN_NAME=>({COLUMN_NAME}))],[]];
     if (cleanSql.includes('INFORMATION_SCHEMA.TABLES')) {

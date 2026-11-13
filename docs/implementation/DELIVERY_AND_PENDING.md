@@ -1,5 +1,8 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Latest conflict-resolution continuation (13 November2026 IST): [WHATSAPP_CONFLICT_REVIEWS.md](WHATSAPP_CONFLICT_REVIEWS.md) adds privileged investigation, exact versioned retain-original decisions, known-variant discard, new-variant quarantine, bounded incident state and review UI. Schema042/79, next043; historical001–041 unchanged. No work/send revival, consent reset or parent/phase acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest verified-event continuation (13 November2026 IST): [WHATSAPP_EVENT_TIME.md](WHATSAPP_EVENT_TIME.md) adds provider-clock persistence, stale/expired history, delayed STOP, atomic replay/conflict guards, mapped-batch retry handling and scoped event-history UI. Schema041/77, next042; historical001–040 unchanged. Sender-resolution and operator-replay limits are explicit; no parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
 
 

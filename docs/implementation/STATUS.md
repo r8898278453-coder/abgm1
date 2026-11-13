@@ -2,7 +2,7 @@
 
 Generated from TASKS.csv — 2026-11-13 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 041_whatsapp_inbound_events; 77 canonical tables. Registered default regression programs: 110 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 042_whatsapp_conflict_reviews; 79 canonical tables. Registered default regression programs: 111 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 33 / 1 / 38.
 

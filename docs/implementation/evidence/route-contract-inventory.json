@@ -307,6 +307,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/inbound-conflicts",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/inbound-conflicts/:eventId",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/inbound-conflicts/:eventId/review",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/inbound-events",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },

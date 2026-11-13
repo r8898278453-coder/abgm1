@@ -6,6 +6,7 @@ const programs=[
   "test/approvedSalesMessages.test.ts",
   "test/salesInquiryRules.test.ts",
   "test/whatsAppEventTime.test.ts",
+  "test/whatsAppConflictReviews.test.ts",
   "test/salesWorkspace.test.ts",
   "test/reelStorage.test.ts",
   "test/reelProcess.test.ts",

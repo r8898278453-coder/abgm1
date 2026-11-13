@@ -1,8 +1,7 @@
-import {exitSalesWorkflows} from './salesWorkflowLifecycle';
+import {observeWhatsAppConflict} from './whatsAppConflictLifecycle';
 import {verifiedWhatsAppEvent,inboundDisposition,isWhatsAppOptOut,type VerifiedWhatsAppEvent} from '../shared/whatsAppEvents';
 import {canonicalJson} from '../shared/canonicalJson';
 import {salesHash,contactHash} from './salesWorkspace';
-import {agencyAudit} from './agencyRoutes';
 import {inboundOccurredSql} from './whatsAppEventTime';
 import {inboundSalesMessage} from './salesWorkspace';
 import {insertLeadRow} from './leadWriter';
@@ -37,8 +36,8 @@ export async function recordWhatsAppInboundLead(pool:Pool,company:string,provide
   if(event){
    const body=(message?.body||lead.notes||'').slice(0,8192),hash=salesHash(canonicalJson({source:event,contact:contactHash('WHATSAPP',lead.phone),body,kind:message?.kind||'text',mediaId:message?.mediaId||null}));
    const [clock]:any=await connection.query('SELECT UNIX_TIMESTAMP()*1000 now_ms');if(event.occurredAtMs>Number(clock[0].now_ms)+300000)throw new Error('INVALID_PROVIDER_TIMESTAMP');
-   const [known]:any=await connection.query('SELECT input_hash,contact_hash FROM whatsapp_inbound_events WHERE company_id=? AND event_key=? FOR UPDATE',[company,key]);
-   if(known.length){if(known[0].input_hash!==hash){await connection.query('UPDATE whatsapp_inbound_events SET conflicted=1,conflict_at=NOW() WHERE company_id=? AND event_key=?',[company,key]);await exitSalesWorkflows(connection,company,'INBOUND_PROVIDER_EVENT_CONFLICT','webhook',{contactHash:known[0].contact_hash});await agencyAudit(connection,company,'webhook','SALES_INBOUND_EVENT_CONFLICT',{eventKey:key});await connection.commit();throw new Error('INBOUND_PROVIDER_EVENT_CONFLICT');}await connection.commit();return false;}
+   const [known]:any=await connection.query('SELECT * FROM whatsapp_inbound_events WHERE company_id=? AND event_key=? FOR UPDATE',[company,key]);
+   if(known.length){if(known[0].input_hash!==hash){const state=await observeWhatsAppConflict(connection,company,known[0],hash,{source:event,contact:contactHash('WHATSAPP',lead.phone),body,kind:message?.kind||'text',mediaId:message?.mediaId||null});await connection.commit();if(state==='REVIEWED')return false;throw new Error('INBOUND_PROVIDER_EVENT_CONFLICT');}await connection.commit();return false;}
    const [old]:any=await connection.query('SELECT id FROM processed_webhook_events WHERE company_id=? AND id IN (?,?) LIMIT 1',[company,key,providerId]);if(old.length){await connection.commit();return false;}
    const contact=contactHash('WHATSAPP',lead.phone);const [previous]:any=await connection.query(`SELECT MAX(last_ms) latest_ms FROM (SELECT MAX(occurred_at_ms) last_ms FROM whatsapp_inbound_events WHERE company_id=? AND contact_hash=? UNION ALL SELECT MAX(${inboundOccurredSql}) last_ms FROM sales_inbox_messages WHERE company_id=? AND channel='WHATSAPP' AND direction='INBOUND' AND contact_hash=?) clocks`,[company,contact,company,contact]);
    disposition=inboundDisposition(event.occurredAtMs,previous[0].latest_ms===null?null:Number(previous[0].latest_ms),Number(clock[0].now_ms),isWhatsAppOptOut(body));

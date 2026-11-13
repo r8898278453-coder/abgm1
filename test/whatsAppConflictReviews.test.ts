@@ -1,0 +1,7 @@
+import assert from 'node:assert/strict';
+import {inboundConflictReviewInput} from '../shared/whatsAppConflictReviews';
+import {conflictState} from '../server/whatsAppConflictReviews';
+const body={expectedVersion:'0',expectedConflictVersion:'1',decision:'ACCEPT_ORIGINAL',requestKey:'a'.repeat(64),evidence:'Investigated original signed event and provider evidence.'};assert.equal(inboundConflictReviewInput.safeParse(body).success,true);
+for(const update of [{decision:'RESEND'},{force:true},{clearOptOut:true},{expectedConflictVersion:'01'},{expectedVersion:0},{evidence:'ok'},{requestKey:'bad'}])assert.equal(inboundConflictReviewInput.safeParse({...body,...update}).success,false);
+assert.equal(conflictState({conflicted:1,conflict_revision:'2',resolved_revision:'1',conflict_overflow:0}),'OPEN');assert.equal(conflictState({conflicted:1,conflict_revision:'2',resolved_revision:'2',conflict_overflow:0}),'RELEASED');assert.equal(conflictState({conflicted:1,conflict_revision:'3',resolved_revision:'2',conflict_overflow:1}),'OVERFLOW');for(const row of [{conflicted:1,conflict_revision:'0',resolved_revision:'0',conflict_overflow:0},{conflicted:1,conflict_revision:'1',resolved_revision:'2',conflict_overflow:0},{conflicted:0,conflict_revision:'1',resolved_revision:'0',conflict_overflow:0}])assert.throws(()=>conflictState(row));
+console.log('Conflict review contracts: exact revisions/evidence, no resend/consent override and malformed/released/overflow state distinctions passed.');

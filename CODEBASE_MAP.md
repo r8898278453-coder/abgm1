@@ -1,5 +1,7 @@
 # Codebase Map
 
+13 November2026: audited inbound conflict review uses whatsAppConflictLifecycle.ts/whatsAppConflictReviews.ts and WhatsAppConflictReviewPanel. Schema042/79 (next043). Exact retain-original review cannot promote changed content, reset opt-out or resume cancelled/uncertain sends. New variants reopen quarantine. See docs/implementation/WHATSAPP_CONFLICT_REVIEWS.md.
+
 13 November2026: verified WhatsApp event-time/replay controls use whatsAppInbound.ts, whatsAppWebhook.ts, whatsAppEventTime.ts and WhatsAppInboundHistoryPanel. Schema041/77 (next042). Stale history cannot restart reviews or extend new verified reply windows; conflicts quarantine contact sending. See docs/implementation/WHATSAPP_EVENT_TIME.md for compatibility and remaining gates.
 
 13 November2026: opt-in automatic inquiry review enrollment uses salesInquiryRules.ts, existing verified inbound transaction/workflow snapshot/shared queue and SalesInquiryRulePanel. Schema040/76 (next041), default rule disabled, message sending separately approved/default off. See docs/implementation/SALES_INQUIRY_RULES.md.

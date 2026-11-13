@@ -1,3 +1,5 @@
+Current continuation: WHATSAPP_CONFLICT_REVIEWS.md adds audited retain-original review and reviewed-variant discard. New variants still quarantine; missing evidence/overflow/uncertain sends stay blocked. Schema042/79. Earlier no-resolution notes below describe the041 checkpoint.
+
 # Verified WhatsApp event time and replay guards — 13 November 2026 IST
 
 New signed WhatsApp inbound messages now carry their provider event time through persistence and reply-window checks. Previously local arrival time could extend a delayed message's free-text window and restart an inquiry workflow. This batch preserves delayed history while separating it from current automation.
