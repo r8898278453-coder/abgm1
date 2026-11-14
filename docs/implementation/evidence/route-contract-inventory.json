@@ -346,6 +346,21 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/intakes",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/intakes/:intakeId/cancel-replay",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/intakes/:intakeId/replay",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "PUT",
       "path": "/api/companies/:companyId/sales/leads/:leadId/opportunity",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"

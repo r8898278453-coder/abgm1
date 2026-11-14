@@ -6,7 +6,8 @@ import {describeWhatsAppInbound} from './whatsAppInbound';
 const webhookJson=express.json({limit:'1mb',verify:(req,_res,body)=>{(req as any).rawBody=Buffer.from(body);}});
 /** Mount before the general JSON parser so webhook bodies are capped before JSON decoding. */
 export const whatsAppWebhookBodyParser:RequestHandler=(req,res,next)=>{if(req.method!=='POST'){next();return;}webhookJson(req,res,error=>{if(error){res.status(error.type==='entity.too.large'?413:400).json({error:'Invalid or oversized webhook body'});return;}next();});};
-export function registerWhatsAppWebhook(app:Express,deps:{secret:()=>string|undefined;resolve:(phone:string,waba:string)=>Promise<string|null>;receipt:(company:string,input:MessageReceipt)=>Promise<void>;inbound:(company:string,message:any,contact:any,source:VerifiedWhatsAppEvent)=>Promise<void>}){
+export type WhatsAppWebhookItem={phone:string;waba:string;receipt?:MessageReceipt;message?:any;contact?:any;source?:VerifiedWhatsAppEvent};
+export function registerWhatsAppWebhook(app:Express,deps:{secret:()=>string|undefined;resolve:(phone:string,waba:string)=>Promise<string|null>}&({intake:(company:string,item:WhatsAppWebhookItem)=>Promise<void>}|{receipt:(company:string,input:MessageReceipt)=>Promise<void>;inbound:(company:string,message:any,contact:any,source:VerifiedWhatsAppEvent)=>Promise<void>})){
  app.post('/api/whatsapp/webhook',async(req:Request,res)=>{
   try{
    const secret=deps.secret();if(!secret){res.status(503).json({error:'Webhook signature configuration unavailable'});return;}
@@ -16,7 +17,7 @@ export function registerWhatsAppWebhook(app:Express,deps:{secret:()=>string|unde
    const expected=createHmac('sha256',secret).update(raw).digest();if(!timingSafeEqual(Buffer.from(signature.slice(7),'hex'),expected)){res.status(403).json({error:'Invalid webhook signature'});return;}
    let payload:any;try{payload=JSON.parse(raw.toString('utf8'));}catch{res.status(400).json({error:'Invalid webhook body'});return;}
    if(!payload||payload.object!=='whatsapp_business_account'||!Array.isArray(payload.entry)||payload.entry.length>10){res.status(400).json({error:'Unsupported webhook envelope'});return;}
-   const work:Array<{phone:string;waba:string;receipt?:MessageReceipt;message?:any;contact?:any;source?:VerifiedWhatsAppEvent}>=[];let ignored=0;
+   const work:WhatsAppWebhookItem[]=[];let ignored=0;
    try{
     for(const entry of payload.entry){
      if(typeof entry.id!=='string'||!/^\d{1,64}$/.test(entry.id)||!Array.isArray(entry.changes)||entry.changes.length>20)throw new Error();
@@ -39,10 +40,11 @@ export function registerWhatsAppWebhook(app:Express,deps:{secret:()=>string|unde
      }
     }
    }catch{res.status(400).json({error:'Invalid or oversized webhook events'});return;}
-   const owners=new Map<string,string|null>();let receipts=0,inbound=0,unmapped=0;
+   const owners=new Map<string,string|null>();let receipts=0,inbound=0,unmapped=0,failed=0;
    for(const item of work){const scope=`${item.waba}:${item.phone}`;if(!owners.has(scope))owners.set(scope,await deps.resolve(item.phone,item.waba));const company=owners.get(scope);if(!company){unmapped++;continue;}
-    if(item.receipt){await deps.receipt(company,item.receipt);receipts++;}else{await deps.inbound(company,item.message,item.contact,item.source!);inbound++;}
+    if('intake' in deps){try{await deps.intake(company,item);if(item.receipt)receipts++;else inbound++;}catch{failed++;}}else if(item.receipt){await deps.receipt(company,item.receipt);receipts++;}else{await deps.inbound(company,item.message,item.contact,item.source!);inbound++;}
    }
+   if(failed){res.status(503).json({error:'Webhook storage unavailable; retry delivery',receipts,inbound,unmapped,ignored,failed});return;}
    if(unmapped){res.status(503).json({error:'Webhook sender mapping unavailable; retry delivery',receipts,inbound,unmapped,ignored});return;}
    res.json({status:'recorded',receipts,inbound,unmapped,ignored});
   }catch{res.status(503).json({error:'Webhook storage unavailable; retry delivery'});}

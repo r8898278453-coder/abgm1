@@ -1,3 +1,5 @@
+Current continuation: WHATSAPP_INTAKE_RECOVERY.md adds encrypted, short-lived verified intake snapshots and audited replay. Conflicting snapshots are scrubbed rather than promoted. Current schema043/80; earlier no-replay/no-retention notes below describe prior checkpoints.
+
 # Audited inbound conflict resolution — 13 November 2026 IST
 
 Operators can investigate a WhatsApp replay conflict and explicitly retain the original signed event. Changed replay content is never promoted. Release removes only the reviewed event's quarantine; consent, message approvals, unknown provider outcomes and other contact conflicts remain independent guards.

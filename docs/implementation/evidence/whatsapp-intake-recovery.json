@@ -1,0 +1,133 @@
+{
+  "dateIST": "2026-11-14",
+  "baseCommit": "8a7d057",
+  "schema": "043_whatsapp_intakes",
+  "canonicalTables": 80,
+  "nextMigration": "044",
+  "historicalMigrations001Through042Changed": false,
+  "defaultRegressionsPassed": 112,
+  "targetParents": [
+    "P06-02",
+    "P06-03",
+    "P06-05",
+    "P06-06",
+    "P07-03",
+    "P07-04",
+    "P09-01"
+  ],
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 33,
+    "planned": 38,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:whatsapp-intakes",
+    "npm run test:browser:whatsapp-events",
+    "npm run test:browser:whatsapp-conflicts",
+    "npm run test:browser:sales",
+    "npm run test:browser:inquiry",
+    "npm run test:browser:workflows",
+    "npm run test:browser:approved-sales",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "signed durable failure capture and encrypted private snapshots",
+    "mixed mapped batch continues after a failed item and redelivery dedupes successful items",
+    "eight-way replay admission: one job",
+    "eight-way same-lease replay execution cannot clobber the active owner",
+    "provider-redelivery/replay race: budget-free deferral then canonical reconciliation",
+    "source/receipt and intake/queue settlement share a transaction",
+    "lost business commit acknowledgment reconciliation",
+    "canonical prior event replay without duplicate inbox records",
+    "stale intake claim recovery",
+    "queued cancellation followed by legitimate provider redelivery",
+    "mapping drift and revoked actor refusal",
+    "three replay admissions then bounded dead letter",
+    "old provider timestamp cannot reopen reply window",
+    "original first-intake receipt timestamp survives replay",
+    "expired snapshots refuse replay and are purged",
+    "cipher/tenant-context tamper refuses replay",
+    "conflict snapshots scrub and cannot be promoted by replay",
+    "receipt recovery without duplicate evidence",
+    "delayed STOP imports after snapshot expiry",
+    "500-retained and25-queued limits with STOP priority",
+    "scoped no-store metadata API and zero outbound intents"
+  ],
+  "contractCoverage": [
+    "strict replay/cancel input: no body/time/force override",
+    "normalized provider allowlist drops unknown fields",
+    "AES-GCM authenticated envelope binds client/intake/hash/payload",
+    "plaintext/tamper/cross-context refusal"
+  ],
+  "browserCoverage": [
+    "metadata-only recovery and role controls",
+    "unknown-ack evidence retention and stable retry key",
+    "queued cancellation",
+    "no payload or timestamp override",
+    "late-client response isolation",
+    "existing history/conflict/CRM/inquiry/workflow/reply/workspace regressions"
+  ],
+  "restore": {
+    "result": "passed",
+    "canonicalTables": 80,
+    "migrations": 43,
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "repeatApplied": 0,
+    "bundledLedgerReplay": "READY; applied0"
+  },
+  "routeInventory": {
+    "declarations": 210,
+    "registrations": 38,
+    "collisions": 0
+  },
+  "verificationNotes": [
+    "Initial fixture membership removal was corrected to delete its dependent client assignment first.",
+    "Explicit replay-claim ownership and a budget-free provider-in-progress path were added and verified under duplicate/racing execution."
+  ],
+  "liveMessagesSent": 0,
+  "productionDatabaseChanged": false,
+  "environmentSettingsChanged": false,
+  "deployed": false,
+  "salesSendingDefault": "off",
+  "reelRenderingDefault": "off",
+  "billing": "excluded",
+  "parentOrPhaseAccepted": false,
+  "remaining": [
+    "unmapped sender assignment depends on configuration and provider redelivery retention",
+    "physical expiry purge requires dispatcher; backup/metadata/deleted-client retention remains separate",
+    "global ownerless raw-payload quarantine not enabled",
+    "live email mailbox/bounce and calendar providers",
+    "broader workflow automation/report reconciliation",
+    "live Hostinger/provider/release acceptance"
+  ],
+  "sourceSha256": {
+    "shared/whatsAppIntakes.ts": "b5985f26967c8d22f47263c3fa0384f76dbea36d374bfd285b1b3a8bcbc91c21",
+    "server/whatsAppIntakes.ts": "c4e38ffeecc47247f6ce60f66b39480478c0b5a6533556f2cef68e103882cbaf",
+    "server/whatsAppIntakePayload.ts": "e73c2d60f844b593f4beca0458b9a0129c9d000b4e1f26e1af942ada99d82ad3",
+    "server/whatsAppIntakeDomain.ts": "0b742ecebe81b30138ca9b9b2b5360dea2fb74762f67137f69852038a95ec791",
+    "server/migrations/043_whatsapp_intakes.ts": "d97b079c32fed2a18acdce13554de0efe61aaa189406580754bcd68d2c8a70ea",
+    "server/whatsAppInbound.ts": "c857e64854a2d94b6e398e0712f2bd06ff020c40ea2a53423ae05ad82c5a50c9",
+    "server/whatsAppWebhook.ts": "c0277246b3e57a261f37c2b12931e9d97db8c0e928ef916e9ea75d23c4155cce",
+    "server/messageDeliveryReceipts.ts": "9440e2ab3f5c3f2a095d36cd913769f15406618e17c1621e065b4b459199d447",
+    "server/jobQueueService.ts": "f15146c7de63b78aca735639cd372e50416f48e0bf9bc6982694defa059a7868",
+    "server/salesRoutes.ts": "780b561afc382334640092047694da2fe8b439d59211f557aac45546616d2d96",
+    "server/migrator.ts": "10e62bd892171b703b8c1db81681b5189542fc5cd4e9d1f77e5c76daa29c8e06",
+    "server.ts": "67c0584bfdd22366bb1b61de96a7dddcd76599d94095cdcb42c70892dea773f6",
+    "src/components/WhatsAppIntakeRecoveryPanel.tsx": "1f01a9c3a8a142e55bf29bec14848da7e3230af879c66bea7fdb473ab08e62e0",
+    "src/components/SalesWorkspacePanel.tsx": "a12d7bec362a7996743e9978f6504a5ca778eba6ad4c89114238ab2747a5468b",
+    "test/whatsAppIntakes.test.ts": "11ff8304ed4f5ff08fc05e056473caac3a8885cc520d0f9eb18c1d53b60ce3c3",
+    "test/integration/whatsAppIntakesSql.test.ts": "22d420d51de80e5f7814073c0e5b3e004c821979a66ab380bdfbe3996ece3dc6",
+    "test/integration/localQueueSql.test.ts": "e207285f2b505f9445c632a702656e0931181440ba4656ba591fb86b75682585",
+    "test/browser/whatsAppIntakes.test.ts": "f9312a187744738c2cb0f2a66a6cdc0bfa0a36ec76c677f8c10be41203462c4d"
+  }
+}

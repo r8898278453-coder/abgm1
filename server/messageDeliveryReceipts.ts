@@ -4,7 +4,7 @@ import type {Pool} from 'mysql2/promise';
 import type {ReadOnlySql} from './readOnlySqlDeadline';
 export const receiptInput=z.object({phoneNumberId:z.string().regex(/^\d{1,64}$/),providerId:z.string().regex(/^[\x21-\x7e]{1,255}$/),status:z.enum(['sent','delivered','read','failed']),occurredAtMs:z.number().int().nonnegative().max(8640000000000000),errorCode:z.number().int().nonnegative().max(4294967295).optional()}).strict();
 export type MessageReceipt=z.infer<typeof receiptInput>;
-export async function recordMessageReceipt(pool:Pool,company:string,input:MessageReceipt){
+export async function recordMessageReceipt(pool:Pick<Pool,'query'>,company:string,input:MessageReceipt){
  const value=receiptInput.parse(input);const key=createHash('sha256').update(JSON.stringify([value.phoneNumberId,value.providerId,value.status,value.occurredAtMs,value.errorCode??null])).digest('hex');
  await pool.query(`INSERT INTO message_delivery_receipts(company_id,event_key,phone_number_id,provider_id,status,occurred_at_ms,error_code) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)`,[company,key,value.phoneNumberId,value.providerId,value.status,value.occurredAtMs,value.errorCode??null]);
 }

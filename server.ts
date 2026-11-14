@@ -1,3 +1,5 @@
+import {processWhatsAppIntake} from './server/whatsAppIntakes';
+import {normalizeWhatsAppIntake} from './server/whatsAppIntakePayload';
 import {registerSalesRoutes} from './server/salesRoutes';
 import {registerRenderRoutes} from './server/renderRoutes';
 import {registerClientPolicyRoutes} from './server/clientPolicyRoutes';
@@ -32,9 +34,7 @@ import {readDispatcherHistory} from './server/dispatcherStore';
 import {registerCompanyDataRoutes} from './server/companyDataRoutes';
 import {registerAdCampaignRoutes} from './server/adCampaignRoutes';
 import {inspectDatabaseStartup} from './server/databaseStartup';
-import {recordWhatsAppInboundLead,describeWhatsAppInbound} from './server/whatsAppInbound';
 import {registerWhatsAppWebhook,whatsAppWebhookBodyParser} from './server/whatsAppWebhook';
-import {recordMessageReceipt} from './server/messageDeliveryReceipts';
 import {registerMessageDispatchStatus,readMessageDispatchStatus} from './server/messageDispatchStatus';
 import {dispatchMessageIntent,DispatchIntentError} from './server/messageDispatchIntents';
 import {createHash} from 'node:crypto';
@@ -2849,35 +2849,7 @@ app.get('/api/whatsapp/webhook', (req, res) => {
   }
 });
 
-registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process.env.META_APP_SECRET,resolve:(phoneNumberId,wabaId)=>findCompanyByWhatsAppIdentifier({phoneNumberId,wabaId},true),receipt:async(company,input)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable receipt storage unavailable');await recordMessageReceipt(pool,company,input);},inbound:async(matchedCompanyId,message,contact,source)=>{
- const inboundPool=await getDbPool();if(!inboundPool)throw new Error('Inbound storage unavailable');
-      const {phone:fromPhone,name:contactName,body:textBody}=describeWhatsAppInbound(message,contact);
-
-      const intentAnalysis = calculateMessageIntent(textBody, {
-        service: 'WhatsApp Direct Inquiry',
-        phone: fromPhone,
-      });
-
-      const matchedCompany = matchedCompanyId ? await getCompanyById(matchedCompanyId) : null;
-      const compName = matchedCompany?.name || 'Our Team';
-
-      // Auto-ingest lead into database for the matched company tenant
-      const inserted=await recordWhatsAppInboundLead(inboundPool,matchedCompanyId,message.id,{
-        name: contactName,
-        company: 'WhatsApp Inbound Inquiry',
-        phone: `+${fromPhone}`,
-        service: 'WhatsApp Direct Inquiry',
-        budget: 'Pending Discussion',
-        stage: 'new',
-        intent_score: intentAnalysis.score ?? null,
-        source: 'WhatsApp Cloud Inbound',
-        notes: `Inbound text: "${textBody}" [Provider Message ID: ${message.id}]${intentAnalysis.reasons.length > 0 ? ` [Intent Signals: ${intentAnalysis.reasons.join(', ')}]` : ''}`,
-        ai_suggested_reply: `Namaste ${contactName}! ${compName} has received your message. A dedicated consultant will reply right here on WhatsApp shortly.`,
-      },{body:textBody,kind:message.type,mediaId:typeof (message.image?.id||message.document?.id)==='string'?(message.image?.id||message.document?.id).slice(0,255):undefined},source);
-
-      if(!inserted)return;
-      await sendTenantTelegram(matchedCompanyId,`New WhatsApp inbound message recorded for this workspace.`,{getCompanyIntegration,fetch});
-}});
+registerWhatsAppWebhook(app,{secret:()=>process.env.WHATSAPP_APP_SECRET||process.env.META_APP_SECRET,resolve:(phoneNumberId,wabaId)=>findCompanyByWhatsAppIdentifier({phoneNumberId,wabaId},true),intake:async(company,item)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable intake storage unavailable');const result=await processWhatsAppIntake(pool,company,normalizeWhatsAppIntake(item));if(result.inserted)await sendTenantTelegram(company,'New WhatsApp inbound message recorded for this workspace.',{getCompanyIntegration,fetch});}});
 
 // ---------------- META SOCIAL DIRECT DISPATCH (FACEBOOK & INSTAGRAM) ---------------- //
 

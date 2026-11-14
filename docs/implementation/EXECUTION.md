@@ -1,3 +1,7 @@
+# Encrypted intake recovery — 14 November2026 IST
+
+Scope/retention and remaining gates: WHATSAPP_INTAKE_RECOVERY.md. 112 credential-isolated programs, TypeScript/build, native signed capture/encryption/atomic replay/claim-race/actor-mapping/expiry/dead-letter/STOP/cap coverage, uploaded-export row/ledger preservation and bundled replay, intake/history/conflict/CRM/inquiry/workflow/reply/workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/whatsapp-intake-recovery.json. Existing Vite chunk warning remains. Schema043/80; historical001–042 unchanged. No live sends, production migration, environment activation or deployment.
+
 # Audited conflict-resolution continuation — 13 November2026 IST
 
 Scope and remaining gates: WHATSAPP_CONFLICT_REVIEWS.md. 111 credential-isolated regressions, TypeScript/build, actual041 conflict backfill/replay and native privileged-review/revision/rollback/uncertain-send/consent/independent-conflict/cap coverage, copied-export row/ledger preservation and bundled replay, conflict/event-history/CRM/inquiry/workflow/reply/workspace Chromium and route/doc guards passed. Evidence/fingerprints: evidence/whatsapp-conflict-reviews.json. An existing website-import privacy assertion now checks its metadata schema and excludes allowed IDs/timestamps from raw-price matching; the full SQL matrix reran successfully. Existing Vite chunk warning remains. Schema042/79; historical001–041 unchanged. No live sends, production migration, environment activation or deployment.

@@ -1,3 +1,4 @@
+import {readWhatsAppIntakes,queueWhatsAppIntakeReplay,cancelWhatsAppIntakeReplay} from './whatsAppIntakes';
 import {readWhatsAppConflicts,readWhatsAppConflictDetail,reviewWhatsAppConflict,mayReviewWhatsAppConflict} from './whatsAppConflictReviews';
 import {readWhatsAppInboundHistory} from './whatsAppInboundHistory';
 import {saveSalesInquiryRule,readSalesInquiryRules} from './salesInquiryRules';
@@ -12,6 +13,9 @@ import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOvervie
 export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('get',base+'/intakes','read',async(req,pool,user)=>({...await readWhatsAppIntakes(pool,String(req.params.companyId)),canManageRecovery:await mayReviewWhatsAppConflict(pool,String(req.params.companyId),user.id)}));
+ route('post',base+'/intakes/:intakeId/replay','manage',(req,pool,user)=>queueWhatsAppIntakeReplay(pool,user,String(req.params.companyId),String(req.params.intakeId),req.body));
+ route('post',base+'/intakes/:intakeId/cancel-replay','manage',(req,pool,user)=>cancelWhatsAppIntakeReplay(pool,user,String(req.params.companyId),String(req.params.intakeId),req.body));
  route('get',base+'/inbound-conflicts','read',async(req,pool,user)=>({...await readWhatsAppConflicts(pool,String(req.params.companyId)),canReview:(await mayReviewWhatsAppConflict(pool,String(req.params.companyId),user.id))}));
  route('get',base+'/inbound-conflicts/:eventId','manage',(req,pool,user)=>readWhatsAppConflictDetail(pool,user,String(req.params.companyId),String(req.params.eventId)));
  route('post',base+'/inbound-conflicts/:eventId/review','manage',(req,pool,user)=>reviewWhatsAppConflict(pool,user,String(req.params.companyId),String(req.params.eventId),req.body));

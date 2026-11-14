@@ -1,0 +1,11 @@
+import {intakePayload,type IntakePayload} from '../shared/whatsAppIntakes';
+import {encryptCredential,decryptCredential} from './db';
+import {canonicalJson} from '../shared/canonicalJson';
+import {salesHash} from './salesWorkspace';
+import {describeWhatsAppInbound} from './whatsAppInbound';
+import type {WhatsAppWebhookItem} from './whatsAppWebhook';
+export function normalizeWhatsAppIntake(item:WhatsAppWebhookItem):IntakePayload{if(item.receipt)return intakePayload.parse({kind:'RECEIPT',source:{phoneNumberId:item.phone,wabaId:item.waba,occurredAtMs:item.receipt.occurredAtMs},receipt:item.receipt});const value=describeWhatsAppInbound(item.message,item.contact);return intakePayload.parse({kind:'INBOUND',source:item.source,providerId:item.message.id,from:value.phone,name:value.name,body:value.body,messageKind:item.message.type,mediaId:typeof(item.message.image?.id||item.message.document?.id)==='string'?(item.message.image?.id||item.message.document?.id).slice(0,255):null});}
+export const intakeFingerprint=(value:IntakePayload)=>salesHash(canonicalJson(value));
+export const intakeRecordId=(company:string,value:IntakePayload)=>'wii_'+salesHash(company+':'+intakeFingerprint(value)).slice(0,32);
+export function sealWhatsAppIntake(company:string,id:string,value:IntakePayload){const text=canonicalJson({companyId:company,intakeId:id,inputHash:intakeFingerprint(value),payload:value});if(Buffer.byteLength(text)>32768)throw new Error('INTAKE_PAYLOAD_TOO_LARGE');const encrypted=encryptCredential(text);if(!encrypted.startsWith('enc:v1:'))throw new Error('INTAKE_ENCRYPTION_UNAVAILABLE');return encrypted;}
+export function openWhatsAppIntake(row:any):IntakePayload{try{if(typeof row.payload_cipher!=='string'||!row.payload_cipher.startsWith('enc:v1:'))throw new Error();const text=decryptCredential(row.payload_cipher);if(!text||Buffer.byteLength(text)>32768)throw new Error();const sealed=JSON.parse(text),payload=intakePayload.parse(sealed.payload);if(sealed.companyId!==row.company_id||sealed.intakeId!==row.id||sealed.inputHash!==row.input_hash||intakeFingerprint(payload)!==row.input_hash||intakeRecordId(row.company_id,payload)!==row.id)throw new Error();return payload;}catch{throw new Error('INTAKE_PAYLOAD_INVALID');}}

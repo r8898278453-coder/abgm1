@@ -1,5 +1,8 @@
 # ABGM1 implementation blueprint
 
+Latest intake-recovery continuation (14 November2026 IST): [WHATSAPP_INTAKE_RECOVERY.md](WHATSAPP_INTAKE_RECOVERY.md) adds encrypted verified snapshots, audited shared-queue replay, atomic business settlement, retention/resource controls and metadata-only recovery UI. Schema043/80, next044; historical001–042 unchanged. No outbound send, parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest conflict-resolution continuation (13 November2026 IST): [WHATSAPP_CONFLICT_REVIEWS.md](WHATSAPP_CONFLICT_REVIEWS.md) adds privileged investigation, exact versioned retain-original decisions, known-variant discard, new-variant quarantine, bounded incident state and review UI. Schema042/79, next043; historical001–041 unchanged. No work/send revival, consent reset or parent/phase acceptance. Current counts: [STATUS.md](STATUS.md).
 
 

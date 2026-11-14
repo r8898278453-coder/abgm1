@@ -1,3 +1,5 @@
+Current continuation: WHATSAPP_INTAKE_RECOVERY.md adds encrypted, short-lived verified intake snapshots and audited replay. Conflicting snapshots are scrubbed rather than promoted. Current schema043/80; earlier no-replay/no-retention notes below describe prior checkpoints.
+
 Current continuation: WHATSAPP_CONFLICT_REVIEWS.md adds audited retain-original review and reviewed-variant discard. New variants still quarantine; missing evidence/overflow/uncertain sends stay blocked. Schema042/79. Earlier no-resolution notes below describe the041 checkpoint.
 
 # Verified WhatsApp event time and replay guards — 13 November 2026 IST
