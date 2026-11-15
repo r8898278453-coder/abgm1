@@ -7,11 +7,13 @@ export function registerNotificationStatus(app: Express, deps: {
   read: (company: string, before: NotificationCursor | null, limit: number) => Promise<unknown>;
 }) {
   app.get('/api/companies/:id/notification-status', async (req, res) => {
+    res.set('Cache-Control','no-store');
     try {
       const user = await deps.getAuthUserFromRequest(req);
       if (!user) { res.status(401).json({ success: false, error: 'Authentication required' }); return; }
       const access = await deps.verifyCompanyWorkspaceAccess(user, req.params.id);
       if (!access.authorized) { res.status(access.status).json({ success: false, error: access.error }); return; }
+      if(req.params.id.length>64||Object.keys(req.query).some(k=>!['before','limit'].includes(k))){res.status(400).json({success:false,error:'Invalid notification scope'});return;}
       let before: NotificationCursor | null, limit: number;
       try {
         before = parseNotificationCursor(req.query.before);
@@ -20,7 +22,7 @@ export function registerNotificationStatus(app: Express, deps: {
         limit = Number(raw); if (limit < 1 || limit > 100) throw new Error();
       } catch { res.status(400).json({ success: false, error: 'Invalid notification cursor or limit' }); return; }
       const result: any = await deps.read(req.params.id, before, limit);
-      res.status(result.available ? 200 : 503).json({ success: result.available, ...result });
+      res.status(result.available ? 200 : 503).json({...result,success:result.available,companyId:req.params.id});
     } catch { res.status(500).json({ success: false, error: 'Unable to load notification status' }); }
   });
 }

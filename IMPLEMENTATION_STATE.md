@@ -1,5 +1,7 @@
 # Implementation State
 
+Telegram evidence continuation —15 November2026 IST: saved client configuration/permissions, strict manual API acceptance, canonical report/history, local uncertainty and session fences; no simulated autonomous inbox. P09-04 is in_progress; remaining gates are explicit in docs/implementation/TELEGRAM_OPERATIONS_CONSOLE.md. Schema044/80 unchanged.
+
 Agency exception continuation —15 November2026 IST: ten authorized current backlog counters, explicit weighted priorities, guarded CSV and agency review/CRM navigation. Schema044/80 unchanged. See docs/implementation/AGENCY_EXCEPTION_OVERVIEW.md and its evidence JSON; P09-02 remains in progress.
 
 Delivery-evidence continuation —15 November2026 IST: see docs/implementation/MESSAGE_DELIVERY_EVIDENCE.md and evidence/message-delivery-evidence.json (under docs/implementation). Schema044/80, next045. Exact identity and readonly evidence/report UI; partial scope, tracker counts unchanged. No live sends or deployment.

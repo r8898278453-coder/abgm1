@@ -226,7 +226,7 @@ try {
       if (failStatus) { await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false }) }); return; }
       if (holdStatus && company === 'A') { signalStatus?.(); await new Promise<void>(resolve => { releaseStatus = resolve; }); }
       const older = url.searchParams.has('before');
-      body = { available: true, occurrences: company === 'A' ? [{ kind: older ? 'review_reminder' : 'daily_digest', dueAt: older ? '2026-11-02T01:30:00Z' : '2026-11-03T02:30:00Z', status: older ? 'SENT' : 'UNKNOWN', needsReview: !older }] : [], nextCursor: company === 'A' && !older ? '2026-11-03T02:30:00Z|daily_digest' : null };
+      body = { companyId:company,available: true, occurrences: company === 'A' ? [{ kind: older ? 'review_reminder' : 'daily_digest', dueAt: older ? '2026-11-02T01:30:00Z' : '2026-11-03T02:30:00Z', status: older ? 'SENT' : 'UNKNOWN', needsReview: !older }] : [], nextCursor: company === 'A' && !older ? '2026-11-03T02:30:00Z|daily_digest' : null };
     }
     else if (['/api/ai/reply-review','/api/ai/generate-content'].includes(url.pathname)) {
       const input=route.request().postDataJSON();const mode=input.businessName;
@@ -238,11 +238,12 @@ try {
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});return;
     }
     else if (url.pathname === '/api/ai/chat') {chatRequests.push(route.request().postDataJSON()); await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'fixture unavailable'})});return; }
+    else if (/\/companies\/[AB]\/telegram-operations$/.test(url.pathname)){body={success:true,companyId:url.pathname.split('/')[3],readOnly:true,checkedAtMs:Date.now(),canNotify:true,emergencyStopped:false,integration:{state:'SAVED',transportEnabled:true,identityVerified:false,recipientDeliveryVerified:false,botId:'123',destinationFingerprint:'a'.repeat(12)}};}
     else if (url.pathname === '/api/telegram/notify') {
       const notification = route.request().postDataJSON(); notifications.push(notification);
       if (notification.companyId === 'A') { signalNotify?.(); await new Promise<void>(resolve => { releaseNotify = resolve; }); }
       if (failNotify) { await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Delivery not confirmed' }) }); return; }
-      body = { success: true };
+      body = { success: true,companyId:notification.companyId,outcome:'API_ACCEPTED',recipientDelivery:'UNVERIFIED',persisted:false };
     }
     else if (/\/companies\/[AB]\/job-actions$/.test(url.pathname)) {
       const company = url.pathname.split('/')[3];
@@ -469,9 +470,9 @@ try {
   assert.equal(await reviewPanel.getByRole('listitem').filter({hasText:'Observation for Alpha only'}).count(),0);
   assert.equal(metaPublishes.length,0);assert.equal(notifications.length,0);
   await page.locator('header select').first().selectOption('A');
-  await page.getByRole('button', { name: /Telegram AI Command/ }).click();
+  await page.getByRole('button', { name: /Telegram operations/ }).click();
   const alertInput = page.getByPlaceholder('Type a test alert message to deliver to Telegram...');
-  const assistantInput=page.getByPlaceholder("Type a command in natural language (e.g. 'Generate 20% discount offer')...");
+  const assistantInput=page.getByLabel('Marketing discussion question');
   await assistantInput.fill('Check unavailable assistant');await assistantInput.press('Enter');
   await page.getByText('Assistant unavailable. Your request was not completed and no publishing action was started.',{exact:true}).waitFor();assert.equal(chatRequests.at(-1).companyId,'A');
   assert.equal(await page.getByText(/Ready to deploy changes|Public reply verified|visibility in Sector 17/).count(),0);
@@ -487,13 +488,15 @@ try {
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   assert.equal(await page.getByText(/Telegram accepted the test alert/).count(), 0);
   assert.equal(await page.getByText('Alpha-private-notification', { exact: true }).count(), 0);
-  failNotify = true;
-  await page.getByRole('button', { name: 'Send Test Alert', exact: true }).first().click();
-  await page.getByText('Delivery failed: Delivery not confirmed', { exact: true }).waitFor();
-  assert.deepEqual(notifications.map(n => n.companyId), ['A', 'B']);
   failNotify = false;
   await page.getByRole('button', { name: 'Send Test Alert', exact: true }).first().click();
   await page.getByText(/Telegram accepted the test alert/).waitFor();
+  failNotify = true;
+  await page.getByRole('button', { name: 'Send Test Alert', exact: true }).first().click();
+  await page.getByText('Telegram acceptance unconfirmed. Check the destination before another send. Automatic resend is disabled.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Send Test Alert',exact:true}).isDisabled(),true);
+  assert.deepEqual(notifications.map(n => n.companyId), ['A', 'B','B']);
+  failNotify = false;
   await page.locator('header select').first().selectOption('A');
   console.log('Browser stage: truthful-onboarding');
   await page.setViewportSize({width:1440,height:1000});
@@ -572,7 +575,7 @@ try {
   console.log('Browser stage: meta-remount');
   // Remount destroys in-memory references; tab storage must reuse the acknowledged draft.
   await page.getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button', { name: /Telegram AI Command/ }).click();
+  await page.getByRole('button', { name: /Telegram operations/ }).click();
   await alertInput.waitFor();
   await page.getByRole('button',{name:'Connected Accounts'}).click();
   await page.getByRole('button',{name:'Test Post',exact:true}).click();

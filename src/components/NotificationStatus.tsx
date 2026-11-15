@@ -1,3 +1,4 @@
+import {validateNotificationPage} from '../../shared/notificationEvidence';
 import { formatPlatformDateTime } from '../../shared/platformTime';
 import React, { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, apiRequest } from '../services/authService';
@@ -16,7 +17,7 @@ export const NotificationStatus: React.FC<{ companyId: string }> = ({ companyId 
     try {
       const response = await apiRequest<Result>(`/api/companies/${encodeURIComponent(companyId)}/notification-status?limit=25${before ? `&before=${encodeURIComponent(before)}` : ''}`, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (!response.available || !Array.isArray(response.occurrences) || (response.nextCursor !== null && typeof response.nextCursor !== 'string')) throw new Error();
+      validateNotificationPage(response,companyId);
       setResult(previous => ({ ...response, occurrences: before ? [...(previous?.occurrences || []), ...response.occurrences] : response.occurrences }));
     } catch (cause) {
       if (controller.signal.aborted) return;

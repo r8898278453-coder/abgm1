@@ -442,6 +442,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/telegram-operations",
+      "owner": "server/telegramOperations.ts#registerTelegramOperations"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:id/ai/executive-summary",
       "owner": "server.ts"
     },
@@ -1066,5 +1071,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 38
+  "registrationCount": 39
 }

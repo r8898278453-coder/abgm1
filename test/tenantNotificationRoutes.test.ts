@@ -16,13 +16,13 @@ try {
   const address = server.address() as any;
   async function send(body: unknown, status: number, authenticated = true) {
     const response = await fetch(`http://127.0.0.1:${address.port}/api/telegram/notify`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(authenticated ? { Authorization: 'fixture' } : {}) }, body: JSON.stringify(body) });
-    assert.equal(response.status, status); return response.json();
+    assert.equal(response.status, status);assert.equal(response.headers.get('cache-control'),'no-store');return response.json();
   }
   await send({ companyId: 'owned', message: 'hello' }, 401, false);
   await send({ companyId: 'foreign', message: 'private' }, 403);
   for (const body of [{ message: 'legacy-no-scope' }, { companyId: 'owned', message: [] }, { companyId: 'owned', message: ' ' }, { companyId: 'owned', message: 'x'.repeat(4097) }, { companyId: 'owned', message: 'hello', chatId: 'forged' }]) await send(body, 400);
   assert.equal(sends.length, 0);
-  await send({ companyId: 'owned', message: '  hello  ' }, 200);
+  const accepted=await send({ companyId: 'owned', message: '  hello  ' }, 200);assert.equal(accepted.companyId,'owned');assert.equal(accepted.outcome,'API_ACCEPTED');assert.equal(accepted.recipientDelivery,'UNVERIFIED');assert.equal(accepted.persisted,false);
   assert.deepEqual(sends, [{ company: 'owned', message: 'hello' }]);
   confirm = false; assert.equal((await send({ companyId: 'owned', message: 'hello' }, 502)).success, false);
   fail = true; assert.ok(!JSON.stringify(await send({ companyId: 'owned', message: 'hello' }, 500)).includes('private'));

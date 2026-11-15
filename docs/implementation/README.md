@@ -1,5 +1,8 @@
 # ABGM1 implementation blueprint
 
+Telegram operations continuation (15 November2026 IST): [TELEGRAM_OPERATIONS_CONSOLE.md](TELEGRAM_OPERATIONS_CONSOLE.md) replaces simulator presentation with saved configuration, explicit manual acceptance, canonical reports/history and suggestion-only discussion. P09-04 is in_progress; live identity, durable manual journal and verified commands remain open. Schema044/80 unchanged; next045.
+
+
 Agency exception continuation (15 November2026 IST): [AGENCY_EXCEPTION_OVERVIEW.md](AGENCY_EXCEPTION_OVERVIEW.md) adds ten authorized current counters, transparent priorities, filtered review, metadata CSV and CRM navigation. Schema044/80 unchanged; next045. P09-02 remains partial; connection/capacity/cost and full phase acceptance remain pending.
 
 

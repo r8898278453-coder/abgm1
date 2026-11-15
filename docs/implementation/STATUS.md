@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-15 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 044_message_delivery_evidence; 80 canonical tables. Registered default regression programs: 114 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 044_message_delivery_evidence; 80 canonical tables. Registered default regression programs: 115 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 33 / 1 / 38.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 34 / 1 / 37.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -21,7 +21,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P06 | 0 | 6 | 0 | 2 |
 | P07 | 0 | 6 | 0 | 2 |
 | P08 | 0 | 2 | 0 | 8 |
-| P09 | 0 | 3 | 0 | 5 |
+| P09 | 0 | 4 | 0 | 4 |
 | P10 | 0 | 0 | 0 | 8 |
 
 ## Explicit blockers
@@ -132,7 +132,7 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P09-01 | in_progress | Build reconciled daily client report read model | P08-10 |
 | P09-02 | in_progress | Build agency overview and exception prioritization | P08-10, P09-01 |
 | P09-03 | planned | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
-| P09-04 | planned | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
+| P09-04 | in_progress | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
 | P09-05 | planned | Deliver optional client report and approval portal | P08-10, P09-04 |
 | P09-06 | in_progress | Persist agency settings and decide white-label domain scope | P08-10, P09-05 |
 | P09-07 | planned | Finish responsive mobile accessibility and operational UX | P08-10, P09-06 |

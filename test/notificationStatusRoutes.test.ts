@@ -17,13 +17,13 @@ try {
   const address = server.address() as any;
   async function get(path: string, expected: number, auth = true) {
     const response = await fetch(`http://127.0.0.1:${address.port}/api/companies/${path}`, { headers: auth ? { Authorization: 'fixture' } : {} });
-    assert.equal(response.status, expected); return response.json();
+    assert.equal(response.status, expected);assert.equal(response.headers.get('cache-control'),'no-store');return response.json();
   }
   await get('owned/notification-status',401,false); await get('foreign/notification-status',403);
-  for (const query of ['limit=0','limit=101','limit[]=2','before=bad','before=2026-02-30T00%3A00%3A00Z%7Cdaily_digest','before[]=a']) await get(`owned/notification-status?${query}`,400);
+  for (const query of ['extra=forged','limit=0','limit=101','limit[]=2','before=bad','before=2026-02-30T00%3A00%3A00Z%7Cdaily_digest','before[]=a']) await get(`owned/notification-status?${query}`,400);
   assert.equal(reads,0);
   const valid = await get('owned/notification-status?limit=2&before=2026-11-03T02%3A30%3A00Z%7Cdaily_digest',200);
-  assert.equal(valid.fixtureCursor.kind,'daily_digest'); assert.equal(valid.fixtureLimit,2);
+  assert.equal(valid.companyId,'owned');assert.equal(valid.fixtureCursor.kind,'daily_digest'); assert.equal(valid.fixtureLimit,2);
   available = false; await get('owned/notification-status',503);
   fail = true; assert.ok(!JSON.stringify(await get('owned/notification-status',500)).includes('private'));
   console.log('Notification status HTTP auth, client isolation, keyset cursor validation, unavailable state and redaction passed.');

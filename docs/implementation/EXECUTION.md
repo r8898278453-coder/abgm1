@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Telegram console validation:115 credential-isolated regressions, focused final metadata/ACK/history checks, TypeScript/build, full disposable MariaDB role/archive/metadata/occurrence checks, Telegram/workspace mocked Chromium and route/doc guards passed. No schema source changed; copied-export restore not repeated. Existing Vite chunk-size warning remains. Exact source hashes/limits: evidence/telegram-operations-console.json. No provider/production operations performed.
+
+Telegram evidence continuation —15 November2026 IST: saved client configuration/permissions, strict manual API acceptance, canonical report/history, local uncertainty and session fences; no simulated autonomous inbox. P09-04 is in_progress; remaining gates are explicit in docs/implementation/TELEGRAM_OPERATIONS_CONSOLE.md. Schema044/80 unchanged.
+
 Agency exception validation:114 credential-isolated programs, TypeScript/build, complete disposable MariaDB regression including ten-counter authorization/resolution fixture, mocked agency-exception/sales/agency/workspace Chromium and route/doc guards passed. Final client-navigation guard checked by TypeScript/build and agency browser rerun. Exact source fingerprints and limitations: evidence/agency-exception-overview.json. Existing Vite chunk warning remains. No migration source changed; copied-export restore was not repeated.
 
 Agency exception continuation —15 November2026 IST: ten authorized current backlog counters, explicit weighted priorities, guarded CSV and agency review/CRM navigation. Schema044/80 unchanged. See docs/implementation/AGENCY_EXCEPTION_OVERVIEW.md and its evidence JSON; P09-02 remains in progress.

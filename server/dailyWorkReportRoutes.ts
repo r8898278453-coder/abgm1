@@ -7,6 +7,7 @@ export function registerDailyWorkReport(app:Express,deps:{
  read:(company:string,date:string)=>Promise<DailyWorkReport>;
 }){
  app.get('/api/companies/:companyId/daily-work-report',async(req,res)=>{
+  res.set('Cache-Control','no-store');
   try{
    const user=await deps.getAuthUserFromRequest(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
    if(req.params.companyId.length>64){res.status(400).json({success:false,error:'Invalid workspace'});return;}

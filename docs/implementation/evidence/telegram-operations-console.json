@@ -1,0 +1,85 @@
+{
+  "dateIST": "2026-11-15",
+  "baseCommit": "3061ea0",
+  "schema": "044_message_delivery_evidence",
+  "canonicalTables": 80,
+  "nextMigration": "045",
+  "schemaChanged": false,
+  "defaultRegressionsPassed": 115,
+  "targetParents": [
+    "P09-04"
+  ],
+  "parentStatus": "in_progress",
+  "phaseAccepted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (115 credential-isolated programs; subsequent metadata contradiction guard covered by focused tests)",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "node --import tsx test/telegramOperations.test.ts",
+    "node --import tsx test/tenantNotificationRoutes.test.ts",
+    "node --import tsx test/notificationStatusRoutes.test.ts",
+    "npm run test:browser:telegram",
+    "npm run test:browser:workspace",
+    "npm run routes:check",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "actual encrypted/decrypted saved Telegram integration projected without token/chat ID",
+    "assigned viewer can inspect but cannot test; owner execute permitted; foreign denied",
+    "archived-client sends denied and assignment revocation rechecked",
+    "current emergency-stop advisory disables canNotify",
+    "injected manual acceptance explicitly marked recipient UNVERIFIED and persisted false",
+    "saved scheduled occurrence UNKNOWN needs review; noncanonical lowercase status reader refused",
+    "existing notification single-owner/no-resend/keyset and full schema/runtime regression retained"
+  ],
+  "browserCoverage": [
+    "saved bot ID/fingerprint clearly not identity/destination verification",
+    "existing daily report/scheduled history/action feed embedded",
+    "today button never invokes AI or sender",
+    "strict exact-client manual ACK; incomplete success classified unconfirmed",
+    "unknown send blocks further test sends even after metadata reload",
+    "viewer metadata disables manual test",
+    "old-client assistant result/input cannot appear after switch",
+    "updated sidebar/navigation plus full existing workspace isolation suite"
+  ],
+  "limitations": [
+    "manual test attempts have no durable dispatch journal; local uncertainty lock does not survive remount",
+    "manual test attempts explicitly absent from scheduled notification history",
+    "no live bot getMe/identity or destination proof; saved ID is not verification",
+    "no synced Telegram inbox or verified inbound command handling",
+    "assistant discussion cannot execute platform actions or confirm provider results",
+    "full scheduled digest/escalation and immutable complete daily report acceptance remains open",
+    "no schema change; copied-export restore not repeated",
+    "no real provider reads/sends, production migration/deployment, environment publication or flag activation",
+    "billing excluded; rendering and automatic sending remain default off",
+    "existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "server/telegramOperations.ts": "9522826f230cf7637e6ac956d05b4a72b8e665bc2547510efb555128e237a7ae",
+    "shared/telegramOperations.ts": "6d2e28c00a08090294bc4b6941e6cd0ababfcca87e8213fae33d192075f59549",
+    "shared/notificationEvidence.ts": "7b7f9bea9f36ac67e1ee3e35671dfc2dc726f5d200e32b49a84f6c2eedc26b17",
+    "server/notificationStatus.ts": "431e13980d3e2982186ba223aa34993246328a24d3bf411813850426b13b9609",
+    "server/notificationStatusRoutes.ts": "466e4280eef6e2615a542f215241dade1aa2bc5d7b3a4e3422cd1f94190ae5b1",
+    "server/dailyWorkReportRoutes.ts": "9aa1f5c2b7f3411a888881a67b8bd265386d97e426e68e1d1e62948349fb4e43",
+    "server/tenantNotificationRoutes.ts": "00e8f5429c16d883e1952e78c8ad1aa9d1d72147ccd03152ee2d4d65a230ef6c",
+    "server.ts": "8aeb5d817f3fa87f2a1f2d756dc7a3bc95ab4d5f3c660f8d9affd98cea5dd5a0",
+    "src/components/TelegramBotView.tsx": "cfb0b4a878a105c38102327394117b1e775f27b52f1f9a1dfc4b09e4fd65c8c5",
+    "src/components/NotificationStatus.tsx": "623656cc8defe7a156a6e44cf69f5716ffc92d04d0043d00b4e93f77a25187b7",
+    "src/components/Sidebar.tsx": "f4c0c575b76e2ee2f325a7600523fe3c74f9f3f150f48400f7885be12447cda3",
+    "src/services/authService.ts": "7940ed969cb693f3b88f825ceecf435df1262e06ffabde79ae070c1ce4960754",
+    "test/telegramOperations.test.ts": "46d34844b48ac38c9742445cc2817e7101f830488c5dbecbda89420b279b13b3",
+    "test/integration/telegramOperationsSql.test.ts": "f2fd30417fdf4ee9902b59ed2d420a105f26b8b8ab4b16d2c9ec23cf16c9f07d",
+    "test/browser/telegramOperations.test.ts": "08c85b6e37de5332d5cb0e3969c5728da928965e24cdc025878f553c723e7cc3",
+    "test/browser/workspaceIsolation.test.ts": "6f7e1029bf232d41ee11376a632d05760379939f29d91740fbb81fd7580fc86f",
+    "test/notificationStatusRoutes.test.ts": "c65d9101ca914d53640227f2e71a127f6d43fb2c0d4561c41a3dc58d461a4a75",
+    "test/tenantNotificationRoutes.test.ts": "60e7cc4c063bcbbb23fe7375998f4d4a92228ad09bf8d49b59feab80217fe012"
+  }
+}

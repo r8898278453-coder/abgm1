@@ -877,6 +877,7 @@ export async function getRazorpayStatusApi(companyId?: string): Promise<{
 
 export interface TelegramNotifyResult {
   success: boolean;
+  companyId?:string;outcome?:'API_ACCEPTED'|'UNCONFIRMED';recipientDelivery?:'UNVERIFIED';persisted?:false;
   error?: string;
 }
 

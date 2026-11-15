@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'telegram' as NavTab,
-          label: 'Telegram AI Command',
+          label: 'Telegram operations',
           icon: Bot,
           badge: null,
           badgeColor: 'bg-sky-500/20 text-sky-400',

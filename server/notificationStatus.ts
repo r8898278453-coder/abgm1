@@ -1,11 +1,9 @@
+import {notificationCursor} from '../shared/notificationEvidence';
 import type { Pool } from 'mysql2/promise';
 export interface NotificationCursor { dueAt: string; kind: string }
 export function parseNotificationCursor(value: unknown): NotificationCursor | null {
   if (value === undefined) return null;
-  if (typeof value !== 'string' || value.length > 80) throw new Error('INVALID_NOTIFICATION_CURSOR');
-  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\|(daily_digest|review_reminder)$/.exec(value);
-  if (!match || !Number.isFinite(Date.parse(match[1])) || new Date(match[1]).toISOString().slice(0,19)+'Z' !== match[1]) throw new Error('INVALID_NOTIFICATION_CURSOR');
-  return { dueAt: match[1], kind: match[2] };
+  return notificationCursor(value);
 }
 export async function readNotificationStatus(pool: Pool, companyId: string, before?: NotificationCursor | null, limit = 25) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('INVALID_NOTIFICATION_LIMIT');
@@ -18,6 +16,7 @@ export async function readNotificationStatus(pool: Pool, companyId: string, befo
     (status = 'RUNNING' AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS needsReview
     FROM notification_occurrences WHERE company_id = ? ${boundary}
     ORDER BY due_at DESC, notification_kind DESC LIMIT ?`, values);
+  for(const row of rows){notificationCursor(row.dueAt+'|'+row.kind);if(!['SENT','UNKNOWN','RUNNING'].includes(row.status))throw new Error('NOTIFICATION_STATUS_INVALID');}
   const hasMore = rows.length > limit;
   const occurrences = rows.slice(0, limit).map((row: any) => ({ ...row, needsReview: row.status === 'UNKNOWN' || Boolean(row.needsReview) }));
   const last = occurrences.at(-1);

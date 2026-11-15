@@ -1,3 +1,4 @@
+import {registerTelegramOperations} from './server/telegramOperations';
 import {readDispatchReceiptTimeline} from './server/messageDeliveryEvidence';
 import {processWhatsAppIntake} from './server/whatsAppIntakes';
 import {normalizeWhatsAppIntake} from './server/whatsAppIntakePayload';
@@ -3680,11 +3681,13 @@ app.get('/api/invoices/:id/download', async (req, res) => {
   }
 });
 
+registerTelegramOperations(app,{auth:getAuthUserFromRequest,integrations:getCompanyIntegrations,access:async(user,company,operation)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,operation);}});
+
 // Direct Telegram alert dispatch endpoint - Protected with Authentication & Rate Limiting
 registerTenantNotificationRoutes(app, {
   limiter: telegramAlertLimiter,
   getAuthUserFromRequest,
-  verifyCompanyWorkspaceAccess,
+  verifyCompanyWorkspaceAccess:async(user,company)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,'execute');},
   send: (companyId, message) => sendTenantTelegram(companyId, message, { getCompanyIntegration, fetch }),
 });
 
