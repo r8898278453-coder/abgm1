@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Verified delivery-evidence checks:113 isolated regressions; subsequent strict projection/query guards checked by focused unit and native SQL. TypeScript/build, full disposable MariaDB10.11.19, uploaded export preservation/minified replay, delivery/sales/workspace Chromium and route/doc guards passed. Full native rerun also covers canonical receipt casing, HTTP authorization/query refusal and SQL session timezone independence. Source fingerprints: evidence/message-delivery-evidence.json. Existing Vite chunk-size warning remains. Historical001–043 unchanged; no production writes or external sends.
+
+Delivery-evidence continuation —15 November2026 IST: see docs/implementation/MESSAGE_DELIVERY_EVIDENCE.md and evidence/message-delivery-evidence.json (under docs/implementation). Schema044/80, next045. Exact identity and readonly evidence/report UI; partial scope, tracker counts unchanged. No live sends or deployment.
+
 Scope/retention and remaining gates: WHATSAPP_INTAKE_RECOVERY.md. 112 credential-isolated programs, TypeScript/build, native signed capture/encryption/atomic replay/claim-race/actor-mapping/expiry/dead-letter/STOP/cap coverage, uploaded-export row/ledger preservation and bundled replay, intake/history/conflict/CRM/inquiry/workflow/reply/workspace Chromium and route/doc guards passed. Exact checks/fingerprints: evidence/whatsapp-intake-recovery.json. Existing Vite chunk warning remains. Schema043/80; historical001–042 unchanged. No live sends, production migration, environment activation or deployment.
 
 # Audited conflict-resolution continuation — 13 November2026 IST

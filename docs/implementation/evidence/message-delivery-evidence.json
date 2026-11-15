@@ -1,0 +1,80 @@
+{
+  "dateIST": "2026-11-15",
+  "baseCommit": "273082f",
+  "schema": "044_message_delivery_evidence",
+  "canonicalTables": 80,
+  "nextMigration": "045",
+  "historicalMigrations001Through043Changed": false,
+  "defaultRegressionsPassed": 113,
+  "targetParents": [
+    "P06-03",
+    "P09-01"
+  ],
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 33,
+    "planned": 38,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (113 isolated programs; subsequent strict projection/query guards covered by focused unit and native checks)",
+    "node --import tsx test/messageDeliveryEvidence.test.ts",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:delivery",
+    "npm run test:browser:sales",
+    "npm run test:browser:workspace",
+    "npm run routes:check",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "fresh/005-upgrade/041-upgrade migration replay and metadata parity through044",
+    "case-sensitive provider reference and exact sender/client identity",
+    "duplicate accepted identities quarantined as ambiguous",
+    "delivery/failure conflict precedence and UNKNOWN distinction",
+    "25-event timeline returns20 with full-count summary",
+    "58-request IST cohort has exact full aggregates and50-row recent metadata",
+    "late evidence changes current cohort; historicalSnapshot remains false",
+    "-08:00 and +05:30 SQL sessions yield identical cohort counts",
+    "read-only report does not mutate dispatch rows",
+    "uppercase/noncanonical receipt states refuse report/timeline",
+    "HTTP auth, foreign access, no-store, date and unrelated query refusal",
+    "uploaded original rows/owner mappings/ledger preserved and minified bundled replay applied0"
+  ],
+  "browserCoverage": [
+    "explicit IST report load and exact counts CSV",
+    "unobserved request drilldown and metadata timeline",
+    "corrupt total clears export",
+    "late old-client response cannot restore private report",
+    "zero write requests in fixture",
+    "existing sales and full workspace regressions"
+  ],
+  "limitations": [
+    "No reported platform delivery incident: user clarified ChatGPT response indicator",
+    "Current evidence over creation-day cohort, not immutable historical daily report",
+    "Latest20 timeline / latest50 request metadata; aggregate summary uses all matching cohort evidence",
+    "No live provider, real delivery, production migration/deployment or hosting acceptance",
+    "No resend/override or default-off sending/render activation",
+    "Existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "server/messageDeliveryEvidence.ts": "69c924f4e9855fc40fdd84d8b1c44fed477194f99c0a4c1b976a7c013b00943a",
+    "server/messageDispatchStatus.ts": "e51b2102e0fd892a1b90dc6742c16214f00aeec4a9babfeefa94b36b1ab70da5",
+    "server/messageDeliveryReceipts.ts": "06d8668b55c55307490dc85a6bf537b07f0d6e41ede242be6d48c36c504d49bd",
+    "server/migrations/044_message_delivery_evidence.ts": "69cf10e6f09d0ae059dff885ff2bbee0f4d33c97552c7f58ff134e64a5257cbb",
+    "server/migrator.ts": "6118d5c5aec3e7861186dbede93d62be740fdad925f4b025f337385465bac19c",
+    "server/salesRoutes.ts": "28eeb886e83a858e888242ce13e5f7cd6e07bb38a7b5b795a86cdc918573acb0",
+    "server.ts": "96f03d008583bafab9f4b28d79b1e13094dc836656d4c4555b26d0c93ac8488f",
+    "shared/messageEvidence.ts": "e0a12f183372b01782b7e43125d7e9355d6d7ab250d78b79afe918fb961ca955",
+    "src/components/MessageDispatchStatus.tsx": "5e4330216fd0dac6b74898eaf482391d5d8012824fd58cf463320eca76f18716",
+    "src/components/ReceiptEvidencePanel.tsx": "70ecf9dc0989d221cd53edab61e0f175f8e9c6da84a85836d6cafa19dd6a53b4",
+    "src/components/MessageDeliveryReportPanel.tsx": "2940c0f0aab29a6e12ac23a6c22f43f8ef52d05e6a3b7171250f3db6982a2318",
+    "src/components/SalesWorkspacePanel.tsx": "9f09506750a2bd84ececcc105740d77bd844e0e38584f1de8fb9358856a1f9e5",
+    "test/messageDeliveryEvidence.test.ts": "3bebf539a70a5b42fdd4caf54e2f2a61f923b54b0ff21ce3f778a63f90173c3c",
+    "test/integration/messageDeliveryEvidenceSql.test.ts": "320123fc3dccde5e9ec279e60c8f9236f01a6c0b6062ebc27ce3f319b0fda190",
+    "test/browser/messageDeliveryEvidence.test.ts": "cc47e9c718dc634cd58c8234a73614a0929c15f650ed83d07dd0e15adb2143d2"
+  }
+}

@@ -1,5 +1,7 @@
 # Implementation Changelog & Hardening Summary
 
+Delivery-evidence continuation —15 November2026 IST: see docs/implementation/MESSAGE_DELIVERY_EVIDENCE.md and evidence/message-delivery-evidence.json (under docs/implementation). Schema044/80, next045. Exact identity and readonly evidence/report UI; partial scope, tracker counts unchanged. No live sends or deployment.
+
 14 November2026: encrypted verified intake recovery uses whatsAppIntakes.ts, whatsAppIntakePayload.ts, whatsAppIntakeDomain.ts and WhatsAppIntakeRecoveryPanel. Shared queue replay cannot change payload/time or send outbound messages; canonical transaction hooks settle the journal atomically. Schema043/80 (next044). See docs/implementation/WHATSAPP_INTAKE_RECOVERY.md.
 
 13 November2026: audited inbound conflict review uses whatsAppConflictLifecycle.ts/whatsAppConflictReviews.ts and WhatsAppConflictReviewPanel. Schema042/79 (next043). Exact retain-original review cannot promote changed content, reset opt-out or resume cancelled/uncertain sends. New variants reopen quarantine. See docs/implementation/WHATSAPP_CONFLICT_REVIEWS.md.

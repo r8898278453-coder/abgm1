@@ -11,11 +11,12 @@ try{
  Object.defineProperty(globalThis,'sessionStorage',{configurable:true,get:()=>{throw new Error('denied');}});await assert.rejects(messageRequestKey('actor:C',{}),/storage unavailable/);
 }finally{if(previous)Object.defineProperty(globalThis,'sessionStorage',previous);else delete (globalThis as any).sessionStorage;}
 const app=express();let reads=0,fail=false;
-registerMessageDispatchStatus(app,{auth:async req=>req.headers.authorization?{id:'actor'} as any:null,access:async(_,company)=>({authorized:company==='A',status:403}),read:async(_,key)=>{reads++;if(fail)throw new Error('private-sql-detail');return key==='b'.repeat(64)?null:{status:'UNKNOWN',providerId:null,needsReview:true};}});
+registerMessageDispatchStatus(app,{auth:async req=>req.headers.authorization?{id:'actor'} as any:null,access:async(_,company)=>({authorized:company==='A',status:403}),timeline:async()=>({readOnly:true,receipts:[]}),read:async(_,key)=>{reads++;if(fail)throw new Error('private-sql-detail');return key==='b'.repeat(64)?null:{status:'UNKNOWN',providerId:null,needsReview:true};}});
 const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));
 try{
  const port=(server.address() as any).port;async function get(company:string,key:string,status:number,auth=true){const response=await fetch(`http://127.0.0.1:${port}/api/companies/${company}/message-dispatch/${key}`,{headers:auth?{Authorization:'fixture'}:{}});assert.equal(response.status,status);return {cache:response.headers.get('cache-control'),body:await response.json()};}
  await get('A','a'.repeat(64),401,false);await get('B','a'.repeat(64),403);await get('A','bad',400);await get('A','a'.repeat(64)+'?actor=x',400);assert.equal(reads,0);
+ await get('A','a'.repeat(64)+'/receipts',401,false);await get('B','a'.repeat(64)+'/receipts',403);const timeline=await get('A','a'.repeat(64)+'/receipts',200);assert.equal(timeline.cache,'no-store');assert.equal(timeline.body.receiptEvidence.readOnly,true);
  const found=await get('A','a'.repeat(64),200);assert.equal(found.cache,'no-store');assert.equal(found.body.dispatch.status,'UNKNOWN');await get('A','b'.repeat(64),404);fail=true;assert.ok(!JSON.stringify((await get('A','a'.repeat(64),503)).body).includes('private-sql'));
  console.log('Message status: scoped retry keys/private payload exclusion, auth/owner/strict lookup, no-store UNKNOWN metadata, missing rows and redacted failure passed.');
 }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}

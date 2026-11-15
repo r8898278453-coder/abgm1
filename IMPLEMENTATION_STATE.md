@@ -1,5 +1,7 @@
 # Implementation State
 
+Delivery-evidence continuation —15 November2026 IST: see docs/implementation/MESSAGE_DELIVERY_EVIDENCE.md and evidence/message-delivery-evidence.json (under docs/implementation). Schema044/80, next045. Exact identity and readonly evidence/report UI; partial scope, tracker counts unchanged. No live sends or deployment.
+
 ## Current Phase: Phase 15 — Dev Server Diagnostic, Iframe CSP Resolution & Clean Restart (COMPLETED)
 - **Completed in this Phase**:
   - **1. Dev Server & Port 3000 Binding Verification**:

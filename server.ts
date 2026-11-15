@@ -1,3 +1,4 @@
+import {readDispatchReceiptTimeline} from './server/messageDeliveryEvidence';
 import {processWhatsAppIntake} from './server/whatsAppIntakes';
 import {normalizeWhatsAppIntake} from './server/whatsAppIntakePayload';
 import {registerSalesRoutes} from './server/salesRoutes';
@@ -2784,7 +2785,7 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
   }
 });
 
-registerMessageDispatchStatus(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,read:async(company,key)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable dispatch state unavailable');return readMessageDispatchStatus(pool,company,key);}});
+registerMessageDispatchStatus(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,read:async(company,key)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable dispatch state unavailable');return readMessageDispatchStatus(pool,company,key);},timeline:async(company,key)=>{const pool=await getDbPool();if(!pool)throw new Error('Durable dispatch state unavailable');return readDispatchReceiptTimeline(pool,company,key);}});
 
 // Broadcast WhatsApp Campaign Endpoint
 app.post('/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async (req, res) => {

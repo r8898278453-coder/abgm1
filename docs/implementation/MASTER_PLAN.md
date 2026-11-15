@@ -1,5 +1,8 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Latest delivery-evidence continuation (15 November2026 IST): [MESSAGE_DELIVERY_EVIDENCE.md](MESSAGE_DELIVERY_EVIDENCE.md) adds exact request identity, ambiguity/conflict-aware status, bounded receipt timeline, current-evidence IST cohorts and reconciled CSV. Schema044/80, next045; historical001–043 unchanged. Partial P06/P09 foundation; no phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
+
+
 Latest intake-recovery continuation (14 November2026 IST): [WHATSAPP_INTAKE_RECOVERY.md](WHATSAPP_INTAKE_RECOVERY.md) adds encrypted verified snapshots, audited shared-queue replay, atomic business settlement, retention/resource controls and metadata-only recovery UI. Schema043/80, next044; historical001–042 unchanged. No outbound send, parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
 
 
@@ -23,7 +26,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.28 • updated 14 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.29 • updated 15 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

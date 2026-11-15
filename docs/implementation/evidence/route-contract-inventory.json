@@ -251,6 +251,11 @@
       "owner": "server/messageDispatchStatus.ts#registerMessageDispatchStatus"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/message-dispatch/:key/receipts",
+      "owner": "server/messageDispatchStatus.ts#registerMessageDispatchStatus"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/meta-publication-drafts",
       "owner": "server/publicationDraftRoutes.ts#registerPublicationDrafts"
@@ -303,6 +308,11 @@
     {
       "method": "GET",
       "path": "/api/companies/:companyId/sales/approved-messages",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/delivery-report",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {

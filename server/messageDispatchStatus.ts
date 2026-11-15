@@ -1,5 +1,5 @@
 import {OPERATION_STATES} from '../shared/operationStates';
-import {readMessageDelivery} from './messageDeliveryReceipts';
+import {evidenceForDispatch} from './messageDeliveryEvidence';
 import type {Pool} from 'mysql2/promise';
 import type {Express,Request} from 'express';
 import type {DbUser} from './db';
@@ -10,18 +10,21 @@ export async function readMessageDispatchStatus(pool:Pool,company:string,key:str
   if(!rows.length)return null;const row=rows[0];
   if(!Object.hasOwn(OPERATION_STATES.message,row.status))throw new Error('Invalid dispatch state');
   if(row.status==='API_ACCEPTED'&&(typeof row.provider_id!=='string'||!row.provider_id.trim()))throw new Error('Invalid accepted dispatch');
-  const delivery=await readMessageDelivery(sql,company,row.provider_id,row.sender_id);
-  return {...delivery,status:row.status,providerId:row.status==='API_ACCEPTED'?row.provider_id:null,createdAtMs:row.createdAtMs===null?null:Number(row.createdAtMs),updatedAtMs:row.updatedAtMs===null?null:Number(row.updatedAtMs),needsReview:['IN_PROGRESS','UNKNOWN'].includes(row.status)};
+  const delivery=await evidenceForDispatch(sql,company,row);
+  return {...delivery,status:row.status,providerId:row.status==='API_ACCEPTED'?row.provider_id:null,createdAtMs:row.createdAtMs===null?null:Number(row.createdAtMs),updatedAtMs:row.updatedAtMs===null?null:Number(row.updatedAtMs),needsReview:['IN_PROGRESS','UNKNOWN'].includes(row.status)||delivery.evidence.needsReview};
  });
 }
-export function registerMessageDispatchStatus(app:Express,deps:{auth:(req:Request)=>Promise<DbUser|null>;access:(user:DbUser,company:string)=>Promise<{authorized:boolean;status:number}>;read:(company:string,key:string)=>Promise<unknown|null>}){
- app.get('/api/companies/:companyId/message-dispatch/:key',async(req,res)=>{
+export function registerMessageDispatchStatus(app:Express,deps:{auth:(req:Request)=>Promise<DbUser|null>;access:(user:DbUser,company:string)=>Promise<{authorized:boolean;status:number}>;read:(company:string,key:string)=>Promise<unknown|null>;timeline?:(company:string,key:string)=>Promise<unknown|null>}){
+ const handler=(timeline:boolean)=>async(req:Request,res:any)=>{
+  res.set('Cache-Control','no-store');
   try{
    const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'Authentication required'});return;}
    if(req.params.companyId.length>64||!/^[a-f0-9]{64}$/.test(req.params.key)||Object.keys(req.query).length){res.status(400).json({success:false,error:'Invalid dispatch lookup'});return;}
    const access=await deps.access(user,req.params.companyId);if(!access.authorized){res.status(access.status).json({success:false,error:'Dispatch access denied'});return;}
-   const dispatch=await deps.read(req.params.companyId,req.params.key);if(!dispatch){res.status(404).json({success:false,error:'Dispatch request not found'});return;}
-   res.set('Cache-Control','no-store').json({success:true,companyId:req.params.companyId,dispatch});
+   const dispatch=timeline?await deps.timeline?.(req.params.companyId,req.params.key):await deps.read(req.params.companyId,req.params.key);if(!dispatch){res.status(404).json({success:false,error:'Dispatch request not found'});return;}
+   res.set('Cache-Control','no-store').json({success:true,companyId:req.params.companyId,...(timeline?{receiptEvidence:dispatch}:{dispatch})});
   }catch{res.status(503).json({success:false,error:'Dispatch state unavailable'});}
- });
+ };
+ app.get('/api/companies/:companyId/message-dispatch/:key',handler(false));
+ app.get('/api/companies/:companyId/message-dispatch/:key/receipts',handler(true));
 }

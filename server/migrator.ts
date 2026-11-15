@@ -1,3 +1,4 @@
+import {messageDeliveryEvidence,DELIVERY_PROVIDER_SHAPE,DELIVERY_INDEX_SHAPE} from './migrations/044_message_delivery_evidence';
 import {whatsAppIntakes,INTAKE_COLUMNS,INTAKE_CHECK} from './migrations/043_whatsapp_intakes';
 import {whatsAppConflictReviews,CONFLICT_COLUMNS,CONFLICT_EVENT_COLUMNS,CONFLICT_CHECKS,CONFLICT_COLUMN_CHECK} from './migrations/042_whatsapp_conflict_reviews';
 import {whatsAppInboundEvents,INBOUND_EVENT_COLUMNS,INBOUND_EVENT_CHECK} from './migrations/041_whatsapp_inbound_events';
@@ -825,6 +826,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   whatsAppInboundEvents,
   whatsAppConflictReviews,
   whatsAppIntakes,
+  messageDeliveryEvidence,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1136,6 +1138,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [providerCollation]:any=await conn.query("SELECT COLLATION_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='message_dispatch_intents' AND COLUMN_NAME='provider_id'");
+      if(providerCollation[0]?.COLLATION_NAME!=='utf8mb4_bin')missingConstraints.push('message_dispatch_intents.provider_identity_collation');
+      const [providerIndex]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='message_dispatch_intents' AND INDEX_NAME='idx_message_provider_identity' ORDER BY SEQ_IN_INDEX");
+      if(providerIndex.map((r:any)=>r.COLUMN_NAME).join(',')!=='company_id,sender_id,provider_id,status')missingConstraints.push('message_dispatch_intents.provider_identity_index');
+      for(const check of [DELIVERY_PROVIDER_SHAPE,DELIVERY_INDEX_SHAPE]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('message_delivery_evidence.shape');}
       const [intakeColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='whatsapp_intakes'");
       for(const col of INTAKE_COLUMNS)if(!intakeColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('whatsapp_intakes.'+col);
       const [badIntakes]:any=await conn.query(INTAKE_CHECK.sql);if(badIntakes.length)missingConstraints.push('whatsapp_intakes.shape');
