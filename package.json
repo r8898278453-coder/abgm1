@@ -30,6 +30,7 @@
     "test:audit:privacy": "tsx test/auditLogPrivacy.test.ts",
     "test:queue:validation": "tsx test/queueValidation.test.ts",
     "test:queue:http": "tsx test/queueRoutes.test.ts",
+    "test:browser:agency-exceptions": "node --import tsx test/browser/agencyExceptions.test.ts",
     "test:browser:delivery": "node --import tsx test/browser/messageDeliveryEvidence.test.ts",
     "test:browser:workspace": "node --import tsx test/browser/workspaceIsolation.test.ts",
     "test:sql:local": "node --import tsx server/scripts/testLocalSql.ts",

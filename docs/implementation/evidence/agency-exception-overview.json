@@ -1,0 +1,90 @@
+{
+  "dateIST": "2026-11-15",
+  "baseCommit": "a92c4a9",
+  "schema": "044_message_delivery_evidence",
+  "canonicalTables": 80,
+  "nextMigration": "045",
+  "schemaChanged": false,
+  "defaultRegressionsPassed": 114,
+  "targetParents": [
+    "P09-02"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 33,
+    "planned": 38,
+    "blocked": 1
+  },
+  "metrics": [
+    "newLeads",
+    "ambiguousMessages",
+    "overdueActions",
+    "unknownDispatches",
+    "staleDispatches",
+    "failedIntakes",
+    "deadLetterIntakes",
+    "queuedIntakes",
+    "unresolvedConflicts",
+    "pendingReviews"
+  ],
+  "checksPassed": [
+    "npm test (114 credential-isolated programs)",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:browser:agency-exceptions",
+    "npm run test:browser:sales",
+    "npm run test:browser:agency",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "ten exact current counters in one read-only authorized snapshot",
+    "UNKNOWN and31-minute versus1-minute IN_PROGRESS separation",
+    "transparent29-point priority, zero-weight queued replay and zero-backlog client",
+    "archived-client state retained without modifying execution policy",
+    "resolved conflicts/completed review/recorded intakes remove their backlog contributions",
+    "assigned viewer isolation and revoked assignment refusal",
+    "foreign actor refusal and no raw private body/phone in report or CSV",
+    "HTTP401/403/200, real-date and unrelated-query400, no-store"
+  ],
+  "browserCoverage": [
+    "weights, archived state, current snapshot and priority display",
+    "client ID search and metric filtering",
+    "export includes all authorized clients despite display filter",
+    "client selection callback uses exact scoped client ID",
+    "failed or mismatched agency responses clear stale export",
+    "late previous-agency response fenced by keyed remount and abort",
+    "no write HTTP requests in exception fixture",
+    "existing agency settings, CRM and workspace regressions",
+    "actual AgencyView navigation enters CRM for loaded client and refuses NOT_LOADED client"
+  ],
+  "limits": [
+    "current operational backlog only; not immutable daily reporting or business health",
+    "categories overlap; priority score is not unique incident count or monetary impact",
+    "stale dispatch is observation, not failure or retry permission",
+    "failed intake count does not imply replay eligibility",
+    "up to100 authorized clients; limit overflow refuses partial projection",
+    "provider connection health, capacity, costs and revenue remain unavailable",
+    "no production access, deployment, schema/env publication, real provider send or default flag activation",
+    "billing excluded; rendering and automatic sending remain default off",
+    "copied-export restore not repeated because no schema or migration source changed",
+    "existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "shared/agencyExceptions.ts": "23c212e4b1deba9ae876c87487754eeb5d9d5b828cd64e5ac458f824cd73a06a",
+    "server/salesWorkspace.ts": "6212138f35c99728a6f3b1e7884ccfc886e243bcea5937f6168a241fde7a98cd",
+    "server/salesRoutes.ts": "7c58f746417bdf79afca55c5eba530ccf5a55c64f4cb70568010ea0a621f11ab",
+    "src/components/AgencySalesExceptions.tsx": "b194b52ff85e5045d6f0b7244aa9fbf1b65fb77b3d1c78d8206552edaa4e08dd",
+    "src/components/AgencyView.tsx": "76477d91627ad71afaa8d5ca22dad47b2ddda48ba4e58e25601d71565b53c136",
+    "src/components/SalesWorkspacePanel.tsx": "0d2cc86f32523b0d11934ccdebb8c7c3a650555b67f0dc3c02a793600a84f690",
+    "test/agencyExceptions.test.ts": "542734508319217c53c71e7371b1147616af5a6c63b18a8840c1bb6307a56e60",
+    "test/integration/agencyExceptionsSql.test.ts": "568c0253c482836cdf332500939b1e8b4efd95baca1228743c97d6b4feaa2953",
+    "test/browser/agencyExceptions.test.ts": "695000989a2302f3da1761f00430771bd1a1eb4575413618eba1a5f4d20416c9",
+    "test/browser/salesWorkspace.test.ts": "cfe98302df8c379d597ea12ab4264c1c991ff93a29c48b44a8a8171519aa9bde",
+    "test/browser/agencyWorkspace.test.ts": "704e1b61adc21d0bccb35bfc2cdbb5b1a10202d02d7c9723409be1bd0423b227"
+  }
+}

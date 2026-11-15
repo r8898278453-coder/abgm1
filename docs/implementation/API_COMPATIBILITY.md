@@ -1,5 +1,8 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Agency exception continuation (15 November2026 IST): [AGENCY_EXCEPTION_OVERVIEW.md](AGENCY_EXCEPTION_OVERVIEW.md) adds ten authorized current counters, transparent priorities, filtered review, metadata CSV and CRM navigation. Schema044/80 unchanged; next045. P09-02 remains partial; connection/capacity/cost and full phase acceptance remain pending.
+
+
 Delivery evidence (15 November2026 IST): existing GET `/api/companies/:companyId/message-dispatch/:key` is additive; new `/receipts` suffix is owned by registerMessageDispatchStatus and the existing company access verifier. New GET `/api/companies/:companyId/sales/delivery-report` is owned by registerSalesRoutes, using the existing read permission. Both use read-only deadline snapshots, no-store and scoped evidence projection. No send adapter/state mutation was added. See [MESSAGE_DELIVERY_EVIDENCE.md](MESSAGE_DELIVERY_EVIDENCE.md).
 
 Latest intake-recovery continuation (14 November2026 IST): [WHATSAPP_INTAKE_RECOVERY.md](WHATSAPP_INTAKE_RECOVERY.md) adds encrypted verified snapshots, audited shared-queue replay, atomic business settlement, retention/resource controls and metadata-only recovery UI. Schema043/80, next044; historical001–042 unchanged. No outbound send, parent/phase or production acceptance. Current counts: [STATUS.md](STATUS.md).

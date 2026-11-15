@@ -1,5 +1,8 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Agency exception continuation (15 November2026 IST): [AGENCY_EXCEPTION_OVERVIEW.md](AGENCY_EXCEPTION_OVERVIEW.md) adds ten authorized current counters, transparent priorities, filtered review, metadata CSV and CRM navigation. Schema044/80 unchanged; next045. P09-02 remains partial; connection/capacity/cost and full phase acceptance remain pending.
+
+
 Latest delivery-evidence continuation (15 November2026 IST): [MESSAGE_DELIVERY_EVIDENCE.md](MESSAGE_DELIVERY_EVIDENCE.md) adds exact request identity, ambiguity/conflict-aware status, bounded receipt timeline, current-evidence IST cohorts and reconciled CSV. Schema044/80, next045; historical001–043 unchanged. Partial P06/P09 foundation; no phase or production acceptance. Current counts: [STATUS.md](STATUS.md).
 
 

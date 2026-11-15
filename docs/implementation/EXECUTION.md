@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Agency exception validation:114 credential-isolated programs, TypeScript/build, complete disposable MariaDB regression including ten-counter authorization/resolution fixture, mocked agency-exception/sales/agency/workspace Chromium and route/doc guards passed. Final client-navigation guard checked by TypeScript/build and agency browser rerun. Exact source fingerprints and limitations: evidence/agency-exception-overview.json. Existing Vite chunk warning remains. No migration source changed; copied-export restore was not repeated.
+
+Agency exception continuation —15 November2026 IST: ten authorized current backlog counters, explicit weighted priorities, guarded CSV and agency review/CRM navigation. Schema044/80 unchanged. See docs/implementation/AGENCY_EXCEPTION_OVERVIEW.md and its evidence JSON; P09-02 remains in progress.
+
 Verified delivery-evidence checks:113 isolated regressions; subsequent strict projection/query guards checked by focused unit and native SQL. TypeScript/build, full disposable MariaDB10.11.19, uploaded export preservation/minified replay, delivery/sales/workspace Chromium and route/doc guards passed. Full native rerun also covers canonical receipt casing, HTTP authorization/query refusal and SQL session timezone independence. Source fingerprints: evidence/message-delivery-evidence.json. Existing Vite chunk-size warning remains. Historical001–043 unchanged; no production writes or external sends.
 
 Delivery-evidence continuation —15 November2026 IST: see docs/implementation/MESSAGE_DELIVERY_EVIDENCE.md and evidence/message-delivery-evidence.json (under docs/implementation). Schema044/80, next045. Exact identity and readonly evidence/report UI; partial scope, tracker counts unchanged. No live sends or deployment.

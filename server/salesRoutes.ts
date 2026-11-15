@@ -1,3 +1,4 @@
+import {platformDayBounds} from '../shared/dailyWorkReport';
 import {readMessageDeliveryReport} from './messageDeliveryEvidence';
 import {readWhatsAppIntakes,queueWhatsAppIntakeReplay,cancelWhatsAppIntakeReplay} from './whatsAppIntakes';
 import {readWhatsAppConflicts,readWhatsAppConflictDetail,reviewWhatsAppConflict,mayReviewWhatsAppConflict} from './whatsAppConflictReviews';
@@ -42,5 +43,5 @@ export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promis
  route('get',base+'/inbox','read',(req,pool)=>readSalesInbox(pool,String(req.params.companyId),req.query.before as string|undefined));
  route('put',base+'/inbox/:messageId/link','write',(req,pool,user)=>linkInboxLead(pool,user,String(req.params.companyId),String(req.params.messageId),req.body));
  route('get',base+'/report','read',async(req,pool)=>{const date=typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new SalesError(400,'SALES_DATE_INVALID');return{report:await readSalesReport(pool,String(req.params.companyId),date)};});
- route('get','/api/agencies/:agencyId/sales-overview','read',async(req,pool,user)=>{const date=typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new SalesError(400,'SALES_DATE_INVALID');return{overview:await readAgencySalesOverview(pool,user,String(req.params.agencyId),date)};});
+ route('get','/api/agencies/:agencyId/sales-overview','read',async(req,pool,user)=>{const date=typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10);try{platformDayBounds(date);}catch{throw new SalesError(400,'SALES_DATE_INVALID');}if(req.query.before!==undefined)throw new SalesError(400,'SALES_SCOPE_INVALID');return{overview:await readAgencySalesOverview(pool,user,String(req.params.agencyId),date)};});
 }
