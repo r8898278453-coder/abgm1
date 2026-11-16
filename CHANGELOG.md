@@ -1,5 +1,7 @@
 # Changelog
 
+Capture-history continuation —17 November2026 IST: read-only scoped keyset pages, outcome filters, exact snapshot navigation, bounded formula-safe page CSV and client/session fences. Schema047/84 unchanged; next048. See docs/implementation/REPORT_CAPTURE_HISTORY.md and evidence/report-capture-history.json. P09-01 remains partial; no live deployment or delivery.
+
 Scheduled report capture —17 November2026 IST: forward047/84, default-off IST policy, bounded shared-queue catch-up, current authority/lease fencing, atomic snapshot/run/job settlement, cancellation/recovery and private UI. P09-01 remains in progress; distribution/escalation P09-03 remains planned. See docs/implementation/REPORT_CAPTURE_SCHEDULE.md and evidence/report-capture-schedule.json. No production deployment or sends.
 
 Immutable report capture —17 November2026 IST: forward046/82, frozen coverage V1, closed-day capture, audited revision CAS/stable replay, private hash-checked payloads, comparison/export and reload recovery. P09-01 remains in progress. See docs/implementation/IMMUTABLE_REPORT_SNAPSHOTS.md and its evidence JSON.

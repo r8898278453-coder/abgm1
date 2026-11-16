@@ -317,6 +317,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/report-capture-history",
+      "owner": "server/reportCaptureScheduleRoutes.ts#registerCaptureScheduleRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/report-capture-schedule",
       "owner": "server/reportCaptureScheduleRoutes.ts#registerCaptureScheduleRoutes"
     },

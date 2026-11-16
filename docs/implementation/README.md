@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+Capture history continuation (17 November2026 IST): [REPORT_CAPTURE_HISTORY.md](REPORT_CAPTURE_HISTORY.md) adds private paged/filterable run review and page CSV. Schema047/84 unchanged; next048. No delivery or phase acceptance.
+
 Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
 
 Frozen report continuation (17 November2026 IST): [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) adds closed-day immutable coverage-V1 captures, audited revision CAS/replay, metadata history, comparison and frozen CSV. Forward046/82; historical001–045 unchanged; next047. P09-01 remains partial; no phase or production acceptance.

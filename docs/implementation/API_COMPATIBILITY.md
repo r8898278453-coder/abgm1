@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Capture history continuation (17 November2026 IST): [REPORT_CAPTURE_HISTORY.md](REPORT_CAPTURE_HISTORY.md) adds private paged/filterable run review and page CSV. Schema047/84 unchanged; next048. No delivery or phase acceptance.
+
 Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
 
 Frozen report continuation (17 November2026 IST): [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) adds closed-day immutable coverage-V1 captures, audited revision CAS/replay, metadata history, comparison and frozen CSV. Forward046/82; historical001–045 unchanged; next047. P09-01 remains partial; no phase or production acceptance.
@@ -116,3 +118,7 @@ Grouped034 compatibility details: /api/companies GET/POST and /api/auth/me GET r
 - PUT the same path: current manage access, exact `{expectedVersion, enabled, hourIST}`; unsigned revision CAS, integer hour0–23. Every successful policy save cancels previous pending work. A lost acknowledgement requires GET/reconciliation before another save.
 
 Both reject unscoped/query-shaped requests. Internal snapshot hooks cannot be selected through HTTP. Existing manual snapshot contracts and frozen coverage V1 are preserved. `report_snapshot_capture` is an internal shared-queue job, not a new scheduler endpoint.
+
+## Capture history API (schema unchanged)
+
+GET `/api/companies/:companyId/report-capture-history` accepts only optional `state` (ALL/QUEUED/SUCCEEDED/SKIPPED/FAILED) and `before` (opaque continuation). It requires current read access and returns no-store `{companyId,state,runs,nextCursor}` with at most25 metadata rows. Cursor scope/anchor errors return400; authorization and unavailable storage remain403/503. Each next cursor binds the original company/filter/time/id; it grants no access. This is current-state keyset traversal, not a frozen multi-page snapshot. No write, retry or send action is added.

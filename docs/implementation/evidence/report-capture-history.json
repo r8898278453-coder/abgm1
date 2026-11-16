@@ -1,0 +1,52 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "89f9b3dfd266a834faf3d257afbc0325cbae59cf",
+  "schema": "047_report_capture_schedule",
+  "canonicalTables": 84,
+  "nextMigration": "048",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (119 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:browser:capture-schedule",
+    "npm run docs:check",
+    "npm run routes:check (222 declarations, 41 registrations, zero collisions)",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "61 tied creation timestamps, three pages: no gaps/duplicates",
+    "cross-company and cross-filter cursors rejected",
+    "forged timestamp anchor rejected",
+    "mutable anchor outcome does not break keyset traversal",
+    "existing transactional capture, queue lease, cancellation and fault fixtures retained"
+  ],
+  "browserCoverage": [
+    "explicitly opened history",
+    "25-row page and older one-row page",
+    "filter replaces old results",
+    "page CSV download",
+    "client switch resets history; schedule uncertainty and exact snapshot regression retained",
+    "changed session blocks old-page CSV and permits refresh"
+  ],
+  "remaining": [
+    "scheduled distribution and escalation P09-03",
+    "Hostinger cron/runtime verification",
+    "retention management and full report/phase acceptance"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "defaultRegressionsPassed": 119
+}

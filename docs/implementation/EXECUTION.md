@@ -1,5 +1,7 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Capture history continuation (17 November2026 IST): [REPORT_CAPTURE_HISTORY.md](REPORT_CAPTURE_HISTORY.md) adds private paged/filterable run review and page CSV. Schema047/84 unchanged; next048. No delivery or phase acceptance.
+
 Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
 
 Frozen report validation —17 November2026 IST:117 isolated programs, TypeScript/build, complete native MariaDB46/82 baseline/amendment/CAS/cap/commit-recovery/integrity fixtures, exact uploaded-export preservation/bundled repeat, snapshot/workspace/Telegram Chromium and route/doc guards passed. Frozen V1 remains valid when a future live metric is added in a unit fixture. Exact hashes/limits: evidence/immutable-report-snapshots.json. Existing Vite chunk warning remains. No production/provider effects.
