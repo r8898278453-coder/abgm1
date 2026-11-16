@@ -1,5 +1,8 @@
 # ABGM1 implementation blueprint
 
+Manual Telegram reporting continuation (17 November2026 IST): [MANUAL_TELEGRAM_REPORTING.md](MANUAL_TELEGRAM_REPORTING.md) adds six audited daily transitions and three current backlog counters to report/UI/CSV/digest, with strict metric coverage and IST/privacy tests. Schema045/81 unchanged; next046. P09-01/P09-04 remain partial; no phase/production acceptance.
+
+
 Durable manual Telegram continuation (16 November2026 IST): [TELEGRAM_MANUAL_JOURNAL.md](TELEGRAM_MANUAL_JOURNAL.md) adds bound, audited request states, exact replay/no resend, prepared-only cancellation, capped admission and private reload/history. Forward045/81; historical001–044 unchanged; next046. P09-04 remains partial; no phase or production acceptance.
 
 

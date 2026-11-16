@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Manual Telegram reporting validation —17 November2026 IST:116 isolated programs, TypeScript/build, full native MariaDB actual-run reconciliation/IST/timezone/late-record/privacy checks, workspace/Telegram Chromium and route/doc guards passed. Nine mandatory metrics refuse incomplete export/digest. Maximum-safe integer digest remains within4096 characters. Exact source hashes and limits: evidence/manual-telegram-reporting.json. No schema source changed; export restore not repeated. Existing Vite chunk warning remains; no production/provider effects.
+
+Manual Telegram reporting —17 November2026 IST: six committed daily activity and three current backlog metrics in canonical report/UI/CSV/digest. Schema045/81 unchanged. See docs/implementation/MANUAL_TELEGRAM_REPORTING.md; full reporting/phase acceptance remains open.
+
 Manual Telegram journal validation —16 November2026 IST:116 isolated regression programs passed; final selected-request404 history preservation checked by focused Chromium. TypeScript/build, full native MariaDB45/81 and manual replay/cancel/ACK/cap fixtures, exact uploaded-export preservation/bundled replay, Telegram/workspace browser suites and route/doc guards passed. Exact source hashes and limits: evidence/telegram-manual-journal.json. Existing Vite chunk warning remains. No production/provider effects.
 
 Durable manual Telegram continuation —16 November2026 IST: forward045/81, exact actor/content/destination binding, audited no-resend states, prepared-only cancellation, shared budget/resource caps and private reload/history UI. P09-04 remains in progress. See docs/implementation/TELEGRAM_MANUAL_JOURNAL.md and evidence/telegram-manual-journal.json.

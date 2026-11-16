@@ -1,6 +1,6 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-16 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
 
 Schema target: 045_telegram_manual_intents; 81 canonical tables. Registered default regression programs: 116 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 

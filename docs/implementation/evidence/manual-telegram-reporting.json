@@ -1,0 +1,87 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "65bdaf0",
+  "schema": "045_telegram_manual_intents",
+  "canonicalTables": 81,
+  "nextMigration": "046",
+  "schemaChanged": false,
+  "defaultRegressionsPassed": 116,
+  "targetParents": [
+    "P09-01",
+    "P09-04"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (116 credential-isolated programs)",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:browser:workspace",
+    "npm run test:browser:telegram",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "six manual activity metrics reconcile to actual admitted, accepted, unknown, paused and cancelled journal transitions",
+    "same-key/cancellation replay and lost acknowledgements do not invent extra activity",
+    "initial unavailable binding is a recorded request plus known pause; absent binding flag does not infer pause",
+    "exact half-open IST event boundaries and current backlog across all dates",
+    "strict event casing and tenant isolation",
+    "-08:00 and +05:30 SQL sessions return identical activity/backlog",
+    "next-day audit records do not become prior-day activity",
+    "accepted journal-row deletion preserves minimal audit activity",
+    "invalid journal state refuses report instead of silently showing zero",
+    "private fixed CSV/digest and empty-client zero coverage"
+  ],
+  "browserCoverage": [
+    "positive manual accepted/unknown backlog counters appear in daily work UI",
+    "missing manual coverage clears CSV export",
+    "existing report-date, failure, stale-client and workspace isolation remain valid",
+    "Telegram console renders expanded canonical report without extra provider or AI effects"
+  ],
+  "metricCoverage": {
+    "activity": [
+      "telegramManualRecorded",
+      "telegramManualStarted",
+      "telegramManualAccepted",
+      "telegramManualUnknown",
+      "telegramManualPaused",
+      "telegramManualCancelled"
+    ],
+    "currentBacklog": [
+      "telegramManualPrepared",
+      "telegramManualSending",
+      "telegramManualUnknown"
+    ]
+  },
+  "limits": [
+    "activity counts overlap; not a unique-request reconciliation or delivery proof",
+    "committed audit records use stored event timestamps; not database commit-time or finalized historical report snapshots",
+    "current backlog spans all dates and is not selected-day activity",
+    "full multi-module reconciliation, immutable reports and scheduled/escalation gates remain open",
+    "schema and migration sources unchanged; uploaded-export restore not repeated",
+    "no production/provider calls, deployment, environment publication, scheduling/destination changes or flag activation",
+    "billing excluded; automatic sending and rendering remain default off",
+    "existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "shared/manualTelegramReporting.ts": "48efa276985fc0c332eee2cfba446d397a1b55eeabb58e0aa3231d60592ce18c",
+    "shared/dailyWorkReport.ts": "21c0a379b487f433fa60ed453ff4e2d376d55ebaaa9d9fc56d8ac6c19180367c",
+    "server/dailyWorkReport.ts": "be36bfa1351e0e207365a70550133c321dd8c543992c9e47d767e25430f0a9c1",
+    "server/dailyWorkDigest.ts": "d9d9c7cade1502288e04f7d3e775ea857a9d3fd50b4fc9ef54b69c6c73fa7fcc",
+    "src/components/DailyWorkReport.tsx": "6bac49a6587c82a49ea951dcf7cfca82f8d7282e96bdfbbfc4ab922c8fb39deb",
+    "test/dailyWorkReportRoutes.test.ts": "58f47b105a1b91b79c9afe1a07b66dcd2f02321abdf46617d902ff63d157ef70",
+    "test/integration/manualTelegramReportingSql.test.ts": "4deb5414b12e4edf15336de473f648f97634ac61bee11ee8e42a9e415b0ec718",
+    "test/integration/telegramManualSql.test.ts": "7302c19e06162da0c56d72f02ad9ffa6461dc9840bd071d7dab1f6c708f27b33",
+    "test/integration/localQueueSql.test.ts": "602fafa070f8abeb1896e6a6b24ca99458e1215d5b44b9bbb99eea79d446cbf3",
+    "test/browser/workspaceIsolation.test.ts": "879d669228498eaea85fc830b8dc04ea3d4478ac0b85b9f35cc6b7f16f2ee0d7",
+    "test/browser/telegramOperations.test.ts": "e691eb5b9cae01aee0b95553336b717625925717d600b364c5b0e2756b4fc1e6"
+  }
+}

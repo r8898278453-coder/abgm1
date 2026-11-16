@@ -48,7 +48,23 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
    COUNT(CASE WHEN event_type='KNOWLEDGE_APPROVAL_WITHDRAWN' THEN 1 END) knowledgeWithdrawals,
    COUNT(CASE WHEN event_type='KNOWLEDGE_DELETED' THEN 1 END) knowledgeDeleted
    FROM autonomous_audit_logs WHERE company_id=? AND timestamp>=FROM_UNIXTIME(?) AND timestamp<FROM_UNIXTIME(?) AND event_type IN ('KNOWLEDGE_STORED','KNOWLEDGE_EXTRACTION_SETTLED','KNOWLEDGE_APPROVED','KNOWLEDGE_APPROVAL_WITHDRAWN','KNOWLEDGE_DELETED')`,[company,start/1000,end/1000]);
+  const [telegramActivity]:any=await sql.query(`SELECT
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_PREPARED' THEN 1 END) telegramManualRecorded,
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_SENDING' THEN 1 END) telegramManualStarted,
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_API_ACCEPTED' THEN 1 END) telegramManualAccepted,
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_UNKNOWN' THEN 1 END) telegramManualUnknown,
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_PAUSED' OR (BINARY event_type='AGENCY_TELEGRAM_MANUAL_PREPARED' AND JSON_UNQUOTE(JSON_EXTRACT(details,'$.bindingAvailable'))='false') THEN 1 END) telegramManualPaused,
+   COUNT(CASE WHEN BINARY event_type='AGENCY_TELEGRAM_MANUAL_CANCELLED' THEN 1 END) telegramManualCancelled
+   FROM autonomous_audit_logs WHERE company_id=? AND timestamp>=FROM_UNIXTIME(?) AND timestamp<FROM_UNIXTIME(?) AND BINARY event_type IN ('AGENCY_TELEGRAM_MANUAL_PREPARED','AGENCY_TELEGRAM_MANUAL_SENDING','AGENCY_TELEGRAM_MANUAL_API_ACCEPTED','AGENCY_TELEGRAM_MANUAL_UNKNOWN','AGENCY_TELEGRAM_MANUAL_PAUSED','AGENCY_TELEGRAM_MANUAL_CANCELLED')`,[company,start/1000,end/1000]);
+  const [telegramBacklog]:any=await sql.query(`SELECT
+   COUNT(CASE WHEN BINARY state='PREPARED' THEN 1 END) telegramManualPrepared,
+   COUNT(CASE WHEN BINARY state='SENDING' THEN 1 END) telegramManualSending,
+   COUNT(CASE WHEN BINARY state='UNKNOWN' THEN 1 END) telegramManualUnknown,
+   COUNT(CASE WHEN BINARY state NOT IN ('PREPARED','SENDING','API_ACCEPTED','UNKNOWN','PAUSED','CANCELLED') THEN 1 END) invalidStates
+   FROM telegram_manual_intents WHERE company_id=?`,[company]);
+  if(Number(telegramBacklog[0].invalidStates)!==0)throw new Error('TELEGRAM_REPORT_STATE_INVALID');
+  const {invalidStates,...manualBacklog}=telegramBacklog[0];
   const counts=(row:any)=>Object.fromEntries(Object.entries(row).map(([key,value])=>{const count=Number(value);if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');return [key,count];}));
-  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0])},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0])}} as DailyWorkReport;
+  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0]),...counts(telegramActivity[0])},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0]),...counts(manualBacklog)}} as DailyWorkReport;
  });
 }

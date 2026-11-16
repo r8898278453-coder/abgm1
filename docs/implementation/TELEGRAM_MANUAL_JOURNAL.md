@@ -1,5 +1,7 @@
 # Durable manual Telegram journal — 16 November 2026 IST
 
+Reporting continuation: [MANUAL_TELEGRAM_REPORTING.md](MANUAL_TELEGRAM_REPORTING.md) closes the manual activity/backlog reporting gap below. Historical scope/limits from the journal implementation remain recorded here.
+
 Manual client test alerts now have a durable, metadata-only intent journal. This closes the console's earlier manual-journal gap without treating Telegram API acceptance as recipient delivery.
 
 | Implemented control | Behavior |

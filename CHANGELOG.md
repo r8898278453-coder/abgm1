@@ -1,5 +1,7 @@
 # Changelog
 
+Manual Telegram reporting —17 November2026 IST: six committed daily activity and three current backlog metrics in canonical report/UI/CSV/digest. Schema045/81 unchanged. See docs/implementation/MANUAL_TELEGRAM_REPORTING.md; full reporting/phase acceptance remains open.
+
 Durable manual Telegram continuation —16 November2026 IST: forward045/81, exact actor/content/destination binding, audited no-resend states, prepared-only cancellation, shared budget/resource caps and private reload/history UI. P09-04 remains in progress. See docs/implementation/TELEGRAM_MANUAL_JOURNAL.md and evidence/telegram-manual-journal.json.
 
 Telegram evidence continuation —15 November2026 IST: saved client configuration/permissions, strict manual API acceptance, canonical report/history, local uncertainty and session fences; no simulated autonomous inbox. P09-04 is in_progress; remaining gates are explicit in docs/implementation/TELEGRAM_OPERATIONS_CONSOLE.md. Schema044/80 unchanged.
