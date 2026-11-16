@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Capture reporting verification (17 November2026 IST):120 default programs, TypeScript/build, full disposable native SQL, workspace/Telegram/snapshot Chromium and route/doc guards passed. Existing Vite chunk warning remains. Historical migrations and frozen V1 definitions unchanged; no production access or sends. Evidence: evidence/report-capture-reporting.json.
+
+Capture reporting continuation (17 November2026 IST): [REPORT_CAPTURE_REPORTING.md](REPORT_CAPTURE_REPORTING.md) adds twelve live report/UI/CSV/digest metrics. Frozen V1 and schema047/84 unchanged; next048. No delivery or phase acceptance.
+
 Capture history continuation (17 November2026 IST): [REPORT_CAPTURE_HISTORY.md](REPORT_CAPTURE_HISTORY.md) adds private paged/filterable run review and page CSV. Schema047/84 unchanged; next048. No delivery or phase acceptance.
 
 Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.

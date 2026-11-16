@@ -1,0 +1,62 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "e24cbdeb992c5afc65160e9639d91bc7aa3e5e1d",
+  "schema": "047_report_capture_schedule",
+  "canonicalTables": 84,
+  "nextMigration": "048",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "activityMetricCount": 8,
+  "backlogMetricCount": 4,
+  "frozenCoverageVersion": 1,
+  "frozenV1Modified": false,
+  "checksPassed": [
+    "npm test (120 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:browser:workspace",
+    "npm run test:browser:telegram",
+    "npm run test:browser:snapshots",
+    "npm run docs:check",
+    "npm run routes:check (222 declarations, zero collisions)",
+    "git diff --check"
+  ],
+  "remaining": [
+    "full marketing/sales workflow reconciliation",
+    "separately versioned frozen coverage extension",
+    "scheduled delivery/destinations and escalation P09-03",
+    "Hostinger cron/runtime verification",
+    "retention and full parent/phase acceptance"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "nativeCoverage": [
+    "eight committed audit activity counters and four current all-date backlog counters",
+    "baseline and three amendment reasons; policy change with zero/nonzero cancellations",
+    "IST day boundaries and -08:00/+05:30 SQL sessions",
+    "exact-case, cross-client and wrong-job-type isolation",
+    "missing/failed queue reconciliation subsets",
+    "malformed cancellation counts and unknown run states refuse report",
+    "retained activity after run deletion",
+    "actual capture worker admission/storage/policy records reconcile to report",
+    "existing frozen baseline/lease/cancellation/fault regressions"
+  ],
+  "browserCoverage": [
+    "new counter values and missing-metric CSV refusal",
+    "live report client isolation and reload",
+    "Telegram report embedding",
+    "frozen V1 revisions/comparison/CSV unchanged"
+  ],
+  "defaultRegressionsPassed": 120
+}

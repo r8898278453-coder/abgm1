@@ -1,5 +1,7 @@
 # Changelog
 
+Capture operations reporting —17 November2026 IST: twelve live daily report/UI/CSV/digest metrics cover committed capture transitions and current queue-bound backlog, with IST/privacy/invalid-state guards. Frozen coverage V1 remains unchanged. Schema047/84, next048. See docs/implementation/REPORT_CAPTURE_REPORTING.md and evidence/report-capture-reporting.json. P09-01 remains partial; no deployment or sends.
+
 Capture-history continuation —17 November2026 IST: read-only scoped keyset pages, outcome filters, exact snapshot navigation, bounded formula-safe page CSV and client/session fences. Schema047/84 unchanged; next048. See docs/implementation/REPORT_CAPTURE_HISTORY.md and evidence/report-capture-history.json. P09-01 remains partial; no live deployment or delivery.
 
 Scheduled report capture —17 November2026 IST: forward047/84, default-off IST policy, bounded shared-queue catch-up, current authority/lease fencing, atomic snapshot/run/job settlement, cancellation/recovery and private UI. P09-01 remains in progress; distribution/escalation P09-03 remains planned. See docs/implementation/REPORT_CAPTURE_SCHEDULE.md and evidence/report-capture-schedule.json. No production deployment or sends.
