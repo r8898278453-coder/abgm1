@@ -1,3 +1,4 @@
+import {readTelegramIdentity,verifyTelegramIdentity} from './server/telegramIdentity';
 import {readCaptureHistory} from './server/reportCaptureHistory';
 import {registerCaptureScheduleRoutes} from './server/reportCaptureScheduleRoutes';
 import {readCaptureSchedule,saveCaptureSchedule} from './server/reportCaptureSchedule';
@@ -3690,7 +3691,7 @@ app.get('/api/invoices/:id/download', async (req, res) => {
   }
 });
 
-registerTelegramOperations(app,{auth:getAuthUserFromRequest,integrations:getCompanyIntegrations,access:async(user,company,operation)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,operation);}});
+registerTelegramOperations(app,{identity:async(c,rows)=>{const pool=await getDbPool();if(!pool)throw new Error();return readTelegramIdentity(pool,c,rows);},verifyIdentity:async(u,c)=>{const pool=await getDbPool();if(!pool)throw new Error();return verifyTelegramIdentity(pool,u,c);},auth:getAuthUserFromRequest,integrations:getCompanyIntegrations,access:async(user,company,operation)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,operation);}});
 
 // Direct Telegram alert dispatch endpoint - Protected with Authentication & Rate Limiting
 registerTenantNotificationRoutes(app, {

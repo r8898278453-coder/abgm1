@@ -1,5 +1,7 @@
 # Telegram evidence console — 15 November 2026 IST
 
+Operations continuation (17 November2026 IST): [OPERATIONS_COMPLETION_GROUP.md](OPERATIONS_COMPLETION_GROUP.md) adds frozen V2, agency model3, explicit Telegram identity proof and recovery consistency. Schema047/84 unchanged. Historical notes below retain their checkpoint scope; no parent/phase acceptance.
+
 Subsequent continuation: [TELEGRAM_MANUAL_JOURNAL.md](TELEGRAM_MANUAL_JOURNAL.md) replaces the earlier unjournalled manual POST with required stable keys and persisted intent evidence. The original checkpoint below records the previous scope/limits.
 
 The Telegram page now separates saved platform evidence, an explicit client test alert and local marketing discussion. It no longer presents a chat simulator as a synced inbox or an online autonomous Telegram agent.

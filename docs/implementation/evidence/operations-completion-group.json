@@ -1,0 +1,76 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "b32d1b89ae82f73be7a1279b308716e89049a506",
+  "schema": "047_report_capture_schedule",
+  "canonicalTables": 84,
+  "nextMigration": "048",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-01",
+    "P09-02",
+    "P09-04"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "newFrozenCoverageVersion": 2,
+  "legacyFrozenCoverageReadable": 1,
+  "agencyModelVersion": 3,
+  "checksPassed": [
+    "npm test (122 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:browser:snapshots",
+    "node --import tsx test/browser/telegramIdentity.test.ts",
+    "npm run test:browser:telegram",
+    "npm run test:browser:workspace (standalone rerun passed)",
+    "npm run test:browser:agency-exceptions",
+    "npm run test:browser:agency",
+    "npm run test:browser:sales",
+    "npm run docs:check",
+    "npm run routes:check (223 declarations, 41 registrations, zero collisions)",
+    "git diff --check"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "liveIdentityCheck": false,
+  "deployment": false,
+  "remaining": [
+    "P09-03 scheduled distribution/destinations/critical alerts",
+    "full workflow reconciliation",
+    "retention/key recovery and mobile accessibility acceptance",
+    "Hostinger runtime/cron and real provider pilots",
+    "full phase/canary/release acceptance"
+  ],
+  "defaultRegressionsPassed": 122,
+  "nativeCoverage": [
+    "new V2 rows explicitly stored, hash checked and exported with expanded frozen coverage",
+    "legacy V1 cached replay remains V1; explicit V2 amendment coexists without changing old payload/hash",
+    "current 14-metric agency projection, actor downgrade/admin parity, wrong-type queue isolation and disabled-policy exclusion",
+    "pending run/SUCCEEDED job prompt recovery: audit rollback, preserved job result, one terminal audit and no recapture/readmission",
+    "eight concurrent Telegram verifications: single provider fixture call, current actor/config drift checks, audit rollback and TTL/tenant proof invalidation"
+  ],
+  "browserCoverage": [
+    "V2 expanded labels/export and unchanged same-version comparison/reload recovery",
+    "session-token change refuses stale frozen CSV",
+    "explicit Telegram check only; reload/lost-ACK reconciliation, server-clock TTL and stale-client result fences",
+    "agency model3 filters/CSV and agency/sales client scoping",
+    "existing full workspace isolation standalone rerun"
+  ],
+  "testNotes": [
+    "Initial combined workspace browser run timed out after detached Send Test Alert button; standalone full rerun passed. Review found no concrete identity remount defect; no speculative product patch made.",
+    "Native migration fixture deliberately emits 048_manifest_fixture failures to verify rollback/retry; native suite exits0."
+  ],
+  "hostingReadiness": {
+    "hostingerMcpConfigured": true,
+    "hostedServerConfigured": true,
+    "accountToolsAvailable": false,
+    "hostingVerified": false,
+    "productionChanges": false
+  }
+}

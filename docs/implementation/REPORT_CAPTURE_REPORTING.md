@@ -1,5 +1,7 @@
 # Capture operations in the canonical daily report
 
+Operations continuation (17 November2026 IST): [OPERATIONS_COMPLETION_GROUP.md](OPERATIONS_COMPLETION_GROUP.md) adds frozen V2, agency model3, explicit Telegram identity proof and recovery consistency. Schema047/84 unchanged. Historical notes below retain their checkpoint scope; no parent/phase acceptance.
+
 17 November2026 IST. P09-01 remains in progress. Schema047/84 unchanged; next048. No production deployment, provider sends or migration was introduced.
 
 ## Delivered behavior

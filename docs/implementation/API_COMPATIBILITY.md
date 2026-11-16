@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Operations continuation (17 November2026 IST): [OPERATIONS_COMPLETION_GROUP.md](OPERATIONS_COMPLETION_GROUP.md) adds frozen V2, agency model3, explicit Telegram identity proof and recovery consistency. Schema047/84 unchanged. Historical notes below retain their checkpoint scope; no parent/phase acceptance.
+
 Capture reporting continuation (17 November2026 IST): [REPORT_CAPTURE_REPORTING.md](REPORT_CAPTURE_REPORTING.md) adds twelve live report/UI/CSV/digest metrics. Frozen V1 and schema047/84 unchanged; next048. No delivery or phase acceptance.
 
 Capture history continuation (17 November2026 IST): [REPORT_CAPTURE_HISTORY.md](REPORT_CAPTURE_HISTORY.md) adds private paged/filterable run review and page CSV. Schema047/84 unchanged; next048. No delivery or phase acceptance.

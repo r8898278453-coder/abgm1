@@ -471,6 +471,11 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/telegram-identity/verify",
+      "owner": "server/telegramOperations.ts#registerTelegramOperations"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:companyId/telegram-manual",
       "owner": "server/tenantNotificationRoutes.ts#registerTenantNotificationRoutes"

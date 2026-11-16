@@ -9,6 +9,10 @@ export const EXCEPTION_METRICS = {
     queuedIntakes: { label: 'Queued intake replays', weight: 0, module: 'intakes' },
     unresolvedConflicts: { label: 'Unresolved inbound conflicts', weight: 4, module: 'conflicts' },
     pendingReviews: { label: 'Pending workflow reviews', weight: 2, module: 'workflows' },
+    failedCaptureRuns: { label: 'Retained failed capture runs', weight: 2, module: 'reports' },
+    captureRecoveryNeeded: { label: 'Pending capture runs needing queue reconciliation', weight: 3, module: 'reports' },
+    pendingCaptureRuns: { label: 'Capture runs awaiting settlement', weight: 0, module: 'reports' },
+    captureActorRevoked: { label: 'Enabled capture schedules without current actor permission', weight: 3, module: 'reports' },
 } as const;
 export type ExceptionMetric = keyof typeof EXCEPTION_METRICS;
 export const EXCEPTION_KEYS = Object.keys(EXCEPTION_METRICS) as ExceptionMetric[];
@@ -32,7 +36,7 @@ export function exceptionProjection(input: unknown) {
     return { backlog, priorityScore };
 }
 export function validateAgencyOverview(value: any, agency: string) {
-    if (value?.agencyId !== agency || value.modelVersion !== 2 || value.scope !== 'CURRENT_AUTHORIZED_CLIENTS' || value.timeZone !== 'Asia/Kolkata' || !Number.isSafeInteger(value.checkedAtMs) || value.checkedAtMs < 0 || value.checkedAtMs > 8640000000000000 || !Array.isArray(value.clients) || value.clients.length > 100)
+    if (value?.agencyId !== agency || value.modelVersion !== 3 || value.scope !== 'CURRENT_AUTHORIZED_CLIENTS' || value.timeZone !== 'Asia/Kolkata' || !Number.isSafeInteger(value.checkedAtMs) || value.checkedAtMs < 0 || value.checkedAtMs > 8640000000000000 || !Array.isArray(value.clients) || value.clients.length > 100)
         throw new Error('AGENCY_OVERVIEW_INVALID');
     const ids = new Set<string>();
     for (const client of value.clients) {

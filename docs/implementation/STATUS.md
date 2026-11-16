@@ -2,7 +2,7 @@
 
 Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 047_report_capture_schedule; 84 canonical tables. Registered default regression programs: 120 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 047_report_capture_schedule; 84 canonical tables. Registered default regression programs: 122 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 34 / 1 / 37.
 
