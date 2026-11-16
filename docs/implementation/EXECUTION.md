@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Frozen report validation —17 November2026 IST:117 isolated programs, TypeScript/build, complete native MariaDB46/82 baseline/amendment/CAS/cap/commit-recovery/integrity fixtures, exact uploaded-export preservation/bundled repeat, snapshot/workspace/Telegram Chromium and route/doc guards passed. Frozen V1 remains valid when a future live metric is added in a unit fixture. Exact hashes/limits: evidence/immutable-report-snapshots.json. Existing Vite chunk warning remains. No production/provider effects.
+
+Immutable report capture —17 November2026 IST: forward046/82, frozen coverage V1, closed-day capture, audited revision CAS/stable replay, private hash-checked payloads, comparison/export and reload recovery. P09-01 remains in progress. See docs/implementation/IMMUTABLE_REPORT_SNAPSHOTS.md and its evidence JSON.
+
 Manual Telegram reporting validation —17 November2026 IST:116 isolated programs, TypeScript/build, full native MariaDB actual-run reconciliation/IST/timezone/late-record/privacy checks, workspace/Telegram Chromium and route/doc guards passed. Nine mandatory metrics refuse incomplete export/digest. Maximum-safe integer digest remains within4096 characters. Exact source hashes and limits: evidence/manual-telegram-reporting.json. No schema source changed; export restore not repeated. Existing Vite chunk warning remains; no production/provider effects.
 
 Manual Telegram reporting —17 November2026 IST: six committed daily activity and three current backlog metrics in canonical report/UI/CSV/digest. Schema045/81 unchanged. See docs/implementation/MANUAL_TELEGRAM_REPORTING.md; full reporting/phase acceptance remains open.

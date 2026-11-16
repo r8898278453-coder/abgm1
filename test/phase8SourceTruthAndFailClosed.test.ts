@@ -415,10 +415,10 @@ async function main() {
   // =========================================================================
   console.log('\n--- 6. Canonical Table & Index Registry Verification ---');
 
-  await runTest('CANONICAL_REQUIRED_TABLES contains 81 unique tables including queue and manual Telegram ledgers', async () => {
-    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 81);
-    assert.strictEqual(new Set(CANONICAL_REQUIRED_TABLES).size, 81);
-    for (const table of ['job_action_runs', 'job_action_events', 'job_action_outbox','telegram_manual_intents']) {
+  await runTest('CANONICAL_REQUIRED_TABLES contains 82 unique tables including queue and manual Telegram ledgers', async () => {
+    assert.strictEqual(CANONICAL_REQUIRED_TABLES.length, 82);
+    assert.strictEqual(new Set(CANONICAL_REQUIRED_TABLES).size, 82);
+    for (const table of ['job_action_runs', 'job_action_events', 'job_action_outbox','telegram_manual_intents','daily_report_snapshots']) {
       assert.ok(CANONICAL_REQUIRED_TABLES.includes(table), `Missing ledger table: ${table}`);
     }
     assert(CANONICAL_REQUIRED_TABLES.includes('schema_migrations'));

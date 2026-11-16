@@ -1,3 +1,4 @@
+import {REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES} from '../server/migrations/046_daily_report_snapshots';
 import {TELEGRAM_MANUAL_COLUMNS,TELEGRAM_MANUAL_INDEXES} from '../server/migrations/045_telegram_manual_intents';
 import {INTAKE_COLUMNS} from '../server/migrations/043_whatsapp_intakes';
 import {CONFLICT_COLUMNS,CONFLICT_EVENT_COLUMNS} from '../server/migrations/042_whatsapp_conflict_reviews';
@@ -134,6 +135,8 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME='whatsapp_intakes'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [INTAKE_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME='whatsapp_inbound_events'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...INBOUND_EVENT_COLUMNS,...CONFLICT_EVENT_COLUMNS].map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME='sales_message_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [APPROVED_SEND_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return [Object.entries(REPORT_SNAPSHOT_INDEXES).flatMap(([INDEX_NAME,names])=>names.map(COLUMN_NAME=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:0}))),[]];
+    if(cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return cleanSql.startsWith('SELECT COLUMN_NAME')?[REPORT_SNAPSHOT_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]]:[[],[]];
     if(cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[{COLUMN_NAME:'workflow_revision'},{COLUMN_NAME:'deferrals'},...['change_kind','schedule_before','schedule_after','audit_sequence','policy_version'].map(COLUMN_NAME=>({COLUMN_NAME}))],[]];
     if (cleanSql.includes('INFORMATION_SCHEMA.TABLES')) {
       if (cleanSql.includes("TABLE_NAME = 'schema_migrations'")) {

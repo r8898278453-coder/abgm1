@@ -1,5 +1,7 @@
 # Manual Telegram daily accountability — 17 November 2026 IST
 
+Stored report continuation: [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) now provides optional closed-day immutable V1 captures. The live report semantics and original checkpoint below remain distinct from these frozen revisions.
+
 The canonical daily recorded-work report, CSV and digest now include manual Telegram activity and current unresolved work. These readers do not dispatch alerts, alter the journal or resolve uncertainty.
 
 | Selected-day activity | Source definition |

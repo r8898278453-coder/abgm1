@@ -1,4 +1,5 @@
-import {MANUAL_TELEGRAM_ACTIVITY,MANUAL_TELEGRAM_BACKLOG} from '../../shared/manualTelegramReporting';
+import {DAILY_ACTIVITY_LABELS as dayLabels,DAILY_BACKLOG_LABELS as backlogLabels} from '../../shared/dailyWorkReportLabels';
+import {ReportSnapshotPanel} from './ReportSnapshotPanel';
 import React,{useEffect,useRef,useState} from 'react';
 import {apiRequest,ApiRequestError} from '../services/authService';
 import {dailyWorkReportCsv,platformDateKey,type DailyWorkReport as Report} from '../../shared/dailyWorkReport';
@@ -18,8 +19,6 @@ export const DailyWorkReport:React.FC<{companyId:string}>=({companyId})=>{
   finally{if(!controller.signal.aborted)setLoading(false);}
  }
  useEffect(()=>{void load();return()=>request.current?.abort();},[companyId,date]);
- const dayLabels:Record<keyof Report['activity'],string>={completedJobs:'Completed jobs',failedJobs:'Jobs with failure records',pausedJobs:'Jobs paused',approvedPosts:'Recorded scheduling approvals',rescheduledPosts:'Posts rescheduled for approval',admittedPosts:'Posts admitted for publishing',controlChanges:'Publishing control changes',messageRequests:'Recorded message requests',apiAcceptedMessages:'Message requests API-accepted',websiteInquiries:'Website inquiries received',inquiryAlertsAccepted:'Inquiry alerts API-accepted',knowledgeStored:'Knowledge originals stored',knowledgeExtractionsSettled:'Knowledge ingestion outcomes settled',knowledgeExtractionsBlocked:'Knowledge ingestion outcomes needing attention',knowledgeApprovals:'Knowledge approvals recorded',knowledgeWithdrawals:'Knowledge approvals withdrawn',knowledgeDeleted:'Knowledge originals deleted',websiteImportsQueued:'Website imports queued',websiteImportsCommitted:'Website snapshot groups committed',websiteImportsWithFailures:'Website imports with failure records',websiteImportsPaused:'Website imports paused',websiteImportsCancelled:'Website imports cancelled',...MANUAL_TELEGRAM_ACTIVITY};
- const backlogLabels:Record<keyof Report['backlog'],string>={waitingJobs:'Queued or waiting jobs',runningJobs:'Jobs marked running',failedJobs:'Jobs currently failed',pendingApprovals:'Posts marked pending approval',uncertainPublications:'Uncertain publishing claims',unconfirmedMessages:'In-progress or unknown message requests',inquiryAlertsNotAttempted:'Inquiry alerts not attempted',inquiryAlertsUnconfirmed:'Inquiry alerts without confirmed API acceptance',knowledgeAwaitingApproval:'Knowledge sources awaiting approval',knowledgeExtractionRunning:'Knowledge extractions marked processing',knowledgeExtractionBlocked:'Knowledge sources needing extraction or attention',websiteImportsWaiting:'Website imports waiting',websiteImportsRunning:'Website imports running',websiteImportsFailed:'Website imports currently failed',...MANUAL_TELEGRAM_BACKLOG};
  return <section aria-label="Daily recorded work" className="bg-white border border-slate-200 rounded-3xl p-6 mt-6 space-y-4">
   <h2 className="font-bold text-lg">Daily recorded work</h2>
   <div className="flex gap-3"><label>Report date (IST) <input type="date" aria-label="Recorded work date" value={date} onChange={event=>{request.current?.abort();setReport(null);setError('');setLoading(false);setDate(event.target.value);}}/></label><button disabled={loading || !date} onClick={()=>void load()} className="text-indigo-600 text-sm">Refresh work report</button></div>
@@ -32,5 +31,6 @@ export const DailyWorkReport:React.FC<{companyId:string}>=({companyId})=>{
    <h3 className="font-semibold">Current backlog</h3><p className="text-sm text-slate-500">Current saved states across all dates, read at {formatPlatformDateTime(report.generatedAt)}.</p><dl className="grid grid-cols-2 gap-2 text-sm">{Object.entries(backlogLabels).map(([key,label])=><div key={key}><dt>{label}</dt><dd aria-label={label} className="font-bold">{report.backlog[key as keyof Report['backlog']]}</dd></div>)}</dl>
    <p className="text-sm text-slate-500">Recorded job completion is not proof of new clients or revenue. Check the action and publishing histories for outcomes needing review.</p>
   </>}
+  <ReportSnapshotPanel companyId={companyId}/>
  </section>;
 };

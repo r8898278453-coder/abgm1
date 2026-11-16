@@ -35,6 +35,7 @@ try {
             body = { ...body, readOnly: true, checkedAtMs: 1700000000000, canNotify: company === 'A',canExecute:company==='A', emergencyStopped: false, integration: { state: 'SAVED', transportEnabled: true, identityVerified: false, recipientDeliveryVerified: false, botId: '123', destinationFingerprint: 'a'.repeat(12) } };
         else if (u.pathname.endsWith('/daily-work-report'))
             body = { ...body, report: { date: u.searchParams.get('date'), timeZone: 'Asia/Kolkata', generatedAt: new Date().toISOString(), activity, backlog } };
+        else if(u.pathname.endsWith('/daily-work-snapshots'))body={success:true,companyId:company,date:u.searchParams.get('date'),snapshots:[],latestRevision:0,canCapture:false};
         else if (u.pathname.endsWith('/notification-status'))
             body = { ...body, available: true, occurrences: [{ kind: 'daily_digest', dueAt: '2026-11-15T02:30:00Z', status: 'SENT', needsReview: false }], nextCursor: null };
         else if (u.pathname.endsWith('/job-actions'))

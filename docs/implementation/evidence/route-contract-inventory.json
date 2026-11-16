@@ -247,6 +247,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/daily-work-snapshots",
+      "owner": "server/reportSnapshotRoutes.ts#registerReportSnapshotRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/daily-work-snapshots",
+      "owner": "server/reportSnapshotRoutes.ts#registerReportSnapshotRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/daily-work-snapshots/:id",
+      "owner": "server/reportSnapshotRoutes.ts#registerReportSnapshotRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/message-dispatch/:key",
       "owner": "server/messageDispatchStatus.ts#registerMessageDispatchStatus"
     },
@@ -1086,5 +1101,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 39
+  "registrationCount": 40
 }

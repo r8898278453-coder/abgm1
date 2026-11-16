@@ -1,5 +1,8 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Frozen report continuation (17 November2026 IST): [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) adds closed-day immutable coverage-V1 captures, audited revision CAS/replay, metadata history, comparison and frozen CSV. Forward046/82; historical001–045 unchanged; next047. P09-01 remains partial; no phase or production acceptance.
+
+
 Manual Telegram reporting continuation (17 November2026 IST): [MANUAL_TELEGRAM_REPORTING.md](MANUAL_TELEGRAM_REPORTING.md) adds six audited daily transitions and three current backlog counters to report/UI/CSV/digest, with strict metric coverage and IST/privacy tests. Schema045/81 unchanged; next046. P09-01/P09-04 remain partial; no phase/production acceptance.
 
 

@@ -1,3 +1,4 @@
+import {dailyReportSnapshots,REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES,REPORT_SNAPSHOT_CHECK,REPORT_SNAPSHOT_INDEX_CHECK} from './migrations/046_daily_report_snapshots';
 import {telegramManualIntents,TELEGRAM_MANUAL_COLUMNS,TELEGRAM_MANUAL_CHECK,TELEGRAM_MANUAL_INDEXES,TELEGRAM_MANUAL_INDEX_CHECK} from './migrations/045_telegram_manual_intents';
 import {messageDeliveryEvidence,DELIVERY_PROVIDER_SHAPE,DELIVERY_INDEX_SHAPE} from './migrations/044_message_delivery_evidence';
 import {whatsAppIntakes,INTAKE_COLUMNS,INTAKE_CHECK} from './migrations/043_whatsapp_intakes';
@@ -141,6 +142,7 @@ export const CANONICAL_REQUIRED_TABLES = [
   'message_dispatch_intents',
   'message_delivery_receipts',
   'telegram_manual_intents',
+  'daily_report_snapshots',
 ];
 
 // Canonical List of Expected Critical Table Indexes
@@ -830,6 +832,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   whatsAppIntakes,
   messageDeliveryEvidence,
   telegramManualIntents,
+  dailyReportSnapshots,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1141,6 +1144,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [snapshotColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='daily_report_snapshots'");
+      for(const name of REPORT_SNAPSHOT_COLUMNS)if(!snapshotColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('daily_report_snapshots.'+name);
+      const [snapshotIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='daily_report_snapshots' ORDER BY INDEX_NAME,SEQ_IN_INDEX");
+      for(const [name,cols]of Object.entries(REPORT_SNAPSHOT_INDEXES)){const rows=snapshotIndexes.filter((r:any)=>r.INDEX_NAME===name);if(rows.map((r:any)=>r.COLUMN_NAME).join(',')!==cols.join(',')||rows.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==0))missingConstraints.push('daily_report_snapshots.'+name);}
+      for(const check of [REPORT_SNAPSHOT_CHECK,REPORT_SNAPSHOT_INDEX_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('daily_report_snapshots.shape');}
       const [manualColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='telegram_manual_intents'");
       for(const name of TELEGRAM_MANUAL_COLUMNS)if(!manualColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('telegram_manual_intents.'+name);
       const [manualIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='telegram_manual_intents' ORDER BY INDEX_NAME,SEQ_IN_INDEX");

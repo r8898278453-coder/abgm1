@@ -2,7 +2,7 @@
 
 Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 045_telegram_manual_intents; 81 canonical tables. Registered default regression programs: 116 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 046_daily_report_snapshots; 82 canonical tables. Registered default regression programs: 117 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 34 / 1 / 37.
 

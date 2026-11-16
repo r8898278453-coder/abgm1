@@ -1,0 +1,88 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "7652df7",
+  "schema": "046_daily_report_snapshots",
+  "canonicalTables": 82,
+  "nextMigration": "047",
+  "historicalMigrations001Through045Changed": false,
+  "defaultRegressionsPassed": 117,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (117 credential-isolated programs)",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:snapshots",
+    "npm run test:browser:workspace",
+    "npm run test:browser:telegram",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "fresh/005/041 upgrade and exact schema/index parity through046; rerun applied0",
+    "eight same-key contenders yield one baseline; changed context conflicts",
+    "distinct-key expected-revision race has one winner",
+    "late committed audit data changes new live report/amendment while old stored counts/hash remain unchanged",
+    "snapshot insert and audit rollback together",
+    "lost storage commit acknowledgement reconciles exact original revision without regenerating source",
+    "unknown/private fields excluded before frozen storage",
+    "payload hash change refuses detail until original bytes restored in disposable fixture",
+    "real closed-day/calendar validation and baseline/amendment reason gates",
+    "20 revisions per date and1000 retained captures per client enforced",
+    "read/manage role and archived-client capture boundaries",
+    "uploaded original business rows/owner mappings/ledger preserved; bundled repeat migration READY/applied0"
+  ],
+  "browserCoverage": [
+    "exact retry intent survives page reload and a refreshed latest-revision list",
+    "lost acknowledgement retry returns original baseline without another revision",
+    "later capture preserves old counts; signed metric differences shown",
+    "stored-revision CSV and frozen-backlog labels",
+    "invalid/incomplete payload removes export",
+    "late-client responses cannot restore old detail/export; viewer capture hidden",
+    "existing workspace/report/Telegram regressions retained"
+  ],
+  "coverageCompatibility": [
+    "frozen V1 keys/labels independent of live registry",
+    "unit fixture adds a future live metric and old V1 detail still validates",
+    "CSV names coverage version and backlog_at_capture explicitly"
+  ],
+  "limits": [
+    "application-append-only API; hash is data integrity, not signed provider or financial proof",
+    "source read is a consistent read-only phase before storage; source-read and storage-capture times differ",
+    "historical activity with backlog observed at capture, not reconstructed historical midnight backlog",
+    "coverage follows known recorded-work V1 metrics; not all platform work or revenue",
+    "no automatic scheduled capture/distribution or retention pruning",
+    "no production migration/deployment, provider call, environment publication, credential change or flag activation",
+    "billing excluded; rendering and automatic sending remain default off",
+    "existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "server/migrations/046_daily_report_snapshots.ts": "ad40342469f80bf4d2c795074f6a1741d36eaee3909727d6dbe25ecc14b81914",
+    "server/migrator.ts": "c50a2cfccfec0a02a2e5816f16141da4635250813ff04c05827737182bfe3e45",
+    "server/reportSnapshots.ts": "5560d625d3a79e769a3b56930ac180cf8019d6580f3e56de9360b36165bc3376",
+    "server/reportSnapshotRoutes.ts": "dc73bbaab6160075d6eb47b2ffbd47be4bf486b54e355cd3f7edf97e92f19eca",
+    "server.ts": "bc327bab85d59b91c7a64c2a31fada129d131f71421dbddece547afb4a055653",
+    "shared/reportSnapshots.ts": "78289a89e92a1020d45c7772b78375f78ea695ca7f2013a084a6df08ab7f728e",
+    "shared/reportSnapshotSchemaV1.ts": "5d99b06dae5d954181c31b571104fd38ce86cc7765d7205472b2f15cf4d1087e",
+    "shared/dailyWorkReport.ts": "ac69069520df2762e7adfe054306c38598d9f892969fda01ed58129ea6c4c6db",
+    "shared/dailyWorkReportLabels.ts": "73f718d33f0be8dad88ce27cae2bae83d0e82a78ed12a86f02df3483ecff6028",
+    "src/components/ReportSnapshotPanel.tsx": "ce9d0306a796803101caa79b54f014862820690b66743b7a8ab81777fcc0bc65",
+    "src/components/DailyWorkReport.tsx": "e996eeb9b29302efed2332a62733ce6adb6a98e469099df59738153692c64f4f",
+    "test/reportSnapshots.test.ts": "f1270504f99a668e4ab7644bd397cc09bfb1c8f585111e1cdd00220c19128b98",
+    "test/integration/reportSnapshotsSql.test.ts": "9a90359f526f091cc02f45ccf612112b847f9545023981f0b35332a66b1e7bbe",
+    "test/browser/reportSnapshots.test.ts": "7e5a43da487426b44457d90923c82bb0985279ef5e087d4ba39a68e734012d89",
+    "test/browser/workspaceIsolation.test.ts": "319519f9f0b42b42084ce136dc5d7fb3650626c8ee1f0b6d8f95e76369795e41",
+    "test/browser/telegramOperations.test.ts": "60d70c0888c9005bd4205dcd0a0ada30d4348c56f22fecabf4210be9d5d3e8ae"
+  }
+}

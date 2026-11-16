@@ -13,11 +13,13 @@ export interface DailyWorkReport{
  backlog:{waitingJobs:number;runningJobs:number;failedJobs:number;pendingApprovals:number;uncertainPublications:number;unconfirmedMessages:number;inquiryAlertsNotAttempted:number;inquiryAlertsUnconfirmed:number;knowledgeAwaitingApproval:number;knowledgeExtractionRunning:number;knowledgeExtractionBlocked:number;websiteImportsWaiting:number;websiteImportsRunning:number;websiteImportsFailed:number;}&Record<keyof typeof MANUAL_TELEGRAM_BACKLOG,number>;
 }
 
+export const DAILY_WORK_METRICS={activity:['completedJobs','failedJobs','pausedJobs','approvedPosts','rescheduledPosts','admittedPosts','controlChanges','messageRequests','apiAcceptedMessages','websiteInquiries','inquiryAlertsAccepted','knowledgeStored','knowledgeExtractionsSettled','knowledgeExtractionsBlocked','knowledgeApprovals','knowledgeWithdrawals','knowledgeDeleted','websiteImportsQueued','websiteImportsCommitted','websiteImportsWithFailures','websiteImportsPaused','websiteImportsCancelled',...Object.keys(MANUAL_TELEGRAM_ACTIVITY)],backlog:['waitingJobs','runningJobs','failedJobs','pendingApprovals','uncertainPublications','unconfirmedMessages','inquiryAlertsNotAttempted','inquiryAlertsUnconfirmed','knowledgeAwaitingApproval','knowledgeExtractionRunning','knowledgeExtractionBlocked','websiteImportsWaiting','websiteImportsRunning','websiteImportsFailed',...Object.keys(MANUAL_TELEGRAM_BACKLOG)]} as const;
+
 /** Fixed labels and numeric values only: no provider payloads, captions, actor names or spreadsheet formulas. */
 export function dailyWorkReportCsv(report:DailyWorkReport):string{
  platformDayBounds(report.date);
  if(report.timeZone!=='Asia/Kolkata'||!Number.isFinite(Date.parse(report.generatedAt)))throw new Error('INVALID_REPORT_METADATA');
- const metrics={activity:['completedJobs','failedJobs','pausedJobs','approvedPosts','rescheduledPosts','admittedPosts','controlChanges','messageRequests','apiAcceptedMessages','websiteInquiries','inquiryAlertsAccepted','knowledgeStored','knowledgeExtractionsSettled','knowledgeExtractionsBlocked','knowledgeApprovals','knowledgeWithdrawals','knowledgeDeleted','websiteImportsQueued','websiteImportsCommitted','websiteImportsWithFailures','websiteImportsPaused','websiteImportsCancelled',...Object.keys(MANUAL_TELEGRAM_ACTIVITY)],backlog:['waitingJobs','runningJobs','failedJobs','pendingApprovals','uncertainPublications','unconfirmedMessages','inquiryAlertsNotAttempted','inquiryAlertsUnconfirmed','knowledgeAwaitingApproval','knowledgeExtractionRunning','knowledgeExtractionBlocked','websiteImportsWaiting','websiteImportsRunning','websiteImportsFailed',...Object.keys(MANUAL_TELEGRAM_BACKLOG)]} as const;
+ const metrics=DAILY_WORK_METRICS;
  const values=(section:keyof typeof metrics)=>metrics[section].map(metric=>{
   const count=(report[section] as unknown as Record<string,number>)[metric];if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');
   return [report.date,report.timeZone,new Date(report.generatedAt).toISOString(),section==='backlog'?'current_backlog':'activity',metric,String(count)];
@@ -25,4 +27,11 @@ export function dailyWorkReportCsv(report:DailyWorkReport):string{
  const rows=[['date','timezone','generated_at','section','metric','count'],
   ...values('activity'),...values('backlog')];
  return rows.map(row=>row.map(value=>'"'+value.replace(/"/g,'""')+'"').join(',')).join('\r\n')+'\r\n';
+}
+
+/** Copy only the fixed report contract; unknown source fields can never enter frozen evidence. */
+export function canonicalDailyWorkReport(report:DailyWorkReport):DailyWorkReport{
+ dailyWorkReportCsv(report);
+ const section=(name:'activity'|'backlog')=>Object.fromEntries(DAILY_WORK_METRICS[name].map(k=>[k,(report[name] as any)[k]]));
+ return{date:report.date,timeZone:'Asia/Kolkata',generatedAt:new Date(report.generatedAt).toISOString(),activity:section('activity'),backlog:section('backlog')} as DailyWorkReport;
 }

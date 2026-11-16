@@ -221,6 +221,7 @@ try {
       const publish=route.request().postDataJSON();metaPublishes.push(publish);
       body={success:false,status:'UNKNOWN',postId:publish.postId,message:'Unconfirmed fixture publication',results:{facebook:{success:false,error:'Unconfirmed'}}};
     }
+    else if(url.pathname.endsWith('/daily-work-snapshots'))body={success:true,companyId:url.pathname.split('/')[3],date:url.searchParams.get('date'),snapshots:[],latestRevision:0,canCapture:false};
     else if (/\/companies\/[AB]\/notification-status$/.test(url.pathname)) {
       const company = url.pathname.split('/')[3];
       if (failStatus) { await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false }) }); return; }
