@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
+
 Frozen report continuation (17 November2026 IST): [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) adds closed-day immutable coverage-V1 captures, audited revision CAS/replay, metadata history, comparison and frozen CSV. Forward046/82; historical001–045 unchanged; next047. P09-01 remains partial; no phase or production acceptance.
 
 
@@ -107,3 +109,10 @@ Structured facts add private GET/POST knowledge/facts and POST facts/:factId/{ap
 12 November2026: the three existing draft routes now require available canonical saved-fact reads/audit writes, reject browser facts/model/system overrides and enforce bounded inputs. Conflict/changed/oversized knowledge returns409 fixed codes; unavailable data/audit/provider503, invalid generated shape502. Success adds knowledge metadata (APPROVED_FACTS_ONLY, fingerprint, factRefs/counts, requestId, requiresReview:true/outputVerified:false); existing reply/replyText/content fields stay compatible. No route or schema added. See KNOWLEDGE_DRAFTS.md.
 
 Grouped034 compatibility details: /api/companies GET/POST and /api/auth/me GET retain successful shapes/methods and now use injected route owners/no-store/redacted503 errors. /api/auth/logout POST accepts only {}, persists current-token revocation and reports503 on unconfirmed revocation. New agencies/members/assignments/operations/locations routes are specified in BATCH_10_AGENCY_SECURITY.md. New assigned roles do not gain blanket legacy writes: unknown mutations and whole-workspace JSON saves require management; known knowledge draft writes/approval paths have explicit intent. Archived ordinary mutations/execution are blocked, with explicit operations/location management for reactivation/configuration. Generic job enqueue requires execution. Bearer cookies are not accepted as ambient authority. Serpapi/smtp aliases are preserved, and simultaneous alias/canonical credentials refuse409 rather than silently merge. Request transport refuses non-local paths and obsolete-session completions. These changes need a coordinated server/worker/UI release after034; no rollout occurred here.
+
+## Report capture schedule API (047)
+
+- GET `/api/companies/:companyId/report-capture-schedule`: current read access; no-store policy version, current prerequisites/capacity and latest25 run/queue metadata. No destinations, provider credentials or report payloads.
+- PUT the same path: current manage access, exact `{expectedVersion, enabled, hourIST}`; unsigned revision CAS, integer hour0–23. Every successful policy save cancels previous pending work. A lost acknowledgement requires GET/reconciliation before another save.
+
+Both reject unscoped/query-shaped requests. Internal snapshot hooks cannot be selected through HTTP. Existing manual snapshot contracts and frozen coverage V1 are preserved. `report_snapshot_capture` is an internal shared-queue job, not a new scheduler endpoint.

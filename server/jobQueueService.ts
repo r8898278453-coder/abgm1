@@ -1,3 +1,4 @@
+import {executeReportCapture,recoverReportCaptures,admitReportCaptures} from './reportCaptureSchedule';
 import {executeWhatsAppIntakeReplay,recoverWhatsAppIntakes} from './whatsAppIntakes';
 import {executeSalesInquiry,recoverSalesInquiries} from './salesInquiryRules';
 import {executeApprovedSalesMessage,recoverApprovedSalesMessages} from './approvedSalesMessages';
@@ -47,6 +48,7 @@ export interface QueueTickSummary {
   failedCount: number;
   jobs: JobExecutionResult[];
   timestamp: string;
+  reportCapturesAdmitted?:number;reportCaptureAdmissionAvailable?:boolean;reportCaptureRecoveryFailed?:number;
 }
 
 /**
@@ -99,6 +101,7 @@ export async function executeJob(
     if(isGlobalEmergencyStopActive())return await defer('GLOBAL_EMERGENCY_STOP');
     const operationsPool=await getDbPool();if(operationsPool&&await clientArchived(operationsPool,companyId))return await defer('CLIENT_ARCHIVED');
     switch (jobType) {
+      case 'report_snapshot_capture':{const pool=await getDbPool();if(!pool)throw new Error('REPORT_CAPTURE_STORAGE_UNAVAILABLE');return await executeReportCapture(pool,job);}
       case 'whatsapp_intake_replay': {const pool=await getDbPool();if(!pool)throw new Error('INTAKE_STORAGE_UNAVAILABLE');return await executeWhatsAppIntakeReplay(pool,job);}
       case 'sales_inquiry_review': {const pool=await getDbPool();if(!pool)throw new Error('INQUIRY_STORAGE_UNAVAILABLE');return await executeSalesInquiry(pool,job);}
       case 'sales_workflow_send': {const pool=await getDbPool();if(!pool)throw new Error('APPROVED_SEND_STORAGE_UNAVAILABLE');return await executeApprovedSalesMessage(pool,job);}
@@ -327,6 +330,7 @@ export async function tickJobQueue(
   if(!(batchSize>0))return summary;
   if(canStart())try{const pool=await getDbPool();if(pool)await recoverWhatsAppIntakes(pool,canStart);}catch{console.warn('[JobQueue] Intake recovery unavailable');}
   if(canStart()&&!isGlobalEmergencyStopActive())try{const pool=await getDbPool();if(pool){await recoverKnowledgeIngestion(pool,canStart);if(canStart())await recoverSalesInquiries(pool,canStart);if(canStart())await recoverApprovedSalesMessages(pool,canStart);if(canStart())await recoverSalesWorkflows(pool,canStart);}}catch{console.warn('[JobQueue] Admission/reconciliation unavailable');}
+  if(canStart()&&!isGlobalEmergencyStopActive())try{const pool=await getDbPool();if(!pool)throw new Error('REPORT_CAPTURE_STORAGE_UNAVAILABLE');const recovered=await recoverReportCaptures(pool,canStart);summary.reportCaptureRecoveryFailed=recovered.failed;const admission=await admitReportCaptures(pool,canStart);summary.reportCapturesAdmitted=admission.admitted;summary.reportCaptureAdmissionAvailable=recovered.failed===0;}catch{summary.reportCaptureAdmissionAvailable=false;console.warn('[JobQueue] Report capture admission unavailable');}
   for (let i = 0; i < batchSize; i++) {
     if (!canStart()) break;
     const job = await claimNextJob(workerId);

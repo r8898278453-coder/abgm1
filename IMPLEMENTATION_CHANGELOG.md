@@ -1,5 +1,7 @@
 # Implementation Changelog & Hardening Summary
 
+Scheduled report capture —17 November2026 IST: forward047/84, default-off IST policy, bounded shared-queue catch-up, current authority/lease fencing, atomic snapshot/run/job settlement, cancellation/recovery and private UI. P09-01 remains in progress; distribution/escalation P09-03 remains planned. See docs/implementation/REPORT_CAPTURE_SCHEDULE.md and evidence/report-capture-schedule.json. No production deployment or sends.
+
 Immutable report capture —17 November2026 IST: forward046/82, frozen coverage V1, closed-day capture, audited revision CAS/stable replay, private hash-checked payloads, comparison/export and reload recovery. P09-01 remains in progress. See docs/implementation/IMMUTABLE_REPORT_SNAPSHOTS.md and its evidence JSON.
 
 Manual Telegram reporting —17 November2026 IST: six committed daily activity and three current backlog metrics in canonical report/UI/CSV/digest. Schema045/81 unchanged. See docs/implementation/MANUAL_TELEGRAM_REPORTING.md; full reporting/phase acceptance remains open.

@@ -317,6 +317,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/report-capture-schedule",
+      "owner": "server/reportCaptureScheduleRoutes.ts#registerCaptureScheduleRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/report-capture-schedule",
+      "owner": "server/reportCaptureScheduleRoutes.ts#registerCaptureScheduleRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -1101,5 +1111,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 40
+  "registrationCount": 41
 }

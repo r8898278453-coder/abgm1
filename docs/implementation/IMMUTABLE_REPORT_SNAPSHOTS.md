@@ -1,5 +1,7 @@
 # Immutable daily report captures — 17 November 2026 IST
 
+Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
+
 Closed IST days can now be captured as application-immutable report revisions. A later capture appends a new revision with an explicit reason; it never regenerates or overwrites an older stored copy. Capturing a report does not send it anywhere.
 
 | Delivered control | Actual behavior |

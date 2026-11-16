@@ -1,0 +1,73 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "b484b4b1273d0fa226222a4e69c6099f48d73359",
+  "schema": "047_report_capture_schedule",
+  "canonicalTables": 84,
+  "nextMigration": "048",
+  "historicalMigrations001Through046Changed": false,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (118 credential-isolated programs)",
+    "npm run lint",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:browser:capture-schedule",
+    "npm run test:browser:snapshots",
+    "npm run test:browser:workspace",
+    "npm run test:browser:telegram",
+    "npm run routes:check (221 declarations, 41 registrations, zero collisions)",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "eight-way policy CAS and admission: one canonical writer/run/job",
+    "viewer denied; default disabled policy; per-client/date canonical identity",
+    "atomic baseline/run/job/event settlement; existing manual baseline linked without source regeneration",
+    "disable cancels running/pending work; reenable does not revive dates",
+    "revoked actor skipped; current availability reports revoked permission",
+    "outbox and audit faults roll back admission/storage/recovery",
+    "lost storage commit acknowledgement reconciles committed job",
+    "stale lease cannot store; replacement lease completes once",
+    "bounded seven-day catch-up and terminal failed-job recovery",
+    "fresh/005/041 upgrade through047, repeat applied0",
+    "uploaded export preservation and bundled migration repeat"
+  ],
+  "limits": {
+    "clientsPerAdmissionPass": 2,
+    "eligibleDates": 7,
+    "pendingRunsPerClient": 7,
+    "retainedRunsPerClient": 1000,
+    "queueMaxAttempts": 3,
+    "recoveryCandidates": 25,
+    "visibleHistory": 25
+  },
+  "remaining": [
+    "Hostinger cron/runtime verification",
+    "scheduled distribution/destinations and escalation P09-03",
+    "full report coverage and parent/phase acceptance",
+    "operator retention management; no terminal-date automatic revival"
+  ],
+  "productionAccess": false,
+  "deployment": false,
+  "providerSends": false,
+  "renderingEnabled": false,
+  "billingIncluded": false,
+  "browserCoverage": [
+    "default off and no implicit write",
+    "uncertain enable/hour preserves draft and locks until reload",
+    "versioned acknowledgement recovery",
+    "exact snapshot navigation including same-date reload",
+    "viewer controls and stale client mutation isolation"
+  ],
+  "defaultRegressionsPassed": 118
+}

@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Scheduled capture continuation (17 November2026 IST): [REPORT_CAPTURE_SCHEDULE.md](REPORT_CAPTURE_SCHEDULE.md). Forward047/84; next048. Default off; no scheduled distribution or phase acceptance.
+
 Frozen report continuation (17 November2026 IST): [IMMUTABLE_REPORT_SNAPSHOTS.md](IMMUTABLE_REPORT_SNAPSHOTS.md) adds closed-day immutable coverage-V1 captures, audited revision CAS/replay, metadata history, comparison and frozen CSV. Forward046/82; historical001–045 unchanged; next047. P09-01 remains partial; no phase or production acceptance.
 
 
@@ -41,7 +43,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.34 • updated 17 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.35 • updated 17 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

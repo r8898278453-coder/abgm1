@@ -1,3 +1,4 @@
+import {reportCaptureSchedule,CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES,CAPTURE_SCHEDULE_CHECKS,CAPTURE_SCHEDULE_INDEX_CHECK} from './migrations/047_report_capture_schedule';
 import {dailyReportSnapshots,REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES,REPORT_SNAPSHOT_CHECK,REPORT_SNAPSHOT_INDEX_CHECK} from './migrations/046_daily_report_snapshots';
 import {telegramManualIntents,TELEGRAM_MANUAL_COLUMNS,TELEGRAM_MANUAL_CHECK,TELEGRAM_MANUAL_INDEXES,TELEGRAM_MANUAL_INDEX_CHECK} from './migrations/045_telegram_manual_intents';
 import {messageDeliveryEvidence,DELIVERY_PROVIDER_SHAPE,DELIVERY_INDEX_SHAPE} from './migrations/044_message_delivery_evidence';
@@ -143,6 +144,8 @@ export const CANONICAL_REQUIRED_TABLES = [
   'message_delivery_receipts',
   'telegram_manual_intents',
   'daily_report_snapshots',
+  'report_capture_policies',
+  'report_capture_runs',
 ];
 
 // Canonical List of Expected Critical Table Indexes
@@ -833,6 +836,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   messageDeliveryEvidence,
   telegramManualIntents,
   dailyReportSnapshots,
+  reportCaptureSchedule,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1144,6 +1148,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [captureColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('report_capture_policies','report_capture_runs')");
+      for(const [table,names]of Object.entries(CAPTURE_SCHEDULE_COLUMNS))for(const name of names)if(!captureColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
+      const [captureIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='report_capture_runs' ORDER BY INDEX_NAME,SEQ_IN_INDEX");
+      for(const [name,cols]of Object.entries(CAPTURE_SCHEDULE_INDEXES)){const r=captureIndexes.filter((r:any)=>r.INDEX_NAME===name);if(r.map((x:any)=>x.COLUMN_NAME).join(',')!==cols.join(',')||r.some((x:any)=>x.SUB_PART!==null)||name==='uq_capture_run_date'&&r.some((x:any)=>Number(x.NON_UNIQUE)!==0))missingConstraints.push('report_capture_runs.'+name);}
+      for(const check of [...CAPTURE_SCHEDULE_CHECKS,CAPTURE_SCHEDULE_INDEX_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('report_capture_schedule.shape');}
       const [snapshotColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='daily_report_snapshots'");
       for(const name of REPORT_SNAPSHOT_COLUMNS)if(!snapshotColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('daily_report_snapshots.'+name);
       const [snapshotIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='daily_report_snapshots' ORDER BY INDEX_NAME,SEQ_IN_INDEX");
