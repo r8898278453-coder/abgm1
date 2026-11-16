@@ -1,28 +1,13 @@
+import {createHash} from 'node:crypto';
 import {isGlobalEmergencyStopActive} from './executionStop';
-/** Tenant notifications never inherit a platform-global bot or recipient. */
-export async function sendTenantTelegram(companyId: string, message: string, deps: {
-  getCompanyIntegration: (companyId: string, provider: string) => Promise<{ company_id: string; provider: string; status: string; credentials?: Record<string, any> } | null>;
-  fetch: typeof fetch;
-}): Promise<boolean> {
-  if(isGlobalEmergencyStopActive())return false;
-  if (!companyId || typeof message !== 'string' || !message.trim() || message.length > 4096) return false;
-  try {
-    const integration = await deps.getCompanyIntegration(companyId, 'telegram_bot');
-    if (!integration || integration.company_id !== companyId || integration.provider !== 'telegram_bot' || integration.status !== 'connected') return false;
-    const token = integration.credentials?.botToken;
-    const chatId = integration.credentials?.chatId;
-    if (typeof token !== 'string' || !/^\d+:[A-Za-z0-9_-]+$/.test(token) || typeof chatId !== 'string' || !/^-?\d+$/.test(chatId)) return false;
-    if(isGlobalEmergencyStopActive())return false;
-    const response = await deps.fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      // Plain text: client names/review excerpts cannot inject Markdown formatting.
-      body: JSON.stringify({ chat_id: chatId, text: message }), signal: AbortSignal.timeout(5000),
-    });
-    const data = await response.json().catch(() => null);
-    return response.ok && data?.ok === true && Number.isInteger(data.result?.message_id) &&
-      String(data.result?.chat?.id) === chatId;
-  } catch {
-    // A provider URL can contain the bot token: never log raw network errors.
-    return false;
-  }
-}
+export interface TelegramIntegration{ id?:string;company_id:string;provider:string;status:string;credentials?:Record<string,any> }
+export function telegramTransportBinding(company:string,row:TelegramIntegration|null){const token=row?.credentials?.botToken,chat=row?.credentials?.chatId;if(!row||row.company_id!==company||row.provider!=='telegram_bot'||row.status!=='connected'||typeof token!=='string'||!/^\d{1,32}:[A-Za-z0-9_-]+$/.test(token)||typeof chat!=='string'||! /^-?\d{1,32}$/.test(chat))return null;return{hash:createHash('sha256').update(JSON.stringify([company,row.id||null,token,chat])).digest('hex'),botId:token.split(':')[0],destinationFingerprint:createHash('sha256').update(chat).digest('hex').slice(0,12)};}
+export type TelegramAttempt={state:'API_ACCEPTED';providerId:string;reason:null}|{state:'PAUSED'|'UNKNOWN';providerId:null;reason:string};
+type TransportDeps={getCompanyIntegration:(company:string,provider:string)=>Promise<TelegramIntegration|null>;getCompanyIntegrations?:(company:string)=>Promise<TelegramIntegration[]>;fetch:typeof fetch;canSend?:()=>Promise<boolean>};
+/** Tenant transport never inherits global credentials and never retries an ambiguous request. */
+export async function sendTenantTelegramAttempt(company:string,message:string,deps:TransportDeps,expectedBinding?:string):Promise<TelegramAttempt>{let attempted=false;const paused=(reason:string):TelegramAttempt=>({state:'PAUSED',providerId:null,reason});try{if(isGlobalEmergencyStopActive())return paused('EMERGENCY_STOP');if(!company||typeof message!=='string'||!message.trim()||message.length>4096)return paused('INPUT_INVALID');let row:TelegramIntegration|null;
+ if(expectedBinding){if(!deps.getCompanyIntegrations)return paused('BINDING_RECHECK_UNAVAILABLE');const all=await deps.getCompanyIntegrations(company);if(!Array.isArray(all)||all.some(r=>r.company_id!==company))return paused('BINDING_SCOPE_CHANGED');const matches=all.filter(r=>r.provider==='telegram_bot');if(matches.length!==1)return paused('BINDING_AMBIGUOUS');row=matches[0];}else row=await deps.getCompanyIntegration(company,'telegram_bot');
+ const binding=telegramTransportBinding(company,row);if(!binding)return paused('CONFIGURATION_UNAVAILABLE');if(expectedBinding&&binding.hash!==expectedBinding)return paused('DESTINATION_CHANGED');if(deps.canSend&&!await deps.canSend())return paused('EXECUTION_ACCESS_CHANGED');if(isGlobalEmergencyStopActive())return paused('EMERGENCY_STOP');const token=row!.credentials!.botToken,chatId=row!.credentials!.chatId;attempted=true;
+ const response=await deps.fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chatId,text:message}),signal:AbortSignal.timeout(5000)});const data=await response.json().catch(()=>null);if(response.ok&&data?.ok===true&&Number.isSafeInteger(data.result?.message_id)&&data.result.message_id>0&&String(data.result?.chat?.id)===chatId)return{state:'API_ACCEPTED',providerId:String(data.result.message_id),reason:null};return{state:'UNKNOWN',providerId:null,reason:'PROVIDER_ACK_UNCONFIRMED'};
+ }catch{return attempted?{state:'UNKNOWN',providerId:null,reason:'PROVIDER_OUTCOME_UNCONFIRMED'}:paused('PREFLIGHT_UNAVAILABLE');}}
+export async function sendTenantTelegram(company:string,message:string,deps:TransportDeps):Promise<boolean>{return(await sendTenantTelegramAttempt(company,message,deps)).state==='API_ACCEPTED';}

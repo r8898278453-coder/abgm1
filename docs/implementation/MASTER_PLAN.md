@@ -1,5 +1,8 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Durable manual Telegram continuation (16 November2026 IST): [TELEGRAM_MANUAL_JOURNAL.md](TELEGRAM_MANUAL_JOURNAL.md) adds bound, audited request states, exact replay/no resend, prepared-only cancellation, capped admission and private reload/history. Forward045/81; historical001–044 unchanged; next046. P09-04 remains partial; no phase or production acceptance.
+
+
 Telegram operations continuation (15 November2026 IST): [TELEGRAM_OPERATIONS_CONSOLE.md](TELEGRAM_OPERATIONS_CONSOLE.md) replaces simulator presentation with saved configuration, explicit manual acceptance, canonical reports/history and suggestion-only discussion. P09-04 is in_progress; live identity, durable manual journal and verified commands remain open. Schema044/80 unchanged; next045.
 
 
@@ -32,7 +35,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.31 • updated 15 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.32 • updated 16 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

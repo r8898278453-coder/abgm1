@@ -58,7 +58,7 @@ try {
   let holdStatus = false;
   let signalStatus: (() => void) | undefined;
   let failNotify = false;
-  const notifications: any[] = [];
+  const notifications: any[] = [];const manualIntents=new Map<string,any>();
   let failFeed = false;
   let delayFeed = false;
   let signalFeed: (() => void) | undefined;
@@ -239,11 +239,12 @@ try {
     }
     else if (url.pathname === '/api/ai/chat') {chatRequests.push(route.request().postDataJSON()); await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'fixture unavailable'})});return; }
     else if (/\/companies\/[AB]\/telegram-operations$/.test(url.pathname)){body={success:true,companyId:url.pathname.split('/')[3],readOnly:true,checkedAtMs:Date.now(),canNotify:true,emergencyStopped:false,integration:{state:'SAVED',transportEnabled:true,identityVerified:false,recipientDeliveryVerified:false,botId:'123',destinationFingerprint:'a'.repeat(12)}};}
+    else if (/\/companies\/[AB]\/telegram-manual(?:\/[a-f0-9]{64})?$/.test(url.pathname)){const company=url.pathname.split('/')[3],key=url.pathname.split('/')[5];body=key?{success:true,companyId:company,intent:manualIntents.get(company+':'+key)}:{success:true,companyId:company,intents:[...manualIntents].filter(([k])=>k.startsWith(company+':')).map(([,v])=>v),nextBefore:null};}
     else if (url.pathname === '/api/telegram/notify') {
-      const notification = route.request().postDataJSON(); notifications.push(notification);
+      const notification = route.request().postDataJSON(); notifications.push(notification);const intent={requestKey:notification.requestKey,state:failNotify?'UNKNOWN':'API_ACCEPTED',version:'2',providerId:failNotify?null:'77',needsReview:failNotify,canCancel:false,recipientDelivery:'UNVERIFIED',createdAtMs:Date.now(),updatedAtMs:Date.now()};manualIntents.set(notification.companyId+':'+notification.requestKey,intent);
       if (notification.companyId === 'A') { signalNotify?.(); await new Promise<void>(resolve => { releaseNotify = resolve; }); }
       if (failNotify) { await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Delivery not confirmed' }) }); return; }
-      body = { success: true,companyId:notification.companyId,outcome:'API_ACCEPTED',recipientDelivery:'UNVERIFIED',persisted:false };
+      body = { success: true,companyId:notification.companyId,requestKey:notification.requestKey,intent,outcome:'API_ACCEPTED',recipientDelivery:'UNVERIFIED',persisted:true };
     }
     else if (/\/companies\/[AB]\/job-actions$/.test(url.pathname)) {
       const company = url.pathname.split('/')[3];
@@ -491,9 +492,9 @@ try {
   failNotify = false;
   await page.getByRole('button', { name: 'Send Test Alert', exact: true }).first().click();
   await page.getByText(/Telegram accepted the test alert/).waitFor();
-  failNotify = true;
+  await alertInput.fill('Beta distinct alert');failNotify = true;
   await page.getByRole('button', { name: 'Send Test Alert', exact: true }).first().click();
-  await page.getByText('Telegram acceptance unconfirmed. Check the destination before another send. Automatic resend is disabled.', { exact: true }).waitFor();
+  await page.getByText('Telegram acceptance unconfirmed. Check the saved request and destination before another send. Automatic resend is disabled.', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button',{name:'Send Test Alert',exact:true}).isDisabled(),true);
   assert.deepEqual(notifications.map(n => n.companyId), ['A', 'B','B']);
   failNotify = false;

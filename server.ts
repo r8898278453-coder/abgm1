@@ -1,3 +1,5 @@
+import {dispatchManualTelegram,readManualTelegram,readManualTelegramHistory,cancelManualTelegram} from './server/telegramManualIntents';
+import {sendTenantTelegramAttempt} from './server/tenantNotifications';
 import {registerTelegramOperations} from './server/telegramOperations';
 import {readDispatchReceiptTimeline} from './server/messageDeliveryEvidence';
 import {processWhatsAppIntake} from './server/whatsAppIntakes';
@@ -3688,7 +3690,11 @@ registerTenantNotificationRoutes(app, {
   limiter: telegramAlertLimiter,
   getAuthUserFromRequest,
   verifyCompanyWorkspaceAccess:async(user,company)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,'execute');},
-  send: (companyId, message) => sendTenantTelegram(companyId, message, { getCompanyIntegration, fetch }),
+  readAccess:async(user,company)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram storage unavailable');return agencyClientAccess(pool,user,company,'read');},
+  dispatch:async(user,company,key,message)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram storage unavailable');return dispatchManualTelegram(pool,user,company,key,message,{integrations:getCompanyIntegrations,send:binding=>sendTenantTelegramAttempt(company,message,{getCompanyIntegration,getCompanyIntegrations,fetch,canSend:async()=>Boolean((await agencyClientAccess(pool,user,company,'execute')).authorized)},binding)});},
+  read:async(company,key)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram storage unavailable');return readManualTelegram(pool,company,key);},
+  history:async(company,before)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram storage unavailable');return readManualTelegramHistory(pool,company,before);},
+  cancel:async(user,company,key,version)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram storage unavailable');return cancelManualTelegram(pool,user,company,key,version);},
 });
 
 // ---------------- AUTONOMOUS GOVERNANCE & EXECUTION ENGINE ---------------- //

@@ -1,25 +1,7 @@
-import type { Express, Request, RequestHandler } from 'express';
-import type { DbUser } from './db';
-
-export function registerTenantNotificationRoutes(app: Express, deps: {
-  limiter: RequestHandler;
-  getAuthUserFromRequest: (req: Request) => Promise<DbUser | null>;
-  verifyCompanyWorkspaceAccess: (user: DbUser, companyId: string) => Promise<{ authorized: boolean; status: number; error?: string }>;
-  send: (companyId: string, message: string) => Promise<boolean>;
-}) {
-  app.post('/api/telegram/notify', deps.limiter, async (req, res) => {
-    res.set('Cache-Control','no-store');
-    try {
-      const user = await deps.getAuthUserFromRequest(req);
-      if (!user) { res.status(401).json({ success: false, error: 'Authentication required' }); return; }
-      const { companyId, message } = req.body || {};
-      if (typeof companyId !== 'string' || !companyId.trim() || companyId.length > 64 || typeof message !== 'string' || !message.trim() || message.length > 4096 || Object.keys(req.body).some(key => !['companyId', 'message'].includes(key))) {
-        res.status(400).json({ success: false, error: 'Valid companyId and message are required' }); return;
-      }
-      const access = await deps.verifyCompanyWorkspaceAccess(user, companyId);
-      if (!access.authorized) { res.status(access.status).json({ success: false, error: access.error }); return; }
-      const sent = await deps.send(companyId, message.trim());
-      res.status(sent ? 200 : 502).json(sent ? { success: true,companyId,outcome:'API_ACCEPTED',recipientDelivery:'UNVERIFIED',persisted:false } : { success: false,companyId,outcome:'UNCONFIRMED',recipientDelivery:'UNVERIFIED',persisted:false,error:'Telegram acceptance unconfirmed. Check the destination before another send.' });
-    } catch { res.status(500).json({ success: false, error: 'Unable to dispatch workspace notification' }); }
-  });
+import type {Express,Request,RequestHandler} from 'express';import type {DbUser} from './db';import {TelegramManualError} from './telegramManualIntents';
+export function registerTenantNotificationRoutes(app:Express,deps:{limiter:RequestHandler;getAuthUserFromRequest:(req:Request)=>Promise<DbUser|null>;verifyCompanyWorkspaceAccess:(user:DbUser,company:string)=>Promise<{authorized:boolean;status:number;error?:string}>;dispatch:(user:DbUser,company:string,key:string,message:string)=>Promise<any>;read:(company:string,key:string)=>Promise<any>;history:(company:string,before?:string)=>Promise<any>;cancel:(user:DbUser,company:string,key:string,version:string)=>Promise<any>;readAccess?:(user:DbUser,company:string)=>Promise<{authorized:boolean;status:number}>}){
+ const handler=(kind:'send'|'read'|'history'|'cancel')=>async(req:Request,res:any)=>{res.set('Cache-Control','no-store');try{const user=await deps.getAuthUserFromRequest(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}const company=kind==='send'?req.body?.companyId:req.params.companyId,key=kind==='send'?req.body?.requestKey:req.params.key;if(typeof company!=='string'||!company||company.length>64||kind!=='history'&&(typeof key!=='string'||!/^[a-f0-9]{64}$/.test(key)))throw new TelegramManualError(400,'TELEGRAM_SCOPE_INVALID');if(kind==='send'&&(typeof req.body?.message!=='string'||!req.body.message.trim()||req.body.message.length>4096||Object.keys(req.body).some(k=>!['companyId','requestKey','message'].includes(k))))throw new TelegramManualError(400,'TELEGRAM_INPUT_INVALID');if(Object.keys(req.query).some(k=>kind!=='history'||k!=='before')||req.query.before!==undefined&&typeof req.query.before!=='string')throw new TelegramManualError(400,'TELEGRAM_QUERY_INVALID');if(kind==='cancel'&&(typeof req.body?.expectedVersion!=='string'||Object.keys(req.body).some(k=>k!=='expectedVersion')))throw new TelegramManualError(400,'TELEGRAM_CANCEL_INVALID');const access=await((kind==='read'||kind==='history')&&deps.readAccess?deps.readAccess:deps.verifyCompanyWorkspaceAccess)(user,company);if(!access.authorized){res.status(access.status).json({success:false,error:'TELEGRAM_ACCESS_DENIED'});return;}
+ if(kind==='history'){res.json({success:true,companyId:company,...await deps.history(company,req.query.before as string|undefined)});return;}if(kind==='read'){const intent=await deps.read(company,key);if(!intent)throw new TelegramManualError(404,'TELEGRAM_REQUEST_NOT_FOUND');res.json({success:true,companyId:company,intent});return;}if(kind==='cancel'){res.json({success:true,companyId:company,intent:await deps.cancel(user,company,key,req.body.expectedVersion)});return;}const result=await deps.dispatch(user,company,key,req.body.message.trim()),accepted=result.persisted===true&&result.intent?.state==='API_ACCEPTED';res.status(200).json({success:accepted,companyId:company,requestKey:key,outcome:accepted?'API_ACCEPTED':'UNCONFIRMED',recipientDelivery:'UNVERIFIED',...result});
+ }catch(e){res.status(e instanceof TelegramManualError?e.status:503).json({success:false,error:e instanceof TelegramManualError?e.code:'TELEGRAM_OPERATION_UNCONFIRMED'});}};
+ app.post('/api/telegram/notify',deps.limiter,handler('send'));app.get('/api/companies/:companyId/telegram-manual',handler('history'));app.get('/api/companies/:companyId/telegram-manual/:key',handler('read'));app.post('/api/companies/:companyId/telegram-manual/:key/cancel',handler('cancel'));
 }

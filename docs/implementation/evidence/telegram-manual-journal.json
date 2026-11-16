@@ -1,0 +1,85 @@
+{
+  "dateIST": "2026-11-16",
+  "baseCommit": "d72727e",
+  "schema": "045_telegram_manual_intents",
+  "canonicalTables": 81,
+  "nextMigration": "046",
+  "historicalMigrations001Through044Changed": false,
+  "defaultRegressionsPassed": 116,
+  "targetParents": [
+    "P09-04"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 34,
+    "planned": 37,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (116 isolated programs; subsequent selected-request404 UI handling covered by focused browser test)",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "npm run test:browser:telegram",
+    "npm run test:browser:workspace",
+    "npm run routes:check",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "nativeCoverage": [
+    "fresh/005-upgrade/041-upgrade through045 and canonical schema/index parity; repeat applied0",
+    "8-way same-key contenders produce one sender",
+    "same-key changed content conflict, actor authorization and tenant isolation",
+    "UNKNOWN replay never sends; new key with matching uncertain actor/content refused",
+    "lost claim and provider-boundary commit acknowledgements start no provider call",
+    "lost settlement acknowledgement reconciles persisted API acceptance through later read without another send",
+    "8-way expected-version prepared cancellation converges and cancel-before-provider prevents send",
+    "shared policy/configuration pause and atomic audit rollback",
+    "exact destination-binding preflight and SQL/HTTP execute/archive checks; emergency-stop metadata retained",
+    "25-row metadata history and next cursor; no body/token/raw chat/claim leakage",
+    "100 new-request IST-day cap and1000 retained-row cap refuse additional admission",
+    "actual read/execute role separation, archive and assignment revocation via SQL/HTTP",
+    "uploaded original business rows/owner mappings/ledger preserved; minified bundle replay READY/applied0"
+  ],
+  "browserCoverage": [
+    "persistent last-request pointer and UNKNOWN lock restore after page reload",
+    "strict persisted exact-client/key acceptance and no automatic resend",
+    "prepared-only cancellation and state refresh without provider effect",
+    "configuration reload does not clear uncertainty",
+    "selected-request404 preserves available history while send remains locked",
+    "viewer/client/session and delayed response fences; no private plaintext storage",
+    "existing full workspace regression and Telegram evidence console retained"
+  ],
+  "limits": [
+    "no provider delivery/read proof; API_ACCEPTED is provider acknowledgement only",
+    "no automatic timeout takeover or restart send for interrupted requests",
+    "no outcome override or uncertain-request resolution endpoint",
+    "retention/archival beyond hard cap and full daily totals integration remain pending",
+    "live bot identity verification and verified inbound commands remain pending",
+    "no real provider sends, production migration/deployment, environment publication or credentials change",
+    "rendering and automatic sending remain default off; billing excluded",
+    "POST now requires requestKey; release matching frontend/backend together",
+    "existing Vite chunk-size warning"
+  ],
+  "sourceSha256": {
+    "server/migrations/045_telegram_manual_intents.ts": "87bd062ff110bb980b5f17d1f71c9c46c678b85542dc09333e6f975a8c3c2f2c",
+    "server/migrator.ts": "ab90f23f8f99d203e702ccb8d4916acaf4fd2fefb4f796f0e3b87cbe874f0bc0",
+    "server/telegramManualIntents.ts": "a53395dd6297a2dceaabde280241b6563d72d3d2c544b51b7578f61f3b9dd518",
+    "server/tenantNotificationRoutes.ts": "877ec25c12c6e7d1ebcc298c5e8ed9faa6dae0b394cca497c5d215fbb3fe319a",
+    "server/tenantNotifications.ts": "323232c082f29adcac556febc6b34af7b0ad06eb5aaf6c200600f7e42d917614",
+    "server/telegramOperations.ts": "d177fceb736a78fa072fc135d9019a7466533eeb5ef6788841a7461c7fd02d13",
+    "server.ts": "c675eca766851d3373b730232b5f7f3583eb7a7a387b862b74935e0492807362",
+    "shared/telegramManual.ts": "2b63e55315de78a0fec6c8826e2fe265bd5b8b73144bb4e487b59a4b2406aab1",
+    "shared/telegramOperations.ts": "6c6c66aca10b2b76edadda7795a4f28d8280beedc212466a4c9c3c1c8c137c8f",
+    "src/components/TelegramManualHistory.tsx": "baf61c33729a3cef28a1bc1eaf7a9b9d400eb9e5b9c64bc3212152cdcb47b3bf",
+    "src/components/TelegramBotView.tsx": "893fe94597884ca3742c9a219da53e126d8229b676191db9975b32f266143526",
+    "src/services/authService.ts": "e5fef938c931e6a4febc74f4c0b4fc23af022302fa7aee9c02962dc22aecbf9a",
+    "test/telegramManual.test.ts": "8cd423c7ef135b450c449fc44b27f401696e95d2b700ea1a47e5df02ff0114dc",
+    "test/integration/telegramManualSql.test.ts": "6baa08d368698eca0e04b4357a945026369f33ef50a99a77b64258ced00e8588",
+    "test/integration/telegramOperationsSql.test.ts": "6230d42de05dbdeb96e034e34ee4f154fc57e1f0c56465d3cb768e93e6c2e07f",
+    "test/browser/telegramOperations.test.ts": "0de994530b5fa5fd9b466f10cf29c2128599789a9b9dae553fc01ad7f8051471",
+    "test/browser/workspaceIsolation.test.ts": "029c9c537faebf5c45e599a68ecad41844966d3c2902dc786738605a63377bf7"
+  }
+}

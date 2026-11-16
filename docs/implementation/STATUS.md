@@ -1,8 +1,8 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-15 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-16 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 044_message_delivery_evidence; 80 canonical tables. Registered default regression programs: 115 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 045_telegram_manual_intents; 81 canonical tables. Registered default regression programs: 116 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 34 / 1 / 37.
 

@@ -442,6 +442,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/telegram-manual",
+      "owner": "server/tenantNotificationRoutes.ts#registerTenantNotificationRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/telegram-manual/:key",
+      "owner": "server/tenantNotificationRoutes.ts#registerTenantNotificationRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/telegram-manual/:key/cancel",
+      "owner": "server/tenantNotificationRoutes.ts#registerTenantNotificationRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/telegram-operations",
       "owner": "server/telegramOperations.ts#registerTelegramOperations"
     },

@@ -1,5 +1,8 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Durable manual Telegram continuation (16 November2026 IST): [TELEGRAM_MANUAL_JOURNAL.md](TELEGRAM_MANUAL_JOURNAL.md) adds bound, audited request states, exact replay/no resend, prepared-only cancellation, capped admission and private reload/history. Forward045/81; historical001–044 unchanged; next046. P09-04 remains partial; no phase or production acceptance.
+
+
 Telegram operations continuation (15 November2026 IST): [TELEGRAM_OPERATIONS_CONSOLE.md](TELEGRAM_OPERATIONS_CONSOLE.md) replaces simulator presentation with saved configuration, explicit manual acceptance, canonical reports/history and suggestion-only discussion. P09-04 is in_progress; live identity, durable manual journal and verified commands remain open. Schema044/80 unchanged; next045.
 
 

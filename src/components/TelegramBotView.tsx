@@ -1,3 +1,6 @@
+import {TelegramManualHistory} from './TelegramManualHistory';
+import {messageRequestKey} from '../services/messageRequestKeys';
+import {getStoredUser} from '../services/authService';
 import React, { useEffect, useRef, useState } from 'react';
 import type { BusinessProfile } from '../types';
 import { apiRequest, getStoredToken, sendTelegramNotifyApi } from '../services/authService';
@@ -17,6 +20,8 @@ const Operations: React.FC<Props & {
     companyId: string;
 }> = ({ business, companyId, onNavigate }) => {
     const [metadata, setMetadata] = useState<any>(null), [configError, setConfigError] = useState(''), [configBusy, setConfigBusy] = useState(false), [message, setMessage] = useState(`Test Alert from ${business.name}: Please confirm receipt of this test notification.`), [sending, setSending] = useState(false), [uncertain, setUncertain] = useState(false), [feedback, setFeedback] = useState('');
+    const pointerSlot='abgm:telegram-manual:last:'+getStoredUser()?.id+':'+companyId;
+    const [lastKey,setLastKey]=useState(()=>{try{const key=sessionStorage.getItem(pointerSlot);return key&&/^[a-f0-9]{64}$/.test(key)?key:'';}catch{return '';}}),[journalEpoch,setJournalEpoch]=useState(0);
     const [question, setQuestion] = useState(''), [discussion, setDiscussion] = useState<{
         kind: string;
         text: string;
@@ -41,26 +46,29 @@ const Operations: React.FC<Props & {
     useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; sequence.current++; request.current?.abort(); }; }, []);
     const snapshot = metadata?.token === getStoredToken() ? metadata.value : null;
     const send = async (e: React.FormEvent) => { e.preventDefault(); if (sending || uncertain || !snapshot?.canNotify || !message.trim())
-        return; const token = getStoredToken(), epoch = sequence.current, text = message.trim(); setSending(true); setFeedback(''); const current = () => alive.current && sequence.current === epoch && getStoredToken() === token; try {
-        const result = await sendTelegramNotifyApi(companyId, text);
+        return; const token = getStoredToken(), epoch = sequence.current, text = message.trim(); setSending(true); setFeedback('');let attempted=false; const current = () => alive.current && sequence.current === epoch && getStoredToken() === token; try {
+        const identity=await messageRequestKey('telegram:'+getStoredUser()?.id+':'+companyId,{message:text,destination:snapshot.integration.destinationFingerprint});sessionStorage.setItem(pointerSlot,identity.key);if(sessionStorage.getItem(pointerSlot)!==identity.key)throw new Error('Retry identity unavailable');setLastKey(identity.key);
+        attempted=true;const result = await sendTelegramNotifyApi(companyId, text,identity.key);
         if (!current())
             return;
-        if (confirmedManualTelegram(result, companyId))
-            setFeedback('Telegram accepted the test alert. Recipient receipt has not been verified. This manual attempt is not stored in scheduled history.');
+        if (confirmedManualTelegram(result, companyId,identity.key))
+            setFeedback(result.reused?'Saved request was already API-accepted. No new send was started. Recipient delivery is unverified.':'Telegram accepted the test alert. Recipient receipt has not been verified. This attempt is saved in the manual journal.');
+        else if(result.persisted===true&&result.intent?.requestKey===identity.key&&['PAUSED','CANCELLED'].includes(result.intent.state)){setFeedback('Saved request '+result.intent.state+'. No provider send was confirmed; inspect the journal before a new request.');}
         else {
             setUncertain(true);
-            setFeedback('Telegram acceptance unconfirmed. Check the destination before another send. Automatic resend is disabled.');
+            setFeedback('Telegram acceptance unconfirmed. Check the saved request and destination before another send. Automatic resend is disabled.');
         }
     }
     catch {
         if (current()) {
+            if(!attempted){setFeedback('Request identity could not be saved. No send was started.');return;}
             setUncertain(true);
-            setFeedback('Telegram acceptance unconfirmed. Check the destination before another send. Automatic resend is disabled.');
+            setFeedback('Telegram acceptance unconfirmed. Check the saved request and destination before another send. Automatic resend is disabled.');
         }
     }
     finally {
         if (current())
-            setSending(false);
+            {setSending(false);setJournalEpoch(v=>v+1);}
     } };
     const ask = async () => { if (thinking || !question.trim())
         return; const text = question.trim(), token = getStoredToken(), epoch = sequence.current; setQuestion(''); setDiscussion(old => [...old, { kind: 'Question', text }]); setThinking(true); const current = () => alive.current && sequence.current === epoch && getStoredToken() === token; try {
@@ -78,7 +86,7 @@ const Operations: React.FC<Props & {
     } };
     return <section aria-label="Telegram operations" className="space-y-5 pb-12"><h1 className="text-2xl font-bold">Telegram operations · {business.name}</h1><p>This console shows saved platform evidence. It is not a synced Telegram inbox. Inbound Telegram commands and assistant-triggered changes are not enabled here.</p>
  <section aria-label="Telegram configuration" className="border rounded-xl p-4 space-y-2"><h2>Client Telegram configuration</h2><button disabled={configBusy} onClick={() => void load()}>Reload Telegram configuration</button>{configError && <p role="alert">{configError}</p>}{snapshot && <><p>Saved configuration: {snapshot.integration.state}. Checked {formatPlatformDateTime(snapshot.checkedAtMs)}.</p><p>Stored transport enabled: {snapshot.integration.transportEnabled ? 'Yes' : 'No'}. Current permission to test: {snapshot.canNotify ? 'Available' : 'Unavailable'}.</p>{snapshot.integration.botId && <p>Stored bot ID: {snapshot.integration.botId}</p>}{snapshot.integration.destinationFingerprint && <p>Saved destination fingerprint: <code>{snapshot.integration.destinationFingerprint}</code></p>}<p>Bot identity and current destination reachability have not been verified by this read. A fingerprint identifies the saved destination; it is not delivery evidence.</p>{snapshot.emergencyStopped && <p role="alert">Emergency stop is active. Sending is unavailable.</p>}</>}<button onClick={() => onNavigate('integrations')}>Review client integrations</button></section>
- <section aria-label="Manual Telegram alert" className="border rounded-xl p-4 space-y-2"><h2>Manual client test alert</h2><p>Sends only to this client’s saved bot and destination, with current execution permission. API acceptance does not establish recipient delivery or read status.</p><form onSubmit={send}><input aria-label="Telegram test alert" placeholder="Type a test alert message to deliver to Telegram..." value={message} maxLength={4096} onChange={e => setMessage(e.target.value)} className="border rounded p-2 w-full"/><button disabled={sending || uncertain || !snapshot?.canNotify || !message.trim()}>Send Test Alert</button></form>{feedback && <p role="status">{feedback}</p>}{uncertain && <p>Further test sends are blocked in this view. Investigate the destination and saved configuration. Reloading configuration does not resolve the unconfirmed attempt.</p>}<p>Manual test attempts do not yet have a durable dispatch journal. Scheduled attempts below have their separate saved records.</p></section>
+ <section aria-label="Manual Telegram alert" className="border rounded-xl p-4 space-y-2"><h2>Manual client test alert</h2><p>Sends only to this client’s saved bot and destination, with current execution permission. API acceptance does not establish recipient delivery or read status.</p><form onSubmit={send}><input aria-label="Telegram test alert" placeholder="Type a test alert message to deliver to Telegram..." value={message} maxLength={4096} onChange={e => setMessage(e.target.value)} className="border rounded p-2 w-full"/><button disabled={sending || uncertain || !snapshot?.canNotify || !message.trim()}>Send Test Alert</button></form>{feedback && <p role="status">{feedback}</p>}{uncertain && <p>Further test sends are blocked in this view. Investigate the destination and saved configuration. Reloading configuration does not resolve the unconfirmed attempt.</p>}<p>Manual attempts have their own durable journal. Scheduled attempts below have separate saved records. Message text and credentials are not stored in the journal.</p><TelegramManualHistory key={'manual:'+companyId} companyId={companyId} selectedKey={lastKey} refreshEpoch={journalEpoch} canCancel={snapshot?.canExecute===true} onUnconfirmed={setUncertain}/></section>
  <section ref={work} aria-label="Recorded operations"><h2>What the platform recorded</h2><p>Daily counts, current backlog and saved action history come from their canonical modules. Missing records or unavailable readers do not mean zero work or success.</p><DailyWorkReport key={companyId} companyId={companyId}/><NotificationStatus key={'notifications:' + companyId} companyId={companyId}/><ActionHistory key={'actions:' + companyId} companyId={companyId}/></section>
  <section aria-label="Marketing discussion" className="border rounded-xl p-4 space-y-2"><h2>Marketing discussion</h2><p>Suggestions are a local assistant discussion, not Telegram messages or execution confirmations. Review and submit changes in the relevant platform module.</p><button onClick={() => work.current?.scrollIntoView({ behavior: 'smooth' })}>What happened today?</button><button onClick={() => onNavigate('dashboard')}>Open dashboard</button><button onClick={() => onNavigate('leads')}>Open CRM</button><button onClick={() => onNavigate('content')}>Review content</button><div aria-live="polite">{discussion.map((item, i) => <p key={i}><strong>{item.kind}:</strong> <span>{item.text}</span></p>)}</div><input aria-label="Marketing discussion question" placeholder="Ask a marketing question; suggestions do not execute actions." maxLength={4000} value={question} onChange={e => setQuestion(e.target.value)} onKeyDown={e => { if (e.key === 'Enter')
         void ask(); }}/><button disabled={thinking || !question.trim()} onClick={() => void ask()}>Ask assistant</button>{thinking && <p role="status">Loading suggestion…</p>}</section>

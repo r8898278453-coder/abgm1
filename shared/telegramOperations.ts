@@ -8,4 +8,4 @@ export function validateTelegramOperations(value: any, company: string) {
         throw new Error('TELEGRAM_OPERATIONS_CONTRADICTORY');
     return value;
 }
-export function confirmedManualTelegram(result: any, company: string) { return result?.success === true && result.companyId === company && result.outcome === 'API_ACCEPTED' && result.recipientDelivery === 'UNVERIFIED' && result.persisted === false; }
+export function confirmedManualTelegram(result:any,company:string,key:string){return result?.success===true&&result.companyId===company&&result.requestKey===key&&result.outcome==='API_ACCEPTED'&&result.recipientDelivery==='UNVERIFIED'&&result.persisted===true&&result.intent?.requestKey===key&&result.intent?.state==='API_ACCEPTED'&&typeof result.intent.providerId==='string'&&/^[1-9][0-9]{0,31}$/.test(result.intent.providerId);}

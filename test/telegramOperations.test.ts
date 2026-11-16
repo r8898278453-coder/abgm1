@@ -20,8 +20,8 @@ const v = { companyId: 'A', readOnly: true, checkedAtMs: Date.now(), canNotify: 
 validateTelegramOperations(v, 'A');
 assert.throws(() => validateTelegramOperations(v, 'B'));
 assert.throws(() => validateTelegramOperations({ ...v, emergencyStopped: true }, 'A'));
-assert.equal(confirmedManualTelegram({ success: true }, 'A'), false);
-assert.equal(confirmedManualTelegram({ success: true, companyId: 'A', outcome: 'API_ACCEPTED', recipientDelivery: 'UNVERIFIED', persisted: false }, 'A'), true);
+assert.equal(confirmedManualTelegram({ success: true }, 'A','a'.repeat(64)), false);
+assert.equal(confirmedManualTelegram({ success: true, companyId: 'A', outcome: 'API_ACCEPTED', recipientDelivery: 'UNVERIFIED', persisted:true,requestKey:'a'.repeat(64),intent:{requestKey:'a'.repeat(64),state:'API_ACCEPTED',providerId:'77'} }, 'A','a'.repeat(64)), true);
 for (const cursor of ['2026-02-30T00:00:00Z|daily_digest', '2026-11-15T00:00:00Z|manual', 'bad'])
     assert.throws(() => notificationCursor(cursor));
 const page = { companyId: 'A', available: true, occurrences: [{ kind: 'daily_digest', dueAt: '2026-11-15T02:30:00Z', status: 'UNKNOWN', needsReview: true }], nextCursor: null };

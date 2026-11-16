@@ -877,15 +877,15 @@ export async function getRazorpayStatusApi(companyId?: string): Promise<{
 
 export interface TelegramNotifyResult {
   success: boolean;
-  companyId?:string;outcome?:'API_ACCEPTED'|'UNCONFIRMED';recipientDelivery?:'UNVERIFIED';persisted?:false;
+  companyId?:string;outcome?:'API_ACCEPTED'|'UNCONFIRMED';recipientDelivery?:'UNVERIFIED';persisted?:boolean;requestKey?:string;intent?:any;reused?:boolean;
   error?: string;
 }
 
-export async function sendTelegramNotifyApi(companyId: string, message: string): Promise<TelegramNotifyResult> {
+export async function sendTelegramNotifyApi(companyId: string, message: string,requestKey:string): Promise<TelegramNotifyResult> {
   try {
     const res = await apiRequest<TelegramNotifyResult>('/api/telegram/notify', {
       method: 'POST',
-      body: JSON.stringify({ companyId, message }),
+      body: JSON.stringify({ companyId, message,requestKey }),
     });
     return res;
   } catch (err: any) {

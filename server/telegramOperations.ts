@@ -41,7 +41,7 @@ export function registerTelegramOperations(app: Express, deps: {
             return;
         }
         const permission = await deps.access(user, company, 'execute'), integration = telegramConfiguration(company, await deps.integrations(company)), emergencyStopped = (deps.stopped || isGlobalEmergencyStopActive)();
-        res.json({ success: true, companyId: company, readOnly: true, checkedAtMs: Date.now(), emergencyStopped, canNotify: permission.authorized && integration.state === 'SAVED' && integration.transportEnabled && !emergencyStopped, integration });
+        res.json({ success: true, companyId: company, readOnly: true, checkedAtMs: Date.now(), emergencyStopped, canExecute:permission.authorized, canNotify: permission.authorized && integration.state === 'SAVED' && integration.transportEnabled && !emergencyStopped, integration });
     }
     catch {
         res.status(503).json({ success: false, error: 'TELEGRAM_OPERATIONS_UNAVAILABLE' });

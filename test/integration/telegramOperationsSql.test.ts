@@ -1,3 +1,4 @@
+import {dispatchManualTelegram,readManualTelegram,readManualTelegramHistory,cancelManualTelegram} from '../../server/telegramManualIntents';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import express from 'express';
@@ -16,12 +17,12 @@ const app = express();
 app.use(express.json());
 const auth = async (req: any) => users[String(req.headers.authorization)] || null;
 registerTelegramOperations(app, { auth, access: (u, c, o) => agencyClientAccess(pool, u, c, o), integrations: db.getCompanyIntegrations, stopped: () => stopped });
-registerTenantNotificationRoutes(app, { limiter: (_, __, next) => next(), getAuthUserFromRequest: auth, verifyCompanyWorkspaceAccess: (u, c) => agencyClientAccess(pool, u, c, 'execute'), send: async () => { sends++; return true; } });
+registerTenantNotificationRoutes(app, { limiter: (_, __, next) => next(), getAuthUserFromRequest: auth, verifyCompanyWorkspaceAccess: (u, c) => agencyClientAccess(pool, u, c, 'execute'),readAccess:(u,c)=>agencyClientAccess(pool,u,c,'read'), dispatch:(u,c,k,m)=>dispatchManualTelegram(pool,u,c,k,m,{integrations:db.getCompanyIntegrations,send:async()=>{sends++;return{state:'API_ACCEPTED',providerId:'77',reason:null};}}),read:(c,k)=>readManualTelegram(pool,c,k),history:(c,b)=>readManualTelegramHistory(pool,c,b),cancel:(u,c,k,v)=>cancelManualTelegram(pool,u,c,k,v) });
 registerNotificationStatus(app, { getAuthUserFromRequest: auth, verifyCompanyWorkspaceAccess: (u, c) => agencyClientAccess(pool, u, c, 'read'), read: (c, b, l) => readNotificationStatus(pool, c, b, l) });
 const server = app.listen(0, '127.0.0.1');
 await new Promise<void>(r => server.once('listening', r));
 const origin = `http://127.0.0.1:${(server.address() as any).port}`;
-const call = async (role: string, path: string, status: number, body?: any) => { const r = await fetch(origin + path, { method: body ? 'POST' : 'GET', headers: { Authorization: role, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) }); assert.equal(r.status, status); assert.equal(r.headers.get('cache-control'), 'no-store'); const value = await r.json(); assert.ok(!JSON.stringify(value).includes('PRIVATE_TOKEN')); assert.ok(!JSON.stringify(value).includes('-123456789')); return value; };
+const call = async (role: string, path: string, status: number, body?: any) => { const r = await fetch(origin + path, { method: body ? 'POST' : 'GET', headers: { Authorization: role, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify({...body,requestKey:'a'.repeat(64)}) } : {}) }); assert.equal(r.status, status); assert.equal(r.headers.get('cache-control'), 'no-store'); const value = await r.json(); assert.ok(!JSON.stringify(value).includes('PRIVATE_TOKEN')); assert.ok(!JSON.stringify(value).includes('-123456789')); return value; };
 try {
     const [identity]: any = await pool.query('SELECT @@hostname hostname');
     assert.equal(identity[0].hostname, process.env.LOCAL_SQL_CONTAINER_ID);
@@ -47,8 +48,9 @@ try {
     assert.equal(sends, 0);
     const ack = await call('owner', '/api/telegram/notify', 200, { companyId: company, message: 'fixture' });
     assert.equal(ack.outcome, 'API_ACCEPTED');
-    assert.equal(ack.persisted, false);
+    assert.equal(ack.persisted, true);
     assert.equal(sends, 1);
+    const manual=await call('viewer',base+'/telegram-manual/'+ 'a'.repeat(64),200);assert.equal(manual.intent.state,'API_ACCEPTED');assert.equal((await call('viewer',base+'/telegram-manual',200)).intents.length,1);
     stopped = true;
     assert.equal((await call('owner', base + '/telegram-operations', 200)).canNotify, false);
     stopped = false;
@@ -73,7 +75,7 @@ catch (e: any) {
 }
 finally {
     await new Promise<void>(r => server.close(() => r()));
-    for (const t of ['notification_occurrences', 'company_integrations', 'client_assignments', 'company_profiles_data', 'client_operations', 'agency_clients'])
+    for (const t of ['telegram_manual_intents','autonomous_audit_logs','notification_occurrences', 'company_integrations', 'client_assignments', 'company_profiles_data', 'client_operations', 'agency_clients'])
         await pool.query(`DELETE FROM ${t} WHERE company_id=?`, [company]);
     await pool.query('DELETE FROM companies WHERE id=?', [company]);
     for (const u of Object.values(users) as any[])

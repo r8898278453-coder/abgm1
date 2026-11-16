@@ -13,7 +13,7 @@ try {
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
     const context = await browser.newContext({ serviceWorkers: 'block' });
     let sends = 0, chat = 0, ambiguous = false, hold = false, signal: (() => void) | undefined;
-    const calls: string[] = [];
+    const calls: string[] = [];const manualIntents=new Map<string,any>();
     await context.route('**/*', async (route) => {
         const u = new URL(route.request().url());
         if (u.origin !== origin) {
@@ -30,20 +30,21 @@ try {
         }
         calls.push(route.request().method() + ' ' + u.pathname);
         const company = u.pathname.split('/')[3];
-        let body: any = { success: true, companyId: company };
+        let status=200;let body: any = { success: true, companyId: company };
         if (u.pathname.endsWith('/telegram-operations'))
-            body = { ...body, readOnly: true, checkedAtMs: 1700000000000, canNotify: company === 'A', emergencyStopped: false, integration: { state: 'SAVED', transportEnabled: true, identityVerified: false, recipientDeliveryVerified: false, botId: '123', destinationFingerprint: 'a'.repeat(12) } };
+            body = { ...body, readOnly: true, checkedAtMs: 1700000000000, canNotify: company === 'A',canExecute:company==='A', emergencyStopped: false, integration: { state: 'SAVED', transportEnabled: true, identityVerified: false, recipientDeliveryVerified: false, botId: '123', destinationFingerprint: 'a'.repeat(12) } };
         else if (u.pathname.endsWith('/daily-work-report'))
             body = { ...body, report: { date: u.searchParams.get('date'), timeZone: 'Asia/Kolkata', generatedAt: new Date().toISOString(), activity, backlog } };
         else if (u.pathname.endsWith('/notification-status'))
             body = { ...body, available: true, occurrences: [{ kind: 'daily_digest', dueAt: '2026-11-15T02:30:00Z', status: 'SENT', needsReview: false }], nextCursor: null };
         else if (u.pathname.endsWith('/job-actions'))
             body = { ...body, available: true, events: [], nextCursor: '0', latestRevision: '0' };
+        else if(u.pathname.includes('/telegram-manual')){const k=u.pathname.split('/')[5];if(u.pathname.endsWith('/cancel')){const old=manualIntents.get(company+':'+k);assert.equal(route.request().postDataJSON().expectedVersion,old.version);manualIntents.set(company+':'+k,{...old,state:'CANCELLED',version:'1',canCancel:false});}body=k?{success:true,companyId:company,intent:manualIntents.get(company+':'+k)}:{success:true,companyId:company,intents:[...manualIntents].filter(([k])=>k.startsWith(company+':')).map(([,v])=>v),nextBefore:null};}
         else if (u.pathname === '/api/telegram/notify') {
             sends++;
             const input = route.request().postDataJSON();
             assert.equal(input.companyId, 'A');
-            body = ambiguous ? { success: true } : { success: true, companyId: 'A', outcome: 'API_ACCEPTED', recipientDelivery: 'UNVERIFIED', persisted: false };
+            const intent={requestKey:input.requestKey,state:ambiguous?'UNKNOWN':'API_ACCEPTED',version:'2',providerId:ambiguous?null:'77',needsReview:ambiguous,canCancel:false,recipientDelivery:'UNVERIFIED',createdAtMs:Date.now(),updatedAtMs:Date.now()};manualIntents.set(input.companyId+':'+input.requestKey,intent);body=ambiguous?{success:true}:{success:true,companyId:'A',requestKey:input.requestKey,intent,outcome:'API_ACCEPTED',recipientDelivery:'UNVERIFIED',persisted:true};
         }
         else if (u.pathname === '/api/ai/chat') {
             chat++;
@@ -55,7 +56,7 @@ try {
         }
         else
             throw new Error('Unexpected API ' + u.pathname);
-        await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) }).catch(() => { });
+        if(u.pathname.includes('/telegram-manual/')&&!body.intent){status=404;body={success:false};}await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)}).catch(() => { });
     });
     const page = await context.newPage();
     await page.goto(origin);
@@ -69,14 +70,17 @@ try {
     await page.getByRole('button', { name: 'Send Test Alert', exact: true }).click();
     await page.getByText(/Telegram accepted the test alert/).waitFor();
     assert.equal(sends, 1);
-    ambiguous = true;
+    await page.getByLabel('Telegram test alert').fill('PRIVATE_ALPHA_UNCONFIRMED');ambiguous = true;
     await page.getByRole('button', { name: 'Send Test Alert', exact: true }).click();
-    await page.getByText('Telegram acceptance unconfirmed. Check the destination before another send. Automatic resend is disabled.', { exact: true }).waitFor();
+    await page.getByText('Telegram acceptance unconfirmed. Check the saved request and destination before another send. Automatic resend is disabled.', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Send Test Alert', exact: true }).isDisabled(), true);
     await page.getByRole('button', { name: 'Reload Telegram configuration', exact: true }).click();
     await page.getByText('Stored bot ID: 123', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Send Test Alert', exact: true }).isDisabled(), true);
     assert.equal(sends, 2);
+    await page.reload();await page.getByText('Stored bot ID: 123',{exact:true}).waitFor();await page.getByLabel('Selected manual request').getByText(/UNKNOWN/).waitFor();assert.equal(await page.getByRole('button',{name:'Send Test Alert',exact:true}).isDisabled(),true);assert.equal(sends,2);
+    const preparedKey='b'.repeat(64);manualIntents.set('A:'+preparedKey,{requestKey:preparedKey,state:'PREPARED',version:'0',providerId:null,needsReview:false,canCancel:true,recipientDelivery:'UNVERIFIED',createdAtMs:Date.now(),updatedAtMs:Date.now()});await page.getByRole('button',{name:'Reload manual Telegram journal',exact:true}).click();await page.getByRole('button',{name:'Cancel prepared request '+preparedKey,exact:true}).click();await page.getByLabel('Manual Telegram journal').getByText(/CANCELLED/).waitFor();assert.equal(sends,2);
+    const missing=[...manualIntents].find(([,v])=>v.state==='UNKNOWN')![0];manualIntents.delete(missing);await page.getByRole('button',{name:'Reload manual Telegram journal',exact:true}).click();await page.getByText('Selected request was not found. Inspect the available journal; no retry was started.',{exact:true}).waitFor();await page.getByLabel('Manual Telegram journal').getByText(/CANCELLED/).waitFor();assert.equal(await page.getByRole('button',{name:'Send Test Alert',exact:true}).isDisabled(),true);
     hold = true;
     await page.getByLabel('Marketing discussion question').fill('Discuss a private idea');
     const started = new Promise<void>(r => signal = r);
@@ -89,7 +93,7 @@ try {
     assert.equal(await page.getByText('PRIVATE_ALPHA_SUGGESTION', { exact: true }).count(), 0);
     assert.ok(!(await page.getByLabel('Telegram test alert').inputValue()).includes('PRIVATE_ALPHA_ALERT'));
     assert.equal(await page.getByRole('button', { name: 'Send Test Alert', exact: true }).isDisabled(), true);
-    assert.ok(calls.filter(c => c.startsWith('POST')).every(c => c.endsWith('/api/ai/chat') || c.endsWith('/api/telegram/notify')));
+    assert.ok(calls.filter(c => c.startsWith('POST')).every(c => c.endsWith('/api/ai/chat') || c.endsWith('/api/telegram/notify')||c.endsWith('/cancel')));
     console.log('Telegram browser: saved/unverified identity, real report/history embedding, no AI for today, strict manual acceptance, ambiguous-send lock/reload fence, viewer controls and late-client discussion isolation passed with mocked HTTP.');
 }
 finally {
