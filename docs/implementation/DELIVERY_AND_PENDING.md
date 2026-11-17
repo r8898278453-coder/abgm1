@@ -1,5 +1,9 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Twenty-feature verification —17 November2026 IST:20 module integrations passed; final131 isolated regression programs,23 browser workflows (16 initial plus7 corrected remainder, integration behavior rechecked), full disposable MariaDB050/87, TypeScript/build, frontend budgets and route/doc guards passed. Initial JS: 1,177,923 → 471,776 raw bytes; gzip level 9: 303,346 → 135,218 bytes. Four local parent criteria reconciled: P00-03, P08-08/P08-09 defer-decision branches, P09-06 persisted-name/optional-domain scope. Current counts25 validated/35 in progress/32 planned/1 blocked; no phase or production acceptance.
+
+Twenty-feature integration group (17 November2026 IST):20 existing module batches now share deferred loading, isolated errors and current client/session remounts; measured initial bundle budgets and a serial23-fixture browser registry added. Explicit optional-extension scope and local acceptance audit recorded. See [TWENTY_FEATURE_DELIVERY.md](TWENTY_FEATURE_DELIVERY.md), TWENTY_FEATURE_BATCHES.csv and LOCAL_ACCEPTANCE_RECONCILIATION.md. No production/phase promotion.
+
 Workflow recovery continuation (17 November2026 IST): current client/type/runnable-job binding, terminal-success orphan detection, fresh locked state/repaired-job rechecks, pre-mutation budget and post-commit counts harden the canonical recovery path. See [SALES_WORKFLOW_RECOVERY.md](SALES_WORKFLOW_RECOVERY.md) and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; no parent/phase/live promotion.
 
 Frozen sales continuation (17 November2026 IST): new captures use fixed coverage V3 with eleven sales counters; V1/V2 replay, hashes and existing baselines remain preserved. Same-version comparisons and CSV use actual coverage. Schema050/87 unchanged; next051. See [FROZEN_SALES_COVERAGE.md](FROZEN_SALES_COVERAGE.md) and evidence/frozen-sales-coverage.json. Full parent/phase/live acceptance remains open.

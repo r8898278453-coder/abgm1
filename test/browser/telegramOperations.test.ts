@@ -1,3 +1,4 @@
+import {DAILY_WORK_METRICS} from '../../shared/dailyWorkReport';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
@@ -6,8 +7,8 @@ const fixture = '/__telegram_operations.tsx', vite = await createServer({ plugin
                 return `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{TelegramBotView}from'/src/components/TelegramBotView.tsx';function App(){const[c,set]=useState('A');window.switchClient=set;return <TelegramBotView companyId={c} business={{name:c==='A'?'Alpha':'Beta',category:'Services'}} onNavigate={tab=>window.selectedTab=tab}/>;}createRoot(document.getElementById('root')).render(<App/>);`; } }], server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 await vite.listen();
 let browser: any, release: (() => void) | undefined;
-const activity = Object.fromEntries(['completedJobs', 'failedJobs', 'pausedJobs', 'approvedPosts', 'rescheduledPosts', 'admittedPosts', 'controlChanges', 'messageRequests', 'apiAcceptedMessages', 'websiteInquiries', 'inquiryAlertsAccepted', 'knowledgeStored', 'knowledgeExtractionsSettled', 'knowledgeExtractionsBlocked', 'knowledgeApprovals', 'knowledgeWithdrawals', 'knowledgeDeleted', 'websiteImportsQueued', 'websiteImportsCommitted', 'websiteImportsWithFailures', 'websiteImportsPaused', 'websiteImportsCancelled','telegramManualRecorded','telegramManualStarted','telegramManualAccepted','telegramManualUnknown','telegramManualPaused','telegramManualCancelled','reportSnapshotsStored','reportSnapshotAmendments','reportCapturesAdmitted','reportCapturesCompleted','reportCapturesSkipped','reportCapturesCancelled','reportCapturesRecoveryFailed','reportCapturePolicyChanges'].map(k => [k, k === 'completedJobs' ? 3 : 0]));
-const backlog = Object.fromEntries(['waitingJobs', 'runningJobs', 'failedJobs', 'pendingApprovals', 'uncertainPublications', 'unconfirmedMessages', 'inquiryAlertsNotAttempted', 'inquiryAlertsUnconfirmed', 'knowledgeAwaitingApproval', 'knowledgeExtractionRunning', 'knowledgeExtractionBlocked', 'websiteImportsWaiting', 'websiteImportsRunning', 'websiteImportsFailed','telegramManualPrepared','telegramManualSending','telegramManualUnknown','reportCapturesPending','reportCapturesRunning','reportCapturesFailed','reportCapturesRecoveryNeeded'].map(k => [k, 0]));
+const activity = Object.fromEntries(DAILY_WORK_METRICS.activity.map(k => [k, k === 'completedJobs' ? 3 : 0]));
+const backlog = Object.fromEntries(DAILY_WORK_METRICS.backlog.map(k => [k, 0]));
 try {
     const origin = `http://127.0.0.1:${(vite.httpServer!.address() as any).port}`;
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });

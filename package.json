@@ -71,7 +71,10 @@
     "test:browser:whatsapp-events": "node --import tsx test/browser/whatsAppEventHistory.test.ts",
     "test:browser:whatsapp-conflicts": "node --import tsx test/browser/whatsAppConflictReviews.test.ts",
     "test:browser:whatsapp-intakes": "node --import tsx test/browser/whatsAppIntakes.test.ts",
-    "test:browser:sales-report": "node --import tsx test/browser/salesActivityReport.test.ts"
+    "test:browser:sales-report": "node --import tsx test/browser/salesActivityReport.test.ts",
+    "frontend:check": "node --import tsx server/scripts/checkFrontendChunks.ts",
+    "test:browser:features": "node --import tsx test/browser/lazyFeatures.test.ts",
+    "test:browser:feature-group": "node --import tsx server/scripts/browserFeatureGroup.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

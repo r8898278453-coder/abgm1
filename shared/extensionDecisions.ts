@@ -1,0 +1,8 @@
+/** Product decisions, not customer/provider configuration. No credentials or activation controls. */
+export const EXTENSION_DECISIONS=[
+ {id:'external_crm',name:'External CRM connector',status:'DEFERRED',enabled:false,reason:'The internal client CRM remains canonical; no external CRM has been selected for this deployment.',revisit:'Select one required CRM, its field ownership/conflict rules, scoped credentials and a staging replay pilot.'},
+ {id:'visitor_identity',name:'Website visitor identity',status:'DEFERRED',enabled:false,reason:'Anonymous page visits do not establish a person or contact permission.',revisit:'Select an authorized data source, account-level evidence and retention rules; keep person-level identity unknown.'},
+ {id:'platform_mcp',name:'Platform MCP server',status:'DEFERRED',enabled:false,reason:'No platform MCP server is exposed. Connected tools in this development chat are separate.',revisit:'Finish scoped API keys, per-tool tenant/RBAC/rate limits, secret rotation and tool audit/replay tests.'},
+ {id:'advanced_outbound',name:'Advanced LinkedIn outreach and lookalikes',status:'DEFERRED',enabled:false,reason:'No authorized LinkedIn automation or lookalike provider is configured or activated.',revisit:'Verify supported provider access, provenance/seed quality, contact eligibility, budgets and a no-resend pilot.'},
+ {id:'white_label',name:'White-label branding and custom agency domains',status:'DEFERRED',enabled:false,reason:'The saved agency name is supported; custom branding and agency-domain activation are outside the current personal-platform deployment.',revisit:'Require a branded client portal, persisted brand ownership and an explicit DNS/SSL deployment plan.'},
+] as const;

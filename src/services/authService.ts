@@ -1,3 +1,4 @@
+import {notifyFeatureSessionChanged,USER_SESSION_KEY,ACTIVE_COMPANY_STORAGE_KEY} from './featureSession';
 import {sessionTransport,storedSessionToken,CSRF_KEY} from './sessionTransport';
 import {validWorkspaceRevision} from '../../shared/workspaceRevision';
 import {isConfirmedMessageAcceptance} from '../../shared/whatsAppOutcomes';
@@ -7,8 +8,8 @@ import { AuthUser, CompanyRecord, LeadItem, ReviewItem, ContentPost, CompanyAsse
 import { API_BASE_URL } from '../config/apiConfig';
 
 const TOKEN_KEY = 'abga_auth_token';
-const USER_KEY = 'abga_user_profile';
-const ACTIVE_COMPANY_KEY = 'abga_active_company_id';
+const USER_KEY = USER_SESSION_KEY;
+const ACTIVE_COMPANY_KEY = ACTIVE_COMPANY_STORAGE_KEY;
 
 export const getStoredToken=storedSessionToken;
 
@@ -17,6 +18,7 @@ export function setStoredSession(token: string, user: AuthUser) {
     if(getStoredUser()?.id!==user.id)clearStoredSession();
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    notifyFeatureSessionChanged();
   } catch (err) {
     console.warn('Failed to save session to localStorage:', err);
   }
@@ -40,7 +42,7 @@ export function clearStoredSession() {
     if(typeof navigator!=='undefined')navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_PRIVATE_STATE'});
   } catch (err) {
     console.warn('Failed to clear session:', err);
-  }
+  } finally { notifyFeatureSessionChanged(); }
 }
 
 export async function revokeStoredSession(){try{await apiRequest('/api/auth/logout',{method:'POST',body:'{}',signal:AbortSignal.timeout(5000)});return true;}catch{return false;}}
@@ -56,6 +58,7 @@ export function getStoredActiveCompanyId(): string | null {
 export function setStoredActiveCompanyId(companyId: string) {
   try {
     localStorage.setItem(ACTIVE_COMPANY_KEY, companyId);
+    notifyFeatureSessionChanged();
   } catch (err) {
     console.warn('Failed to save active company ID:', err);
   }

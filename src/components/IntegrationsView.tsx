@@ -1,3 +1,4 @@
+import {ExtensionDecisionsPanel} from './ExtensionDecisionsPanel';
 import {publicationDraftKey} from '../services/publicationDraftMemory';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -516,7 +517,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
             <Radio className={`w-3.5 h-3.5 ${connectedCount > 0 ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
             <div className="text-left">
               <div className="text-xs font-bold text-white">
-                {connectedCount > 0 ? 'Production Gateway Ready' : 'Setup Required'}
+                {connectedCount > 0 ? 'Saved provider configuration' : 'Setup Required'}
               </div>
               <div className="text-[10px] text-slate-400">
                 {systemTelegramActive ? 'Server alert transport configured' : 'Client-scoped configuration'}
@@ -543,6 +544,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
       )}
 
       {loadError&&<div role="alert" className="p-4 text-rose-700">Integration metadata unavailable. Reload to retry.</div>}
+      <ExtensionDecisionsPanel/>
       {/* Grid of Real Integrations */}
       {loading && integrations.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">

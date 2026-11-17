@@ -1,3 +1,4 @@
+import {DashboardView,AuditView,GoogleProfileView,LocalSeoView,CompetitorsView,ReviewsView,ContentStudioView,CalendarView,CampaignsView,LeadsCrmView,WebsiteBuilderView,TelegramBotView,AutonomousEngineView,TrustSafetyView,AgencyView,MobileAppView,IntegrationsView,KnowledgeBaseView,OnboardingModal,AskAiModal} from './components/lazyFeatures';
 import {formatPlatformDateTime} from '../shared/platformTime';
 import {apiRequest} from './services/authService';
 import {workspaceDraft} from './services/workspaceDraft';
@@ -11,27 +12,9 @@ import { ActionHistory } from './components/ActionHistory';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { DashboardView } from './components/DashboardView';
-import { AuditView } from './components/AuditView';
-import { GoogleProfileView } from './components/GoogleProfileView';
-import { LocalSeoView } from './components/LocalSeoView';
-import { CompetitorsView } from './components/CompetitorsView';
-import { ReviewsView } from './components/ReviewsView';
-import { ContentStudioView } from './components/ContentStudioView';
-import { CalendarView } from './components/CalendarView';
-import { CampaignsView } from './components/CampaignsView';
-import { LeadsCrmView } from './components/LeadsCrmView';
-import { WebsiteBuilderView } from './components/WebsiteBuilderView';
-import { TelegramBotView } from './components/TelegramBotView';
-import { AutonomousEngineView, ApprovalRules } from './components/AutonomousEngineView';
-import { TrustSafetyView } from './components/TrustSafetyView';
-import { AgencyView } from './components/AgencyView';
-import { MobileAppView } from './components/MobileAppView';
-import { IntegrationsView } from './components/IntegrationsView';
+import type { ApprovalRules } from './components/AutonomousEngineView';
 import { BillingAdminView } from './components/BillingAdminView';
-import { KnowledgeBaseView, DocumentItem, FaqItem } from './components/KnowledgeBaseView';
-import { OnboardingModal } from './components/OnboardingModal';
-import { AskAiModal } from './components/AskAiModal';
+import type { DocumentItem, FaqItem } from './components/KnowledgeBaseView';
 import { ResetSystemModal } from './components/ResetSystemModal';
 import { AuthScreen } from './components/AuthScreen';
 import { CreateCompanyModal } from './components/CreateCompanyModal';
@@ -786,6 +769,7 @@ export default function App() {
               {/* Active View Router */}
               {viewMode === 'mobile' ? (
                 <MobileAppView
+                  key={`${user?.id}:${activeCompanyId}`}
                   business={business}
                   growthScore={growthScore}
                   auditItems={auditItems}
@@ -804,6 +788,7 @@ export default function App() {
                   {renderedTab === 'dashboard' && (
                     <>
                     <DashboardView
+                      key={`${user?.id}:${activeCompanyId}`}
                       business={business}
                       growthScore={growthScore}
                       auditItems={auditItems}

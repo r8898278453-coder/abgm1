@@ -1,0 +1,10 @@
+import fs from 'node:fs/promises';import path from 'node:path';import {gzipSync} from 'node:zlib';import {LAZY_FEATURE_CATALOG} from '../../src/components/lazyFeatures';
+const root=path.resolve('dist/client'),manifest=JSON.parse(await fs.readFile(path.join(root,'.vite/manifest.json'),'utf8')),visited=new Set<string>();
+function walk(key:string){if(visited.has(key))return;if(!manifest[key])throw new Error('FRONTEND_MANIFEST_REFERENCE_MISSING');visited.add(key);for(const dependency of manifest[key].imports||[])walk(dependency);}
+if(!manifest['index.html']?.isEntry)throw new Error('FRONTEND_ENTRY_MISSING');walk('index.html');
+let initialJsBytes=0,initialJsGzipBytes=0;
+for(const key of visited){const file=manifest[key].file;if(!file.endsWith('.js'))continue;const resolved=path.resolve(root,file);if(!resolved.startsWith(root+path.sep))throw new Error('FRONTEND_MANIFEST_PATH_INVALID');const bytes=await fs.readFile(resolved);initialJsBytes+=bytes.length;initialJsGzipBytes+=gzipSync(bytes,{level:9}).length;}
+if(LAZY_FEATURE_CATALOG.length!==20||new Set(LAZY_FEATURE_CATALOG.map(f=>f.id)).size!==20)throw new Error('FRONTEND_FEATURE_CATALOG_INVALID');
+for(const feature of LAZY_FEATURE_CATALOG){const chunk=manifest[feature.entry];if(!chunk?.isDynamicEntry||visited.has(feature.entry))throw new Error('FRONTEND_FEATURE_NOT_DEFERRED:'+feature.id);const resolved=path.resolve(root,chunk.file);if(!resolved.startsWith(root+path.sep))throw new Error('FRONTEND_MANIFEST_PATH_INVALID');await fs.access(resolved);}
+if(initialJsBytes>600000||initialJsGzipBytes>180000)throw new Error('FRONTEND_INITIAL_BUDGET_EXCEEDED');
+console.log(JSON.stringify({features:20,gzipLevel:9,initialJsBytes,initialJsGzipBytes,rawBudget:600000,gzipBudget:180000,featureEntriesInitiallyLoaded:0,productionAccess:false}));

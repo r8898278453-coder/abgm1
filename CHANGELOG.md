@@ -1,5 +1,9 @@
 # Changelog
 
+Twenty-feature verification —17 November2026 IST:20 module integrations passed; final131 isolated regression programs,23 browser workflows (16 initial plus7 corrected remainder, integration behavior rechecked), full disposable MariaDB050/87, TypeScript/build, frontend budgets and route/doc guards passed. Initial JS: 1,177,923 → 471,776 raw bytes; gzip level 9: 303,346 → 135,218 bytes. Four local parent criteria reconciled: P00-03, P08-08/P08-09 defer-decision branches, P09-06 persisted-name/optional-domain scope. Current counts25 validated/35 in progress/32 planned/1 blocked; no phase or production acceptance.
+
+Twenty-feature group —17 November2026 IST:20 on-demand feature integrations, common failure/client/session boundaries, measured bundle checks and23 serial browser workflows. Optional extension decisions distinguish deferred/off from working integrations. See docs/implementation/TWENTY_FEATURE_DELIVERY.md and LOCAL_ACCEPTANCE_RECONCILIATION.md. No production deployment.
+
 Workflow recovery —17 November2026 IST: canonical job binding/state-race/budget/commit-count hardening. See docs/implementation/SALES_WORKFLOW_RECOVERY.md and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; full parent/phase/live acceptance remains open.
 
 Frozen sales coverage —17 November2026 IST: new captures use V3, preserving V1/V2 replay and original baselines; sales CSV/display/deltas use fixed versioned coverage. Schema050/87 unchanged. See docs/implementation/FROZEN_SALES_COVERAGE.md. Older V1/V2-only binaries cannot read V3 records; retain a compatible reader on rollback. Parent/phase/live gates remain pending.

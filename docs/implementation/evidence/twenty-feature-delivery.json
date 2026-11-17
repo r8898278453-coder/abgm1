@@ -1,0 +1,289 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "3a95fab4486a1da4db89859acc04bf2622e4f942",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "migrationAdded": false,
+  "nextMigration": "051",
+  "moduleBatches": 20,
+  "batches": [
+    {
+      "batch_id": "B20-01",
+      "workflow": "Dashboard",
+      "canonical_entry": "src/components/DashboardView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-02",
+      "workflow": "Audit",
+      "canonical_entry": "src/components/AuditView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-03",
+      "workflow": "Google profile",
+      "canonical_entry": "src/components/GoogleProfileView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-04",
+      "workflow": "Local SEO",
+      "canonical_entry": "src/components/LocalSeoView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;observationTruth;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-05",
+      "workflow": "Competitors",
+      "canonical_entry": "src/components/CompetitorsView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;competitorWorkflow;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-06",
+      "workflow": "Reviews",
+      "canonical_entry": "src/components/ReviewsView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-07",
+      "workflow": "Content studio",
+      "canonical_entry": "src/components/ContentStudioView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;renderOperations;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-08",
+      "workflow": "Calendar",
+      "canonical_entry": "src/components/CalendarView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-09",
+      "workflow": "Campaigns",
+      "canonical_entry": "src/components/CampaignsView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;campaignPlanning;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-10",
+      "workflow": "Sales CRM",
+      "canonical_entry": "src/components/LeadsCrmView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;salesWorkspace;salesWorkflows;approvedSalesMessages;salesInquiryRules;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-11",
+      "workflow": "Website",
+      "canonical_entry": "src/components/WebsiteBuilderView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;websiteIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-12",
+      "workflow": "Telegram",
+      "canonical_entry": "src/components/TelegramBotView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;telegramOperations;notificationPolicies;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-13",
+      "workflow": "Automation",
+      "canonical_entry": "src/components/AutonomousEngineView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-14",
+      "workflow": "Safety",
+      "canonical_entry": "src/components/TrustSafetyView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;workspaceIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-15",
+      "workflow": "Agency",
+      "canonical_entry": "src/components/AgencyView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;agencyWorkspace;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-16",
+      "workflow": "Mobile preview",
+      "canonical_entry": "src/components/MobileAppView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;lazyFeatures;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-17",
+      "workflow": "Integrations",
+      "canonical_entry": "src/components/IntegrationsView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;integrationIsolation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-18",
+      "workflow": "Knowledge",
+      "canonical_entry": "src/components/KnowledgeBaseView.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;knowledgeWorkflow;knowledgeFacts;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-19",
+      "workflow": "Onboarding",
+      "canonical_entry": "src/components/OnboardingModal.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;onboardingWorkflow;companyCreation;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    },
+    {
+      "batch_id": "B20-20",
+      "workflow": "Copilot",
+      "canonical_entry": "src/components/AskAiModal.tsx",
+      "implementation_status": "implemented",
+      "local_acceptance": "passed_local",
+      "evidence": "lazyFeatures;lazyFeatures;frontend:check",
+      "remaining": "Live providers/full parent acceptance remain separate"
+    }
+  ],
+  "browserFixturesPassed": [
+    "agencyWorkspace",
+    "approvedSalesMessages",
+    "campaignPlanning",
+    "companyCreation",
+    "competitorWorkflow",
+    "integrationIsolation",
+    "knowledgeFacts",
+    "knowledgeWorkflow",
+    "lazyFeatures",
+    "notificationPolicies",
+    "observationTruth",
+    "onboardingWorkflow",
+    "privatePwa",
+    "renderOperations",
+    "reportCaptureSchedule",
+    "reportSnapshots",
+    "salesInquiryRules",
+    "salesWorkflows",
+    "salesWorkspace",
+    "sessionTransport",
+    "telegramOperations",
+    "websiteIsolation",
+    "workspaceIsolation"
+  ],
+  "browserFixtureCount": 23,
+  "browserRunNotes": "First16 passed; Telegram stale fixture corrected to canonical report metrics; remaining7 passed. Integration behavior rerun after adding decision/badge assertions. No failed result is hidden as a pass.",
+  "performance": {
+    "method": "Local Vite entry plus static import closure, gzip level9; not measured hosting latency",
+    "before": {
+      "initialJsBytes": 1177923,
+      "initialJsGzipBytes": 303346
+    },
+    "after": {
+      "features": 20,
+      "gzipLevel": 9,
+      "initialJsBytes": 471776,
+      "initialJsGzipBytes": 135218,
+      "rawBudget": 600000,
+      "gzipBudget": 180000,
+      "featureEntriesInitiallyLoaded": 0,
+      "productionAccess": false
+    },
+    "rawReductionPercent": 59.95,
+    "gzipReductionPercent": 55.42
+  },
+  "checksPassed": [
+    "npm test: final131 credential-isolated programs passed",
+    "Twenty real module load/render/client smoke; shared deferred-modal/error/draft/session checks",
+    "23 browser workflow programs across main and remainder runs plus final integration recheck",
+    "npm run test:sql:local: fresh/upgrade through050/87, current restricted-runtime and agency-name/concurrency/rollback/tenant fixtures",
+    "npm run build",
+    "npm run frontend:check:20 deferred entries and initial raw/gzip budgets",
+    "npm run lint",
+    "npm run routes:check:230 declarations,45 registrations,zero collisions",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "parentAcceptanceAudit": "LOCAL_ACCEPTANCE_RECONCILIATION.md",
+  "deferredDecisions": [
+    "external_crm",
+    "visitor_identity",
+    "platform_mcp",
+    "advanced_outbound",
+    "white_label"
+  ],
+  "productionAccess": false,
+  "remaining": [
+    "Original parent tasks/phase gates beyond the explicit four decisions remain separate",
+    "Full provider-backed workflows and hosting runtime/cron/capacity",
+    "Complete daily workflow reconciliation/mobile accessibility/retention",
+    "Production pilot and release separately authorized"
+  ],
+  "parentClosures": [
+    {
+      "id": "P00-03",
+      "kind": "local test rebaseline"
+    },
+    {
+      "id": "P08-08",
+      "kind": "explicitly permitted defer decision; no external CRM connector"
+    },
+    {
+      "id": "P08-09",
+      "kind": "explicitly permitted extension gates/defer decisions"
+    },
+    {
+      "id": "P09-06",
+      "kind": "persisted name validated; optional branding/domains deferred/off"
+    }
+  ],
+  "taskCounts": {
+    "validatedLocally": 25,
+    "inProgress": 35,
+    "planned": 32,
+    "blocked": 1
+  },
+  "phasePromoted": false
+}

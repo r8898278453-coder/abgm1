@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 050_prospect_import_history; 87 canonical tables. Registered default regression programs: 130 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 050_prospect_import_history; 87 canonical tables. Registered default regression programs: 131 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 21 / 35 / 1 / 36.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 25 / 35 / 1 / 32.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -12,7 +12,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 
 | Phase | Validated locally | In progress | Blocked | Planned |
 | --- | ---: | ---: | ---: | ---: |
-| P00 | 3 | 2 | 1 | 0 |
+| P00 | 4 | 1 | 1 | 0 |
 | P01 | 4 | 5 | 0 | 1 |
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 3 | 3 | 0 | 1 |
@@ -20,9 +20,9 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P05 | 0 | 2 | 0 | 9 |
 | P06 | 0 | 6 | 0 | 2 |
 | P07 | 0 | 6 | 0 | 2 |
-| P08 | 0 | 2 | 0 | 8 |
-| P09 | 0 | 5 | 0 | 3 |
-| P10 | 0 | 0 | 0 | 8 |
+| P08 | 2 | 2 | 0 | 6 |
+| P09 | 1 | 5 | 0 | 2 |
+| P10 | 0 | 1 | 0 | 7 |
 
 ## Explicit blockers
 
@@ -41,7 +41,7 @@ A gate is accepted only when its own tracker status is validated and its require
 - P05-11: planned — Marketing parity and publication gate.
 - P06-08: planned — CRM and channel truth gate.
 - P07-08: planned — Marketing-to-appointment pilot gate.
-- P08-09: planned — Record gates for visitor identity MCP and advanced outbound extensions.
+- P08-09: validated — Record gates for visitor identity MCP and advanced outbound extensions.
 - P08-10: planned — Outbound outcomes and optimization gate.
 - P09-08: planned — Agency accountability acceptance gate.
 - P10-08: planned — Final release and handover gate.
@@ -54,8 +54,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | --- | --- | --- | --- |
 | P00-01 | validated | Inventory source routes schemas callers and live/source drift | — |
 | P00-02 | blocked | Inspect actual hosting and configured capability prerequisites | — |
-| P00-03 | in_progress | Rebaseline tests and isolate reproducible defect fixtures | P00-02 |
-| P00-04 | validated | Pin compatible tools and establish reproducible dependency installation | P00-03 |
+| P00-03 | validated | Rebaseline tests and isolate reproducible defect fixtures | P00-02 |
+| P00-04 | validated | Pin compatible tools and establish reproducible dependency installation | — |
 | P00-05 | validated | Freeze historical migrations and choose source-independent extension strategy | — |
 | P00-06 | in_progress | Baseline and contract-decision gate | — |
 | P01-01 | validated | Repair health routing and redact sensitive logs | P00-06 |
@@ -126,20 +126,20 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P08-05 | in_progress | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
 | P08-06 | planned | Implement bounded experiments and transparent recommendations | P07-08, P08-05 |
 | P08-07 | planned | Expose scoped developer API and signed event webhooks | P07-08, P08-06 |
-| P08-08 | planned | Implement first required external CRM connector or record defer decision | P07-08, P08-07 |
-| P08-09 | planned | Record gates for visitor identity MCP and advanced outbound extensions | P07-08, P08-08 |
-| P08-10 | planned | Outbound outcomes and optimization gate | P07-08, P08-09 |
+| P08-08 | validated | Implement first required external CRM connector or record defer decision | P07-08, P08-07 |
+| P08-09 | validated | Record gates for visitor identity MCP and advanced outbound extensions | P07-08 |
+| P08-10 | planned | Outbound outcomes and optimization gate | P07-08 |
 | P09-01 | in_progress | Build reconciled daily client report read model | P08-10 |
 | P09-02 | in_progress | Build agency overview and exception prioritization | P08-10, P09-01 |
 | P09-03 | in_progress | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
 | P09-04 | in_progress | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
 | P09-05 | planned | Deliver optional client report and approval portal | P08-10, P09-04 |
-| P09-06 | in_progress | Persist agency settings and decide white-label domain scope | P08-10, P09-05 |
-| P09-07 | planned | Finish responsive mobile accessibility and operational UX | P08-10, P09-06 |
+| P09-06 | validated | Persist agency settings and decide white-label domain scope | P08-10, P09-05 |
+| P09-07 | in_progress | Finish responsive mobile accessibility and operational UX | P08-10 |
 | P09-08 | planned | Agency accountability acceptance gate | P08-10, P09-07 |
 | P10-01 | planned | Complete security privacy retention and key-recovery review | P09-08 |
 | P10-02 | planned | Benchmark hosting fairness rendering storage and client capacity | P09-08, P10-01 |
-| P10-03 | planned | Optimize measured frontend and request bottlenecks | P09-08, P10-02 |
+| P10-03 | in_progress | Optimize measured frontend and request bottlenecks | P09-08, P10-02 |
 | P10-04 | planned | Run full acceptance restore rollback and provider verification matrix | P09-08, P10-03 |
 | P10-05 | planned | Reconcile feature documentation runbooks and competitor evidence | P09-08, P10-04 |
 | P10-06 | planned | Prepare feature-flagged canary release package | P09-08, P10-05 |

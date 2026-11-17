@@ -1,0 +1,21 @@
+batch_id,workflow,canonical_entry,implementation_status,local_acceptance,evidence,remaining
+B20-01,Dashboard,src/components/DashboardView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-02,Audit,src/components/AuditView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-03,Google profile,src/components/GoogleProfileView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-04,Local SEO,src/components/LocalSeoView.tsx,implemented,passed_local,lazyFeatures;observationTruth;frontend:check,Live providers/full parent acceptance remain separate
+B20-05,Competitors,src/components/CompetitorsView.tsx,implemented,passed_local,lazyFeatures;competitorWorkflow;frontend:check,Live providers/full parent acceptance remain separate
+B20-06,Reviews,src/components/ReviewsView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-07,Content studio,src/components/ContentStudioView.tsx,implemented,passed_local,lazyFeatures;renderOperations;frontend:check,Live providers/full parent acceptance remain separate
+B20-08,Calendar,src/components/CalendarView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-09,Campaigns,src/components/CampaignsView.tsx,implemented,passed_local,lazyFeatures;campaignPlanning;frontend:check,Live providers/full parent acceptance remain separate
+B20-10,Sales CRM,src/components/LeadsCrmView.tsx,implemented,passed_local,lazyFeatures;salesWorkspace;salesWorkflows;approvedSalesMessages;salesInquiryRules;frontend:check,Live providers/full parent acceptance remain separate
+B20-11,Website,src/components/WebsiteBuilderView.tsx,implemented,passed_local,lazyFeatures;websiteIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-12,Telegram,src/components/TelegramBotView.tsx,implemented,passed_local,lazyFeatures;telegramOperations;notificationPolicies;frontend:check,Live providers/full parent acceptance remain separate
+B20-13,Automation,src/components/AutonomousEngineView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-14,Safety,src/components/TrustSafetyView.tsx,implemented,passed_local,lazyFeatures;workspaceIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-15,Agency,src/components/AgencyView.tsx,implemented,passed_local,lazyFeatures;agencyWorkspace;frontend:check,Live providers/full parent acceptance remain separate
+B20-16,Mobile preview,src/components/MobileAppView.tsx,implemented,passed_local,lazyFeatures;lazyFeatures;frontend:check,Live providers/full parent acceptance remain separate
+B20-17,Integrations,src/components/IntegrationsView.tsx,implemented,passed_local,lazyFeatures;integrationIsolation;frontend:check,Live providers/full parent acceptance remain separate
+B20-18,Knowledge,src/components/KnowledgeBaseView.tsx,implemented,passed_local,lazyFeatures;knowledgeWorkflow;knowledgeFacts;frontend:check,Live providers/full parent acceptance remain separate
+B20-19,Onboarding,src/components/OnboardingModal.tsx,implemented,passed_local,lazyFeatures;onboardingWorkflow;companyCreation;frontend:check,Live providers/full parent acceptance remain separate
+B20-20,Copilot,src/components/AskAiModal.tsx,implemented,passed_local,lazyFeatures;lazyFeatures;frontend:check,Live providers/full parent acceptance remain separate
