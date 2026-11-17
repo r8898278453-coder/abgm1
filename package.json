@@ -74,7 +74,8 @@
     "test:browser:sales-report": "node --import tsx test/browser/salesActivityReport.test.ts",
     "frontend:check": "node --import tsx server/scripts/checkFrontendChunks.ts",
     "test:browser:features": "node --import tsx test/browser/lazyFeatures.test.ts",
-    "test:browser:feature-group": "node --import tsx server/scripts/browserFeatureGroup.ts"
+    "test:browser:feature-group": "node --import tsx server/scripts/browserFeatureGroup.ts",
+    "test:browser:growth": "node --import tsx test/browser/growthOperations.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

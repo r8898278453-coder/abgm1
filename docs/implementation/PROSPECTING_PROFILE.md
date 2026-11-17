@@ -1,5 +1,7 @@
 # Client ICP and declared prospect fit — 17 November 2026 IST
 
+18 November2026 acceptance update: GROWTH_OPERATIONS_GROUP.md adds durable assessment/profile/context/source history. P08-01 owner-declared ICP/import/provenance scope is now locally validated; earlier in-progress/history-pending notes below describe the prior checkpoint. Provider-backed discovery/enrichment and phase/live gates remain open.
+
 Each client's canonical sales policy now saves a prospecting profile: enablement for declared-fit assessment, target services, buyer roles, exact regions, inclusive minimum/maximum employees, website requirement, value proposition and human-review disqualifiers. Industries and email-domain exclusions remain in their existing policy fields, avoiding conflicting duplicate owners. There is no new table, scheduler or sender; schema050/87 and next051 remain unchanged.
 
 The existing manage-authorized policy command retains expected-version CAS, company locking, canonical workflow invalidation and atomic policy audit. Legacy stored policies parse with a disabled empty profile. Older callers omitting prospecting preserve the currently saved nested profile under the same lock instead of silently erasing it. A caller explicitly supplying a profile must pass the complete strict schema; normalized duplicate lists, unsafe numbers, reversed employee bounds, extra fields and oversized text are rejected. The UI uses the existing Save sales policy action and retains uncertain/conflict drafts using that owner's controls.

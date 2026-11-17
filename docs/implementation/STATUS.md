@@ -1,10 +1,10 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-18 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 050_prospect_import_history; 87 canonical tables. Registered default regression programs: 132 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 051_growth_operations; 88 canonical tables. Registered default regression programs: 133 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 25 / 35 / 1 / 32.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 27 / 34 / 1 / 31.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -20,7 +20,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P05 | 0 | 2 | 0 | 9 |
 | P06 | 0 | 6 | 0 | 2 |
 | P07 | 0 | 6 | 0 | 2 |
-| P08 | 2 | 2 | 0 | 6 |
+| P08 | 4 | 1 | 0 | 5 |
 | P09 | 1 | 5 | 0 | 2 |
 | P10 | 0 | 1 | 0 | 7 |
 
@@ -119,13 +119,13 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P07-06 | in_progress | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
 | P07-07 | in_progress | Expose review and bounded autopilot controls | P06-08, P07-06 |
 | P07-08 | planned | Marketing-to-appointment pilot gate | P06-08, P07-07 |
-| P08-01 | in_progress | Build client ICP exclusions prospect imports and source contracts | P07-08 |
-| P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08, P08-01 |
+| P08-01 | validated | Build client ICP exclusions prospect imports and source contracts | P07-08 |
+| P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08 |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes | P07-08, P08-02 |
 | P08-04 | planned | Connect outbound sequences to approved channel capabilities | P07-08, P08-03 |
 | P08-05 | in_progress | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
-| P08-06 | planned | Implement bounded experiments and transparent recommendations | P07-08, P08-05 |
-| P08-07 | planned | Expose scoped developer API and signed event webhooks | P07-08, P08-06 |
+| P08-06 | validated | Implement bounded experiments and transparent recommendations | P07-08, P08-05 |
+| P08-07 | planned | Expose scoped developer API and signed event webhooks | P07-08 |
 | P08-08 | validated | Implement first required external CRM connector or record defer decision | P07-08, P08-07 |
 | P08-09 | validated | Record gates for visitor identity MCP and advanced outbound extensions | P07-08 |
 | P08-10 | planned | Outbound outcomes and optimization gate | P07-08 |

@@ -1,0 +1,288 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "d5dc6812e79ac40dd4307169231ff20ce41a010a",
+  "schema": "051_growth_operations",
+  "canonicalTables": 88,
+  "nextMigration": "052",
+  "frozenReportCoverage": 4,
+  "historicalMigrations001To050Modified": false,
+  "frozenSchemasV1V2V3Modified": false,
+  "workflowCount": 24,
+  "workflows": [
+    {
+      "workflow": "G01",
+      "scope": "Saved assessment recomputation",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G02",
+      "scope": "Immutable profile/context snapshot",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G03",
+      "scope": "Historical assessment read/replay",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G04",
+      "scope": "Source/expiry signal declaration",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G05",
+      "scope": "Lead scope/future-time guards",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G06",
+      "scope": "Normalized contact candidate",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G07",
+      "scope": "Unverified/no-consent separation",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G08",
+      "scope": "Concurrent idempotent creation",
+      "parents": "P08-01;P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G09",
+      "scope": "Lost-ACK key/hash reconciliation",
+      "parents": "P08-01;P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G10",
+      "scope": "Bounded private keyset reads",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G11",
+      "scope": "Private metadata CSV",
+      "parents": "P08-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G12",
+      "scope": "Experiment draft/edit CAS",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G13",
+      "scope": "Exact proposal approval",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G14",
+      "scope": "Fresh authority/fixed-window start",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G15",
+      "scope": "Running experiment conflict guard",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G16",
+      "scope": "Cumulative observation history",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G17",
+      "scope": "Sample/baseline/interval/stop review",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G18",
+      "scope": "Explicit stop/closed-window completion",
+      "parents": "P08-06",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G19",
+      "scope": "Exact declared-cost recording",
+      "parents": "P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G20",
+      "scope": "Currency lock/over-budget truth",
+      "parents": "P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G21",
+      "scope": "Reasoned cost void",
+      "parents": "P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G22",
+      "scope": "Portfolio/per-currency/null ROI",
+      "parents": "P08-05",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G23",
+      "scope": "Sixteen live accountability counters",
+      "parents": "P09-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    },
+    {
+      "workflow": "G24",
+      "scope": "Frozen V4/legacy compatibility",
+      "parents": "P09-01",
+      "implementation": "growthOperations;growthReporting;reportSnapshotSchemaV4",
+      "validation": "growthOperations unit/native/browser;existing reporting suites",
+      "state": "local_verified"
+    }
+  ],
+  "recordKinds": [
+    "ASSESSMENT",
+    "SIGNAL",
+    "ENRICHMENT",
+    "EXPERIMENT",
+    "COST"
+  ],
+  "checksPassed": [
+    "npm test:133 isolated programs",
+    "npm run lint",
+    "npm run build",
+    "npm run frontend:check:20 deferred entries within initial budgets",
+    "npm run test:sql:local: final MariaDB10.11.19 fresh/upgrade parity through051 plus full service/queue/tenant matrix",
+    "native wrong-index/actor-width migration refusal with restricted-runtime DML fixtures",
+    "native five-kind persistence,8-way replay/CAS,approval authority,overlap/window/observation/stop/complete,cost/currency/void/budget,audit rollback/lost-ACK,private pages/history,16 report metrics and1000-record cap",
+    "npm run test:browser:feature-group:24/24 passed",
+    "npm run test:sql:restore:uploaded-export preservation and exact bundled replay",
+    "npm run routes:check:237 declarations,46 registrations,zero collisions",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "browserFixturesPassed": [
+    "growthOperations",
+    "lazyFeatures",
+    "workspaceIsolation",
+    "websiteIsolation",
+    "observationTruth",
+    "competitorWorkflow",
+    "integrationIsolation",
+    "knowledgeWorkflow",
+    "campaignPlanning",
+    "knowledgeFacts",
+    "agencyWorkspace",
+    "onboardingWorkflow",
+    "renderOperations",
+    "salesWorkspace",
+    "salesWorkflows",
+    "approvedSalesMessages",
+    "salesInquiryRules",
+    "telegramOperations",
+    "notificationPolicies",
+    "reportSnapshots",
+    "reportCaptureSchedule",
+    "companyCreation",
+    "sessionTransport",
+    "privatePwa"
+  ],
+  "uploadedExport": {
+    "result": "passed",
+    "canonicalTables": 88,
+    "migrations": 51,
+    "repeatApplied": 0,
+    "businessRowsPreserved": true,
+    "originalLedgerPreserved": true,
+    "bundledLedgerReplay": "READY; applied0"
+  },
+  "localParentClosures": {
+    "P08-01": "owner-declared ICP/import/exclusion/source-contract and durable assessment provenance scope; not provider discovery",
+    "P08-06": "bounded declared-data measurement with explicit approvals/sample/window/stop/interval/conflict rules; no autonomous spend or causal claim"
+  },
+  "taskCounts": {
+    "validatedLocally": 27,
+    "inProgress": 34,
+    "planned": 31,
+    "blocked": 1
+  },
+  "productionAccess": false,
+  "providerCalls": false,
+  "automaticSpend": false,
+  "phasePromoted": false,
+  "limits": {
+    "retainedRecordsPerClient": 1000,
+    "pageSize": 25,
+    "observationsPerExperiment": 100,
+    "payloadBytes": 65536,
+    "simultaneousRunningExperimentsPerClient": 1
+  },
+  "remaining": [
+    "Provider-backed discovery/enrichment and automatic cohort ingestion",
+    "Verified revenue attribution and complete daily workflow reconciliation",
+    "Email/calendar/portal/mobile/retention and measured hosting work",
+    "Real provider/production pilot and phase/release acceptance"
+  ]
+}

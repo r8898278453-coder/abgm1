@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Growth operations group (18 November2026 IST):24 functional workflows across saved assessments, declared signals/contact evidence, approved measurement experiments, exact declared-cost ledger and accountability. Forward051/88 and frozen V4; old evidence preserved. See [GROWTH_OPERATIONS_GROUP.md](GROWTH_OPERATIONS_GROUP.md), GROWTH_BATCHES.csv and evidence/growth-operations-group.json. No provider sends, spend, deployment or phase promotion.
+
 Prospecting profile continuation (17 November2026 IST): saved client services/roles/regions/employee/website targeting and planning notes extend the canonical sales policy; legacy omitted fields preserve saved ICP. Six fixed read-only declared-fit checks,90-day freshness, human-disqualifier review, current-policy/client/session fences and private CSV added. See [PROSPECTING_PROFILE.md](PROSPECTING_PROFILE.md) and evidence/prospecting-profile.json. Schema050/87 unchanged; P08-01 remains in progress.
 
 Twenty-feature integration group (17 November2026 IST):20 existing module batches now share deferred loading, isolated errors and current client/session remounts; measured initial bundle budgets and a serial23-fixture browser registry added. Explicit optional-extension scope and local acceptance audit recorded. See [TWENTY_FEATURE_DELIVERY.md](TWENTY_FEATURE_DELIVERY.md), TWENTY_FEATURE_BATCHES.csv and LOCAL_ACCEPTANCE_RECONCILIATION.md. No production/phase promotion.
@@ -69,7 +71,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.48 • updated 17 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.49 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

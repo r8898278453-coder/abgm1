@@ -1,3 +1,4 @@
+import {growthOperations,GROWTH_COLUMNS,GROWTH_INDEXES,GROWTH_SHAPE_CHECK,GROWTH_INDEX_CHECK} from './migrations/051_growth_operations';
 import {prospectImportHistory,PROSPECT_HISTORY_INDEX,PROSPECT_HISTORY_INDEX_CHECK} from './migrations/050_prospect_import_history';
 import {criticalAlertIncidents,CRITICAL_ALERT_COLUMNS,CRITICAL_ALERT_CHECKS,CRITICAL_ALERT_INDEXES,CRITICAL_ALERT_INDEX_CHECK} from './migrations/049_critical_alert_incidents';
 import {notificationPolicyBindings,NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_CHECK} from './migrations/048_notification_policy_bindings';
@@ -83,6 +84,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'growth_operation_records',
   'whatsapp_intakes',
   ...Object.keys(CONFLICT_COLUMNS),
   'whatsapp_inbound_events',
@@ -156,6 +158,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  growth_operation_records:['PRIMARY',...Object.keys(GROWTH_INDEXES)],
   sales_prospect_imports: ['PRIMARY','idx_prospect_import_history'],
   knowledge_facts:['PRIMARY','idx_facts_company_key'],
   knowledge_sources:['PRIMARY','idx_knowledge_company_created','uq_knowledge_company_sha'],
@@ -212,6 +215,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  growth_operation_records:['PRIMARY','uq_growth_request'],
   knowledge_facts:['PRIMARY','fk_facts_company'],
   knowledge_sources:['PRIMARY','fk_knowledge_company','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','fk_public_intake_company'],
@@ -853,6 +857,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   notificationPolicyBindings,
   criticalAlertIncidents,
   prospectImportHistory,
+  growthOperations,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1215,6 +1220,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       for(const check of WORKFLOW_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workflows.shape');}
       const [salesColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'sales_%'");
       for(const [table,cols]of Object.entries(SALES_COLUMNS))for(const col of cols)if(!salesColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===col))missingColumns.push(table+'.'+col);
+      const [growthColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='growth_operation_records'");
+      for(const name of GROWTH_COLUMNS)if(!growthColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('growth_operation_records.'+name);
+      const [growthIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='growth_operation_records' ORDER BY INDEX_NAME,SEQ_IN_INDEX");
+      for(const [name,cols]of Object.entries(GROWTH_INDEXES)){const rows=growthIndexes.filter((r:any)=>r.INDEX_NAME===name);if(rows.map((r:any)=>r.COLUMN_NAME).join(',')!==cols.join(',')||rows.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==(name==='uq_growth_request'?0:1)))missingConstraints.push('growth_operation_records.'+name);}
+      for(const check of [GROWTH_SHAPE_CHECK,GROWTH_INDEX_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('growth_operation_records.shape');}
       const [prospectIndexes]:any=await conn.query("SELECT COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sales_prospect_imports' AND INDEX_NAME='idx_prospect_import_history' ORDER BY SEQ_IN_INDEX");
       if(prospectIndexes.map((r:any)=>r.COLUMN_NAME).join(',')!==PROSPECT_HISTORY_INDEX.join(',')||prospectIndexes.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==1))missingConstraints.push('sales_prospect_imports.history_index');
       const [badProspectHistory]:any=await conn.query(PROSPECT_HISTORY_INDEX_CHECK.sql);if(badProspectHistory.length)missingConstraints.push('sales_prospect_imports.history_index_shape');

@@ -367,6 +367,36 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/growth-records",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/growth-records",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/growth-records/:recordId",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/growth-records/:recordId/transition",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/growth-records/by-request/:requestKey",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/growth-records/portfolio",
+      "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/inbound-conflicts",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -1161,5 +1191,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 45
+  "registrationCount": 46
 }

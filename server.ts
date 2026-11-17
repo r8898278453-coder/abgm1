@@ -1,3 +1,4 @@
+import {registerGrowthOperations} from './server/growthOperationRoutes';
 import {registerProspectImportHistory,readProspectImportHistory,readProspectImport} from './server/prospectImportHistory';
 import {readOperationalCapacity,registerOperationalCapacity} from './server/operationalCapacity';
 import {registerCriticalAlertRoutes} from './server/criticalAlertRoutes';
@@ -2534,6 +2535,7 @@ app.get('/api/templates/palettes', async (req, res) => {
 });
 
 registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
+registerGrowthOperations(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 
 registerRenderRoutes(app,{auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,access:verifyCompanyWorkspaceAccess,limiter:aiRateLimiter,uploadsRoot:UPLOADS_BASE_DIR});
 

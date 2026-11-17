@@ -1,0 +1,25 @@
+workflow,scope,parents,implementation,validation,state
+G01,Saved assessment recomputation,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G02,Immutable profile/context snapshot,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G03,Historical assessment read/replay,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G04,Source/expiry signal declaration,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G05,Lead scope/future-time guards,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G06,Normalized contact candidate,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G07,Unverified/no-consent separation,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G08,Concurrent idempotent creation,P08-01;P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G09,Lost-ACK key/hash reconciliation,P08-01;P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G10,Bounded private keyset reads,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G11,Private metadata CSV,P08-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G12,Experiment draft/edit CAS,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G13,Exact proposal approval,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G14,Fresh authority/fixed-window start,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G15,Running experiment conflict guard,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G16,Cumulative observation history,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G17,Sample/baseline/interval/stop review,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G18,Explicit stop/closed-window completion,P08-06,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G19,Exact declared-cost recording,P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G20,Currency lock/over-budget truth,P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G21,Reasoned cost void,P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G22,Portfolio/per-currency/null ROI,P08-05,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G23,Sixteen live accountability counters,P09-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
+G24,Frozen V4/legacy compatibility,P09-01,growthOperations;growthReporting;reportSnapshotSchemaV4,growthOperations unit/native/browser;existing reporting suites,local_verified
