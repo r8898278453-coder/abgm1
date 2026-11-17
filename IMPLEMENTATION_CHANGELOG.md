@@ -1,5 +1,7 @@
 # Implementation Changelog & Hardening Summary
 
+Critical alerts —17 November2026 IST: forward049/87, six observed category episodes, atomic stage reservations, initial/1h/24h same-destination escalation, shared bound Telegram delivery, private history/UI and dispatcher availability. Default off; P09-03 remains partial. See docs/implementation/CRITICAL_ALERTS.md and evidence/critical-alerts.json. No production activation.
+
 Scheduled notification policies —17 November2026 IST: forward048/85, explicit default-off bot/destination opt-in, future IST slots, bound durable no-resend journal, fresh authority/config/budget fences, shared selector gating and private settings/history. P09-03 in progress; alerts/full acceptance remain open. See docs/implementation/SCHEDULED_NOTIFICATION_POLICIES.md and evidence/scheduled-notification-policies.json. No production activation.
 
 Operations group —17 November2026 IST: versioned frozen V2/legacy V1 preservation, agency model3 capture exceptions, audit-backed explicit Telegram identity verification and prompt inconsistent-run recovery. Schema047/84 unchanged; next048. See docs/implementation/OPERATIONS_COMPLETION_GROUP.md and evidence/operations-completion-group.json. P09-01/02/04 remain partial; no production/provider activation.

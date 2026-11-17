@@ -242,6 +242,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/critical-alerts",
+      "owner": "server/criticalAlertRoutes.ts#registerCriticalAlertRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/daily-work-report",
       "owner": "server/dailyWorkReportRoutes.ts#registerDailyWorkReport"
     },
@@ -1131,5 +1136,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 42
+  "registrationCount": 43
 }

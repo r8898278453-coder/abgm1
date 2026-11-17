@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 import { freshBlankBusiness } from '../../src/data/initialData';
 
 // Browser tests serve only the frontend. All APIs are fixtures; no server.ts or DB imports.
-const vite = await createServer({ server: { host: '127.0.0.1', port: 0,watch:{ignored:['**/uploads/**','**/dist/**','**/docs/**']} }, logLevel: 'error' });
+const vite = await createServer({ server: { host: '127.0.0.1', port: 0,hmr:false,watch:{ignored:['**/uploads/**','**/dist/**','**/docs/**']} }, logLevel: 'error' });
 await vite.listen();
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 let releaseHolidaySave:(()=>void)|undefined;

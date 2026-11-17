@@ -5,12 +5,12 @@ import { runBoundNotificationOccurrence,scheduledNotificationCanSend } from './b
 import { sendTenantTelegramAttempt } from './tenantNotifications';
 
 /** Missing configuration leaves the occurrence unclaimed for a later configured tick. */
-export async function sendScheduledNotification(companyId: string, kind: NotificationKind, dueAt: number, message: string, canStart: () => boolean = () => true): Promise<boolean> {
+export async function sendScheduledNotification(companyId: string, kind: NotificationKind, dueAt: number, message: string, canStart: () => boolean = () => true, admit?: (sql:any,context:{policyVersion:string;claimToken:string})=>Promise<boolean>): Promise<boolean> {
   if (!canStart() || isGlobalEmergencyStopActive()) return false;
   if(typeof message!=='string'||!message.trim()||message.length>4096)return false;
   const pool = await getDbPool();
   if (!pool || !canStart()) return false; // No volatile fallback for scheduled external delivery.
-  return await runBoundNotificationOccurrence(pool,companyId,kind,dueAt,message,{canStart,
+  return await runBoundNotificationOccurrence(pool,companyId,kind,dueAt,message,{canStart,admit,
     send:(bindingHash,_actor,context)=>sendTenantTelegramAttempt(companyId,message,{getCompanyIntegration,getCompanyIntegrations,fetch,
       canSend:async()=>canStart()&&await scheduledNotificationCanSend(pool,companyId,kind,dueAt,context,bindingHash)},bindingHash)})==='SENT';
 }

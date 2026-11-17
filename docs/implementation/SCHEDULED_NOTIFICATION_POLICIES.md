@@ -1,5 +1,7 @@
 # Explicit scheduled Telegram delivery
 
+Critical alert continuation (17 November2026 IST): [CRITICAL_ALERTS.md](CRITICAL_ALERTS.md) adds the third default-off policy and bounded incident escalation using the existing scheduler/journal/transport. Forward049/87; next050. Historical notes below retain their original scope; no live or phase acceptance.
+
 17 November2026 IST. P09-03 is now in progress; critical alert escalation/full acceptance remains open. Schema048/85 tables, next049. Historical migrations001–047 unchanged. No production migration, settings activation, provider send or deployment occurred.
 
 ## Delivered behavior

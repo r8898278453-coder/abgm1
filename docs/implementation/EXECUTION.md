@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Critical group verification (17 November2026 IST):126 default programs, TypeScript/build, native MariaDB through049/87, uploaded-export preservation/bundled replay and critical/policy/workspace/Telegram Chromium suites passed. Initial SQL/transaction issues fixed and retested; exact evidence in evidence/critical-alerts.json. Default off; no live provider sends, settings activation or deployment.
+
+Critical alert continuation (17 November2026 IST): [CRITICAL_ALERTS.md](CRITICAL_ALERTS.md) adds the third default-off policy and bounded incident escalation using the existing scheduler/journal/transport. Forward049/87; next050. Historical notes below retain their original scope; no live or phase acceptance.
+
 Scheduled-delivery verification (17 November2026 IST):124 default programs, TypeScript/build, complete native MariaDB through048/85, actual uploaded export preservation/bundled replay, opt-in/Telegram/workspace Chromium and route/doc guards passed. Default off; no real provider sends, policy activation or deployment. Legacy binary cron must remain stopped during rollback. Evidence: evidence/scheduled-notification-policies.json.
 
 Scheduled delivery continuation (17 November2026 IST): [SCHEDULED_NOTIFICATION_POLICIES.md](SCHEDULED_NOTIFICATION_POLICIES.md) adds exact default-off client/kind opt-in and bound journal safety. Forward048/85; next049. P09-03 in progress; no phase or live acceptance.

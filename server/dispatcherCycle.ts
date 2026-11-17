@@ -3,8 +3,8 @@ import {createWorkBudget,type WorkGate} from './workBudget';
 /** Cron responses expose operation counts, never per-job payloads/provider bodies or customer details. */
 export function dispatcherSummary(value:any){
  const summary:Record<string,unknown>={};
- for(const key of ['reportCaptureRecoveryFailed','reportCapturesAdmitted','processed','admitted','skipped','failed','processedCount','succeededCount','failedCount','companiesProcessed','digestsSent','companiesSelected','companiesDeferred','failedCompanies','readTimeouts','workReportsUnavailable','companiesChecked','remindersSent','totalPendingReviews'])if(Number.isSafeInteger(value?.[key])&&value[key]>=0)summary[key]=value[key];
- for(const key of ['available','deferred','reportCaptureAdmissionAvailable'])if(typeof value?.[key]==='boolean')summary[key]=value[key];
+ for(const key of ['criticalAlertsAccepted','criticalCompaniesChecked','criticalAlertsFailed','criticalAlertsDeferred','reportCaptureRecoveryFailed','reportCapturesAdmitted','processed','admitted','skipped','failed','processedCount','succeededCount','failedCount','companiesProcessed','digestsSent','companiesSelected','companiesDeferred','failedCompanies','readTimeouts','workReportsUnavailable','companiesChecked','remindersSent','totalPendingReviews'])if(Number.isSafeInteger(value?.[key])&&value[key]>=0)summary[key]=value[key];
+ for(const key of ['criticalAlertsAvailable','available','deferred','reportCaptureAdmissionAvailable'])if(typeof value?.[key]==='boolean')summary[key]=value[key];
  if(value?.reason==='TICK_BUDGET_EXHAUSTED')summary.reason=value.reason;
  if(value?.error==='STAGE_FAILED')summary.error=value.error;
  return summary;
@@ -24,5 +24,5 @@ export async function runDispatcherCycle(first:number,stages:Record<DispatcherSt
   }catch{states[key]='FAILED';results[key]={available:false,error:'STAGE_FAILED'};}
   await checkpoint(key,states[key]!);
  }
- return {results,states,partial:Object.values(states).some(state=>state!=='OBSERVED')||Object.values(results).some(result=>result?.reportCaptureAdmissionAvailable===false||['failed','failedCount','failedCompanies','workReportsUnavailable','readTimeouts','companiesDeferred'].some(key=>Number.isSafeInteger(result?.[key])&&result[key]>0)),budget:{...budget.report(),deferredStages}};
+ return {results,states,partial:Object.values(states).some(state=>state!=='OBSERVED')||Object.values(results).some(result=>result?.criticalAlertsAvailable===false||result?.reportCaptureAdmissionAvailable===false||['failed','failedCount','failedCompanies','workReportsUnavailable','readTimeouts','companiesDeferred'].some(key=>Number.isSafeInteger(result?.[key])&&result[key]>0)),budget:{...budget.report(),deferredStages}};
 }

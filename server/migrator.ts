@@ -1,3 +1,4 @@
+import {criticalAlertIncidents,CRITICAL_ALERT_COLUMNS,CRITICAL_ALERT_CHECKS,CRITICAL_ALERT_INDEXES,CRITICAL_ALERT_INDEX_CHECK} from './migrations/049_critical_alert_incidents';
 import {notificationPolicyBindings,NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_CHECK} from './migrations/048_notification_policy_bindings';
 import {reportCaptureSchedule,CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES,CAPTURE_SCHEDULE_CHECKS,CAPTURE_SCHEDULE_INDEX_CHECK} from './migrations/047_report_capture_schedule';
 import {dailyReportSnapshots,REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES,REPORT_SNAPSHOT_CHECK,REPORT_SNAPSHOT_INDEX_CHECK} from './migrations/046_daily_report_snapshots';
@@ -132,6 +133,8 @@ export const CANONICAL_REQUIRED_TABLES = [
   'job_action_receipts',
   'notification_occurrences',
   'notification_policies',
+  'critical_alert_incidents',
+  'critical_alert_reservations',
   'notification_dispatch_cursors',
   'scheduled_post_dispatch_cursors',
   'publishing_dispatch_claims',
@@ -191,6 +194,8 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
   job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision'],
   notification_occurrences: ['PRIMARY'],
   notification_policies: ['PRIMARY'],
+  critical_alert_incidents: ['PRIMARY'],
+  critical_alert_reservations: ['PRIMARY','idx_critical_alert_history'],
   notification_dispatch_cursors: ['PRIMARY'],
   scheduled_post_dispatch_cursors: ['PRIMARY'],
   publishing_dispatch_claims: ['idx_claim_company_status','PRIMARY'],
@@ -230,6 +235,8 @@ export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
   job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision', 'fk_action_receipt_event'],
   notification_occurrences: ['PRIMARY'],
   notification_policies: ['PRIMARY'],
+  critical_alert_incidents: ['PRIMARY'],
+  critical_alert_reservations: ['PRIMARY'],
   notification_dispatch_cursors: ['PRIMARY'],
   scheduled_post_dispatch_cursors: ['PRIMARY'],
   publishing_dispatch_claims: ['PRIMARY'],
@@ -842,6 +849,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   dailyReportSnapshots,
   reportCaptureSchedule,
   notificationPolicyBindings,
+  criticalAlertIncidents,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1153,6 +1161,11 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [criticalColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('critical_alert_incidents','critical_alert_reservations')");
+      for(const [table,names]of Object.entries(CRITICAL_ALERT_COLUMNS))for(const name of names)if(!criticalColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
+      for(const check of [...CRITICAL_ALERT_CHECKS,CRITICAL_ALERT_INDEX_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('critical_alert_incidents.shape');}
+      const [criticalIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='critical_alert_reservations' ORDER BY INDEX_NAME,SEQ_IN_INDEX");
+      for(const [name,cols]of Object.entries(CRITICAL_ALERT_INDEXES)){const rows=criticalIndexes.filter((r:any)=>r.INDEX_NAME===name);if(rows.map((r:any)=>r.COLUMN_NAME).join(',')!==cols.join(',')||rows.some((r:any)=>r.SUB_PART!==null))missingConstraints.push('critical_alert_reservations.'+name);}
       const [notificationPolicyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('notification_policies','notification_occurrences')");
       for(const [table,names]of Object.entries({notification_policies:NOTIFICATION_POLICY_COLUMNS,notification_occurrences:NOTIFICATION_OCCURRENCE_BINDING_COLUMNS}))for(const name of names)if(!notificationPolicyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
       for(const check of [NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('notification_policy_bindings.shape');}

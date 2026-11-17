@@ -1,3 +1,4 @@
+import {CRITICAL_ALERT_COLUMNS,CRITICAL_ALERT_INDEXES} from '../server/migrations/049_critical_alert_incidents';
 import {NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS} from '../server/migrations/048_notification_policy_bindings';
 import {CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES} from '../server/migrations/047_report_capture_schedule';
 import {REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES} from '../server/migrations/046_daily_report_snapshots';
@@ -139,6 +140,9 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME='sales_message_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [APPROVED_SEND_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return [Object.entries(REPORT_SNAPSHOT_INDEXES).flatMap(([INDEX_NAME,names])=>names.map(COLUMN_NAME=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:0}))),[]];
     if(cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return cleanSql.startsWith('SELECT COLUMN_NAME')?[REPORT_SNAPSHOT_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]]:[[],[]];
+    if(cleanSql.includes("TABLE_NAME IN ('critical_alert_incidents','critical_alert_reservations')"))return [Object.entries(CRITICAL_ALERT_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
+    if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART')&&cleanSql.includes("TABLE_NAME='critical_alert_reservations'"))return [Object.entries(CRITICAL_ALERT_INDEXES).flatMap(([INDEX_NAME,cols])=>cols.map(COLUMN_NAME=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null}))),[]];
+    if(cleanSql.includes("TABLE_NAME='critical_alert_incidents'")||cleanSql.includes("TABLE_NAME='critical_alert_reservations'"))return [[],[]];
     if(cleanSql.includes("TABLE_NAME IN ('notification_policies','notification_occurrences')"))return [Object.entries({notification_policies:NOTIFICATION_POLICY_COLUMNS,notification_occurrences:NOTIFICATION_OCCURRENCE_BINDING_COLUMNS}).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
     if(cleanSql.includes("TABLE_NAME='notification_policies'")||cleanSql.includes("COLUMN_NAME IN ('actor_id','policy_revision','binding_hash','content_hash','provider_id','reason_code')"))return [[],[]];
     if(cleanSql.includes("TABLE_NAME IN ('report_capture_policies','report_capture_runs')"))return [Object.entries(CAPTURE_SCHEDULE_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];

@@ -1,0 +1,80 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "8d4786ddba30c0c8d846e5a66597612ec50ee02e",
+  "schema": "049_critical_alert_incidents",
+  "canonicalTables": 87,
+  "nextMigration": "050",
+  "historicalMigrations001Through048Changed": false,
+  "targetParents": [
+    "P09-03"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (126 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "node --import tsx test/browser/criticalAlerts.test.ts",
+    "npm run test:browser:notification-policies",
+    "npm run test:browser:workspace",
+    "npm run test:browser:telegram",
+    "npm run docs:check",
+    "npm run routes:check (226 declarations,43 registrations,zero collisions)",
+    "git diff --check"
+  ],
+  "signalCount": 6,
+  "stagesHours": [
+    0,
+    1,
+    24
+  ],
+  "limits": {
+    "currentRowsPerClient": 6,
+    "reservationsPerClient": 1000,
+    "visibleHistoryRows": 25,
+    "observationFreshnessMinutes": 5
+  },
+  "remaining": [
+    "actual provider/Hostinger cron pilot",
+    "complete workflow reconciliation",
+    "retention and measured capacity",
+    "full phase/canary/release acceptance"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "nativeCoverage": [
+    "fresh/005/041 upgrades through049, exact schema/index parity and repeat applied0",
+    "six fixed known-state source categories, case/foreign scoping and private counts",
+    "8-way stable observation/unique stage reservation races",
+    "all-or-none reservation group, audit rollback, capacity1000 and25-row history",
+    "UNKNOWN level0 suppressed acrosslaterminute slots; independently approved1h/24h escalation",
+    "observed resolution and episode2 reopen",
+    "stale count/time/episode/stage refusal",
+    "shared policy disable/config/actor changes before I/O give zero sends",
+    "lost claim ACK preserves reservation; subsequent no-op admission still commits stale UNKNOWN recovery",
+    "hookfalse rolls back all admission writes",
+    "actual uploaded-export business/owner/ledger preservation and bundled replay"
+  ],
+  "browserCoverage": [
+    "explicit read-only evidence open and refresh",
+    "observed/resolved categories and levels0/1/2",
+    "API acceptance vs uncertainty/missing metadata",
+    "unavailable/foreign/stale-client read refusal",
+    "third-kind destination approval and existing workspace/Telegram isolation"
+  ],
+  "testNotes": [
+    "Initial native verifier incorrectly treated nonunique history index as constraint; corrected index/constraint separation.",
+    "Quoted reserved SQL signal/count aliases after native parser failure.",
+    "Lost-claim test found stale recovery was rolled back with a declined admission hook; savepoint now preserves independent recovery and rolls back hook writes.",
+    "Workspace fixture hot reload disabled after edit-time navigation resets; final complete browser sequence passed."
+  ],
+  "defaultRegressionsPassed": 126
+}

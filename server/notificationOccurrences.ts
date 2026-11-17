@@ -1,11 +1,12 @@
 import { IST_OFFSET_MS } from '../shared/platformTime';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'mysql2/promise';
-export type NotificationKind = 'daily_digest' | 'review_reminder';
+export type NotificationKind = 'daily_digest' | 'review_reminder' | 'critical_alert';
+export function notificationPeriodMs(kind:NotificationKind){if(!['daily_digest','review_reminder','critical_alert'].includes(kind))throw new Error('INVALID_NOTIFICATION_KIND');return kind==='daily_digest'?86400000:kind==='critical_alert'?60000:3600000;}
 export function latestNotificationDue(kind: NotificationKind, now = Date.now()): number {
   if (!Number.isFinite(now)) throw new Error('INVALID_NOTIFICATION_TIME');
   const offset = IST_OFFSET_MS;
-  const period = kind === 'daily_digest' ? 86400000 : 3600000;
+  const period = notificationPeriodMs(kind);
   const anchor = kind === 'daily_digest' ? 8 * 3600000 : 0;
   return Math.floor((now + offset - anchor) / period) * period + anchor - offset;
 }

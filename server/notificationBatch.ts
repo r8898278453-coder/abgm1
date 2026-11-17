@@ -4,7 +4,7 @@ import type { NotificationKind } from './notificationOccurrences';
 
 /** Sliding rotation advances the head only: an unstarted tail becomes priority next turn. Effect claims deduplicate overlapping candidates. */
 export async function selectNotificationCompanyBatch(pool: Pool, kind: NotificationKind, limit = 2): Promise<DbCompany[]> {
-  if (!['daily_digest','review_reminder'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error('INVALID_NOTIFICATION_BATCH');
+  if (!['daily_digest','review_reminder','critical_alert'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error('INVALID_NOTIFICATION_BATCH');
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();

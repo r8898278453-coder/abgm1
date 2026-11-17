@@ -1,3 +1,4 @@
+import {runCriticalAlertsJob} from './criticalAlertScheduler';
 import {claimDispatcherTick,checkpointDispatcherStage,settleDispatcherTick} from './dispatcherStore';
 import {runDispatcherCycle,dispatcherSummary} from './dispatcherCycle';
 import { createWorkBudget, type WorkGate } from './workBudget';
@@ -168,11 +169,13 @@ export async function runHourlyReviewReminderJob(tickTime = Date.now(), canStart
   companiesDeferred: number;
   failedCompanies: number;
   readTimeouts: number;
+  criticalAlertsAccepted:number;criticalCompaniesChecked:number;criticalAlertsFailed:number;criticalAlertsDeferred:number;criticalAlertsAvailable?:boolean;
 }> {
   const timestamp = new Date().toISOString();
   schedulerStatus.lastHourlyReminderRun = timestamp;
   console.log(`[Scheduler:HourlyReviewReminder] [${timestamp}] Checking unanswered reviews older than 24h...`);
 
+  const critical=await runCriticalAlertsJob(tickTime,canStart);
   const companies = canStart() ? await getNotificationCompanyBatch('review_reminder') : [];
   const now = latestNotificationDue('review_reminder', tickTime);
   let remindersSent = 0;
@@ -222,7 +225,7 @@ ${summary.missingReviewTime ? `⚠️ ${summary.missingReviewTime} additional un
   );
 
   return {
-    companiesChecked, companiesSelected: companies.length, companiesDeferred: companies.length - companiesChecked, failedCompanies, readTimeouts,
+    ...critical,companiesChecked, companiesSelected: companies.length, companiesDeferred: companies.length - companiesChecked, failedCompanies, readTimeouts,
     remindersSent,
     totalPendingReviews,
   };
