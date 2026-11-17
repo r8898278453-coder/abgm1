@@ -6,8 +6,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, apiRequest } from '../services/authService';
 interface Occurrence { kind: string; dueAt: string; status: string; needsReview: boolean; policyVersion?:string|null; providerId?:string|null; reasonCode?:string|null }
 interface Result { available: boolean; occurrences: Occurrence[]; nextCursor: string | null }
-/** Parent keys by session/client; no local storage or automatic resend. */
-export const NotificationStatus: React.FC<{ companyId: string }> = ({ companyId }) => {
+/** Client changes discard prior history even when the parent preserves this component. */
+export const NotificationStatus: React.FC<{ companyId: string }> = props => <ClientNotificationStatus key={props.companyId} {...props}/>;
+const ClientNotificationStatus: React.FC<{ companyId: string }> = ({ companyId }) => {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
