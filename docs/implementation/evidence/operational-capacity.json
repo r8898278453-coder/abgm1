@@ -1,0 +1,57 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "d1ab3d5",
+  "schema": "049_critical_alert_incidents",
+  "canonicalTables": 87,
+  "nextMigration": "050",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-02"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "resourceCount": 9,
+  "admissionLimitsChanged": false,
+  "checksPassed": [
+    "npm test (127 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "node --import tsx test/browser/operationalCapacity.test.ts",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check (227 declarations,44 registrations,zero collisions)",
+    "git diff --check"
+  ],
+  "remaining": [
+    "retention/export/deletion and key recovery",
+    "agency cost/hosting/disk/render benchmarks",
+    "complete workflow reconciliation and phase acceptance"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deletion": false,
+  "deployment": false,
+  "defaultRegressionsPassed": 127,
+  "nativeCoverage": [
+    "empty and foreign clients remain independent",
+    "1001 retained reservations visible as FULL/remaining0",
+    "seven pending captures hit their independent limit",
+    "three notification kind counters stay separate",
+    "manual retained/all-date vs exact IST today half-open boundaries",
+    "-08:00 and +05:30 SQL sessions produce same resource counts",
+    "existing snapshot/capture/notification/critical/manual admission cap and race fixtures retained"
+  ],
+  "browserCoverage": [
+    "lazy/no unsolicited reads",
+    "full/near labels and actual above-cap counts",
+    "foreign or unavailable response hides old table instead of zero",
+    "client switch discards held old response and resets panel",
+    "no mutation/delete/send/retry controls"
+  ]
+}

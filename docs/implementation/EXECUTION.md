@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Capacity verification (17 November2026 IST):127 default programs, TypeScript/build, complete native SQL, capacity/workspace Chromium and route/doc guards passed. Existing admission limits unchanged; source49/87 unchanged; no deletion, production mutation or provider calls. Evidence: evidence/operational-capacity.json.
+
+Capacity review continuation (17 November2026 IST): [OPERATIONAL_CAPACITY.md](OPERATIONAL_CAPACITY.md) adds nine client resource counters with shared unchanged admission limits. Schema049/87 unchanged; no retention deletion, live activation or phase acceptance.
+
 Critical group verification (17 November2026 IST):126 default programs, TypeScript/build, native MariaDB through049/87, uploaded-export preservation/bundled replay and critical/policy/workspace/Telegram Chromium suites passed. Initial SQL/transaction issues fixed and retested; exact evidence in evidence/critical-alerts.json. Default off; no live provider sends, settings activation or deployment.
 
 Critical alert continuation (17 November2026 IST): [CRITICAL_ALERTS.md](CRITICAL_ALERTS.md) adds the third default-off policy and bounded incident escalation using the existing scheduler/journal/transport. Forward049/87; next050. Historical notes below retain their original scope; no live or phase acceptance.

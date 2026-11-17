@@ -292,6 +292,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/operational-capacity",
+      "owner": "server/operationalCapacity.ts#registerOperationalCapacity"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/posts/:postId/publishing-review",
       "owner": "server/publishingReviewRoutes.ts#registerPublishingReview"
     },
@@ -1136,5 +1141,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 43
+  "registrationCount": 44
 }

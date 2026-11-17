@@ -1,0 +1,19 @@
+# Client operational capacity review
+
+17 November2026 IST. Partial P09-02 operational drilldown; no parent/phase acceptance. Schema049/87 unchanged, next050. No migration, deletion, production writes, provider calls or deployment.
+
+The daily-report view now offers an explicitly opened read-only capacity table for the selected client. Nine independent counters cover retained frozen revisions, retained/pending capture runs, each of the three scheduled notification kinds, critical stage reservations, retained manual Telegram requests and manual requests recorded during the current IST day. The table shows actual used count, admission limit, nonnegative remaining space and FULL/NEAR_LIMIT/AVAILABLE state. Near means at least90% of the limit; imported counts above a limit remain visible instead of being clamped or hidden.
+
+shared/operationalCapacity.ts owns the relevant admission limits and the fixed response contract. Existing snapshot/capture/notification/critical/manual admission services reuse those same values (1000 retained records,7 pending captures,100 manual requests per IST day). No thresholds were raised or lowered. Existing per-date revision, active-worker and shared action-budget rules remain independent and are not represented as available storage slots.
+
+server/operationalCapacity.ts reads DB clock and all counters inside the existing five-second read-only transaction/deadline. Every subquery scopes the company; per-kind rows do not count unrelated notification kinds. The selected day uses Asia/Kolkata epoch boundaries and FROM_UNIXTIME comparisons under the same SQL session. Missing/invalid/unsafe counts make the reader unavailable, not zero. Counters are record counts, not physical disk bytes, hosting client capacity, business health, cron readiness or provider permission.
+
+GET /api/companies/:companyId/operational-capacity requires current company read access, rejects all query parameters and returns no-store metadata. It exposes no actor, customer/contact identity, message body, destination, credentials or request hashes. It does not change policy, admission counters or audit history. Archived clients remain readable under existing access rules.
+
+OperationalCapacityPanel is keyed by client and lazily opened; it clears stale results before reads, validates company/model/day/full key coverage and refuses foreign/incomplete responses. Abort/generation/session checks reject late results. New clients begin with a closed panel. It displays unavailable evidence explicitly and has no delete, reset, send or retry actions.
+
+Pending runs are a subset of retained capture runs; today's manual requests are a subset of retained requests. Scheduled-kind limits are separate; these rows cannot be added into an overall allowance. A full retained ledger needs a reviewed retention/export policy: deleting entries could break idempotency, suppression or frozen audit evidence. No automatic pruning or user-controlled deletion was introduced.
+
+Validation: evidence/operational-capacity.json. Native SQL covers empty/foreign clients,1001 retained reservations, pending7, all three kind counters, exact daily boundaries and alternate SQL timezones. Default/HTTP tests cover fixed thresholds, over-cap visibility, malformed day/count/shape refusal, private scope/no-store, exact SQL parameter bounds and consistent read release. Mocked Chromium covers lazy opening, full/near labels, foreign/unavailable refusal and switched-client late reads; the full workspace regression remains applicable.
+
+Remaining: agency-wide aggregate capacity/cost benchmarking, disk/render/provider limits, complete retention/export/deletion/key recovery, full workflow reconciliation and real Hostinger/runtime/provider acceptance. The table does not claim those prerequisites are satisfied. Billing and rendering activation remain excluded.

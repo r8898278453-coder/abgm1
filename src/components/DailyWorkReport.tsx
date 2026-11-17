@@ -1,3 +1,4 @@
+import {OperationalCapacityPanel} from './OperationalCapacityPanel';
 import {DAILY_ACTIVITY_LABELS as dayLabels,DAILY_BACKLOG_LABELS as backlogLabels} from '../../shared/dailyWorkReportLabels';
 import {ReportSnapshotPanel} from './ReportSnapshotPanel';
 import React,{useEffect,useRef,useState} from 'react';
@@ -31,6 +32,7 @@ export const DailyWorkReport:React.FC<{companyId:string}>=({companyId})=>{
    <h3 className="font-semibold">Current backlog</h3><p className="text-sm text-slate-500">Current saved states across all dates, read at {formatPlatformDateTime(report.generatedAt)}.</p><dl className="grid grid-cols-2 gap-2 text-sm">{Object.entries(backlogLabels).map(([key,label])=><div key={key}><dt>{label}</dt><dd aria-label={label} className="font-bold">{report.backlog[key as keyof Report['backlog']]}</dd></div>)}</dl>
    <p className="text-sm text-slate-500">Recorded job completion is not proof of new clients or revenue. Check the action and publishing histories for outcomes needing review.</p>
   </>}
+  <OperationalCapacityPanel companyId={companyId}/>
   <ReportSnapshotPanel companyId={companyId}/>
  </section>;
 };

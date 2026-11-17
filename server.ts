@@ -1,3 +1,4 @@
+import {readOperationalCapacity,registerOperationalCapacity} from './server/operationalCapacity';
 import {registerCriticalAlertRoutes} from './server/criticalAlertRoutes';
 import {readCriticalAlertHistory} from './server/criticalAlertIncidents';
 import {registerNotificationPolicyRoutes} from './server/notificationPolicyRoutes';
@@ -3695,6 +3696,7 @@ app.get('/api/invoices/:id/download', async (req, res) => {
   }
 });
 
+registerOperationalCapacity(app,{auth:getAuthUserFromRequest,access:async(u,c)=>{const pool=await getDbPool();if(!pool)throw new Error();return agencyClientAccess(pool,u,c,'read');},read:async c=>{const pool=await getDbPool();if(!pool)throw new Error();return readOperationalCapacity(pool,c);}});
 registerCriticalAlertRoutes(app,{auth:getAuthUserFromRequest,access:async(u,c)=>{const pool=await getDbPool();if(!pool)throw new Error();return agencyClientAccess(pool,u,c,'read');},read:async c=>{const pool=await getDbPool();if(!pool)throw new Error();return readCriticalAlertHistory(pool,c);}});
 registerNotificationPolicyRoutes(app,{auth:getAuthUserFromRequest,access:async(u,c,o)=>{const pool=await getDbPool();if(!pool)throw new Error();return agencyClientAccess(pool,u,c,o);},read:async c=>{const pool=await getDbPool();if(!pool)throw new Error();return readNotificationPolicies(pool,c);},save:async(u,c,b)=>{const pool=await getDbPool();if(!pool)throw new Error();return saveNotificationPolicy(pool,u,c,b);}});
 registerTelegramOperations(app,{identity:async(c,rows)=>{const pool=await getDbPool();if(!pool)throw new Error();return readTelegramIdentity(pool,c,rows);},verifyIdentity:async(u,c)=>{const pool=await getDbPool();if(!pool)throw new Error();return verifyTelegramIdentity(pool,u,c);},auth:getAuthUserFromRequest,integrations:getCompanyIntegrations,access:async(user,company,operation)=>{const pool=await getDbPool();if(!pool)throw new Error('Telegram permissions unavailable');return agencyClientAccess(pool,user,company,operation);}});

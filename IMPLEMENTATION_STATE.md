@@ -1,5 +1,7 @@
 # Implementation State
 
+Operational capacity —17 November2026 IST: nine scoped read-only resource counters, shared unchanged admission limits, IST daily window, private no-store API and lazy client/session-safe review. Schema049/87 unchanged; next050. See docs/implementation/OPERATIONAL_CAPACITY.md and evidence/operational-capacity.json. Retention/deletion and hosting capacity remain pending; no deployment.
+
 Critical alerts —17 November2026 IST: forward049/87, six observed category episodes, atomic stage reservations, initial/1h/24h same-destination escalation, shared bound Telegram delivery, private history/UI and dispatcher availability. Default off; P09-03 remains partial. See docs/implementation/CRITICAL_ALERTS.md and evidence/critical-alerts.json. No production activation.
 
 Scheduled notification policies —17 November2026 IST: forward048/85, explicit default-off bot/destination opt-in, future IST slots, bound durable no-resend journal, fresh authority/config/budget fences, shared selector gating and private settings/history. P09-03 in progress; alerts/full acceptance remain open. See docs/implementation/SCHEDULED_NOTIFICATION_POLICIES.md and evidence/scheduled-notification-policies.json. No production activation.
