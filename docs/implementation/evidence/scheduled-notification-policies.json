@@ -1,0 +1,80 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "448f5a6493c6aee8146ed3857b4c7299251c7d01",
+  "schema": "048_notification_policy_bindings",
+  "canonicalTables": 85,
+  "nextMigration": "049",
+  "historicalMigrations001Through047Changed": false,
+  "targetParents": [
+    "P09-03"
+  ],
+  "parentPromoted": false,
+  "parentStarted": "P09-03",
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (124 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "node --import tsx test/browser/notificationPolicies.test.ts",
+    "npm run test:browser:telegram",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check",
+    "git diff --check"
+  ],
+  "defaults": {
+    "daily_digest": false,
+    "review_reminder": false
+  },
+  "limits": {
+    "retainedPerClientKind": 1000,
+    "freshRunningPerClientKind": 1,
+    "eligibilityWindowHours": 24,
+    "staleRecoveryLimit": 100
+  },
+  "remaining": [
+    "critical incident dedupe/escalation",
+    "richer content/frozen-report selection",
+    "retention and controlled definitely-unattempted recovery",
+    "Hostinger cron/runtime and actual provider pilot",
+    "full P09/phase/canary/release acceptance"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "defaultRegressionsPassed": 124,
+  "nativeCoverage": [
+    "fresh/005/041 upgrade through048 and repeat applied0",
+    "8-way policy CAS and exact preview/config binding",
+    "future-only activation, independent kinds and clients",
+    "policy actor/config/due/clock admission and audit rollback",
+    "8-way single network owner, durable RUNNING boundary visible before provider",
+    "content hash only; no raw message/token/destination in journal",
+    "unknown/changed content/changed config same-slot no resend",
+    "strict API_ACCEPTED/provider-ID evidence only",
+    "budget/role/config/disable drift before I/O yields zero sends",
+    "lost claim ACK zero sends; lost settled ACK reconciles; settlement audit fault stays unconfirmed",
+    "default-off/disabled/archive/missing-ops/wrong-kind selector filters; existing fairness/concurrency retained",
+    "uploaded original business rows, owner mappings and ledger preserved; bundled repeat READY/applied0"
+  ],
+  "browserCoverage": [
+    "no implicit PUT; exact displayed destination approval",
+    "lost ACK preserves draft/locks until reload",
+    "private client response validation and missing-binding refusal",
+    "viewer controls; late PUT cannot alter switched client",
+    "existing Telegram manual journal and workspace isolation"
+  ],
+  "rolloutLimits": [
+    "no production activation",
+    "older binary cron must stay stopped on rollback; legacy unbound insertion does not enforce new policy",
+    "no silent retry after post-claim budget/policy block",
+    "critical alerts/full reconciliation/retention/live gates still open"
+  ]
+}

@@ -1,5 +1,7 @@
 # Changelog
 
+Scheduled notification policies —17 November2026 IST: forward048/85, explicit default-off bot/destination opt-in, future IST slots, bound durable no-resend journal, fresh authority/config/budget fences, shared selector gating and private settings/history. P09-03 in progress; alerts/full acceptance remain open. See docs/implementation/SCHEDULED_NOTIFICATION_POLICIES.md and evidence/scheduled-notification-policies.json. No production activation.
+
 Operations group —17 November2026 IST: versioned frozen V2/legacy V1 preservation, agency model3 capture exceptions, audit-backed explicit Telegram identity verification and prompt inconsistent-run recovery. Schema047/84 unchanged; next048. See docs/implementation/OPERATIONS_COMPLETION_GROUP.md and evidence/operations-completion-group.json. P09-01/02/04 remain partial; no production/provider activation.
 
 Capture operations reporting —17 November2026 IST: twelve live daily report/UI/CSV/digest metrics cover committed capture transitions and current queue-bound backlog, with IST/privacy/invalid-state guards. Frozen coverage V1 remains unchanged. Schema047/84, next048. See docs/implementation/REPORT_CAPTURE_REPORTING.md and evidence/report-capture-reporting.json. P09-01 remains partial; no deployment or sends.

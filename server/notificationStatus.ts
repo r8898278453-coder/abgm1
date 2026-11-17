@@ -12,7 +12,7 @@ export async function readNotificationStatus(pool: Pool, companyId: string, befo
   if (before) { const due = before.dueAt.slice(0,19).replace('T',' '); values.push(due, due, before.kind); }
   values.push(limit + 1);
   const [rows]: any = await pool.query(`SELECT notification_kind AS kind,
-    DATE_FORMAT(due_at, '%Y-%m-%dT%H:%i:%sZ') AS dueAt, status,
+    DATE_FORMAT(due_at, '%Y-%m-%dT%H:%i:%sZ') AS dueAt, status, CAST(policy_revision AS CHAR) AS policyVersion, provider_id AS providerId, reason_code AS reasonCode,
     (status = 'RUNNING' AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS needsReview
     FROM notification_occurrences WHERE company_id = ? ${boundary}
     ORDER BY due_at DESC, notification_kind DESC LIMIT ?`, values);

@@ -12,11 +12,11 @@ export async function selectNotificationCompanyBatch(pool: Pool, kind: Notificat
       ON DUPLICATE KEY UPDATE notification_kind = VALUES(notification_kind)`, [kind]);
     const [cursor]: any = await connection.query('SELECT last_company_id FROM notification_dispatch_cursors WHERE notification_kind = ? FOR UPDATE', [kind]);
     const last = cursor[0].last_company_id;
-    const eligible = `EXISTS (SELECT 1 FROM company_integrations i WHERE i.company_id = c.id AND i.provider = 'telegram_bot' AND i.status = 'connected')`;
-    const [ahead]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} ${last ? 'AND c.id > ?' : ''} ORDER BY c.id LIMIT ?`, last ? [last, limit] : [limit]);
+    const eligible = `EXISTS (SELECT 1 FROM company_integrations i WHERE i.company_id = c.id AND i.provider = 'telegram_bot' AND i.status = 'connected') AND EXISTS (SELECT 1 FROM client_operations o WHERE o.company_id=c.id AND o.status='ACTIVE') AND EXISTS (SELECT 1 FROM notification_policies p WHERE p.company_id=c.id AND p.notification_kind=? AND p.enabled=1)`;
+    const [ahead]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} ${last ? 'AND c.id > ?' : ''} ORDER BY c.id LIMIT ?`, last ? [kind,last,limit] : [kind,limit]);
     let companies: DbCompany[] = ahead;
     if (last && companies.length < limit) {
-      const [wrapped]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} AND c.id <= ? ORDER BY c.id LIMIT ?`, [last, limit - companies.length]);
+      const [wrapped]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} AND c.id <= ? ORDER BY c.id LIMIT ?`, [kind,last,limit - companies.length]);
       companies = [...companies, ...wrapped];
     }
     if (companies.length) await connection.query('UPDATE notification_dispatch_cursors SET last_company_id = ? WHERE notification_kind = ?', [companies[0].id, kind]);

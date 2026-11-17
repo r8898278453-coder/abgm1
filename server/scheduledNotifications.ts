@@ -1,17 +1,16 @@
-import { isGlobalEmergencyStopActive } from './autonomousEngine';
-import { getDbPool, getCompanyIntegration } from './db';
-import { runNotificationOccurrence, type NotificationKind } from './notificationOccurrences';
-import { sendTenantTelegram } from './tenantNotifications';
+import { isGlobalEmergencyStopActive } from './executionStop';
+import { getDbPool, getCompanyIntegration, getCompanyIntegrations } from './db';
+import { type NotificationKind } from './notificationOccurrences';
+import { runBoundNotificationOccurrence,scheduledNotificationCanSend } from './boundNotificationOccurrences';
+import { sendTenantTelegramAttempt } from './tenantNotifications';
 
 /** Missing configuration leaves the occurrence unclaimed for a later configured tick. */
 export async function sendScheduledNotification(companyId: string, kind: NotificationKind, dueAt: number, message: string, canStart: () => boolean = () => true): Promise<boolean> {
   if (!canStart() || isGlobalEmergencyStopActive()) return false;
-  const integration = await getCompanyIntegration(companyId, 'telegram_bot');
-  if (!integration || integration.company_id !== companyId || integration.status !== 'connected' ||
-      typeof integration.credentials?.botToken !== 'string' || !/^\d+:[A-Za-z0-9_-]+$/.test(integration.credentials.botToken) ||
-      typeof integration.credentials?.chatId !== 'string' || !/^-?\d+$/.test(integration.credentials.chatId) || message.length > 4096) return false;
+  if(typeof message!=='string'||!message.trim()||message.length>4096)return false;
   const pool = await getDbPool();
   if (!pool || !canStart()) return false; // No volatile fallback for scheduled external delivery.
-  return await runNotificationOccurrence(pool, companyId, kind, dueAt,
-    () => !canStart() || isGlobalEmergencyStopActive() ? Promise.resolve(false) : sendTenantTelegram(companyId, message, { getCompanyIntegration: async () => integration, fetch })) === 'SENT';
+  return await runBoundNotificationOccurrence(pool,companyId,kind,dueAt,message,{canStart,
+    send:(bindingHash,_actor,context)=>sendTenantTelegramAttempt(companyId,message,{getCompanyIntegration,getCompanyIntegrations,fetch,
+      canSend:async()=>canStart()&&await scheduledNotificationCanSend(pool,companyId,kind,dueAt,context,bindingHash)},bindingHash)})==='SENT';
 }

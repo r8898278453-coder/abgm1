@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Scheduled-delivery verification (17 November2026 IST):124 default programs, TypeScript/build, complete native MariaDB through048/85, actual uploaded export preservation/bundled replay, opt-in/Telegram/workspace Chromium and route/doc guards passed. Default off; no real provider sends, policy activation or deployment. Legacy binary cron must remain stopped during rollback. Evidence: evidence/scheduled-notification-policies.json.
+
+Scheduled delivery continuation (17 November2026 IST): [SCHEDULED_NOTIFICATION_POLICIES.md](SCHEDULED_NOTIFICATION_POLICIES.md) adds exact default-off client/kind opt-in and bound journal safety. Forward048/85; next049. P09-03 in progress; no phase or live acceptance.
+
 Operations group verification (17 November2026 IST):122 default programs, TypeScript/build, native MariaDB and seven browser suites passed (full workspace passed standalone after an initial detached-DOM timeout). Frozen V1 definitions/historical migrations unchanged; new captures use V2. Hostinger hosted MCP is configured but account tools are unavailable, so P00-02 remains blocked. Exact checks/limits: evidence/operations-completion-group.json. No production/provider activation.
 
 Operations continuation (17 November2026 IST): [OPERATIONS_COMPLETION_GROUP.md](OPERATIONS_COMPLETION_GROUP.md) adds frozen V2, agency model3, explicit Telegram identity proof and recovery consistency. Schema047/84 unchanged. Historical notes below retain their checkpoint scope; no parent/phase acceptance.

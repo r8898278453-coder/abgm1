@@ -1,3 +1,4 @@
+import {notificationPolicyBindings,NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_CHECK} from './migrations/048_notification_policy_bindings';
 import {reportCaptureSchedule,CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES,CAPTURE_SCHEDULE_CHECKS,CAPTURE_SCHEDULE_INDEX_CHECK} from './migrations/047_report_capture_schedule';
 import {dailyReportSnapshots,REPORT_SNAPSHOT_COLUMNS,REPORT_SNAPSHOT_INDEXES,REPORT_SNAPSHOT_CHECK,REPORT_SNAPSHOT_INDEX_CHECK} from './migrations/046_daily_report_snapshots';
 import {telegramManualIntents,TELEGRAM_MANUAL_COLUMNS,TELEGRAM_MANUAL_CHECK,TELEGRAM_MANUAL_INDEXES,TELEGRAM_MANUAL_INDEX_CHECK} from './migrations/045_telegram_manual_intents';
@@ -130,6 +131,7 @@ export const CANONICAL_REQUIRED_TABLES = [
   'job_action_feed_cursors',
   'job_action_receipts',
   'notification_occurrences',
+  'notification_policies',
   'notification_dispatch_cursors',
   'scheduled_post_dispatch_cursors',
   'publishing_dispatch_claims',
@@ -188,6 +190,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
   job_action_feed_cursors: ['PRIMARY'],
   job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision'],
   notification_occurrences: ['PRIMARY'],
+  notification_policies: ['PRIMARY'],
   notification_dispatch_cursors: ['PRIMARY'],
   scheduled_post_dispatch_cursors: ['PRIMARY'],
   publishing_dispatch_claims: ['idx_claim_company_status','PRIMARY'],
@@ -226,6 +229,7 @@ export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
   job_action_feed_cursors: ['PRIMARY'],
   job_action_receipts: ['PRIMARY', 'uq_action_receipt_revision', 'fk_action_receipt_event'],
   notification_occurrences: ['PRIMARY'],
+  notification_policies: ['PRIMARY'],
   notification_dispatch_cursors: ['PRIMARY'],
   scheduled_post_dispatch_cursors: ['PRIMARY'],
   publishing_dispatch_claims: ['PRIMARY'],
@@ -837,6 +841,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   telegramManualIntents,
   dailyReportSnapshots,
   reportCaptureSchedule,
+  notificationPolicyBindings,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1148,6 +1153,9 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [factConflicts]:any=await conn.query(FACTS_CONFLICT_SQL);if(factConflicts.length)missingConstraints.push('knowledge_facts.shape');
       const [agencyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('agencies','agency_memberships','agency_clients','client_assignments','client_operations','client_locations','auth_revocations','security_limits')");
       for(const [table,names]of Object.entries(AGENCY_TABLE_COLUMNS))for(const name of names)if(!agencyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);
+      const [notificationPolicyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('notification_policies','notification_occurrences')");
+      for(const [table,names]of Object.entries({notification_policies:NOTIFICATION_POLICY_COLUMNS,notification_occurrences:NOTIFICATION_OCCURRENCE_BINDING_COLUMNS}))for(const name of names)if(!notificationPolicyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
+      for(const check of [NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_CHECK]){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('notification_policy_bindings.shape');}
       const [captureColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('report_capture_policies','report_capture_runs')");
       for(const [table,names]of Object.entries(CAPTURE_SCHEDULE_COLUMNS))for(const name of names)if(!captureColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
       const [captureIndexes]:any=await conn.query("SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='report_capture_runs' ORDER BY INDEX_NAME,SEQ_IN_INDEX");

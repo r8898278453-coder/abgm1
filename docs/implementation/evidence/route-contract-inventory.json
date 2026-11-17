@@ -277,6 +277,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/notification-policies",
+      "owner": "server/notificationPolicyRoutes.ts#registerNotificationPolicyRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/notification-policies",
+      "owner": "server/notificationPolicyRoutes.ts#registerNotificationPolicyRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/posts/:postId/publishing-review",
       "owner": "server/publishingReviewRoutes.ts#registerPublishingReview"
     },
@@ -1121,5 +1131,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 41
+  "registrationCount": 42
 }
