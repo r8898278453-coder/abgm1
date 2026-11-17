@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Frozen V3 verification (17 November2026 IST):130 isolated default programs, full disposable MariaDB through050/87 with explicit V3 worker writes, V1/V2 exact replay/baseline preservation, late sales evidence and immutable hashes; three snapshot/capture-schedule/sales-report Chromium suites, TypeScript/build and route/doc/diff guards passed. V1/V2 schema source files unchanged. Evidence: evidence/frozen-sales-coverage.json. No live deployment, migration or parent/phase promotion.
+
+Frozen sales continuation (17 November2026 IST): new captures use fixed coverage V3 with eleven sales counters; V1/V2 replay, hashes and existing baselines remain preserved. Same-version comparisons and CSV use actual coverage. Schema050/87 unchanged; next051. See [FROZEN_SALES_COVERAGE.md](FROZEN_SALES_COVERAGE.md) and evidence/frozen-sales-coverage.json. Full parent/phase/live acceptance remains open.
+
 Sales reporting verification (17 November2026 IST):130 credential-isolated programs, full disposable MariaDB fresh/upgrade and real import/replay/IST/corrupt-count tests, three Chromium sales-report/workspace/snapshot suites, TypeScript/build and route/doc/diff guards passed. Existing workspace and SQL expected report fixtures expanded to the new live contract. Evidence: evidence/sales-activity-reporting.json. No production access or parent/phase promotion.
 
 Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.

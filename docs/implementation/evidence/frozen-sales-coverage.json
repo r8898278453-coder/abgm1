@@ -1,0 +1,44 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "8b99871235aa4fdde031377554a752e07a73ec2f",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "nextMigration": "051",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "coverageVersion": 3,
+  "newActivityMetrics": 11,
+  "legacyVersionsPreserved": [
+    1,
+    2
+  ],
+  "legacySchemaFilesModified": false,
+  "checksPassed": [
+    "npm test:130 credential-isolated programs",
+    "npm run lint",
+    "npm run build:existing Vite chunk/annotation warnings",
+    "npm run test:browser:snapshots: V3 fields and sales comparison",
+    "npm run test:browser:capture-schedule",
+    "npm run test:browser:sales-report",
+    "npm run routes:check:230 declarations,45 registrations,zero collisions",
+    "npm run test:sql:local: full MariaDB10.11.19 fresh/upgrade, V3 writes/late-evidence/deltas, V1/V2 replay/baseline preservation and queue fixtures",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "compatibility": [
+    "Exact V1/V2 replay must return the original payload/hash without report regeneration",
+    "Existing baseline reuse must preserve legacy coverage",
+    "New manual/scheduled captures write V3 explicitly",
+    "Same-version deltas only; mixed-version comparison refused",
+    "Old V1/V2-only readers are not a compatible rollback after V3 records exist"
+  ],
+  "productionAccess": false,
+  "remaining": [
+    "Complete workflow reconciliation and other module report coverage",
+    "Retention and measured hosting/cron verification",
+    "Real provider, parent/phase and release acceptance"
+  ]
+}

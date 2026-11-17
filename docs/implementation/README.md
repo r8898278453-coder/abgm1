@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+Frozen sales continuation (17 November2026 IST): new captures use fixed coverage V3 with eleven sales counters; V1/V2 replay, hashes and existing baselines remain preserved. Same-version comparisons and CSV use actual coverage. Schema050/87 unchanged; next051. See [FROZEN_SALES_COVERAGE.md](FROZEN_SALES_COVERAGE.md) and evidence/frozen-sales-coverage.json. Full parent/phase/live acceptance remains open.
+
 Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.
 
 Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.

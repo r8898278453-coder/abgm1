@@ -1,5 +1,7 @@
 # Changelog
 
+Frozen sales coverage —17 November2026 IST: new captures use V3, preserving V1/V2 replay and original baselines; sales CSV/display/deltas use fixed versioned coverage. Schema050/87 unchanged. See docs/implementation/FROZEN_SALES_COVERAGE.md. Older V1/V2-only binaries cannot read V3 records; retain a compatible reader on rollback. Parent/phase/live gates remain pending.
+
 Sales accountability —17 November2026 IST: eleven audited sales/import counters in the canonical daily report/UI/CSV/digest; client/session-safe report reads and exports. Schema050/87 and frozen V1/V2 unchanged. See docs/implementation/SALES_ACTIVITY_REPORTING.md and evidence/sales-activity-reporting.json. Full workflow reconciliation and parent/phase/live gates remain pending.
 
 Saved import navigation —17 November2026 IST: return from a recorded result to its original keyset page, jump from older batches to newest, and accessible loading status. Chromium navigation/CSV/session/client regression and TypeScript passed. Schema050/87 and parent acceptance unchanged. See docs/implementation/PROSPECT_IMPORT_HISTORY.md.
