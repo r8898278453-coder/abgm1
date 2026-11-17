@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';import path from 'node:path';import {gzipSync} from 'node:zlib';import {LAZY_FEATURE_CATALOG} from '../../src/components/lazyFeatures';
 const root=path.resolve('dist/client'),manifest=JSON.parse(await fs.readFile(path.join(root,'.vite/manifest.json'),'utf8')),visited=new Set<string>();
 function walk(key:string){if(visited.has(key))return;if(!manifest[key])throw new Error('FRONTEND_MANIFEST_REFERENCE_MISSING');visited.add(key);for(const dependency of manifest[key].imports||[])walk(dependency);}
-if(!manifest['index.html']?.isEntry)throw new Error('FRONTEND_ENTRY_MISSING');walk('index.html');
+if(!manifest['index.html']?.isEntry)throw new Error('FRONTEND_ENTRY_MISSING');walk('index.html');const appEntries=(manifest['index.html'].dynamicImports||[]).filter((key:string)=>manifest[key]?.name==='App');if(appEntries.length!==1)throw new Error('FRONTEND_APP_ENTRY_MISSING');walk(appEntries[0]); // Count the normal app bootstrap, including its shared dependencies.
 let initialJsBytes=0,initialJsGzipBytes=0;
 for(const key of visited){const file=manifest[key].file;if(!file.endsWith('.js'))continue;const resolved=path.resolve(root,file);if(!resolved.startsWith(root+path.sep))throw new Error('FRONTEND_MANIFEST_PATH_INVALID');const bytes=await fs.readFile(resolved);initialJsBytes+=bytes.length;initialJsGzipBytes+=gzipSync(bytes,{level:9}).length;}
 if(LAZY_FEATURE_CATALOG.length!==20||new Set(LAZY_FEATURE_CATALOG.map(f=>f.id)).size!==20)throw new Error('FRONTEND_FEATURE_CATALOG_INVALID');

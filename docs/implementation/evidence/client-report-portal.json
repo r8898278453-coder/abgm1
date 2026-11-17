@@ -1,0 +1,79 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "61dbd1a03f355e297547e9a170730e32d73a6306",
+  "schema": "052_client_reports",
+  "canonicalTables": 90,
+  "nextMigration": "053",
+  "frozenReportCoverage": 4,
+  "historicalMigrations001To051Modified": false,
+  "frozenSchemasV1V2V3V4Modified": false,
+  "functionalSlices": 26,
+  "parentTasksInGroup": [
+    "P09-05"
+  ],
+  "verification": "passed_local",
+  "publicSharingActivated": false,
+  "productionDatabaseAccess": false,
+  "deployment": false,
+  "providerSends": false,
+  "spend": false,
+  "phasePromotion": false,
+  "parentDecision": {
+    "P09-05": "validated_optional_approved_report_scope",
+    "upstreamAndPhaseGates": "remain_open",
+    "externalClientAssetApproval": "not_implemented_by_this_report_portal"
+  },
+  "tracker": {
+    "validated": 28,
+    "in_progress": 34,
+    "planned": 30,
+    "blocked": 1,
+    "total": 93
+  },
+  "tests": {
+    "defaultRegressionPrograms": 134,
+    "defaultRegression": "passed",
+    "browserRegistryPrograms": 26,
+    "serialBrowserGroup": "26/26 passed",
+    "followupRecoveryBrowser": "passed: uncommitted draft re-entry, normalized input/hash mismatch refusal, active saved-link reconciliation",
+    "nativeMariaDB": "10.11.19; complete fresh/upgrade/repeat/concurrency/runtime-privilege suite passed",
+    "negativeForward052Shapes": "wrong history index order and token hash type rejected",
+    "newNativeWorkflow": "source binding, role privacy,8-way CAS, no sends, encrypted lost-ACK replay, expiry/revocation, role/archive, temporarily blocked authority, exact reconciliation, quota and rollback passed",
+    "uploadedSqlExport": "disposable restore passed; original rows/ledger preserved; bundled replay READY/applied0;90 canonical tables;52 migrations",
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "routes": {
+      "declarations": 247,
+      "registrations": 47,
+      "collisions": 0
+    },
+    "frontend": {
+      "initialJsBytes": 580834,
+      "initialJsGzipBytes": 168135,
+      "rawBudget": 600000,
+      "gzipBudget": 180000,
+      "normalAppClosureIncluded": true,
+      "featureEntriesInitiallyLoaded": 0
+    }
+  },
+  "limitations": [
+    "Full daily action reconciliation remains open",
+    "This portal approves report releases, not external client marketing-asset decisions",
+    "Provider discovery/enrichment/outbound outcomes and verified ROI remain open",
+    "Hostinger runtime/cron/backup and phase/release gates remain open",
+    "Link revocation prevents later reads; cannot recall viewed or downloaded copies",
+    "Public sharing defaults off; enabling it requires explicit configured HTTPS origin/key"
+  ],
+  "docs": [
+    "CLIENT_REPORT_PORTAL.md",
+    "CLIENT_REPORT_BATCHES.csv",
+    "TASKS.csv",
+    "STATUS.md",
+    "MASTER_PLAN.md",
+    "EXECUTION.md",
+    "DELIVERY_AND_PENDING.md",
+    "API_COMPATIBILITY.md",
+    "LOCAL_ACCEPTANCE_RECONCILIATION.md",
+    "MIGRATIONS.md"
+  ]
+}

@@ -241,6 +241,51 @@
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/client-report-links/:id/revoke",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/client-report-publications",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/client-report-publications",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/client-report-publications/:id",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/client-report-publications/:id/links",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/client-report-publications/:id/links",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/client-report-publications/:id/links/reconcile",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/client-report-publications/:id/transition",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/client-report-publications/by-request/:requestKey",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:companyId/critical-alerts",
       "owner": "server/criticalAlertRoutes.ts#registerCriticalAlertRoutes"
@@ -1066,6 +1111,11 @@
       "owner": "server/publicationWorkflowRoutes.ts#registerPublicationWorkflow"
     },
     {
+      "method": "GET",
+      "path": "/api/public/client-reports/:id",
+      "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/public/lead",
       "owner": "server/publicLeadRoutes.ts#registerPublicLeadRoutes"
@@ -1191,5 +1241,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 46
+  "registrationCount": 47
 }

@@ -1,0 +1,39 @@
+# Approved client report portal
+
+Implementation checkpoint: 18 November 2026 IST. This is the optional P09-05 client reporting and approval slice. It does not close a phase, establish Hostinger readiness, or activate sharing. Billing remains outside scope.
+
+## What the workflow does
+
+1. Load an existing immutable daily-work snapshot in the agency workspace. A writer selects optional supported counts and writes a client-visible title/summary and separate agency notes. The server reads the stored snapshot, verifies its hash/revision and the current client business name, and creates a durable draft. Submitted counts are never accepted.
+2. Preview the projected report. Completed, failed and paused jobs plus six backlog counters are mandatory. Optional activity metrics are explicitly allowlisted; selecting a metric absent from an older coverage version is refused rather than represented as zero. Coverage V1–V4 remain unchanged.
+3. An authorized approver approves the exact viewed publication revision and public-content hash. Concurrent/stale approvals lose. Writers can edit an existing publication with its expected version, which returns it to draft and permanently revokes every existing link. Withdrawing approval likewise revokes links. A new approval does not resurrect them.
+4. An agency manager can explicitly create a link for an approved revision if sharing is configured. The link is not sent automatically. It expires after 1–30 days, is individually revocable, and is restricted to the exact approved revision and public-content hash. There are at most ten unexpired active links per publication and 1,000 retained publications/links per client; no automatic retention deletion.
+5. The client opens a responsive read-only report and can download its public CSV. The page discloses capture/source times in IST and distinguishes backlog at capture from activity on the report date. API acceptance, declarations and recorded work are not presented as confirmed delivery, verified revenue or guaranteed growth.
+
+## Privacy and access
+
+- Staff writers see the agency notes; approvers and viewers do not receive them. Approvers can preview assigned-client drafts to make their approval decision. Read-only viewers see approved publications for their authorized client only. Public output contains the fixed report projection, approval time and expiry, not internal client/snapshot/actor IDs, source hashes, contacts, private notes, credentials or link-storage fields.
+- Role and client assignment checks use current SQL authority. Public reads require a currently authorized approving actor and issuing manager and an active client. Archived clients cannot serve public reports. Managers can revoke existing links while archived. Authority withdrawal blocks future reads; restoring authority can restore an otherwise active, unchanged link. Use explicit revocation for permanent withdrawal.
+- Tokens have 256 bits of server-generated randomness. The URL carries the secret in its fragment, never its query. Public requests use only `X-Client-Report-Token`, omit cookies and account authorization, and suppress referrers. A private account session alone does not open a public report.
+- The public application entry lazily loads the report page without mounting the account application or reading private storage. Responses are no-store, no-referrer, noindex/nofollow/noarchive and nosniff. Public API reads have an IP rate limit and a read-only SQL deadline. The service worker does not persist report API responses or the report route.
+- Public CSV escapes spreadsheet formula prefixes and exports only validated public fields. Free-text title and summary are deliberately client-visible; users must keep confidential information in the separate notes field. Revocation prevents subsequent reads; it cannot recall already viewed/downloaded copies.
+
+## Recovery and consistency
+
+Draft creation uses a scoped request key and immutable actor/input hash. Exact replays return the current publication lineage, not a fabricated original revision. Key-based recovery checks that hash. Browser recovery storage contains only actor/client-scoped request metadata and an input hash, never summary/notes or a link secret. If the request never committed and the page refreshed, re-enter exactly the original draft and source; the client checks its hash before retrying the saved key. A mismatched draft is not sent.
+
+Approval, edits and withdrawal use expected versions under the client row lock. Mutations and metadata-only audit records commit atomically. Unknown outcomes require a fresh read/reconciliation before further actions. No force-new mutation is used to hide uncertainty.
+
+Link issuance stores an authenticated encrypted envelope with the client, publication, revision, link ID and token; the plaintext token is not stored or audited. The token hash validates public access. Exact issuance replay decrypts and checks the original envelope, returns the same secret and never extends expiry/reactivates a link. A manager can reconcile a saved request without decrypting its secret; confirmed revoked/expired/invalidated pointers can be cleared, while active/absent requests keep their exact identity. Encryption key loss may block issuance/replay but does not prevent hash-based reads or revocation. Previous credential keys are supported by the existing credential cipher.
+
+## Configuration and migration
+
+Sharing defaults off: `CLIENT_REPORT_SHARING_ENABLED=false`. To enable issuance, configure a fixed HTTPS root origin in `PUBLIC_APP_URL` and a secret of at least 32 characters in the existing credential/auth key chain (`CREDENTIAL_ENCRYPTION_KEY`, otherwise `AUTH_SECRET`, otherwise `JWT_SECRET`) before starting the server. There is no request-host fallback or development-key fallback for issuance. Draft/review work while sharing is off. CORS allows the report token header only under the existing origin policy. No activation was performed during implementation.
+
+Forward migration `052_client_reports` adds `client_report_publications` and `client_report_share_links`: 90 canonical tables, next migration 053. Preflight/readiness validate engine, exact column widths/types/nullability/collations, unsigned counters, primary keys and full ordered unique/history indexes. Historical migrations 001–051 and frozen report schemas are unchanged. New administrative release actions have their own metadata audit/history; daily report V4 is not expanded and complete platform activity reconciliation remains pending.
+
+Private APIs use `/api/companies/:companyId/client-report-publications`: list, source-bound POST draft, `by-request/:requestKey`, `/:id`, `/:id/transition`, `/:id/links`, and `/:id/links/reconcile`. Revoke a link through `/api/companies/:companyId/client-report-links/:id/revoke`. The only public endpoint is `GET /api/public/client-reports/:id`, with the token header and no query parameters. Private histories are bounded by the retained per-client limit; no arbitrary limit, cross-client search or deletion endpoint is exposed.
+
+## Evidence and remaining work
+
+See [CLIENT_REPORT_BATCHES.csv](CLIENT_REPORT_BATCHES.csv) for the 26 related functional slices and [evidence/client-report-portal.json](evidence/client-report-portal.json) for actual verification. Functional slices are not counted as 26 completed parent tasks. P09-05 optional approved-report scope is locally validated: client-facing and viewer reports are approved-only; agency approvers may review assigned drafts for the bound approval decision. This is not mandatory external-client approval of marketing assets. It is the only parent promoted in this group. The larger daily accountability reconciliation, provider discovery/enrichment, actual provider automation/ROI, hosting/backup/cron evidence and end-to-end phase acceptance remain open. No deployment, live SQL migration, customer send or spend was performed.

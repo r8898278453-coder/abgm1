@@ -44,6 +44,7 @@ export const corsMiddleware = cors({
     'X-CSRF-Token',
     'X-Session-Transport',
     'X-Requested-With',
+    'X-Client-Report-Token',
     'Accept',
     'Origin',
     'Cache-Control',

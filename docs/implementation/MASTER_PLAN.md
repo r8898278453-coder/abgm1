@@ -1,5 +1,9 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Client report portal verification —18 November2026 IST:26 functional slices;134 isolated regression programs,26/26 serial browser workflows plus exact-content recovery recheck, native MariaDB fresh/upgrade/index/width/CAS/privacy/recovery matrix passed. Forward052/90; frozen V4 unchanged; next053. P09-05 optional approved-report scope locally validated;28 validated/34 in progress/30 planned/1 blocked. Sharing is off. Full daily reconciliation, external content approvals, providers and phase/hosting/live gates remain open. Evidence: CLIENT_REPORT_PORTAL.md and evidence/client-report-portal.json. No deployment or real sends/spend.
+
+Client report portal group (18 November2026 IST):26 connected functional slices add source-bound drafts, private-note redaction, exact-version approvals, encrypted expiring/revocable share links, anonymous mobile reports and key/hash-based recovery. Forward052/90; frozen V4 unchanged; next053. Sharing remains off. See [CLIENT_REPORT_PORTAL.md](CLIENT_REPORT_PORTAL.md), CLIENT_REPORT_BATCHES.csv and evidence/client-report-portal.json. Local approved-report acceptance is validated; phase/live gates remain open.
+
 Growth operations group (18 November2026 IST):24 functional workflows across saved assessments, declared signals/contact evidence, approved measurement experiments, exact declared-cost ledger and accountability. Forward051/88 and frozen V4; old evidence preserved. See [GROWTH_OPERATIONS_GROUP.md](GROWTH_OPERATIONS_GROUP.md), GROWTH_BATCHES.csv and evidence/growth-operations-group.json. No provider sends, spend, deployment or phase promotion.
 
 Prospecting profile continuation (17 November2026 IST): saved client services/roles/regions/employee/website targeting and planning notes extend the canonical sales policy; legacy omitted fields preserve saved ICP. Six fixed read-only declared-fit checks,90-day freshness, human-disqualifier review, current-policy/client/session fences and private CSV added. See [PROSPECTING_PROFILE.md](PROSPECTING_PROFILE.md) and evidence/prospecting-profile.json. Schema050/87 unchanged; P08-01 remains in progress.
@@ -71,7 +75,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.49 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.50 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

@@ -16,3 +16,7 @@ The optional extensions are deferred for the present personal-platform deploymen
 The integrations header now says Saved provider configuration rather than Production Gateway Ready when configuration exists. Credential presence is not proof of runtime/provider readiness. This closes one known unsupported badge, not every P01-09 criterion.
 
 The four local tracker promotions are now recorded with the successful 131-program default, 23-browser and full disposable SQL matrix in evidence/twenty-feature-delivery.json. Old historical entries retain their original checkpoint counts. No phase/release/canary is promoted by these local decisions. Billing and production deployment remain excluded.
+
+## Approved client report checkpoint —18 November2026 IST
+
+P09-05 optional report-release scope is locally validated by clientReports unit/native and clientReportPublic/clientReportPortal browser fixtures. Client-facing/viewer reports are approved-only, agency approvers review assigned-client drafts, private notes stay writer-only, and all decisions bind the exact revision/public hash. Sharing is optional/off; source report V4 is truthful but not the complete action reconciliation required by P09-01. This report portal does not implement mandatory external-client asset approval or close upstream/phase/hosting gates.26 functional slices map to one parent, not26 original tasks.
