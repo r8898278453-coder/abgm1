@@ -1,3 +1,4 @@
+import {readSalesActivity} from './salesActivityReporting';
 import {readCaptureReporting} from './reportCaptureReporting';
 import type {Pool} from 'mysql2/promise';
 import {platformDayBounds,type DailyWorkReport} from '../shared/dailyWorkReport';
@@ -66,7 +67,8 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   if(Number(telegramBacklog[0].invalidStates)!==0)throw new Error('TELEGRAM_REPORT_STATE_INVALID');
   const {invalidStates,...manualBacklog}=telegramBacklog[0];
   const capture=await readCaptureReporting(sql,company,start,end);
+  const sales=await readSalesActivity(sql,company,start,end);
   const counts=(row:any)=>Object.fromEntries(Object.entries(row).map(([key,value])=>{const count=Number(value);if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');return [key,count];}));
-  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0]),...counts(telegramActivity[0]),...counts(capture.activity)},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0]),...counts(manualBacklog),...counts(capture.backlog)}} as DailyWorkReport;
+  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0]),...counts(telegramActivity[0]),...counts(capture.activity),...counts(sales)},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0]),...counts(manualBacklog),...counts(capture.backlog)}} as DailyWorkReport;
  });
 }

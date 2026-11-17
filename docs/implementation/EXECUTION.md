@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Sales reporting verification (17 November2026 IST):130 credential-isolated programs, full disposable MariaDB fresh/upgrade and real import/replay/IST/corrupt-count tests, three Chromium sales-report/workspace/snapshot suites, TypeScript/build and route/doc/diff guards passed. Existing workspace and SQL expected report fixtures expanded to the new live contract. Evidence: evidence/sales-activity-reporting.json. No production access or parent/phase promotion.
+
+Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.
+
 Saved import navigation —17 November2026 IST: return from a recorded result to its original keyset page, jump from older batches to newest, and accessible loading status. Chromium navigation/CSV/session/client regression and TypeScript passed. Schema050/87 and parent acceptance unchanged. See docs/implementation/PROSPECT_IMPORT_HISTORY.md.
 
 Saved import verification (17 November2026 IST):129 default programs, final strict-key HTTP/unit check, TypeScript/build, complete native SQL through050/87, uploaded-export preservation/bundled replay and four history/preview/sales/workspace browser suites passed. Runtime DB privileges remain restricted; migration negative tests use the disposable migrator account. Evidence: evidence/prospect-import-history.json. No live import, deletion or deployment.

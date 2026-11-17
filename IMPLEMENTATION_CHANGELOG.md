@@ -1,5 +1,7 @@
 # Implementation Changelog & Hardening Summary
 
+Sales accountability —17 November2026 IST: eleven audited sales/import counters in the canonical daily report/UI/CSV/digest; client/session-safe report reads and exports. Schema050/87 and frozen V1/V2 unchanged. See docs/implementation/SALES_ACTIVITY_REPORTING.md and evidence/sales-activity-reporting.json. Full workflow reconciliation and parent/phase/live gates remain pending.
+
 Saved import navigation —17 November2026 IST: return from a recorded result to its original keyset page, jump from older batches to newest, and accessible loading status. Chromium navigation/CSV/session/client regression and TypeScript passed. Schema050/87 and parent acceptance unchanged. See docs/implementation/PROSPECT_IMPORT_HISTORY.md.
 
 Saved import history —17 November2026 IST: forward050 scoped history index (87 tables), private paged journal reads, exact-key lookup, metadata-only CSV and key-only reload reconciliation. No import replay from reads. See docs/implementation/PROSPECT_IMPORT_HISTORY.md and evidence/prospect-import-history.json. Parent/phase, retention and live gates remain open.

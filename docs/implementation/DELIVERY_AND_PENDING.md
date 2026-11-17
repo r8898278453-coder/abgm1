@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.
+
 Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.
 
 Prospect import continuation (17 November2026 IST): [PROSPECT_IMPORT_PREVIEW.md](PROSPECT_IMPORT_PREVIEW.md) adds read-only preview, canonical classification reuse and private draft/exact-retry controls. Schema049/87 unchanged; no parent/phase or live acceptance.

@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.
+
 Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.
 
 Prospect import continuation (17 November2026 IST): [PROSPECT_IMPORT_PREVIEW.md](PROSPECT_IMPORT_PREVIEW.md) adds read-only preview, canonical classification reuse and private draft/exact-retry controls. Schema049/87 unchanged; no parent/phase or live acceptance.
@@ -59,7 +61,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.43 • updated 17 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.44 • updated 17 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

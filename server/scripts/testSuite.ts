@@ -12,6 +12,7 @@ const programs=[
   "test/telegramIdentity.test.ts",
   "test/reportSnapshotCoverage.test.ts",
   "test/reportCaptureReporting.test.ts",
+  "test/salesActivityReporting.test.ts",
   "test/reportCaptureHistory.test.ts",
   "test/reportCaptureSchedule.test.ts",
   "test/reportSnapshots.test.ts",

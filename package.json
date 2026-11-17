@@ -70,7 +70,8 @@
     "test:browser:inquiry": "node --import tsx test/browser/salesInquiryRules.test.ts",
     "test:browser:whatsapp-events": "node --import tsx test/browser/whatsAppEventHistory.test.ts",
     "test:browser:whatsapp-conflicts": "node --import tsx test/browser/whatsAppConflictReviews.test.ts",
-    "test:browser:whatsapp-intakes": "node --import tsx test/browser/whatsAppIntakes.test.ts"
+    "test:browser:whatsapp-intakes": "node --import tsx test/browser/whatsAppIntakes.test.ts",
+    "test:browser:sales-report": "node --import tsx test/browser/salesActivityReport.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

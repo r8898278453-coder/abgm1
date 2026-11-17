@@ -1,0 +1,52 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "76e26c0a9ce989e6bea2b43bde604e5a0f604d36",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "nextMigration": "051",
+  "migrationAdded": false,
+  "targetParents": [
+    "P09-01"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "activityMetricCount": 11,
+  "backlogMetricCount": 0,
+  "frozenCoverageVersionsPreserved": [
+    1,
+    2
+  ],
+  "checksPassed": [
+    "npm test:130 credential-isolated programs",
+    "npm run lint",
+    "npm run build: existing Vite chunk/annotation warnings",
+    "npm run test:sql:local: actual import/replay plus full fresh/upgrade/queue fixtures",
+    "npm run test:browser:sales-report:11 fields, CSV, missing metrics, changed session, stale client",
+    "npm run docs:check",
+    "npm run routes:check:230 declarations,45 registrations,zero collisions",
+    "git diff --check",
+    "npm run test:browser:workspace",
+    "npm run test:browser:snapshots"
+  ],
+  "sqlEvidence": [
+    "Real canonical import commits once; exact replay adds no activity",
+    "Eleven exact scoped counters and empty client zeros",
+    "Half-open IST start/end; SQL session -08:00/+05:30 invariant",
+    "Lowercase event/identity/outcome and string optOut do not become exact signals",
+    "Eight malformed import total shapes refuse report instead of fabricated zeros",
+    "Committed activity persists after fixture journal/lead cleanup",
+    "Raw source/body/notes absent from CSV and digest"
+  ],
+  "productionAccess": false,
+  "remaining": [
+    "Full workflow planned/done/partial/failed/blocked reconciliation",
+    "Versioned frozen coverage for sales metrics",
+    "Other module activity and actual measured hosting/cron evidence",
+    "Retention and live provider/phase/release acceptance"
+  ]
+}
