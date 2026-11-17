@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Workflow recovery verification (17 November2026 IST):130 isolated programs, TypeScript/build, full disposable MariaDB through050/87 including new binding/race/rollback/lost-ACK/budget/concurrent/waiting-send cases, and route/doc/diff guards passed. Missing-job fixture preserves action-ledger foreign keys. Evidence: evidence/sales-workflow-recovery.json. No frontend contract changes, live database access or provider sends; parent/phase gates remain open.
+
+Workflow recovery continuation (17 November2026 IST): current client/type/runnable-job binding, terminal-success orphan detection, fresh locked state/repaired-job rechecks, pre-mutation budget and post-commit counts harden the canonical recovery path. See [SALES_WORKFLOW_RECOVERY.md](SALES_WORKFLOW_RECOVERY.md) and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; no parent/phase/live promotion.
+
 Frozen V3 verification (17 November2026 IST):130 isolated default programs, full disposable MariaDB through050/87 with explicit V3 worker writes, V1/V2 exact replay/baseline preservation, late sales evidence and immutable hashes; three snapshot/capture-schedule/sales-report Chromium suites, TypeScript/build and route/doc/diff guards passed. V1/V2 schema source files unchanged. Evidence: evidence/frozen-sales-coverage.json. No live deployment, migration or parent/phase promotion.
 
 Frozen sales continuation (17 November2026 IST): new captures use fixed coverage V3 with eleven sales counters; V1/V2 replay, hashes and existing baselines remain preserved. Same-version comparisons and CSV use actual coverage. Schema050/87 unchanged; next051. See [FROZEN_SALES_COVERAGE.md](FROZEN_SALES_COVERAGE.md) and evidence/frozen-sales-coverage.json. Full parent/phase/live acceptance remains open.

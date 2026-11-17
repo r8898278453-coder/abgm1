@@ -1,5 +1,7 @@
 # AI Agent State
 
+Workflow recovery —17 November2026 IST: canonical job binding/state-race/budget/commit-count hardening. See docs/implementation/SALES_WORKFLOW_RECOVERY.md and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; full parent/phase/live acceptance remains open.
+
 Frozen sales coverage —17 November2026 IST: new captures use V3, preserving V1/V2 replay and original baselines; sales CSV/display/deltas use fixed versioned coverage. Schema050/87 unchanged. See docs/implementation/FROZEN_SALES_COVERAGE.md. Older V1/V2-only binaries cannot read V3 records; retain a compatible reader on rollback. Parent/phase/live gates remain pending.
 
 Sales accountability —17 November2026 IST: eleven audited sales/import counters in the canonical daily report/UI/CSV/digest; client/session-safe report reads and exports. Schema050/87 and frozen V1/V2 unchanged. See docs/implementation/SALES_ACTIVITY_REPORTING.md and evidence/sales-activity-reporting.json. Full workflow reconciliation and parent/phase/live gates remain pending.

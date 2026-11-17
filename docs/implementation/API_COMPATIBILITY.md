@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Workflow recovery continuation (17 November2026 IST): current client/type/runnable-job binding, terminal-success orphan detection, fresh locked state/repaired-job rechecks, pre-mutation budget and post-commit counts harden the canonical recovery path. See [SALES_WORKFLOW_RECOVERY.md](SALES_WORKFLOW_RECOVERY.md) and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; no parent/phase/live promotion.
+
 Frozen sales continuation (17 November2026 IST): new captures use fixed coverage V3 with eleven sales counters; V1/V2 replay, hashes and existing baselines remain preserved. Same-version comparisons and CSV use actual coverage. Schema050/87 unchanged; next051. See [FROZEN_SALES_COVERAGE.md](FROZEN_SALES_COVERAGE.md) and evidence/frozen-sales-coverage.json. Full parent/phase/live acceptance remains open.
 
 Sales reporting continuation (17 November2026 IST): eleven committed sales/import counters now share the canonical daily report, dashboard, CSV and validated digest; client/session export fences added. Frozen V1/V2 and schema050/87 remain unchanged. See [SALES_ACTIVITY_REPORTING.md](SALES_ACTIVITY_REPORTING.md) and evidence/sales-activity-reporting.json. Full workflow and parent/phase/live acceptance remain open.

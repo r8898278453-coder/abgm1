@@ -1,0 +1,15 @@
+# Sales workflow recovery hardening — 17 November 2026 IST
+
+The existing bounded sales workflow recovery owner now identifies ACTIVE enrollments whose current job is absent, belongs to another client, has a different job type, has already succeeded without advancing the enrollment, or has a terminal/unknown status. A runnable current job must be the client's sales_workflow_review job in QUEUED, RETRY_WAIT or RUNNING. Recovery exits through the existing transactional lifecycle; it does not enqueue a replacement, create a message intent, grant permission or resend.
+
+The candidate scan and locked recheck now agree on company/type/state constraints. After locking the company and re-reading the current enrollment/job, recovery recomputes its reason rather than trusting the candidate snapshot. If the job was repaired or the enrollment advanced into WAITING_REVIEW/WAITING_SEND, it remains eligible for its normal review/send flow. Waiting states can legitimately retain a completed review job and are not orphaned solely because that job is terminal or absent. Expiry still exits ACTIVE and both waiting states with WORKFLOW_EXPIRED.
+
+The scan retains the existing25-row bound, expiry/id ordering and shared scheduler budget. It checks the budget again before lifecycle mutations. A failed audit rolls back the exit. The returned exited count advances only after commit acknowledgement; a lost acknowledgement may return0 even if the transition committed. Later reads/recovery reconcile that state, and repeat passes do not add another exit audit. The counter is acknowledged committed changes, not a guarantee that no uncertain write occurred.
+
+Existing lifecycle scoping prevents recovery from cancelling another client's job or an unrelated job type. This is a consistency check for current job company/type/status, not full job-payload/lease validation or an authorization re-evaluation of every waiting enrollment. Worker/send boundaries retain their existing context, consent, version, lease and stop guards. Missing client rows are skipped rather than mutating orphan data without a locked client.
+
+Owners: server/salesWorkflows.ts and the existing salesWorkflowLifecycle exit transaction. No new scheduler, route, table, migration or frozen-report coverage is added. Schema050/87, next051. Existing sales workflow parent acceptance remains in progress.
+
+Validation: evidence/sales-workflow-recovery.json. The disposable SQL suite exercises actual enrollment/recovery with completed/cancelled/missing/wrong-type/wrong-client/unknown jobs; repaired-job and advanced-review races; audit rollback and lost commit acknowledgement; budget cutoff;8-way recovery; waiting-send preservation and expiry. Unit checks cover the active/waiting/terminal state matrix and zero-SQL budget refusal. No provider traffic or production database changes occur.
+
+Remaining: comprehensive planned/done/partial/failed/blocked workflow reporting, richer workflow backlog/health, production cron/provider verification and full parent/phase/release acceptance. Rendering, notification policies and billing scope are unchanged.

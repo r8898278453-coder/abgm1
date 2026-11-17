@@ -1,0 +1,49 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "7ecd93516b77c6320374f62a36edf0d34bc7a6b4",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "nextMigration": "051",
+  "migrationAdded": false,
+  "targetParents": [
+    "P07-03",
+    "P07-04"
+  ],
+  "parentPromoted": false,
+  "checksPassed": [
+    "npm test:130 credential-isolated programs",
+    "npm run lint",
+    "npm run build:existing Vite chunk/annotation warnings",
+    "npm run docs:check",
+    "npm run routes:check:230 declarations,45 registrations,zero collisions",
+    "git diff --check",
+    "npm run test:sql:local: complete MariaDB10.11.19 fresh/upgrade plus thirteen added recovery scenarios and existing platform SQL regressions"
+  ],
+  "recoveryCases": [
+    "ACTIVE with succeeded job",
+    "ACTIVE with cancelled job",
+    "ACTIVE with missing job",
+    "ACTIVE with unrelated job type; unrelated job untouched",
+    "ACTIVE with foreign-client job; foreign job untouched",
+    "ACTIVE with unknown job status",
+    "Candidate advanced into WAITING_REVIEW before lock",
+    "Candidate job repaired before lock",
+    "Audit failure rollback and zero confirmed exit count",
+    "Lost commit acknowledgement with one durable exit audit and no repeat exit",
+    "Budget expires after scan/lock; no exit mutation",
+    "Eight concurrent recovery passes acknowledge only one exit",
+    "WAITING_SEND completed review job preserved until expiry"
+  ],
+  "limits": [
+    "25 candidate rows per pass, existing scheduler budget",
+    "No replacement jobs, provider intents, consent changes or sends",
+    "Job company/type/status consistency only; not full payload or waiting-enrollment authorization health",
+    "Lost commit acknowledgement may return zero although a durable exit occurred; read/repeat reconciles"
+  ],
+  "productionAccess": false,
+  "remaining": [
+    "Full workflow accountability and richer backlog/health reporting",
+    "Measured hosting/cron and real provider verification",
+    "Full parent/phase/release acceptance"
+  ]
+}
