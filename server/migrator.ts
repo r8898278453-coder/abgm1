@@ -1,3 +1,4 @@
+import {prospectImportHistory,PROSPECT_HISTORY_INDEX,PROSPECT_HISTORY_INDEX_CHECK} from './migrations/050_prospect_import_history';
 import {criticalAlertIncidents,CRITICAL_ALERT_COLUMNS,CRITICAL_ALERT_CHECKS,CRITICAL_ALERT_INDEXES,CRITICAL_ALERT_INDEX_CHECK} from './migrations/049_critical_alert_incidents';
 import {notificationPolicyBindings,NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_POLICY_CHECK,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_CHECK} from './migrations/048_notification_policy_bindings';
 import {reportCaptureSchedule,CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES,CAPTURE_SCHEDULE_CHECKS,CAPTURE_SCHEDULE_INDEX_CHECK} from './migrations/047_report_capture_schedule';
@@ -155,6 +156,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  sales_prospect_imports: ['PRIMARY','idx_prospect_import_history'],
   knowledge_facts:['PRIMARY','idx_facts_company_key'],
   knowledge_sources:['PRIMARY','idx_knowledge_company_created','uq_knowledge_company_sha'],
   public_lead_intakes:['PRIMARY','uq_public_intake_lead','idx_public_intake_created','idx_public_intake_notification'],
@@ -850,6 +852,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   reportCaptureSchedule,
   notificationPolicyBindings,
   criticalAlertIncidents,
+  prospectImportHistory,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1212,6 +1215,9 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       for(const check of WORKFLOW_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workflows.shape');}
       const [salesColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'sales_%'");
       for(const [table,cols]of Object.entries(SALES_COLUMNS))for(const col of cols)if(!salesColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===col))missingColumns.push(table+'.'+col);
+      const [prospectIndexes]:any=await conn.query("SELECT COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sales_prospect_imports' AND INDEX_NAME='idx_prospect_import_history' ORDER BY SEQ_IN_INDEX");
+      if(prospectIndexes.map((r:any)=>r.COLUMN_NAME).join(',')!==PROSPECT_HISTORY_INDEX.join(',')||prospectIndexes.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==1))missingConstraints.push('sales_prospect_imports.history_index');
+      const [badProspectHistory]:any=await conn.query(PROSPECT_HISTORY_INDEX_CHECK.sql);if(badProspectHistory.length)missingConstraints.push('sales_prospect_imports.history_index_shape');
       for(const check of SALES_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workspace.shape');}
       const [renderColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='render_asset_approvals'");
       for(const col of RENDER_APPROVAL_COLUMNS)if(!renderColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('render_asset_approvals.'+col);

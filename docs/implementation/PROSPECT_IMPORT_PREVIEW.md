@@ -1,5 +1,7 @@
 # Prospect import preview and private draft isolation
 
+Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.
+
 17 November2026 IST. Partial P08-01/source contract and P01-02 isolation continuation. Schema049/87 unchanged, next050. No migration, provider send, live prospect import or deployment occurred.
 
 ## Behavior

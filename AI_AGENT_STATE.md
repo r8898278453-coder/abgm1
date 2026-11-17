@@ -1,5 +1,7 @@
 # AI Agent State
 
+Saved import history —17 November2026 IST: forward050 scoped history index (87 tables), private paged journal reads, exact-key lookup, metadata-only CSV and key-only reload reconciliation. No import replay from reads. See docs/implementation/PROSPECT_IMPORT_HISTORY.md and evidence/prospect-import-history.json. Parent/phase, retention and live gates remain open.
+
 Prospect preview —17 November2026 IST: shared canonical read-only row classification, same-file/database ambiguity, preview-before-import UI, exact request reconciliation and client/session-bound CSV drafts. Schema049/87 unchanged. See docs/implementation/PROSPECT_IMPORT_PREVIEW.md and evidence/prospect-import-preview.json. P08-01/P01-02 remain partial; no production import or deployment.
 
 Operational capacity —17 November2026 IST: nine scoped read-only resource counters, shared unchanged admission limits, IST daily window, private no-store API and lazy client/session-safe review. Schema049/87 unchanged; next050. See docs/implementation/OPERATIONAL_CAPACITY.md and evidence/operational-capacity.json. Retention/deletion and hosting capacity remain pending; no deployment.

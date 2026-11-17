@@ -441,6 +441,16 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/prospect-imports",
+      "owner": "server/prospectImportHistory.ts#registerProspectImportHistory"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/prospect-imports/:requestKey",
+      "owner": "server/prospectImportHistory.ts#registerProspectImportHistory"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/sales/prospects/import",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
@@ -1146,5 +1156,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 44
+  "registrationCount": 45
 }

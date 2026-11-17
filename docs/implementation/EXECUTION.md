@@ -1,5 +1,9 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Saved import verification (17 November2026 IST):129 default programs, final strict-key HTTP/unit check, TypeScript/build, complete native SQL through050/87, uploaded-export preservation/bundled replay and four history/preview/sales/workspace browser suites passed. Runtime DB privileges remain restricted; migration negative tests use the disposable migrator account. Evidence: evidence/prospect-import-history.json. No live import, deletion or deployment.
+
+Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.
+
 Prospect verification (17 November2026 IST):128 default programs, TypeScript/build, full native SQL and preview/sales/workspace Chromium plus route/doc guards passed. Shared classifier preserves import journal/rollback/current-state guarantees; preview adds no CRM/audit mutations. Schema049/87 unchanged. Evidence: evidence/prospect-import-preview.json. No live data import or provider sends.
 
 Prospect import continuation (17 November2026 IST): [PROSPECT_IMPORT_PREVIEW.md](PROSPECT_IMPORT_PREVIEW.md) adds read-only preview, canonical classification reuse and private draft/exact-retry controls. Schema049/87 unchanged; no parent/phase or live acceptance.

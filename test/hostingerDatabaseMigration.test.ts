@@ -1,3 +1,4 @@
+import {PROSPECT_HISTORY_INDEX} from '../server/migrations/050_prospect_import_history';
 import {CRITICAL_ALERT_COLUMNS,CRITICAL_ALERT_INDEXES} from '../server/migrations/049_critical_alert_incidents';
 import {NOTIFICATION_POLICY_COLUMNS,NOTIFICATION_OCCURRENCE_BINDING_COLUMNS} from '../server/migrations/048_notification_policy_bindings';
 import {CAPTURE_SCHEDULE_COLUMNS,CAPTURE_SCHEDULE_INDEXES} from '../server/migrations/047_report_capture_schedule';
@@ -140,6 +141,8 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME='sales_message_approvals'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [APPROVED_SEND_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return [Object.entries(REPORT_SNAPSHOT_INDEXES).flatMap(([INDEX_NAME,names])=>names.map(COLUMN_NAME=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:0}))),[]];
     if(cleanSql.includes("TABLE_NAME='daily_report_snapshots'"))return cleanSql.startsWith('SELECT COLUMN_NAME')?[REPORT_SNAPSHOT_COLUMNS.map(COLUMN_NAME=>({COLUMN_NAME})),[]]:[[],[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME,SUB_PART,NON_UNIQUE')&&cleanSql.includes("TABLE_NAME='sales_prospect_imports'"))return [PROSPECT_HISTORY_INDEX.map(COLUMN_NAME=>({COLUMN_NAME,SUB_PART:null,NON_UNIQUE:1})),[]];
+    if(cleanSql.includes("TABLE_NAME='sales_prospect_imports'")&&cleanSql.includes("INDEX_NAME='idx_prospect_import_history'"))return [[],[]];
     if(cleanSql.includes("TABLE_NAME IN ('critical_alert_incidents','critical_alert_reservations')"))return [Object.entries(CRITICAL_ALERT_COLUMNS).flatMap(([TABLE_NAME,cols])=>cols.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME}))),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART')&&cleanSql.includes("TABLE_NAME='critical_alert_reservations'"))return [Object.entries(CRITICAL_ALERT_INDEXES).flatMap(([INDEX_NAME,cols])=>cols.map(COLUMN_NAME=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null}))),[]];
     if(cleanSql.includes("TABLE_NAME='critical_alert_incidents'")||cleanSql.includes("TABLE_NAME='critical_alert_reservations'"))return [[],[]];

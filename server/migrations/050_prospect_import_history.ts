@@ -1,0 +1,4 @@
+import {defineSqlMigration} from './manifestV1';
+export const PROSPECT_HISTORY_INDEX=['company_id','created_at','request_key'];
+export const PROSPECT_HISTORY_INDEX_CHECK={code:'MIGRATION_PROSPECT_HISTORY_INDEX',sql:"SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sales_prospect_imports' AND INDEX_NAME='idx_prospect_import_history' GROUP BY INDEX_NAME HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX)<>'company_id,created_at,request_key' OR SUM(SUB_PART IS NOT NULL)<>0 OR MIN(NON_UNIQUE)<>1"};
+export const prospectImportHistory=defineSqlMigration({name:'050_prospect_import_history',preflight:[PROSPECT_HISTORY_INDEX_CHECK],statements:['CREATE INDEX IF NOT EXISTS idx_prospect_import_history ON sales_prospect_imports(company_id,created_at,request_key)']});

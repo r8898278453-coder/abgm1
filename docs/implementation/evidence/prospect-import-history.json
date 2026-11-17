@@ -1,0 +1,71 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "d5d76280695bc58555ea656f05bfbdf2bd151328",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "nextMigration": "051",
+  "historicalMigrations001Through049Changed": false,
+  "targetParents": [
+    "P08-01",
+    "P01-06"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (129 credential-isolated programs)",
+    "node --import tsx test/prospectImportHistory.test.ts (final strict-key hardening)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:sql:restore -- uploaded export",
+    "node --import tsx test/browser/prospectImportHistory.test.ts",
+    "npm run test:browser:prospect-preview",
+    "npm run test:browser:sales",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check (230 declarations,45 registrations,zero collisions)",
+    "git diff --check"
+  ],
+  "limits": {
+    "pageRows": 25,
+    "detailRows": 100,
+    "storedPayloadBytes": 32768
+  },
+  "remaining": [
+    "retention/archive/deletion and key recovery",
+    "broader workflow reconciliation",
+    "live hosting/provider/phase/release gates"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "defaultRegressionsPassed": 129,
+  "nativeCoverage": [
+    "real committed/import-replay outcomes remain cached with one lead",
+    "32 tied-timestamp batches traverse25+7 without gaps or duplicate keys",
+    "cross-client/forged-time cursors rejected",
+    "private source/lead IDs excluded from lists/details/CSV",
+    "oversized payload and consent=true data refuse reads",
+    "SQL -08:00/+05:30 sessions preserve identical history order/timestamps",
+    "wrong-index order rejected with disposable migration privileges",
+    "runtime service fixtures retain restricted DB privileges",
+    "fresh/005/041 upgrades through050 and repeat applied0",
+    "uploaded business/owner/ledger preservation and bundled replay"
+  ],
+  "browserCoverage": [
+    "no unsolicited reads or mutation requests",
+    "pagination and exact-key lookup",
+    "historical row outcomes and metadata-only CSV",
+    "changed session refuses old export",
+    "foreign response and switched-client late reads hidden",
+    "existing prospect preview/exact-retry and sales/workspace isolation"
+  ],
+  "testNotes": [
+    "Initial index-negative case used restricted runtime credentials and correctly hit DDL permission denial; moved schema-negative test to existing migration-admin fixture without granting application DDL access."
+  ]
+}
