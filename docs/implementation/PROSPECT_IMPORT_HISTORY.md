@@ -22,6 +22,8 @@ Owners: server/prospectImportHistory and shared/prospectImportHistory provide pr
 
 ProspectImportHistoryPanel is explicitly opened within the client-bound import panel. It validates full page/detail scope, order, row counts and totals; abort/generation/session guards discard stale responses. Client changes reset the panel. An edited lookup clears previously accepted detail, and changing session blocks stale CSV export.
 
+History navigation retains only the current page cursor in memory. Inspecting an outcome offers Back to import batches, which re-reads that exact page; older pages offer Newest import batches. No cached batch/contact data or cursor stack is persisted. Loading is exposed with aria-busy and a status announcement. A client or last-key change resets the remembered cursor.
+
 Before import I/O, the existing import panel stores one last-key pointer in actor/client-scoped session storage, after verifying persistence. Only key metadata is stored; raw CSV/source remains memory-only. After reload that pointer pre-fills lookup, with no automatic request or import. Existing input-hash keys and exact POST retry remain separate. A found historical batch is displayed as recorded evidence, not an automatic success claim for a different attempted body.
 
 CSV includes client reference, request key, recorded IST time, row, outcome and consent=false. It exports only one accepted batch, guards spreadsheet formula prefixes/quotes and refuses a changed session. It is a privacy-minimized outcome export, not a full CRM/source backup or retention deletion authorization.

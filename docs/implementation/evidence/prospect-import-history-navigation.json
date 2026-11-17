@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-17",
+  "timezone": "Asia/Calcutta",
+  "scope": "Private saved prospect import history navigation",
+  "schema": "050_prospect_import_history",
+  "checks": [
+    "npm run lint",
+    "npm run test:browser:import-history"
+  ],
+  "behavior": [
+    "Return to the same keyset page after inspecting a saved import",
+    "Return to newest batches from an older page",
+    "Accessible busy and loading status",
+    "Client and last-key changes reset the page cursor"
+  ],
+  "limitations": [
+    "No parent or phase acceptance",
+    "No production deployment, database mutation or provider sends",
+    "No persisted cursor stack or historical result cache"
+  ]
+}

@@ -1,5 +1,7 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+Saved import navigation —17 November2026 IST: return from a recorded result to its original keyset page, jump from older batches to newest, and accessible loading status. Chromium navigation/CSV/session/client regression and TypeScript passed. Schema050/87 and parent acceptance unchanged. See docs/implementation/PROSPECT_IMPORT_HISTORY.md.
+
 Saved import verification (17 November2026 IST):129 default programs, final strict-key HTTP/unit check, TypeScript/build, complete native SQL through050/87, uploaded-export preservation/bundled replay and four history/preview/sales/workspace browser suites passed. Runtime DB privileges remain restricted; migration negative tests use the disposable migrator account. Evidence: evidence/prospect-import-history.json. No live import, deletion or deployment.
 
 Saved import continuation (17 November2026 IST): [PROSPECT_IMPORT_HISTORY.md](PROSPECT_IMPORT_HISTORY.md) adds private committed-history lookup/pagination/CSV and key-only reconciliation. Forward050/87; next051. No deletion, live import or parent/phase acceptance.
