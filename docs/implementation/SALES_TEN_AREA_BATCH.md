@@ -1,5 +1,7 @@
 # Ten-area CRM and sales batch — 12 November 2026 IST
 
+Prospect import continuation (17 November2026 IST): [PROSPECT_IMPORT_PREVIEW.md](PROSPECT_IMPORT_PREVIEW.md) adds read-only preview, canonical classification reuse and private draft/exact-retry controls. Schema049/87 unchanged; no parent/phase or live acceptance.
+
 This batch delivers connected local workflows across ten previously planned parent tasks. It does not mark ten entire parent specifications or their prerequisite phases accepted. All ten move to in_progress with concrete implementation/evidence; the remaining criteria are explicit below. Billing, deployment, actual provider sends, booking and paid discovery activation are excluded.
 
 | Tracker task | Implemented in this batch | Remaining parent scope |

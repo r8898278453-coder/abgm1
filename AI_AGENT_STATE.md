@@ -1,5 +1,7 @@
 # AI Agent State
 
+Prospect preview —17 November2026 IST: shared canonical read-only row classification, same-file/database ambiguity, preview-before-import UI, exact request reconciliation and client/session-bound CSV drafts. Schema049/87 unchanged. See docs/implementation/PROSPECT_IMPORT_PREVIEW.md and evidence/prospect-import-preview.json. P08-01/P01-02 remain partial; no production import or deployment.
+
 Operational capacity —17 November2026 IST: nine scoped read-only resource counters, shared unchanged admission limits, IST daily window, private no-store API and lazy client/session-safe review. Schema049/87 unchanged; next050. See docs/implementation/OPERATIONAL_CAPACITY.md and evidence/operational-capacity.json. Retention/deletion and hosting capacity remain pending; no deployment.
 
 Critical alerts —17 November2026 IST: forward049/87, six observed category episodes, atomic stage reservations, initial/1h/24h same-destination escalation, shared bound Telegram delivery, private history/UI and dispatcher availability. Default off; P09-03 remains partial. See docs/implementation/CRITICAL_ALERTS.md and evidence/critical-alerts.json. No production activation.

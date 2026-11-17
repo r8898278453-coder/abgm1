@@ -1,3 +1,4 @@
+import {previewProspects} from './salesWorkspace';
 import {platformDayBounds} from '../shared/dailyWorkReport';
 import {readMessageDeliveryReport} from './messageDeliveryEvidence';
 import {readWhatsAppIntakes,queueWhatsAppIntakeReplay,cancelWhatsAppIntakeReplay} from './whatsAppIntakes';
@@ -39,6 +40,7 @@ export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promis
  route('put',base+'/permissions','manage',(req,pool,user)=>saveContactPermission(pool,user,String(req.params.companyId),req.body));
  route('put',base+'/leads/:leadId/opportunity','write',(req,pool,user)=>saveOpportunity(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
  route('put',base+'/leads/:leadId/qualification','write',(req,pool,user)=>saveQualification(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
+ route('post',base+'/prospects/preview','write',(req,pool,user)=>{if(Object.keys(req.query).length)throw new SalesError(400,'PROSPECT_PREVIEW_QUERY_INVALID');return previewProspects(pool,user,String(req.params.companyId),req.body);});
  route('post',base+'/prospects/import','write',(req,pool,user)=>importProspects(pool,user,String(req.params.companyId),req.body));
  route('get',base+'/inbox','read',(req,pool)=>readSalesInbox(pool,String(req.params.companyId),req.query.before as string|undefined));
  route('put',base+'/inbox/:messageId/link','write',(req,pool,user)=>linkInboxLead(pool,user,String(req.params.companyId),String(req.params.messageId),req.body));

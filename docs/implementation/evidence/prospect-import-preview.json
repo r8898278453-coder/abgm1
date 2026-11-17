@@ -1,0 +1,64 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "ce5dfadd15763d3713d664c897889690a72ec4b2",
+  "schema": "049_critical_alert_incidents",
+  "canonicalTables": 87,
+  "nextMigration": "050",
+  "migrationAdded": false,
+  "targetParents": [
+    "P08-01",
+    "P01-02"
+  ],
+  "parentPromoted": false,
+  "taskCounts": {
+    "validatedLocally": 21,
+    "inProgress": 35,
+    "planned": 36,
+    "blocked": 1
+  },
+  "checksPassed": [
+    "npm test (128 credential-isolated programs)",
+    "npm run lint",
+    "npm run build (existing Vite chunk warning)",
+    "npm run test:sql:local",
+    "npm run test:browser:prospect-preview",
+    "npm run test:browser:sales",
+    "npm run test:browser:workspace",
+    "npm run docs:check",
+    "npm run routes:check (228 declarations,44 registrations,zero collisions)",
+    "git diff --check"
+  ],
+  "previewMutation": false,
+  "consentGranted": false,
+  "remaining": [
+    "full ICP/discovery/enrichment acceptance",
+    "retention and wider workflow reconciliation",
+    "real hosting/provider/phase/release gates"
+  ],
+  "productionAccess": false,
+  "providerSends": false,
+  "deployment": false,
+  "nativeCoverage": [
+    "preview produces canonical ready/duplicate/invalid/excluded/customer/existing/suppressed/ambiguous outcomes",
+    "virtual same-file identity and database candidates combine before ambiguity classification",
+    "foreign-client leads do not become existing matches",
+    "lead/import-journal/audit counts unchanged after preview",
+    "new opt-out after preview is respected by final import",
+    "cached import replay preserves original result and no-consent status",
+    "viewer/auth/query rejection plus existing CRM/import race/rollback suite"
+  ],
+  "browserCoverage": [
+    "no initial preview/import request",
+    "import disabled until a valid preview; edit invalidates preview",
+    "lost ACK locks input and explicit retry sends identical key/body",
+    "no raw CSV in session storage",
+    "foreign response refused",
+    "client switch clears raw CSV/source and late old preview result",
+    "existing sales and full workspace isolation"
+  ],
+  "testNotes": [
+    "Initial native fixture lacked a required source field and later cleaned agency rows before viewer membership; fixture fields/cleanup order corrected before final native pass.",
+    "Client-switch browser assertion now waits for the React update before checking reset fields."
+  ],
+  "defaultRegressionsPassed": 128
+}

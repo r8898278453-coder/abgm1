@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+Prospect import continuation (17 November2026 IST): [PROSPECT_IMPORT_PREVIEW.md](PROSPECT_IMPORT_PREVIEW.md) adds read-only preview, canonical classification reuse and private draft/exact-retry controls. Schema049/87 unchanged; no parent/phase or live acceptance.
+
 Capacity review continuation (17 November2026 IST): [OPERATIONAL_CAPACITY.md](OPERATIONAL_CAPACITY.md) adds nine client resource counters with shared unchanged admission limits. Schema049/87 unchanged; no retention deletion, live activation or phase acceptance.
 
 Critical alert continuation (17 November2026 IST): [CRITICAL_ALERTS.md](CRITICAL_ALERTS.md) adds the third default-off policy and bounded incident escalation using the existing scheduler/journal/transport. Forward049/87; next050. Historical notes below retain their original scope; no live or phase acceptance.
