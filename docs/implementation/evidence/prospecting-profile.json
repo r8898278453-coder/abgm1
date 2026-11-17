@@ -1,0 +1,45 @@
+{
+  "dateIST": "2026-11-17",
+  "baseCommit": "57fddbf75efae56639e19dec8e549cebcee8e683",
+  "schema": "050_prospect_import_history",
+  "canonicalTables": 87,
+  "nextMigration": "051",
+  "migrationAdded": false,
+  "targetParents": [
+    "P08-01"
+  ],
+  "parentPromoted": false,
+  "functionalScope": [
+    "Canonical saved services/roles/regions/employee/website profile and planning notes",
+    "Legacy omitted profile preservation with policy CAS/company lock/audit rollback",
+    "Six fixed exact-normalized declared-fit criteria",
+    "Unknown, disabled, empty and stale evidence review",
+    "Human-disqualifier handoff without automatic text interpretation",
+    "Private read-only current-actor/client queryless HTTP assessment",
+    "Viewed-policy/client/session response fences and fixed metadata CSV"
+  ],
+  "checksPassed": [
+    "npm test:132 credential-isolated programs, final human-review contract",
+    "npm run lint",
+    "npm run build",
+    "npm run test:sql:local: final complete MariaDB10.11.19 fresh/upgrade plus profile persistence/legacy/CAS/audit/no-mutation/client/role/HTTP/human-review cases",
+    "npm run test:browser:sales: final profile save/fit/CSV/session/client plus existing sales flows",
+    "npm run test:browser:prospect-preview",
+    "npm run test:browser:import-history",
+    "npm run routes:check:231 declarations,45 registrations,zero collisions",
+    "npm run frontend:check:20 deferred entries, initial budgets passed",
+    "npm run docs:check",
+    "git diff --check"
+  ],
+  "compatibility": [
+    "Legacy stored policies receive disabled defaults on read",
+    "Legacy callers omitting profile preserve saved targeting",
+    "Older strict readers cannot parse the new nested field after a policy write; deploy compatible readers/writers together and retain a compatible reader on rollback"
+  ],
+  "productionAccess": false,
+  "remaining": [
+    "Persisted assessment provenance/history",
+    "Provider-backed discovery/enrichment and full source-to-outcome workflow",
+    "Complete parent/phase and live provider/hosting acceptance"
+  ]
+}

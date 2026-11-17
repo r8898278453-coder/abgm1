@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+Prospecting profile continuation (17 November2026 IST): saved client services/roles/regions/employee/website targeting and planning notes extend the canonical sales policy; legacy omitted fields preserve saved ICP. Six fixed read-only declared-fit checks,90-day freshness, human-disqualifier review, current-policy/client/session fences and private CSV added. See [PROSPECTING_PROFILE.md](PROSPECTING_PROFILE.md) and evidence/prospecting-profile.json. Schema050/87 unchanged; P08-01 remains in progress.
+
 Twenty-feature integration group (17 November2026 IST):20 existing module batches now share deferred loading, isolated errors and current client/session remounts; measured initial bundle budgets and a serial23-fixture browser registry added. Explicit optional-extension scope and local acceptance audit recorded. See [TWENTY_FEATURE_DELIVERY.md](TWENTY_FEATURE_DELIVERY.md), TWENTY_FEATURE_BATCHES.csv and LOCAL_ACCEPTANCE_RECONCILIATION.md. No production/phase promotion.
 
 Workflow recovery continuation (17 November2026 IST): current client/type/runnable-job binding, terminal-success orphan detection, fresh locked state/repaired-job rechecks, pre-mutation budget and post-commit counts harden the canonical recovery path. See [SALES_WORKFLOW_RECOVERY.md](SALES_WORKFLOW_RECOVERY.md) and evidence/sales-workflow-recovery.json. Schema050/87 unchanged; no parent/phase/live promotion.

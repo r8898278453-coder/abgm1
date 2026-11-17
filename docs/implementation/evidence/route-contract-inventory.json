@@ -452,6 +452,11 @@
     },
     {
       "method": "POST",
+      "path": "/api/companies/:companyId/sales/prospects/assess",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
       "path": "/api/companies/:companyId/sales/prospects/import",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },

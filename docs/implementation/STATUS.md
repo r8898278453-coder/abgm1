@@ -2,7 +2,7 @@
 
 Generated from TASKS.csv — 2026-11-17 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 050_prospect_import_history; 87 canonical tables. Registered default regression programs: 131 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 050_prospect_import_history; 87 canonical tables. Registered default regression programs: 132 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 25 / 35 / 1 / 32.
 

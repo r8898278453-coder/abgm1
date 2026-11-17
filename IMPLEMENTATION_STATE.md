@@ -1,5 +1,7 @@
 # Implementation State
 
+Client prospecting profile —17 November2026 IST: canonical policy persistence/CAS and legacy omission preservation; declared six-dimension fit, freshness/unknown/human-review rules and private CSV. See docs/implementation/PROSPECTING_PROFILE.md. Schema050/87 unchanged; P08-01/full discovery/provider acceptance remains open. Older strict policy readers require a compatible forward reader after new-field writes.
+
 Twenty-feature verification —17 November2026 IST:20 module integrations passed; final131 isolated regression programs,23 browser workflows (16 initial plus7 corrected remainder, integration behavior rechecked), full disposable MariaDB050/87, TypeScript/build, frontend budgets and route/doc guards passed. Initial JS: 1,177,923 → 471,776 raw bytes; gzip level 9: 303,346 → 135,218 bytes. Four local parent criteria reconciled: P00-03, P08-08/P08-09 defer-decision branches, P09-06 persisted-name/optional-domain scope. Current counts25 validated/35 in progress/32 planned/1 blocked; no phase or production acceptance.
 
 Twenty-feature group —17 November2026 IST:20 on-demand feature integrations, common failure/client/session boundaries, measured bundle checks and23 serial browser workflows. Optional extension decisions distinguish deferred/off from working integrations. See docs/implementation/TWENTY_FEATURE_DELIVERY.md and LOCAL_ACCEPTANCE_RECONCILIATION.md. No production deployment.
