@@ -1,0 +1,85 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "6f42e7cd52c2476d7c758174af48c329e2329d11",
+  "parents": [
+    "P05-07",
+    "P05-08"
+  ],
+  "parentStatus": "in_progress",
+  "functionalSlices": 22,
+  "schema": "053_calendar_plans",
+  "canonicalTables": 93,
+  "nextMigration": "054",
+  "migrationAdded": false,
+  "frozenReportCoverage": 4,
+  "verification": "passed_local",
+  "tests": {
+    "defaultPrograms": 141,
+    "browserRegistry": 30,
+    "targetedBrowsers": "calendarAttachment/clientCalendar/workspaceIsolation3/3 passed",
+    "finalNativeAcceptance": "Full disposable MariaDB10.11.19 passed including real engine with intercepted Instagram/Facebook transports; no external HTTP",
+    "providerBoundaryCases": [
+      "Instagram receives content-addressed HTTPS media URL; revocation stops /media_publish",
+      "Mocked Facebook acknowledgment settles local SQL PUBLISHED with valid timestamps",
+      "Published SQL evidence returns true; replay skips without second request even after revocation",
+      "Initial empty SQL evidence returns false without production fallback"
+    ],
+    "defaultRegression": "141/141 final programs passed with inherited production credentials excluded",
+    "typeScript": "passed",
+    "build": "passed",
+    "routeDeclarations": 267,
+    "routeRegistrations": 50,
+    "routeCollisions": 0,
+    "migrationSourceGuard": "53 passed; no migration/schema change",
+    "documentTrackerGuard": "passed; counts unchanged",
+    "initialAppClosureRawBytes": 583053,
+    "initialAppClosureGzipBytes": 168878,
+    "exportRestore": "Not repeated; unchanged053 prior rehearsal retained"
+  },
+  "bounds": {
+    "manifestBytes": 32768,
+    "itemEvidenceBytes": 4096,
+    "planRevisions": 64,
+    "deliveryArtifactsPerCompany": 100,
+    "rasterBytes": 5242880,
+    "directoryScanEntries": 101
+  },
+  "tracker": {
+    "validated": 28,
+    "in_progress": 35,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "billingChanges": false,
+  "renderingEnabled": false,
+  "deployment": false,
+  "productionWrites": false,
+  "providerSends": false,
+  "liveModelCalls": false,
+  "caveats": [
+    "Synthetic files/stubbed model; no real render/provider evidence",
+    "PUBLIC_APP_URL syntax is not hosting reachability verification",
+    "Existing GBP adapter remains incomplete",
+    "No automatic delivery artifact deletion; retained storage capacity applies",
+    "No protection against privileged rewriting of all DB/files/hashes",
+    "External requests already admitted cannot be recalled"
+  ],
+  "firstPublicationRepairs": [
+    "Valid SQL no-published-row result returns false instead of production fallback",
+    "Strict MariaDB timestamp creation/update use DB clock and supplied epoch conversion"
+  ],
+  "verifiedCases": [
+    "Eight concurrent exact attach requests yield one mutation and canonical pending approval",
+    "Changed same-key input and viewer mutation denied",
+    "Audit rollback restores media/workflow/plan evidence",
+    "Lost detach commit ACK is recovered by current state and exact replay",
+    "Original generated snapshot retains hasImage false",
+    "Scheduling/publishing refuse changed bytes and revoked approval",
+    "Erased evidence inconsistent with manifest and unrelated legacy image refused",
+    "Content-addressed copies are reused and stay unchanged when source changes",
+    "Bad HTTPS origin refused before provider dispatch",
+    "Read-first attach/detach UI with unknown/corrupt/token/late-client fences",
+    "Existing calendar/root workflows remain working"
+  ]
+}

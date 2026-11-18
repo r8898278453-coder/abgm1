@@ -2111,7 +2111,7 @@ export async function createPublishingRecord(
           id, post_id, company_id, platform, status, provider_post_id,
           attempt_count, max_attempts, error_type, error_message,
           idempotency_key, published_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
       `, [
         record.id,
         record.post_id,
@@ -2124,9 +2124,7 @@ export async function createPublishingRecord(
         record.error_type,
         record.error_message,
         record.idempotency_key,
-        record.published_at,
-        record.created_at,
-        record.updated_at,
+        record.published_at ? Date.parse(record.published_at)/1000 : null,
       ]);
       return record;
     }
@@ -2148,8 +2146,8 @@ export async function updatePublishingRecord(
   try {
     const db = await getDbPool();
     if (db) {
-      const setClauses: string[] = ['updated_at = ?'];
-      const setValues: any[] = [now];
+      const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP(3)'];
+      const setValues: any[] = [];
 
       if (updates.status !== undefined) {
         setClauses.push('status = ?');
@@ -2172,8 +2170,8 @@ export async function updatePublishingRecord(
         setValues.push(updates.error_message);
       }
       if (updates.published_at !== undefined) {
-        setClauses.push('published_at = ?');
-        setValues.push(updates.published_at);
+        setClauses.push('published_at = FROM_UNIXTIME(?)');
+        setValues.push(updates.published_at ? Date.parse(updates.published_at)/1000 : null);
       }
 
       setValues.push(id);
@@ -2280,6 +2278,7 @@ export async function isPostAlreadyPublished(postId: string, platform?: string):
       if (Array.isArray(rows) && rows.length > 0) {
         return true;
       }
+      return false;
     }
   } catch (err: any) {
     handleDbError('isPostAlreadyPublished', err);

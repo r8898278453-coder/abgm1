@@ -277,6 +277,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/items/:itemId/photo",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/items/:itemId/photo",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/calendar-plans/:planId/revisions",
       "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
     },

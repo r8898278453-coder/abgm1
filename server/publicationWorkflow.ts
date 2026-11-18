@@ -1,3 +1,4 @@
+import {verifyCalendarAttachmentForPost} from './calendarAttachmentProof';
 import {loadPublicationPolicy} from './publicationPolicy';
 import {scheduledTimeMs} from './scheduleTime';
 import {randomUUID} from 'node:crypto';
@@ -29,6 +30,7 @@ export async function transitionPublicationInTransaction(connection:PoolConnecti
   const policy=await loadPublicationPolicy(connection,parsed.companyId);
   const nextPost={...post,status:parsed.status,...(parsed.schedule?{scheduled_date:parsed.schedule.date,scheduled_time:parsed.schedule.time,time_slot:parsed.schedule.time}:{})};
   if(parsed.status==='scheduled' && scheduledTimeMs(nextPost.scheduled_date,nextPost.scheduled_time,nextPost.time_slot)===null)throw new PublishingReviewError(409,'Stored schedule is invalid. Reschedule for approval first.');
+  if(parsed.status==='scheduled'){try{await verifyCalendarAttachmentForPost(connection,nextPost);}catch{throw new PublishingReviewError(409,'Calendar photo binding, approval or file bytes require review before scheduling');}}
   const currentRevision=String(post.workflow_revision||0);if(!/^\d{1,20}$/.test(currentRevision)||BigInt(currentRevision)>=18446744073709551615n)throw new PublishingReviewError(409,'Workflow revision exhausted or invalid');
   const revision=BigInt(currentRevision)+1n;
   const resultingVersion=publishingSourceVersion({...nextPost,workflow_revision:revision.toString()});

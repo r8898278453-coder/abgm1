@@ -1,3 +1,5 @@
+import {prepareCalendarPhotoDelivery} from './calendarPhotoDelivery';
+import {calendarAttachmentPublishingAllowed} from './calendarAttachmentProof';
 import {admitClientAction} from './clientPolicy';
 import type {OPERATION_STATES} from '../shared/operationStates';
 import {publishingExecutionBlock,type PublicationExecutionMode} from './publishingExecutionControls';
@@ -454,7 +456,7 @@ export async function executePublishingJob(
   post=storedPost;
   if(post.status==='pending_approval')return {postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:'Approve the stored post before publishing',executedAt:new Date().toISOString()};
 
-  const canStart=async()=>!(await publishingExecutionBlock(companyId,options?.executionMode || 'manual',post.platforms?.length?post.platforms:[post.channel || 'google']));
+  const canStart=async()=>!(await publishingExecutionBlock(companyId,options?.executionMode || 'manual',post.platforms?.length?post.platforms:[post.channel || 'google']))&&await calendarAttachmentPublishingAllowed(post);
   const executionBlock=await publishingExecutionBlock(companyId,options?.executionMode || 'manual',post.platforms?.length?post.platforms:[post.channel || 'google']);
   if(executionBlock)return {deferredReason:executionBlock,postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:`Publishing blocked: ${executionBlock}`,executedAt:new Date().toISOString()};
   const idempotencyKey = `pub_${post.id}`;
@@ -472,6 +474,8 @@ export async function executePublishingJob(
       executedAt: new Date().toISOString(),
     };
   }
+
+  if(!await calendarAttachmentPublishingAllowed(post))return {postId:post.id,companyId,status:'FAILED',overallStatus:'FAILED',finalPostStatus:post.status,platformResults:[],message:'Calendar photo binding, current approval or file bytes require review before publishing',executedAt:new Date().toISOString()};
 
   // 2. In-flight mutex lock to prevent race conditions during cron intervals
   if (activePublishingLocks.has(post.id)) {
@@ -514,13 +518,14 @@ export async function executePublishingJob(
       )
     );
 
+    let providerPost=post;try{const image=await prepareCalendarPhotoDelivery(post);providerPost={...post,image_url:image||undefined};}catch{settled=await settlePublishingDispatch(dispatchClaim,'FAILED');return{postId:post.id,companyId,status:settled?'FAILED':'UNKNOWN',overallStatus:settled?'FAILED':'UNKNOWN',finalPostStatus:settled?'failed':post.status,platformResults:[],message:'Photo delivery could not be prepared before provider dispatch. Review the public HTTPS origin, file approval and delivery capacity.',executedAt:new Date().toISOString()};}
     const platformResults: ProviderDispatchResult[] = [];
 
     // Execute provider adapter dispatches
     for (const platform of targetPlatforms) {
       const result = await dispatchPlatformWithRetry(
         platform,
-        post,
+        providerPost,
         companyId,
         `${idempotencyKey}_${platform}`,
         () => ownsPublishingDispatch(dispatchClaim!),

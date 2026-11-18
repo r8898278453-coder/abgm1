@@ -1,5 +1,7 @@
 # Immutable calendar photo guidance
 
+Continuation: [CALENDAR_PHOTO_ATTACHMENTS.md](CALENDAR_PHOTO_ATTACHMENTS.md) adds separate explicit attachment/reapproval and publication guards. Generation itself remains text-only. Earlier pending-attachment and8KiB-manifest statements describe the earlier group; latest manifest cap is32KiB.
+
 18 November2026 IST. P05-07/P05-08 continuation. Saved calendar plans now support explicit, reviewed per-topic references to approved local photos. This is planning guidance, not an image attachment, render, publication approval or automatic asset-use capability. Existing text drafts and publication workflows remain canonical.
 
 ## Selection and confirmation
