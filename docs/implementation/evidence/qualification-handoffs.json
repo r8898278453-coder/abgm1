@@ -1,0 +1,93 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "grounded-qualification-and-routed-human-handoff",
+  "originalTask": "P07-01",
+  "state": "validated_local",
+  "functionalSlices": 15,
+  "tracker": {
+    "validated": 39,
+    "in_progress": 24,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "migration": 53,
+    "canonicalTables": 93,
+    "nextMigration": 54,
+    "changed": false,
+    "frozenReport": "V4 unchanged"
+  },
+  "validation": {
+    "defaultProgramsPassed": 144,
+    "focusedFinalContract": "passed",
+    "nativeSql": "full disposable MariaDB10.11.19 passed",
+    "nativeCoverage": [
+      "approved-catalog qualification",
+      "eight-way route replay",
+      "assignee-only accept/resolve",
+      "illegal transitions",
+      "active qualification write fence",
+      "stale policy/knowledge",
+      "authorized stale cancellation",
+      "terminal history preservation",
+      "lost commit acknowledgement",
+      "audit rollback",
+      "revoked recipient",
+      "private viewer read",
+      "current actor and archive"
+    ],
+    "browserDistinctPassed": [
+      "qualificationHandoffs",
+      "salesWorkspace",
+      "workspaceIsolation"
+    ],
+    "browserRegistry": 33,
+    "fullBrowserRegistryRerun": false,
+    "typeScript": "passed",
+    "build": "passed",
+    "routes": 275,
+    "registrations": 50,
+    "routeCollisions": 0,
+    "migrationSources": 53,
+    "frontend": {
+      "rawBytes": 587033,
+      "gzipBytes": 170483,
+      "budget": "passed"
+    }
+  },
+  "boundaries": [
+    "explicit pack selection and policy save",
+    "declared readiness is not predicted conversion",
+    "no generated price/availability/clinical/financial commitment",
+    "durable internal assignment is not delivered notification or completed sale",
+    "one active handoff and ten retained per contact",
+    "32KiB qualification details;1000 report rows;50 recipient candidates",
+    "immutable creation and latest-action receipts only",
+    "role/knowledge/policy loss refuses progression",
+    "current report context computed once",
+    "no migration or production database action",
+    "no real model/provider/customer send or spend;billing excluded;rendering default off"
+  ],
+  "remaining": [
+    "prerequisite CRM/channel and phase gates",
+    "fulfillment/interval-based retention and repeat-business templates P07-06",
+    "broader workflow channel adapters/exit races",
+    "complete cross-channel identity/inbox and role coverage",
+    "source-to-outcome cost allocation and reconciled daily/agency reports",
+    "hosting inventory/provider activation/production pilot acceptance"
+  ],
+  "files": {
+    "shared/qualificationAssist.ts": "66dc046f52fa51a9ff69a70159d882efa0e87963f46634b9dea08d14e7a9c683",
+    "shared/salesWorkspace.ts": "1d263540034474aae882b6cfa3d3bd170f6fd5a6a9a9092169e2b241175ffdb5",
+    "server/qualificationHandoffs.ts": "4edca07cbe3029776d79f33113aa5764b1dd4745ffaed411be15e0cdd6bf49f7",
+    "server/salesWorkspace.ts": "ef852c7930d689ed15d6fd2d8ff377c22ec3b0689d31126efecd872d5d19a49f",
+    "server/salesRoutes.ts": "56830183eee2b7d5ebd88a5c6ae18e3ebd9a842089c3b1c2a97ac646f7fa9ad2",
+    "src/components/QualificationHandoffPanel.tsx": "5706bc79cf6a157a188d656203b81b4d627de6c43fc7948101153e045d35b45b",
+    "src/components/SalesWorkspacePanel.tsx": "1c42be00e05e5a22d9c7de6b8109456a8a72c30ee644c26da68c00b379e6339f",
+    "test/qualificationAssist.test.ts": "7109281162b498b759cdd630468e28003f5dd421dff5bab7f44fdddd74ac458e",
+    "test/integration/qualificationHandoffsSql.test.ts": "71c2c2170e9f65160c63c8b041e921fdbcd7dc52cbffcb427ebce84bc9eb211f",
+    "test/browser/qualificationHandoffs.test.ts": "4a53f54566ad000e9b445d45e2deb41a526fa834cfb67b7b65f51f5d236ea2bf",
+    "test/browser/salesWorkspace.test.ts": "4145b0ee0f0761edbadabf9b7197236f792c2629fc59d0ce38eb70e420523371"
+  }
+}

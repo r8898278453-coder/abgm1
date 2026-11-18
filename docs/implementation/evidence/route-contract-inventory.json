@@ -621,6 +621,21 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/qualification-handoffs",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/qualification-handoffs",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/qualification-handoffs/:handoffId",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "PUT",
       "path": "/api/companies/:companyId/sales/permissions",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
@@ -653,6 +668,11 @@
     {
       "method": "POST",
       "path": "/api/companies/:companyId/sales/prospects/preview",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/qualification-handoffs",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {

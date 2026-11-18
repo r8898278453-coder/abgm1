@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-19 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 143 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 144 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 38 / 25 / 1 / 29.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 39 / 24 / 1 / 29.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -19,7 +19,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P04 | 7 | 1 | 0 | 1 |
 | P05 | 2 | 1 | 0 | 8 |
 | P06 | 1 | 5 | 0 | 2 |
-| P07 | 2 | 4 | 0 | 2 |
+| P07 | 3 | 3 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
 | P09 | 4 | 3 | 0 | 1 |
 | P10 | 0 | 1 | 0 | 7 |
@@ -111,8 +111,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P06-06 | in_progress | Replace per-message lead creation and build unified client inbox | P05-11, P06-05 |
 | P06-07 | validated | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
 | P06-08 | planned | CRM and channel truth gate | P05-11 |
-| P07-01 | in_progress | Implement grounded qualification and sales handoff | P06-08 |
-| P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
+| P07-01 | validated | Implement grounded qualification and sales handoff | P06-08 |
+| P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | P06-08 |
 | P07-03 | in_progress | Execute workflow steps through existing queue and policy | P06-08 |
 | P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
 | P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
