@@ -1,5 +1,7 @@
 # Current client calendar, draft receipts and schedule review
 
+Continuation: [SAVED_CALENDAR_PLANS.md](SAVED_CALENDAR_PLANS.md) adds the previously missing immutable batch/version store and first-text snapshots through forward053. The validation and schema figures below describe the earlier calendar group, not the latest continuation. Semantic/asset/festival/offer strategy remains pending.
+
 18 November 2026 IST. This continues P05-08 and the operational mobile/recovery slices. Schema052_client_reports /90 canonical tables and frozen report V4 are unchanged; next migration053. No new scheduler, draft ledger, AI provider or publication engine was introduced. Earlier pending commit d1f02ba was successfully pushed before this group began.
 
 ## User workflow

@@ -241,6 +241,51 @@
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans/:planId",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/close",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/items/:itemId/cancel",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/items/:itemId/generate",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans/:planId/revisions",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans/by-request/:requestKey",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/close-request",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/client-report-links/:id/revoke",
       "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
@@ -1271,5 +1316,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 49
+  "registrationCount": 50
 }

@@ -1,3 +1,4 @@
+import {calendarPlanMock} from './fixtures/calendarPlanMock';
 import crypto from 'node:crypto';
 import {canonicalJson} from '../../shared/canonicalJson';
 import {calendarInstant} from '../../shared/clientCalendar';
@@ -71,6 +72,7 @@ try {
   let failAudit=false,holdAudit=false;let signalAudit:(()=>void)|undefined;const auditActions:any[]=[];
   const calendarIntents=new Map<string,any>();
   let plannedPosts:any[]=[],crmLeads:any[]=[];const contentCreates:any[]=[],contentDeletes:string[]=[],leadStageWrites:any[]=[],crmCreates:any[]=[],whatsAppWrites:any[]=[];let planAiCalls=0,failContentCreate=true,failContentDelete=true,failLeadStage=true,failCrmCreate=true,failLeadReads=false;
+  const batch=calendarPlanMock(user.id,p=>plannedPosts.unshift({...p,company_id:p.companyId,type:'educational',scheduled_date:p.date,scheduled_time:p.time,time_slot:p.time}));
   let failAutoRead=false,wrongAutoAck=false,holdAutoApproval=false;let signalAutoApproval:(()=>void)|undefined;const autoControls:any[]=[],autoApprovals:any[]=[],autoExecutions:any[]=[];const autoState:Record<string,boolean>={A:false,B:true};
   let holdCampaignSync=false,failCampaignRead=false;let signalCampaignSync:(()=>void)|undefined;const campaignSyncs:any[]=[];
   let failWrites = false;
@@ -108,6 +110,7 @@ try {
       const lead=crmLeads.find(lead=>lead.id===url.pathname.split('/')[3]);assert.equal(input.companyId,lead.company_id);assert.equal(input.expectedStage,lead.stage);lead.stage=input.stage;body={success:true,lead};
     }
     else if(url.pathname==='/api/whatsapp/send'){whatsAppWrites.push(route.request().postDataJSON());body={success:false,method:'wa_link',waLink:'https://wa.me/fixture'};}
+    else if(url.pathname.includes('/calendar-plans')){await batch.handle(route);return;}
     else if(/\/api\/companies\/[AB]\/content-calendar(?:\/|$)/.test(url.pathname)){
       const company=url.pathname.split('/')[3],ctx={companyId:company,business:{name:company==='A'?'Alpha Clinic':'Beta',category:'Service',city:''},profileVersion:'0',operationsVersion:'0',pack:'local_service',goal:'LEADS',monthlyTarget:null,status:'ACTIVE',contextHash:'d'.repeat(64),canWrite:true,canApprove:true};
       const dto=(p:any)=>({id:p.id,companyId:company,title:p.title,headline:p.headline||'',caption:p.caption||'',cta:p.cta||'',hashtags:p.hashtags||[],platforms:p.platforms||['google'],status:p.status,date:p.scheduled_date,time:p.scheduled_time||p.time_slot||'11:00',scheduledAtMs:calendarInstant(p.scheduled_date,p.scheduled_time||p.time_slot||'11:00'),sourceVersion:p.sourceVersion,workflowVersion:'0',dispatchState:null,hasImage:false,hasVideo:false});
@@ -656,19 +659,16 @@ try {
   assert.equal(workflowWrites.length,5);assert.deepEqual(workflowWrites[3].schedule,{date:'2026-11-04',time:'14:30'});assert.equal(workflowWrites[1].expectedVersion,'a'.repeat(64));assert.equal(workflowWrites[2].expectedVersion,'b'.repeat(64));
   console.log('Browser stage: truthful-content-planning');
   await page.getByRole('button',{name:'30-Day Content Plan',exact:true}).click();
-  await page.getByLabel('Maximum draft attempts',{exact:true}).fill('3');
-  await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).click();
-  await page.getByRole('region',{name:'Calendar draft recovery'}).waitFor();assert.equal(contentCreates.length,1);assert.equal(contentCreates[0].status,'draft');
-  assert.ok(await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).isDisabled());
+  batch.state.loseCreate=true;await page.getByRole('button',{name:'Save batch plan',exact:true}).click();
+  await page.getByRole('region',{name:'Batch plan request recovery'}).waitFor();assert.equal(batch.state.calls,0);
   await page.getByRole('button',{name:/^Lead CRM & Sales AI/}).click();
   await page.getByRole('button',{name:'30-Day Content Plan',exact:true}).click();
-  await page.getByRole('button',{name:'Safely close draft request'}).click();
-  await page.getByText('The saved request key is closed. Late retries cannot create a post.',{exact:true}).waitFor();
-  failContentCreate=false;await page.getByLabel('Maximum draft attempts',{exact:true}).fill('3');
-  await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).click();
-  await page.getByText('2 new draft(s) saved; 0 existing post(s) recovered. No posts were approved, scheduled or published.',{exact:true}).waitFor();
-  assert.equal(contentCreates.length,3);assert.ok(contentCreates.every(post=>post.status==='draft'&&post.companyId==='A'));
-  await page.getByRole('list',{name:'Calendar plan results'}).getByText(/generation_unavailable/).waitFor();
+  await page.getByRole('button',{name:'Recover saved batch request'}).click();
+  await page.getByRole('region',{name:'Saved batch detail'}).waitFor();
+  await page.getByRole('button',{name:'Generate pending draft slots'}).click();
+  await page.getByText('Saved 1; failed 1; pending 1; generating 0.',{exact:false}).waitFor();
+  await page.getByRole('button',{name:'Generate pending draft slots'}).click();
+  await page.getByText('Saved 2; failed 1; pending 0; generating 0.',{exact:false}).waitFor();assert.equal(batch.state.calls,3);assert.equal(plannedPosts.length,2);
   // Plain legacy draft deletion remains covered in its canonical Content Studio owner.
   plannedPosts.push({id:'planned-manual',company_id:'A',title:'Legacy plain draft',type:'educational',platforms:['google'],caption:'Plain editable draft',headline:'Legacy plain draft',cta:'',hashtags:[],status:'draft',scheduled_date:'2026-11-25',scheduled_time:'11:00',time_slot:'11:00',sourceVersion:'f'.repeat(64)});
   await page.reload();await page.getByRole('button',{name:/AI Content & Reels/}).click();await page.getByRole('button',{name:'Posts Queue (4)',exact:true}).click();

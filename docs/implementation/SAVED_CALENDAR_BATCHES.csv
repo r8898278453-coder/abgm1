@@ -1,0 +1,31 @@
+slice,parent,scope,status,evidence
+SCP-01,P05-08,Immutable normalized batch definition,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-02,P05-08,Canonical future IST cadence,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-03,P05-08,Actor/client creation hash,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-04,P05-08,Idempotent creation receipt,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-05,P05-08,Lost-ack creation lookup,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-06,P05-08,Atomic unused creation sealing,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-07,P05-08,Client-scoped paginated metadata,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-08,P05-08,Immutable config hash verification,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-09,P05-08,Unicode and Hindi topic normalization,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-10,P05-08,Unique per-client month target topic claim,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-11,P05-08,Cancelled unsaved claim release,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-12,P05-08,Durable per-slot generation admission,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-13,P05-08,Exact replay without model I/O,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-14,P05-08,Connection released before generation,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-15,P05-08,Canonical approved-fact model and budget reuse,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-16,P05-08,Explicit two-attempt failure retry,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-17,P05-08,Restart-safe unconfirmed generation state,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-18,P05-08,Cancellation late-result fence,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-19,P05-08,Close unsaved retain saved snapshots,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-20,P05-08,Fresh role archive context knowledge settlement,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-21,P05-08,Canonical draft/intent transaction reuse,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-22,P05-08,Savepoint rollback of failed materialization,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-23,P05-08,Write-once full initial text snapshot,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-24,P05-08,Append-only revision manifests,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-25,P05-08,Ordered paginated verified history,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-26,P05-08,Frozen preview separate from live post,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-27,P05-08,Hash-only browser creation recovery,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-28,P05-08,Pending-only partial progress and stop,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-29,P05-08,Private metadata CSV and session isolation,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+SCP-30,P05-08,Forward migration and incompatible-schema refusal,implemented_local,SAVED_CALENDAR_PLANS.md; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts

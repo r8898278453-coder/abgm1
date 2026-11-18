@@ -1,5 +1,7 @@
 # Database Migration System & Versioning Guide
 
+Current continuation (18 November2026 IST): forward053_calendar_plans adds calendar_plans, calendar_plan_items and calendar_plan_revisions;93 canonical tables, next054. Historical001–052 are immutable. See docs/implementation/SAVED_CALENDAR_PLANS.md for bounds and ownership. Production migration is not performed by this change.
+
 This document explains the versioned migration lifecycle, distributed locking, and upgrade procedures for **Aaditech BGA / LocalPulse**.
 
 ---

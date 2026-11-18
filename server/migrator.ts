@@ -1,3 +1,4 @@
+import {calendarPlansMigration,CALENDAR_PLAN_TABLES,CALENDAR_PLAN_CHECKS} from './migrations/053_calendar_plans';
 import {clientReportsMigration,CLIENT_REPORT_TABLES,CLIENT_REPORT_CHECKS} from './migrations/052_client_reports';
 import {growthOperations,GROWTH_COLUMNS,GROWTH_INDEXES,GROWTH_SHAPE_CHECK,GROWTH_INDEX_CHECK} from './migrations/051_growth_operations';
 import {prospectImportHistory,PROSPECT_HISTORY_INDEX,PROSPECT_HISTORY_INDEX_CHECK} from './migrations/050_prospect_import_history';
@@ -85,6 +86,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  ...Object.keys(CALENDAR_PLAN_TABLES),
   'client_report_publications','client_report_share_links',
   'growth_operation_records',
   'whatsapp_intakes',
@@ -160,6 +162,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  ...Object.fromEntries(Object.entries(CALENDAR_PLAN_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
   ...Object.fromEntries(Object.entries(CLIENT_REPORT_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
   growth_operation_records:['PRIMARY',...Object.keys(GROWTH_INDEXES)],
   sales_prospect_imports: ['PRIMARY','idx_prospect_import_history'],
@@ -218,6 +221,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  ...Object.fromEntries(Object.entries(CALENDAR_PLAN_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes).filter(n=>n.startsWith('uq_'))]])),
   ...Object.fromEntries(Object.entries(CLIENT_REPORT_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes).filter(n=>n.startsWith('uq_'))]])),
   growth_operation_records:['PRIMARY','uq_growth_request'],
   knowledge_facts:['PRIMARY','fk_facts_company'],
@@ -863,6 +867,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   prospectImportHistory,
   growthOperations,
   clientReportsMigration,
+  calendarPlansMigration,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1225,6 +1230,13 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       for(const check of WORKFLOW_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workflows.shape');}
       const [salesColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'sales_%'");
       for(const [table,cols]of Object.entries(SALES_COLUMNS))for(const col of cols)if(!salesColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===col))missingColumns.push(table+'.'+col);
+      for(const [table,definition]of Object.entries(CALENDAR_PLAN_TABLES)){
+       const [cols]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[table]);
+       for(const name of Object.keys(definition.columns))if(!cols.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
+       const [idx]:any=await conn.query('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? ORDER BY INDEX_NAME,SEQ_IN_INDEX',[table]);
+       for(const [name,columns]of Object.entries(definition.indexes)){const rows=idx.filter((r:any)=>r.INDEX_NAME===name);if(rows.map((r:any)=>r.COLUMN_NAME).join(',')!==columns.join(',')||rows.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==(name.startsWith('uq_')?0:1)))missingConstraints.push(table+'.'+name);}
+      }
+      for(const check of CALENDAR_PLAN_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('calendar_plans.shape');}
       for(const [table,definition]of Object.entries(CLIENT_REPORT_TABLES)){
        const [cols]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[table]);
        for(const name of Object.keys(definition.columns))if(!cols.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);
