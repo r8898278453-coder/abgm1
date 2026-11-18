@@ -1,0 +1,95 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "multiple-deals-and-canonical-outcomes",
+  "originalTask": "P06-07",
+  "originalTaskState": "validated",
+  "functionalSlices": 14,
+  "tracker": {
+    "validated": 38,
+    "in_progress": 25,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "migration": 53,
+    "canonicalTables": 93,
+    "next": 54,
+    "newMigration": false,
+    "frozenReport": "V4 unchanged"
+  },
+  "checks": {
+    "defaultRegressionPrograms": 143,
+    "defaultSuite": "passed",
+    "nativeSql": "full disposable MariaDB10.11.19 passed",
+    "nativeCoverage": [
+      "required primary",
+      "eight-way identical create replay",
+      "independent outcomes",
+      "primary write preserves additional deals",
+      "shared parent and deal CAS",
+      "legacy tracked and terminal stage refusal",
+      "close/reopen reasons",
+      "exact currency totals",
+      "capacity",
+      "creation replay after edits",
+      "audit rollback",
+      "lost commit acknowledgement recovery",
+      "authenticated strict HTTP and no-store",
+      "fresh actor and archive refusal"
+    ],
+    "browserDistinctPassed": [
+      "extraDeals",
+      "salesWorkspace",
+      "workspaceIsolation",
+      "sourceOutcomes"
+    ],
+    "browserRegistry": 32,
+    "fullBrowserRegistryRerun": false,
+    "typeScript": "passed",
+    "productionBuild": "passed",
+    "routeDeclarations": 271,
+    "registrations": 50,
+    "routeCollisions": 0,
+    "migrationSourceGuard": "passed",
+    "frontend": {
+      "rawBytes": 587033,
+      "gzipBytes": 170477,
+      "budget": "passed"
+    }
+  },
+  "boundaries": [
+    "one primary plus five additional deals",
+    "16KiB shared details cap",
+    "immutable creation and latest-edit receipts only",
+    "additional deals do not change contact stage or run workflows",
+    "primary/contact source/cost/daily backlog reports remain separately labeled",
+    "manual values and declared source; verified revenue and ROI null",
+    "no production writes, deployment, provider sends or model spend",
+    "billing excluded; rendering default off"
+  ],
+  "remaining": [
+    "prerequisite phase acceptance and hosting inventory blocker",
+    "CRM identity merge and email/unified inbox/channel gate",
+    "broader grounded qualification and human handoff",
+    "retention/aftercare and workflow adapters/exit races",
+    "per-deal cost allocation and broader source-to-outcome attribution",
+    "reconciled daily reporting and agency overview acceptance",
+    "forecasting, ownership assignment and full historical field snapshots"
+  ],
+  "files": {
+    "shared/extraDeals.ts": "1bef14648ce5d07ee0489e5742c7d02c837a2af2510772220303738950e5495d",
+    "server/extraDeals.ts": "4b5300c408181a79b67e3e286a9e5d21ee907499acba6b2d778084588da4087a",
+    "server/leadStageSql.ts": "0c6a45e7d9d644f3ca5eba998b04ec71fbfd738cf78b6247ac68015ecc630c20",
+    "server/leadStageRoutes.ts": "cc257299fcd6b8b575683138e33328413bcbff41085d1edfb49b51abba6081ab",
+    "server/salesWorkspace.ts": "d450f76f203bdc81394c95b6f789706faa55faac335fa52f718f1be048d6c054",
+    "server/salesRoutes.ts": "8dc4406ace3600b125c3b426cfcc687525d85968a8ed697d652c7373e7937e95",
+    "src/components/AdditionalDealsPanel.tsx": "99219d664e811854fb08cad93be50bb783b19a94b749662d3e7b2dcabcdeee7c",
+    "src/components/SalesWorkspacePanel.tsx": "bec978187f3901c2d01730cd3293dd4e09f337b46f0fb2ee53895038c5dc7f2f",
+    "src/components/SourceOutcomePanel.tsx": "661576b9033ce7e47deedccc48f61863799c3d8f303d1e29dde239cb163db3cb",
+    "test/extraDeals.test.ts": "a3f44ac496e362b630a8efa814d396eec11bcaca8321c0adf711f44d0225a5ac",
+    "test/integration/extraDealsSql.test.ts": "dc0672d70166110371eea85f7e7ea3f23dbb4e67b254b3d40d5719de6ccc9d30",
+    "test/browser/extraDeals.test.ts": "ce0a50f32108356c3f6080f74185c7ce07434bc9eb8e690774c05626e0826ca5",
+    "test/leadStageRoutes.test.ts": "7588186e04b3d2bdc704775173edf2e6952060ea896e7bd721bc520bceaa3696"
+  }
+}

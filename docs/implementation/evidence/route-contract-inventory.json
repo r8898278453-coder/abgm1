@@ -502,6 +502,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/deals",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/delivery-report",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -588,6 +593,21 @@
     {
       "method": "POST",
       "path": "/api/companies/:companyId/sales/intakes/:intakeId/replay",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/deals",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/deals",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/deals/:dealId",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {

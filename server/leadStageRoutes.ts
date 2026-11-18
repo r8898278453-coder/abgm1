@@ -10,7 +10,8 @@ export function registerLeadStageRoutes(app:Express,deps:{validate:RequestHandle
    if(req.body.companyId!==undefined&&req.body.companyId!==lead.company_id){res.status(403).json({success:false,error:'Lead workspace mismatch'});return;}
    const access=await deps.access(user,lead.company_id);if(!access.authorized){res.status(access.status).json({success:false,error:'Lead access denied'});return;}
    if(req.body.expectedStage!==undefined&&req.body.expectedStage!==lead.stage){res.status(409).json({success:false,error:'Lead stage changed. Refresh before updating.'});return;}
-   if(!await deps.update(lead.id,req.body.stage,lead.company_id,req.body.expectedStage)){res.status(409).json({success:false,error:'Lead update unconfirmed. Refresh before updating.'});return;}
+   if(['won','lost'].includes(req.body.stage)||['won','lost'].includes(lead.stage)){res.status(409).json({success:false,error:'Use the primary opportunity form for close/reopen reasons and recorded outcomes.'});return;}
+   if(!await deps.update(lead.id,req.body.stage,lead.company_id,req.body.expectedStage)){res.status(409).json({success:false,error:'Lead update unconfirmed or opportunity is tracked. Refresh and use the primary opportunity form.'});return;}
    res.json({success:true,lead:{id:lead.id,company_id:lead.company_id,stage:req.body.stage}});
   }catch{res.status(503).json({success:false,error:'Lead stage update unavailable'});}
  });

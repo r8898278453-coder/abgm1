@@ -1,0 +1,15 @@
+slice,implementation,validation
+D01,Canonical primary plus five additional deals,Native SQL capacity and required-primary checks
+D02,Independent deal stages,Secondary close leaves primary unchanged
+D03,Close and reopen reasons,Strict contract and native reopen checks
+D04,Per-deal next action and IST due time,Shared contract and browser controls
+D05,Shared parent and per-deal revisions,Stale edit rejection and preserved primary updates
+D06,Canonical quick-stage protection,Native tracked-row guard and route terminal rejection
+D07,Immutable creation receipts,Eight concurrent identical creates and replay after edits
+D08,Latest edit receipt,Exact request hash and parent version contract
+D09,Audit transaction and uncertain ACK,SQL rollback and lost commit acknowledgement recovery
+D10,Fresh actor and archive refusal,Native SQL current identity and client lifecycle
+D11,Exact manual portfolio totals,Independent currencies and unknown value validation
+D12,Private safe CSV,Receipt and notes omitted and formula escaping
+D13,UI account and client scope,Browser token/client/wrong-scope and reload fences
+D14,Primary versus all-deal reporting,Source-outcome browser and explicit report definitions

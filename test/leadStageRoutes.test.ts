@@ -18,6 +18,7 @@ try{
  await patch('lead',{stage:'fabricated'},400);await patch('lead',{stage:'qualified',actor:'invented'},400);await patch('lead',{stage:'qualified',expectedStage:'lost'},409);assert.equal(writes,0);
  const result=await patch('lead',{stage:'opportunity',companyId:'A',expectedStage:'new'},200);assert.equal(result.lead.stage,'opportunity');assert.equal(result.lead.company_id,'A');assert.equal(writes,1);
  await patch('lead',{stage:'won',expectedStage:'new'},409);assert.equal(writes,1);await patch('lead',{stage:'proposal'},200);
- fail=true;assert.ok(!JSON.stringify(await patch('lead',{stage:'lost'},503)).includes('private-sql-secret'));
+ await patch('lead',{stage:'won',expectedStage:'proposal'},409);assert.equal(writes,2);
+ fail=true;assert.ok(!JSON.stringify(await patch('lead',{stage:'contacted'},503)).includes('private-sql-secret'));
  console.log('Lead stages: shared stages, alias conflict rejection, tenant/auth/strict input, expected-stage conflicts, legacy compatibility and redacted persistence errors passed.');
 }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}

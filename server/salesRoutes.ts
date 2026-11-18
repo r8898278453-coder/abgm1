@@ -1,3 +1,4 @@
+import {writeAdditionalDeal,readDealPortfolio} from './extraDeals';
 import {readSourceOutcomeReport} from './sourceOutcomeReport';
 import {assessCompanyProspect} from './prospectAssessment';
 import {previewProspects} from './salesWorkspace';
@@ -41,6 +42,10 @@ export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promis
  route('get',base,'read',async(req,pool,user)=>({workspace:await readSalesWorkspace(pool,String(req.params.companyId)),canManage:(await agencyClientAccess(pool,user,String(req.params.companyId),'manage')).authorized,canWrite:(await agencyClientAccess(pool,user,String(req.params.companyId),'write')).authorized}));
  route('put',base+'/policy','manage',(req,pool,user)=>saveSalesPolicy(pool,user,String(req.params.companyId),req.body));
  route('put',base+'/permissions','manage',(req,pool,user)=>saveContactPermission(pool,user,String(req.params.companyId),req.body));
+ route('get',base+'/deals','read',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'OPPORTUNITY_QUERY_INVALID');return readDealPortfolio(p,u,String(r.params.companyId));});
+ route('get',base+'/leads/:leadId/deals','read',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'OPPORTUNITY_QUERY_INVALID');return readDealPortfolio(p,u,String(r.params.companyId),String(r.params.leadId));});
+ route('post',base+'/leads/:leadId/deals','write',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'OPPORTUNITY_QUERY_INVALID');return writeAdditionalDeal(p,u,String(r.params.companyId),String(r.params.leadId),r.body);});
+ route('put',base+'/leads/:leadId/deals/:dealId','write',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'OPPORTUNITY_QUERY_INVALID');return writeAdditionalDeal(p,u,String(r.params.companyId),String(r.params.leadId),r.body,String(r.params.dealId));});
  route('put',base+'/leads/:leadId/opportunity','write',(req,pool,user)=>saveOpportunity(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
  route('put',base+'/leads/:leadId/qualification','write',(req,pool,user)=>saveQualification(pool,user,String(req.params.companyId),String(req.params.leadId),req.body));
  route('post',base+'/prospects/assess','write',(req,pool,user)=>{if(Object.keys(req.query).length)throw new SalesError(400,'PROSPECT_ASSESSMENT_QUERY_INVALID');return assessCompanyProspect(pool,user,String(req.params.companyId),req.body);});
