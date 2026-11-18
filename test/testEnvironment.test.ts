@@ -6,3 +6,5 @@ assert.equal(env.NODE_ENV,'test');assert.equal(env.PATH,source.PATH);assert.equa
 for(const key of ['DB_HOST','DB_PASSWORD','DATABASE_URL','WHATSAPP_ACCESS_TOKEN','META_AD_ACCOUNT_ID','RESEND_API_KEY','INITIAL_ADMIN_PASSWORD','CREDENTIAL_ENCRYPTION_KEY','IS_PRODUCTION','JWT_SECRET'])assert.equal(env[key],undefined);
 assert.equal(source.NODE_ENV,'production');assert.equal(source.DB_PASSWORD,'sentinel-password');
 console.log('Regression environment: inherited DB/provider/admin/encryption credentials excluded; proxy/trust/path retained; parent unchanged.');
+
+const flags=isolatedTestEnvironment({ENABLE_REEL_RENDERING:'true',ENABLE_APPROVED_SALES_SEND:'true',REEL_BROWSER_EXECUTABLE:'/private/browser'});assert.equal(flags.ENABLE_REEL_RENDERING,undefined);assert.equal(flags.ENABLE_APPROVED_SALES_SEND,undefined);assert.equal(flags.REEL_BROWSER_EXECUTABLE,undefined);

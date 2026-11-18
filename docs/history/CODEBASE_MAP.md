@@ -1,0 +1,145 @@
+# Historical document — superseded, not current acceptance
+
+Preserved on 19 November2026 IST for audit history. Earlier COMPLETE/production-ready/provider verification statements and deployment commands below are not current acceptance or authorization. Use ../implementation/CAPABILITIES.md, STATUS.md and CANARY_RUNBOOK.md.
+
+# Codebase Map
+
+14 November2026: encrypted verified intake recovery uses whatsAppIntakes.ts, whatsAppIntakePayload.ts, whatsAppIntakeDomain.ts and WhatsAppIntakeRecoveryPanel. Shared queue replay cannot change payload/time or send outbound messages; canonical transaction hooks settle the journal atomically. Schema043/80 (next044). See docs/implementation/WHATSAPP_INTAKE_RECOVERY.md.
+
+13 November2026: audited inbound conflict review uses whatsAppConflictLifecycle.ts/whatsAppConflictReviews.ts and WhatsAppConflictReviewPanel. Schema042/79 (next043). Exact retain-original review cannot promote changed content, reset opt-out or resume cancelled/uncertain sends. New variants reopen quarantine. See docs/implementation/WHATSAPP_CONFLICT_REVIEWS.md.
+
+13 November2026: verified WhatsApp event-time/replay controls use whatsAppInbound.ts, whatsAppWebhook.ts, whatsAppEventTime.ts and WhatsAppInboundHistoryPanel. Schema041/77 (next042). Stale history cannot restart reviews or extend new verified reply windows; conflicts quarantine contact sending. See docs/implementation/WHATSAPP_EVENT_TIME.md for compatibility and remaining gates.
+
+13 November2026: opt-in automatic inquiry review enrollment uses salesInquiryRules.ts, existing verified inbound transaction/workflow snapshot/shared queue and SalesInquiryRulePanel. Schema040/76 (next041), default rule disabled, message sending separately approved/default off. See docs/implementation/SALES_INQUIRY_RULES.md.
+
+12 November2026: exact human-approved WhatsApp replies use server/approvedSalesMessages.ts and salesSendAuthorization.ts, existing queue/dispatcher/Meta adapter and ApprovedSalesMessagesPanel. Default off, schema039/74 (next040), no live activation. See docs/implementation/APPROVED_SALES_MESSAGES.md for scope, validation and remaining gates.
+
+12 November2026 workflows: server/salesWorkflows.ts owns definitions/enrollments/review execution; salesWorkflowLifecycle.ts owns atomic source-event exits; shared/salesWorkflows.ts owns contracts/presets; SalesWorkflowPanel.tsx owns operator UI. Existing queue/audit/message/fact services remain canonical. Schema038/73; review tasks never imply provider delivery. See docs/implementation/SALES_REVIEW_WORKFLOWS.md.
+
+12 November2026 sales batch: server/salesWorkspace.ts owns CRM extensions, consent/inbox/qualification/import/report services; server/salesRoutes.ts mounts scoped APIs once; shared/salesWorkspace.ts owns contracts; SalesWorkspacePanel.tsx is the CRM/agency UI. Existing lead stages, message intents, verified webhook mapping and knowledge facts retain their canonical ownership. Forward037/70; see docs/implementation/SALES_TEN_AREA_BATCH.md for ten implemented areas and remaining parent acceptance.
+
+## Architecture Overview
+- **Frontend**: React 18 + Vite SPA, Tailwind CSS, Lucide icons.
+- **Backend**: Express.js server (`server.ts`) with custom routing, JWT auth, rate limiting, and Vite middleware.
+- **Rendering Engines & Services**:
+  - Node Canvas template graphic renderer (`server/templateRenderer.ts`).
+  - Remotion server-side 9:16 vertical video reel engine with ffmpeg bundle (`server/reelRenderer.ts`, `server/reelJobs.ts`, `remotion/*`).
+  - Centralized Meta & WhatsApp Cloud API service (`server/metaWhatsAppService.ts`).
+  - Billing & Webhook Idempotency service (`server/billingService.ts`).
+  - Deterministic Growth Intelligence engine (`server/growthScoreEngine.ts`).
+  - Real Revenue Attribution engine (`server/revenueAttribution.ts`).
+  - Grounded AI Executive Summary engine (`server/aiExecutiveSummary.ts`).
+  - 8-Stage Autonomous Decision & Governance engine (`server/autonomousEngine.ts`).
+- **Database / Persistence**:
+  - MySQL via `mysql2/promise` with auto self-healing schema creation/migrations (`schema.sql`, `server/db.ts`).
+  - Memory fallback cache if MySQL is not configured or offline.
+- **Scheduler & Automation**:
+  - Background autonomous daemon (`server/scheduler.ts`) handling post publishing, review auto-responses, competitor analysis, and Telegram alerts.
+  - MySQL-backed durable job queue service (`server/jobQueueService.ts`) with atomic lease locking, attempts tracking, dead-letter retry states, and Hostinger hPanel cron wake triggers (`POST /api/scheduler/tick`).
+
+- **Content Publishing**: `server/publishingEngine.ts` (`executePublishingJob`) + `POST /api/content-posts/:id/publish`. Callers: `scheduler.ts` (`runAutoPublishJob`), `App.tsx` (`handlePublishPost`), `DashboardView.tsx`, `CalendarView.tsx`, `ContentStudioView.tsx`.
+- **CRM Leads & Pipeline**: `server/db.ts` (`getAllLeads`, `updateLeadStatus`, `createLead`) + `PATCH /api/leads/:id/stage`. Callers: `App.tsx` (`handleUpdateLeadStage`), `LeadsCrmView.tsx`.
+- **Scheduler**: `server/scheduler.ts` (single in-process node-cron daemon with hot-reload guard `global.__abga_scheduler_started`).
+- **Video Reel Rendering**: `server/reelJobs.ts` & `server/reelRenderer.ts` (`POST /api/ai/render-reel`, `GET /api/ai/render-reel/:jobId`) + `remotion/*`.
+- **Google Integrations**: `POST /api/companies/:id/google-profile/sync` & `GET /api/companies/:id/google-profile` in `server.ts` with Places Details API & review deduplication.
+- **Local SEO Rank Radar**: `server/localSeoProvider.ts` (`resolveRankProvider`, `performRankScan`) + `POST /api/companies/:id/rank-radar/scan` & `/refresh-all` + `rank_observations` table.
+- **Competitor Intelligence**: `server/competitorProvider.ts` (`resolveCompetitorProvider`, `calculateCompetitorChanges`) + `POST /api/companies/:id/competitors` & `/refresh-all` + `competitor_observations` table.
+- **Meta & WhatsApp Cloud API**: `server/metaWhatsAppService.ts` (`resolveWhatsAppCredentials`, `resolveMetaSocialCredentials`, `findCompanyByWhatsAppIdentifier`, `verifyMetaWebhookHandshake`, `verifyWhatsAppWebhookSignature`, `publishToFacebookPage`, `publishToInstagram`, `sendWhatsAppCloudMessage`).
+- **Growth Intelligence Score**: `server/growthScoreEngine.ts` (`calculateGrowthIntelligenceScore`, `toGrowthScorePayload`) + `GET /api/companies/:id/growth-score` & `POST /api/companies/:id/growth-score/recalculate`.
+- **AI Executive Summary**: `server/aiExecutiveSummary.ts` (`collectTruthfulEvidence`, `buildEvidenceGroundedPrompt`, `generateDeterministicSummary`) via `GET /api/companies/:id/ai-summary`.
+- **Revenue Attribution**: `server/revenueAttribution.ts` (`calculateRevenueAttribution`, `normalizeSource`, `isProviderVerifiedPayment`) via `GET /api/companies/:id/revenue-attribution`.
+- **Campaigns & Ads Separation**: `server/adCampaignService.ts` (`getInternalCampaigns`, `createInternalCampaign`, `getExternalAdCampaigns`, `syncExternalAdCampaignMetrics`).
+- **Autonomous Governance**: `server/autonomousEngine.ts` (8-stage lifecycle engine `OBSERVE → DETECT → ANALYZE → RECOMMEND → APPROVE → EXECUTE → VERIFY → MEASURE` with kill switch and audit logs).
+- **Authentication & RBAC**: `server/auth.ts` (`createAuthToken`, `verifyAuthToken`, `hashPasswordPBKDF2`, `verifyPasswordPBKDF2`) + `getAuthUserFromRequest`/`getUserCompanies` in `server/db.ts`.
+- **Integration Live Testing**: `POST /api/integrations/test` in `server.ts` with direct provider validation.
+- **Data Status Badges**: `src/components/DataStatusBadge.tsx` supporting 10 standard classifications (`LIVE`, `VERIFIED`, `CALCULATED`, `ESTIMATED`, `AI_ESTIMATED`, `USER_ENTERED`, `SEEDED`, `DEMO`, `UNAVAILABLE`, `ERROR`).
+- **Database Persistence**: `server/db.ts` (MySQL with automated self-healing schema creation/migration + in-memory store fallback).
+
+## Entry Points
+- **Client Entry**: `src/main.tsx` -> `src/App.tsx`
+- **Server Entry**: `server.ts`
+- **HTML Entry**: `index.html`
+
+## Core Backend Routes & Handlers (`server.ts`)
+- **Health**: `GET /api/health`
+- **Authentication**:
+  - `POST /api/auth/register`
+  - `POST /api/auth/login`
+  - `POST /api/auth/logout`
+  - `GET /api/auth/me`
+- **Company & Tenant Management**:
+  - `GET /api/companies`
+  - `POST /api/companies`
+  - `GET /api/companies/:id`
+  - `PUT /api/companies/:id/profile`
+- **CRM Leads**:
+  - `GET /api/leads`
+  - `POST /api/leads`
+  - `PATCH /api/leads/:id/stage`
+  - `DELETE /api/leads/:id`
+- **Reviews & Reputation**:
+  - `GET /api/reviews`
+  - `POST /api/reviews`
+  - `POST /api/reviews/:id/reply`
+  - `DELETE /api/reviews/:id`
+- **Content Studio & Calendar**:
+  - `GET /api/content-posts`
+  - `POST /api/content-posts`
+  - `PATCH /api/content-posts/:id/status`
+  - `DELETE /api/content-posts/:id`
+  - `POST /api/ai/render-creative`
+  - `POST /api/ai/render-reel`
+  - `GET /api/ai/render-reel/:jobId`
+- **Scheduler & Queue Automation**:
+  - `POST /api/scheduler/tick` (Hostinger external cron ping & queue processor)
+  - `POST /api/cron/tick` (Cron trigger alias)
+- **Integrations & Messaging**:
+  - `GET /api/integrations`
+  - `POST /api/integrations`
+  - `POST /api/integrations/test`
+  - `POST /api/telegram/test-alert`
+  - `GET /api/whatsapp/status`
+  - `POST /api/whatsapp/send`
+  - `POST /api/whatsapp/broadcast`
+  - `GET /api/whatsapp/webhook` (Meta Webhook verification challenge)
+  - `POST /api/whatsapp/webhook` (Inbound webhook with HMAC-SHA256 signature verification)
+  - `GET /api/meta/status`
+  - `POST /api/meta/publish-post` (Facebook Page & Instagram Business 2-step publishing)
+- **Autonomous Governance & Execution Engine**:
+  - `GET /api/autonomous/status` (Health, kill-switch status, pending approval counts)
+  - `POST /api/autonomous/kill-switch` (Global emergency stop and per-tenant autopilot toggle)
+  - `POST /api/autonomous/run-cycle` (Telemetry observation and recommendation cycle)
+  - `GET /api/autonomous/recommendations` (List evidence-grounded recommendations)
+  - `GET /api/autonomous/actions` (List queued, approved, executed actions)
+  - `POST /api/autonomous/actions/:id/approve` (Human approval gate)
+  - `POST /api/autonomous/actions/:id/reject` (Human rejection gate)
+  - `POST /api/autonomous/actions/:id/execute` (Verified execution through the 8-stage gate)
+  - `GET /api/autonomous/audit-logs` (Immutable audit trail query)
+
+## Frontend Views (`src/components/`)
+- `DashboardView.tsx`: Overview analytics and high-level summaries.
+- `AuditView.tsx`: SEO & local business audit diagnostic tool.
+- `GoogleProfileView.tsx`: Google Business Profile manager & sync.
+- `LocalSeoView.tsx`: Keyword rankings and local map pack tracker.
+- `CompetitorsView.tsx`: Competitor intelligence and benchmark analyzer.
+- `ReviewsView.tsx`: Review aggregation and AI response management.
+- `ContentStudioView.tsx`: Multiformat generator, graphic renderer, and Remotion video studio.
+- `CalendarView.tsx`: Scheduled publishing calendar and multi-channel timeline.
+- `CampaignsView.tsx`: Multi-channel marketing campaign planner.
+- `LeadsCrmView.tsx`: Real-time pipeline CRM with intent scoring.
+- `WebsiteBuilderView.tsx`: Interactive website builder and landing page editor.
+- `TelegramBotView.tsx`: Real-time alert configuration and dispatch.
+- `AutonomousEngineView.tsx`: Auto-pilot rules and execution controls.
+- `TrustSafetyView.tsx`: Verification, rate limits, and audit logs.
+- `AgencyView.tsx`: Multi-tenant organization and company switcher.
+- `IntegrationsView.tsx`: Third-party service connections (Google, Meta, WhatsApp, Telegram).
+- `BillingAdminView.tsx`: Subscription plans and billing management.
+- `KnowledgeBaseView.tsx`: AI prompt knowledge & training documents.
+- `MobileAppView.tsx`: Mobile PWA setup and installation preview.
+
+## Build & Runtime Commands
+- Dev Server: `npm run dev` (running `tsx server.ts` on port 3000)
+- Build: `npm run build` (`vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs`)
+- Start: `npm run start` (`node dist/server.cjs`)
+
+12 November2026 continuation: durable SQL reel jobs replace the memory manager. Rendering defaults off; see docs/implementation/DURABLE_REELS.md for worker capability, approvals and exact evidence.

@@ -1,3 +1,4 @@
+import {getStoredToken} from '../services/authService';
 import React, { useState, useRef } from 'react';
 import {
   RotateCcw,
@@ -61,6 +62,7 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
     const dataStr = JSON.stringify(
       {
         version: '1.0.0',
+        kind: 'browser_snapshot_not_database_backup',
         exportedAt: new Date().toISOString(),
         isLiveMode,
         ...currentState,
@@ -72,7 +74,7 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `localpulse-backup-${isLiveMode ? 'live' : 'demo'}-${Date.now()}.json`;
+    link.download = `localpulse-loaded-snapshot-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -81,13 +83,14 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if(isLiveMode||getStoredToken()){setImportStatus('Live database restore is unavailable here. No data changed; use the reviewed database restore runbook.');return;}
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         if (json && json.business) {
           onImportData(json);
-          setImportStatus('Backup restored successfully!');
+          setImportStatus('Local preview loaded. No database backup was restored.');
           setTimeout(() => {
             setImportStatus(null);
             onClose();
@@ -179,15 +182,15 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Trash2 className="w-4 h-4 text-rose-600" />
                     <span className="font-black text-slate-900 text-sm">
-                      Wipe Test Data & Start Fresh Setup
+                      Reset local preview and open setup
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Wipes all sample reviews, mock leads, test campaigns, and launches the 5-Minute Onboarding Wizard for your real business.
+                    Resets local preview state and opens setup. It does not delete canonical database records or constitute a production reset. Authenticated workspaces use the approved recovery process.
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowConfirmReset(true)}
+                  onClick={() => {if(isLiveMode||getStoredToken()){setImportStatus('Live database reset is unavailable here. No data changed; use an approved recovery procedure.');return;}setShowConfirmReset(true);}}
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs flex-shrink-0 transition"
                 >
                   Start Fresh
@@ -200,21 +203,22 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                   <div className="flex items-center gap-2">
                     <RotateCcw className="w-4 h-4 text-indigo-600" />
                     <span className="font-bold text-slate-900 text-sm">
-                      Reload Full Blueprint Demo Scenario
+                      Load local example state
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Loads pre-configured 13x13 Geo-Grid SEO, sample reviews, qualified B2B leads, and marketing campaigns for testing.
+                    Loads only bundled browser preview state. It does not establish live prospects, a measured geo-grid, a campaign or a database restore.
                   </p>
                 </div>
                 <button
                   onClick={() => {
+                    if(isLiveMode||getStoredToken()){setImportStatus('Demo data cannot replace a live workspace. No data changed.');return;}
                     onLoadDemoData();
                     onClose();
                   }}
                   className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xs flex-shrink-0 transition"
                 >
-                  Load Demo Data
+                  Load local example
                 </button>
               </div>
 
@@ -224,7 +228,7 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                   onClick={handleExportJson}
                   className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition"
                 >
-                  <Download className="w-3.5 h-3.5" /> Export Data (JSON)
+                  <Download className="w-3.5 h-3.5" /> Export loaded snapshot (JSON)
                 </button>
 
                 <div>
@@ -239,7 +243,7 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition"
                   >
-                    <Upload className="w-3.5 h-3.5" /> Restore from JSON
+                    <Upload className="w-3.5 h-3.5" /> Load local JSON preview
                   </button>
                 </div>
               </div>
@@ -251,10 +255,10 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                 <AlertTriangle className="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <h3 className="font-black text-rose-950 text-sm">
-                    Confirm Complete Factory Reset?
+                    Confirm local preview reset?
                   </h3>
                   <p className="text-rose-800 text-[11px] leading-relaxed">
-                    This will clear all test reviews, leads CRM records, social posts, and launch the 5-Minute Setup Wizard for your actual business. You can always reload the test scenario anytime from this menu.
+                    This clears browser preview state and opens setup. Canonical database records are not deleted by this action; live resets are unavailable in this dialog.
                   </p>
                 </div>
               </div>
@@ -268,12 +272,13 @@ export const ResetSystemModal: React.FC<ResetSystemModalProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    if(isLiveMode||getStoredToken()){setImportStatus('Live database reset is unavailable here. No data changed.');return;}
                     onFactoryReset();
                     onClose();
                   }}
                   className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black shadow-xs transition"
                 >
-                  Yes, Wipe & Start Fresh
+                  Reset preview and open setup
                 </button>
               </div>
             </div>

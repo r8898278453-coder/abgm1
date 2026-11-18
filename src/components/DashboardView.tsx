@@ -104,7 +104,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </h1>
             <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
               {unanswered.length > 0
-                ? `You have ${unanswered.length} customer review${unanswered.length > 1 ? 's' : ''} awaiting response. Quick AI approval is ready to maintain 100% response velocity.`
+                ? `You have ${unanswered.length} customer review${unanswered.length > 1 ? 's' : ''} awaiting response. Review the loaded records before approving a reply.`
                 : totalReviews > 0
                 ? `All recorded reviews are currently answered. Reputation health reflects ${positiveSentimentPct} positive sentiment among rated records.`
                 : 'Customer review telemetry is currently unavailable. Connect Google Business Profile to sync customer feedback.'}

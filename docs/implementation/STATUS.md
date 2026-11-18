@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-19 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 145 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 149 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 40 / 23 / 1 / 29.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 45 / 21 / 1 / 26.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -13,16 +13,16 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | Phase | Validated locally | In progress | Blocked | Planned |
 | --- | ---: | ---: | ---: | ---: |
 | P00 | 4 | 1 | 1 | 0 |
-| P01 | 5 | 4 | 0 | 1 |
+| P01 | 6 | 3 | 0 | 1 |
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 5 | 1 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
-| P05 | 2 | 1 | 0 | 8 |
+| P05 | 3 | 1 | 0 | 7 |
 | P06 | 1 | 5 | 0 | 2 |
 | P07 | 4 | 2 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
 | P09 | 4 | 3 | 0 | 1 |
-| P10 | 0 | 1 | 0 | 7 |
+| P10 | 3 | 0 | 0 | 5 |
 
 ## Explicit blockers
 
@@ -66,8 +66,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P01-06 | in_progress | Introduce transactional action ledger outbox and replayable event intake | P00-06, P01-05 |
 | P01-07 | validated | Unify cron dispatcher and overdue-work catch-up | P00-06, P01-06 |
 | P01-08 | in_progress | Persist scoped stops usage reservations and execution policy | P00-06 |
-| P01-09 | in_progress | Remove confirmed simulated success and unsupported capability badges | P00-06, P01-08 |
-| P01-10 | planned | Reliability and isolation gate | P00-06, P01-09 |
+| P01-09 | validated | Remove confirmed simulated success and unsupported capability badges | P00-06, P01-08 |
+| P01-10 | planned | Reliability and isolation gate | P00-06 |
 | P02-01 | validated | Freeze shared contracts and route compatibility map | P01-10 |
 | P02-02 | in_progress | Extract route modules and database seams mechanically | P01-10 |
 | P02-03 | in_progress | Extract workspace state request transport and typed feature clients | P01-10, P02-02 |
@@ -101,8 +101,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-07 | in_progress | Build client-specific creative and approved asset library | P04-09, P05-06 |
 | P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
 | P05-09 | validated | Move reel state into durable jobs with resource limits | P04-09 |
-| P05-10 | planned | Harden campaign linking ads telemetry and portable storefront capture | P04-09 |
-| P05-11 | planned | Marketing parity and publication gate | P04-09, P05-10 |
+| P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | P04-09 |
+| P05-11 | planned | Marketing parity and publication gate | P04-09 |
 | P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
 | P06-02 | in_progress | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
 | P06-03 | in_progress | Implement message dispatch and real delivery states | P05-11, P06-02 |
@@ -139,11 +139,11 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P09-08 | planned | Agency accountability acceptance gate | P08-10, P09-07 |
 | P10-01 | planned | Complete security privacy retention and key-recovery review | P09-08 |
 | P10-02 | planned | Benchmark hosting fairness rendering storage and client capacity | P09-08, P10-01 |
-| P10-03 | in_progress | Optimize measured frontend and request bottlenecks | P09-08, P10-02 |
-| P10-04 | planned | Run full acceptance restore rollback and provider verification matrix | P09-08, P10-03 |
-| P10-05 | planned | Reconcile feature documentation runbooks and competitor evidence | P09-08, P10-04 |
-| P10-06 | planned | Prepare feature-flagged canary release package | P09-08, P10-05 |
-| P10-07 | planned | Execute separately authorized canary and observe real outcomes | P09-08, P10-06 |
+| P10-03 | validated | Optimize measured frontend and request bottlenecks | P09-08, P10-02 |
+| P10-04 | planned | Run full acceptance restore rollback and provider verification matrix | P09-08 |
+| P10-05 | validated | Reconcile feature documentation runbooks and competitor evidence | P09-08, P10-04 |
+| P10-06 | validated | Prepare feature-flagged canary release package | P09-08 |
+| P10-07 | planned | Execute separately authorized canary and observe real outcomes | P09-08 |
 | P10-08 | planned | Final release and handover gate | P09-08, P10-07 |
 
 Validation and handover records: [EXECUTION.md](EXECUTION.md), [MASTER_PLAN.md](MASTER_PLAN.md), [TASKS.csv](TASKS.csv).

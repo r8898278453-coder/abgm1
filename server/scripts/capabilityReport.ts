@@ -1,0 +1,4 @@
+import fs from 'node:fs';import path from 'node:path';import {parseTasks} from './implementationStatus';import {capabilityManifest,capabilityMarkdown} from '../../shared/capabilityManifest';
+const root=process.cwd(),tasks=parseTasks(fs.readFileSync(path.join(root,'docs/implementation/TASKS.csv'),'utf8')),manifest=capabilityManifest(tasks,p=>fs.existsSync(path.join(root,p))),json=JSON.stringify(manifest,null,2)+'\n',md=capabilityMarkdown(manifest);const targets=[['docs/implementation/CAPABILITIES.json',json],['docs/implementation/CAPABILITIES.md',md]];
+for(const[file,text]of targets){if(process.argv.includes('--check')){if(fs.readFileSync(path.join(root,file),'utf8')!==text)throw Error('CAPABILITY_DOCUMENT_DRIFT');}else fs.writeFileSync(path.join(root,file),text);}
+console.log(JSON.stringify({areas:manifest.features.length,tasks:manifest.total,counts:manifest.counts,productionAccepted:false,providerRequests:0,databaseAccess:false}));

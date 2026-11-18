@@ -112,7 +112,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
         setIsAutopilotOn(targetState);
         setStatusNotice({
           type: 'success',
-          message: `Autopilot ${targetState ? 'activated' : 'paused'} successfully on authoritative backend.`,
+          message: `Autopilot preference ${targetState ? 'enabled' : 'paused'}. Execution still requires eligible work, current approvals and channel permission.`,
         });
       } else {
         setReady(false);setStatusNotice({
@@ -199,7 +199,7 @@ export const AutonomousEngineView: React.FC<AutonomousEngineViewProps> = ({
       if (data.success && data.result) {
         setStatusNotice({
           type: 'success',
-          message: data.result.message || 'Observation cycle completed successfully.',
+          message: data.result.message || 'Observation response received. Inspect recorded actions; no provider effect is inferred.',
         });
         await fetchAutonomousData();
       } else {

@@ -434,10 +434,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         },
       };
       onUpdateBusiness?.(updatedBusiness);
-      setAssetSuccessMessage('✓ Brand Kit settings & colors saved successfully!');
+      setAssetSuccessMessage('Brand kit edits passed to the workspace save flow. Check saved status before generating a new creative.');
       setTimeout(() => setAssetSuccessMessage(null), 4000);
-      // Re-render creative with new brand colors
-      handleRenderCreative(selectedTemplateId);
+      // Generation is explicit after the workspace save status is confirmed.
     } catch (err: any) {
       if(!mounted.current)return;
       setAssetActionError(`Failed to save brand kit: ${err?.message || 'Error'}`);

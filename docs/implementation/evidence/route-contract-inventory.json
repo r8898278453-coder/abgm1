@@ -1188,7 +1188,7 @@
     {
       "method": "POST",
       "path": "/api/integrations/email/test-send",
-      "owner": "server.ts"
+      "owner": "server/tenantEmailRoutes.ts#registerTenantEmailRoutes"
     },
     {
       "method": "POST",
@@ -1391,5 +1391,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 50
+  "registrationCount": 51
 }

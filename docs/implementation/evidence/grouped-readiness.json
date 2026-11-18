@@ -1,0 +1,151 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "five-original-task-readiness",
+  "originalTasksValidated": [
+    "P01-09",
+    "P05-10",
+    "P10-03",
+    "P10-05",
+    "P10-06"
+  ],
+  "originalAcceptanceChanged": false,
+  "tracker": {
+    "validated": 45,
+    "in_progress": 21,
+    "planned": 26,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "migration": 53,
+    "tables": 93,
+    "next": 54,
+    "changed": false,
+    "frozenReport": "V4 unchanged"
+  },
+  "checks": {
+    "defaultProgramsPassed": 149,
+    "nativeSql": "complete disposable MariaDB10.11.19 passed",
+    "browserDistinctPassed": [
+      "readinessTruth",
+      "portableStorefront",
+      "websiteIsolation",
+      "integrationIsolation",
+      "campaignPlanning",
+      "lazyFeatures",
+      "workspaceIsolation",
+      "observationTruth",
+      "renderOperations"
+    ],
+    "browserRegistry": 36,
+    "fullBrowserRegistryRerun": false,
+    "typeScript": "passed",
+    "build": "passed",
+    "routes": 277,
+    "registrations": 51,
+    "collisions": 0,
+    "migrationSources": 53,
+    "generatedDocs": "passed",
+    "capabilityAreas": 17,
+    "capabilityTasks": 93,
+    "frontend": {
+      "raw": 587555,
+      "gzip": 170624,
+      "rawBudget": 600000,
+      "gzipBudget": 180000
+    }
+  },
+  "localCallbackPerformance": {
+    "method": "Chromium DOM click to workspace callback; five samples per mode",
+    "beforeReference": "Isolated reproduction of f3fb13a GoogleProfileView handleSave 600ms timer",
+    "beforeMs": [
+      600.3999999761581,
+      600.3000000119209,
+      600.3000000119209,
+      600.3000000119209,
+      600.2000000476837
+    ],
+    "afterMs": [
+      0.30000001192092896,
+      0.19999998807907104,
+      0.19999998807907104,
+      0.10000002384185791,
+      0.19999998807907104
+    ],
+    "beforeMedianMs": 600.3000000119209,
+    "afterMedianMs": 0.19999998807907104,
+    "durableSaveLatencyMeasured": false,
+    "hostingLatencyMeasured": false,
+    "providerRequests": 0
+  },
+  "bundleReference": {
+    "source": "evidence/twenty-feature-delivery.json",
+    "beforeRaw": 1177923,
+    "beforeGzip": 303346,
+    "hostingPerformanceMeasured": false
+  },
+  "releasePackage": {
+    "mode": "prepare_only",
+    "requiresCleanCommitAndMatchingBuild": true,
+    "sourceComparisonIsDeployedBaseline": false,
+    "executionAllowed": false,
+    "negativeTests": [
+      "dirty source",
+      "moved source during build",
+      "tampered artifact",
+      "symlink artifact",
+      "stale capability metadata",
+      "unsafe reference",
+      "existing output"
+    ],
+    "includes": [
+      "dependency manifests",
+      "compiled client/server/workers",
+      "artifact hashes and size",
+      "build provenance",
+      "reviewed source patch",
+      "capabilities",
+      "canary/rollback runbook"
+    ],
+    "excluded": [
+      "environment values",
+      "uploads",
+      "SQL exports",
+      "node_modules"
+    ],
+    "actualCleanPackageLocation": "Generated outside repository after commit; exact references live in its manifest.json"
+  },
+  "boundaries": [
+    "no production/provider/hosting/phase acceptance",
+    "no migration/deployment or customer/model/provider traffic",
+    "only public competitor reads and Git review operations outside local fixtures",
+    "billing excluded; render/send source defaults off",
+    "tenant email remains unavailable; platform recovery unchanged",
+    "full daily/agency reconciliation, inbox/calendar and source-to-outcome acceptance remain pending"
+  ],
+  "files": {
+    "shared/capabilityManifest.ts": "f833388e606d42002322a1268e2399ad47ce799edf52cbf98b62149c3444b041",
+    "shared/integrationOutcomes.ts": "79129f0f812c4f837f1bc47d3aa49ce8f65675b6e831a80492683559469d1ffc",
+    "server/storefrontOrigin.ts": "a50e710247936f5445caf10bf3b001dc907dfa510c2e7a52c786aad77fcf215d",
+    "server/tenantEmailRoutes.ts": "d6fa431a8b02f9ffb14370e65e3b05357e07ad54cca6feea24e44f01b158f069",
+    "server/publicLeadRoutes.ts": "6ed084e24d94addc1662827a997b5bbea873dd0eed92a115d165658bfcd4359d",
+    "server/websiteService.ts": "51c3958b532ba2609a79b843d396fc69daac567849e4006cd7024eb2a2974a9c",
+    "server/storefrontInquiryScript.ts": "8b892ba1e6b049e4e53c1ec84edd46cf2be5b2803cccc0b26462d730f95339b4",
+    "server/scripts/releasePackage.ts": "8ee4a90558fcf0ff0abe8418f34f17433fa756bd865c39a0adb56abb24aafdae",
+    "server/scripts/buildRelease.ts": "5c89a9145d33768898bf0a6db5926ee6578d005e9fdfbfee77a4544b89cfa4f6",
+    "server/scripts/capabilityReport.ts": "a5e2a5681443ee25e28aad36c7be4a8754c21361264aa0cb42d85610daf7c49b",
+    "server/scripts/testEnvironment.ts": "b76d9d13dea785475b7852bfd7206e66afa4a951cc3c19242c4dae814aa67132",
+    "src/components/GoogleProfileView.tsx": "c138d4fa534a953feda06d6d7614b8b7b4310514deb6e6f09966358b7336878f",
+    "src/components/IntegrationsView.tsx": "e61bd2078347f3ae96c3bed758d301fbe55218d6ba4f7391c19a8fcf055a5840",
+    "src/components/ResetSystemModal.tsx": "089fd83c60ef1ebb991786364f13f3b440218f42d2aba2be633170401fb73a33",
+    "src/components/ContentStudioView.tsx": "4e5e43492fc6ac11e9aaeb0d21e2602fa708c5f4310a98fe8efcd3a6d0755fbf",
+    "src/components/WebsiteBuilderView.tsx": "49e5f39cb116141494ac118862a415047796d20f9fe7afce0cbdfac9b0cb123b",
+    "test/releaseReadiness.test.ts": "0e2f4e37e224c28c2bc4c98517d07592983ba6a9b0b6a89b4b87f3877768ccec",
+    "test/storefrontOrigin.test.ts": "3da473df3fc126be3536450379494d2ec0c8dc879429b525dc97a3f193d39a7c",
+    "test/tenantEmailRoutes.test.ts": "fd2e495bd3566adb08dc63b0b14952e80571119e2ec72e122e650c471a039dec",
+    "test/readinessTruthAudit.test.ts": "44edb4c3f88a8a82c1e2f8c97c8a1621f8c0bb3894fdc7d0375d865a07f12c4f",
+    "test/browser/readinessTruth.test.ts": "bcb74542657f6665d65897058f8302cb3e03c133cf3e243fc139acb8b3ce6d73",
+    "test/browser/portableStorefront.test.ts": "fe7448078e803b81d6800cb2ff32fa82a927a195ff867a225d1661b82a90cfa9",
+    "test/integration/websitePersistenceSql.test.ts": "b22f0e4b33a681a011707179dc6d7566ce56b78a9024b949389ea3764bbaef96"
+  }
+}

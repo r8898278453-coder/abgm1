@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MapPin,
   Clock,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { BusinessProfile, CompanyAsset } from '../types';
 import {
+  getStoredToken,
   getGoogleProfileApi,
   syncGoogleProfileApi,
   GoogleProfileData,
@@ -40,6 +41,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
   onUpdateBusiness,
   onNavigate,
 }) => {
+  const loadSequence=useRef(0);
   const [isSaving, setIsSaving] = useState(false);
   const [newService, setNewService] = useState('');
   const [servicesList, setServicesList] = useState(business.services || []);
@@ -70,7 +72,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
       setIsConfigured(false);
       return;
     }
-    loadGoogleProfile(false);
+    setGoogleData(null);void loadGoogleProfile(false);return()=>{loadSequence.current++;};
   }, [companyId]);
 
   // Fetch real uploaded brand assets
@@ -94,8 +96,10 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
     setWarningNotice(null);
     setSuccessNotice(null);
 
+    const request=++loadSequence.current,token=getStoredToken();setGoogleData(null);
     try {
       const res = refresh ? await syncGoogleProfileApi(companyId) : await getGoogleProfileApi(companyId, false);
+      if(request!==loadSequence.current||token!==getStoredToken())return;
       if (res.success && res.configured !== false && res.data) {
         setIsConfigured(true);
         setGoogleData(res.data);
@@ -123,10 +127,9 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
         setErrorNotice(res.error || res.message || 'Unable to load Google Profile details');
       }
     } catch (err: any) {
-      setErrorNotice(err?.message || 'Failed to connect to Google Profile service');
+      if(request===loadSequence.current&&token===getStoredToken())setErrorNotice('Google profile unavailable; no connection or score is inferred.');
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if(request===loadSequence.current&&token===getStoredToken()){setIsLoading(false);setIsRefreshing(false);}
     }
   };
 
@@ -141,38 +144,18 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
   };
 
   const handleAiOptimizeDesc = () => {
-    setIsOptimizingDesc(true);
-    setTimeout(() => {
-      const loc = business.city || business.address || 'the local area';
-      const cat = business.category ? business.category.toLowerCase() : 'professional services';
-      const servicesText = business.services && business.services.length > 0
-        ? ` Services include ${business.services.slice(0, 3).join(', ')}.`
-        : '';
-      setDescription(
-        `${business.name || 'Business'} is a dedicated provider of ${cat} serving clients in ${loc}.${servicesText} Contact us for professional consultations, verified support, and fast turnaround.`
-      );
-      setIsOptimizingDesc(false);
-    }, 500);
+    const parts=[business.name,business.category,business.city||business.address].filter(Boolean);
+    setDescription(parts.join(' · ')+(servicesList.length?' Services: '+servicesList.join(', ')+'.':''));
+    setSuccessNotice('Profile-text template prepared from entered details. No AI call, verification or Google update occurred. Review before applying.');
   };
-
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      onUpdateBusiness({
-        ...business,
-        description,
-        services: servicesList,
-      });
-      setIsSaving(false);
-    }, 600);
-  };
+  const handleSave = () => {try{onUpdateBusiness({...business,description,services:servicesList});setSuccessNotice('Edits passed to the workspace save flow. Check workspace save status; Google was not updated.');}catch{setErrorNotice('Workspace update unconfirmed. Draft retained.');}};
 
   // Helper formatting for cache time
   const formatCacheTime = (iso?: string | null) => {
     if (!iso) return '';
     try {
       const d = new Date(iso);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString('en-IN', { timeZone:'Asia/Kolkata',hour: '2-digit', minute: '2-digit' })+' IST';
     } catch {
       return '';
     }
@@ -209,7 +192,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'Syncing...' : 'Save & Push to Google'}</span>
+            <span>{isSaving ? 'Syncing...' : 'Apply profile edits'}</span>
           </button>
         </div>
       </div>
@@ -232,7 +215,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-                  No live Google Place ID & Maps API Key connected for this company yet. Connect your Google Places credentials to pull verified Google Maps ratings, customer reviews, operational hours, and real-time local search metrics.
+                  No live Google Place ID & Maps API Key connected for this company yet. Places can provide public listing data such as ratings, reviews and hours. It does not establish GBP owner access or measured search rankings.
                 </p>
               </div>
             </div>
@@ -315,7 +298,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
                 Total Reviews
               </div>
               <div className="text-xl font-black text-slate-900">
-                {(googleData.user_ratings_total ?? 0).toLocaleString()}
+                {googleData.user_ratings_total==null?'Unavailable':googleData.user_ratings_total.toLocaleString()}
               </div>
               <div className="text-[10px] text-slate-500 font-medium">
                 Public user feedback count
@@ -342,11 +325,11 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
                 ) : googleData.opening_hours?.open_now === false ? (
                   <span className="text-slate-700">Currently Closed</span>
                 ) : (
-                  <span>{googleData.business_status || 'Operational'}</span>
+                  <span>{googleData.business_status || 'Status not supplied'}</span>
                 )}
               </div>
               <div className="text-[10px] text-slate-500 font-medium">
-                {googleData.business_status || 'Verified Listing'}
+                {googleData.business_status || 'Status not supplied'}
               </div>
             </div>
           </div>
@@ -393,20 +376,20 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-slate-900">
-                  Profile Health Score: {isConfigured && googleData ? '92 / 100' : '45 / 100'}
+                  Profile health: not measured
                 </span>
                 <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
                   isConfigured && googleData
                     ? 'bg-emerald-100 text-emerald-800'
                     : 'bg-amber-100 text-amber-800'
                 }`}>
-                  {isConfigured && googleData ? 'API Synchronized' : 'Needs Google Connect'}
+                  {isConfigured && googleData ? 'Places data loaded' : 'Places data unavailable'}
                 </span>
               </div>
               <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                Google Local 3-Pack ranking prioritizes verified profiles with regular reviews, rich service catalogs, and accurate operational hours.
+                Review listing details using recorded evidence. No measured health score or ranking improvement is implied.
                 {isConfigured && googleData
-                  ? ` Connected with verified Google Place ID "${googleData.place_id}".`
+                  ? ` Places record "${googleData.place_id}"; GBP owner permissions remain unverified.`
                   : ' Connect your Google Place ID and API key to pull live review counts and hours.'}
               </p>
             </div>
@@ -417,7 +400,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
             className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-indigo-600 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition self-start md:self-auto shadow-2xs"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isOptimizingDesc ? 'Optimizing...' : 'Auto-Enhance Profile Description'}</span>
+            <span>{isOptimizingDesc ? 'Optimizing...' : 'Prepare profile-text template'}</span>
           </button>
         </div>
       </div>
@@ -500,7 +483,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
                     className="text-[11px] text-indigo-600 hover:text-indigo-700 flex items-center gap-1 font-bold"
                   >
                     <Sparkles className="w-3 h-3" />
-                    {isOptimizingDesc ? 'Rewriting with Gemini...' : 'Rewrite with Local SEO Keywords'}
+                    {isOptimizingDesc ? 'Preparing template...' : 'Prepare text from profile details'}
                   </button>
                 </div>
                 <textarea
@@ -686,11 +669,11 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">API Sync State</span>
               {isConfigured && googleData ? (
                 <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Connected
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Places data loaded
                 </span>
               ) : isConfigured === false ? (
                 <span className="flex items-center gap-1.5 text-xs text-amber-800 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Not Connected
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Places not configured
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-xs text-slate-600 font-bold bg-slate-100 px-2.5 py-0.5 rounded-full">

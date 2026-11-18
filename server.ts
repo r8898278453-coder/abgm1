@@ -1,3 +1,5 @@
+import {publicLeadPath,publicLeadCors,publicLeadOriginAllowed} from './server/storefrontOrigin';
+import {registerTenantEmailRoutes} from './server/tenantEmailRoutes';
 import {registerCalendarPlanRoutes} from './server/calendarPlanRoutes';
 import {recordKnowledgeDraft} from './server/knowledgeDrafts';
 import {registerClientCalendarRoutes} from './server/clientCalendarRoutes';
@@ -323,7 +325,7 @@ const PORT = process.env.NODE_ENV === 'production' && process.env.PORT ? parseIn
 
 // Enterprise Security & Monitoring Middlewares
 app.use(securityHeadersMiddleware);
-app.use(corsMiddleware);
+app.use((req,res,next)=>publicLeadPath(req.path)?publicLeadCors(req,res,next):corsMiddleware(req,res,next));
 app.use('/api',browserSessionGuard(verifyAuthToken,getAuthSecret));
 app.use(requestAuditLogger);
 
@@ -1919,86 +1921,7 @@ app.post('/api/integrations/test', async (req, res) => {
 });
 
 // Live Test Email Dispatch Endpoint
-app.post('/api/integrations/email/test-send', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { recipientEmail, companyId } = req.body;
-    const targetEmail = (recipientEmail || user.email || '').trim();
-
-    if (!targetEmail || !targetEmail.includes('@')) {
-      res.status(400).json({ success: false, error: 'Valid recipient email address is required.' });
-      return;
-    }
-
-    if (!isEmailServiceConfigured()) {
-      res.status(503).json({
-        success: false,
-        code: 'EMAIL_SERVICE_NOT_CONFIGURED',
-        error: 'Transactional email transport is not configured. Please enter SMTP or API credentials in Integrations or server environment.',
-      });
-      return;
-    }
-
-    const brandName = 'Aaditech Business Growth Architecture';
-    const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-
-    const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b0f19; color: #f8fafc; padding: 32px 16px;">
-  <div style="max-width: 560px; margin: 0 auto; background: #131b2e; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
-    <div style="background: linear-gradient(135deg, #4f46e5, #06b6d4); padding: 24px; text-align: center;">
-      <h2 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold;">⚡ Live Email Dispatch Verified</h2>
-    </div>
-    <div style="padding: 24px;">
-      <p style="font-size: 15px; line-height: 1.6; color: #cbd5e1; margin-top: 0;">
-        Hello <strong>${user.full_name || 'Administrator'}</strong>,
-      </p>
-      <p style="font-size: 14px; line-height: 1.6; color: #94a3b8;">
-        This is a live transactional verification email sent from your <strong>${brandName}</strong> workspace on <strong>${timestamp} (IST)</strong>.
-      </p>
-      <div style="background: #0f172a; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; margin: 20px 0;">
-        <span style="color: #34d399; font-weight: bold; font-size: 13px;">Status: Verified & Operational</span>
-        <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">All password resets, verification codes, and client notifications will be delivered instantly.</p>
-      </div>
-      <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">
-        Tenant Workspace: <code>${companyId || 'Default'}</code> • User: <code>${user.email}</code>
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
-
-    const sendResult = await sendTransactionalEmail({
-      to: targetEmail,
-      subject: `✅ Live Verification Email - ${brandName}`,
-      html,
-      text: `Hello ${user.full_name || 'Administrator'},\n\nThis is a live transactional email test from Aaditech Business Growth Architecture at ${timestamp} (IST).\n\nStatus: Verified & Operational\nRecipient: ${targetEmail}`,
-    });
-
-    if (sendResult.success) {
-      res.json({
-        success: true,
-        message: `Test email dispatched successfully to ${targetEmail}! (Provider: ${sendResult.provider})`,
-        details: sendResult,
-      });
-    } else {
-      res.status(502).json({
-        success: false,
-        error: `Failed to deliver test email: ${sendResult.error || 'Provider rejected request'}`,
-      });
-    }
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Server error dispatching test email' });
-  }
-});
+registerTenantEmailRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess});
 
 // Save credentials and update integration state for a company
 app.post('/api/integrations/save',async(req,res)=>{
@@ -2487,7 +2410,7 @@ app.get('/api/leads', async (req, res) => {
 });
 
 // Public Lead Ingestion Endpoint (Strict Token Validation, Honeypot Anti-Spam & Rate Limiting)
-registerPublicLeadRoutes(app,{rateLimit:leadsRateLimiter,pool:getDbPool,resolve:resolvePublicLeadCompany,save:savePublicLeadIntake,receipt:readPublicLeadReceipt,
+registerPublicLeadRoutes(app,{originAllowed:publicLeadOriginAllowed,rateLimit:leadsRateLimiter,pool:getDbPool,resolve:resolvePublicLeadCompany,save:savePublicLeadIntake,receipt:readPublicLeadReceipt,
  score:input=>calculateMessageIntent(input.notes||input.service||'',{service:input.service,budget:input.budget,phone:input.phone,email:input.email}).score??null,
  notify:(pool,company,id,input)=>notifyPublicLeadOnce(pool,company,id,()=>sendTenantTelegram(company,`New website inquiry\nName: ${input.name}\nPhone: ${input.phone}\nService: ${input.service||'Inquiry'}`,{getCompanyIntegration,fetch}))
 });

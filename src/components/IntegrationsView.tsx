@@ -1,3 +1,4 @@
+import {adSyncSummary} from '../../shared/integrationOutcomes';
 import {ExtensionDecisionsPanel} from './ExtensionDecisionsPanel';
 import {publicationDraftKey} from '../services/publicationDraftMemory';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -69,9 +70,10 @@ interface IntegrationsViewProps {
 export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   companyId,
 }) => {
+  const actionScope=useRef(0);
   const mounted=useRef(true),modalSequence=useRef(0),loadSequence=useRef(0);
   const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;modalSequence.current++;loadSequence.current++;};},[]);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;actionScope.current++;modalSequence.current++;loadSequence.current++;};},[]);
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -87,11 +89,11 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   // WhatsApp Tester States
   const [isWaTestOpen, setIsWaTestOpen] = useState(false);
   const [waMode, setWaMode] = useState<'text' | 'template' | 'media'>('text');
-  const [waTestPhone, setWaTestPhone] = useState('8898278453');
+  const [waTestPhone, setWaTestPhone] = useState('');
   const [waTestMessage, setWaTestMessage] = useState('Namaste! This is a live test notification from Aaditech BGA via WhatsApp Cloud API.');
   const [waSelectedTemplate, setWaSelectedTemplate] = useState('lead_instant_quote_v1');
-  const [waTemplateParam1, setWaTemplateParam1] = useState('Rajesh Kumar');
-  const [waTemplateParam2, setWaTemplateParam2] = useState('IT & Digital Growth Package');
+  const [waTemplateParam1, setWaTemplateParam1] = useState('');
+  const [waTemplateParam2, setWaTemplateParam2] = useState('');
   const [waMediaUrl, setWaMediaUrl] = useState('');
   const [waMediaCaption, setWaMediaCaption] = useState('Aaditech Growth Solution — Official Brochure');
   const [waSending, setWaSending] = useState(false);
@@ -172,6 +174,8 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setTestResult(null);
     setFormCredentials({});
   };
+
+  useEffect(()=>{actionScope.current++;setMetaAdsSyncMessage(null);setEmailSendResult(null);setMetaAdsSyncing(false);setEmailSending(false);},[companyId]);
 
   // Test credentials live against the real provider API
   const handleTestLive = async (itemToTest: IntegrationItem, credsToTest: Record<string, string>) => {
@@ -430,6 +434,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   // Transactional Email Test Send Handler
   const handleSendTestEmail = async () => {
+    if(!companyId)return;const scope=actionScope.current;const current=()=>mounted.current&&scope===actionScope.current;
     setEmailSending(true);
     setEmailSendResult(null);
     try {
@@ -440,10 +445,11 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
           companyId,
         }),
       });
+      if(!current())return;
       if (data.success) {
         setEmailSendResult({
           success: true,
-          message: data.message || 'Live test verification email dispatched successfully!',
+          message: 'Request acknowledged; tenant sender verification and recipient delivery are not established.',
         });
       } else {
         setEmailSendResult({
@@ -452,34 +458,27 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         });
       }
     } catch (err: any) {
-      setEmailSendResult({
+      if(current())setEmailSendResult({
         success: false,
         message: err?.message || 'Network error communicating with email service.',
       });
     } finally {
-      setEmailSending(false);
+      if(current())setEmailSending(false);
     }
   };
 
   // Meta Ads Direct Sync Handler
   const handleSyncMetaAds = async () => {
+    if(!companyId)return;const scope=actionScope.current;const current=()=>mounted.current&&scope===actionScope.current;
     setMetaAdsSyncing(true);
     setMetaAdsSyncMessage(null);
     try {
-      const data = await apiRequest<{ success: boolean; syncedCampaignsCount?: number; message?: string; error?: string }>('/api/campaigns/external/sync', {
-        method: 'POST',
-        body: JSON.stringify({ companyId, provider: 'meta_ads' }),
-      });
-      if (data.success) {
-        setMetaAdsSyncMessage(`Synced ${data.syncedCampaignsCount ?? 0} verified ad campaign(s) from Meta Marketing API.`);
-        await fetchIntegrations();
-      } else {
-        setMetaAdsSyncMessage(`Sync failed: ${data.message || data.error || 'Check Meta Ads credentials.'}`);
-      }
+      const data = await apiRequest<any>('/api/campaigns/external/sync',{method:'POST',body:JSON.stringify({companyId,provider:'meta_ads'})});
+      if(!current())return;const summary=adSyncSummary(data,companyId!);setMetaAdsSyncMessage(summary.message);if(summary.state==='SUCCESS'||summary.state==='PARTIAL')await fetchIntegrations();
     } catch (err: any) {
-      setMetaAdsSyncMessage(`Network error during Meta Ads sync: ${err?.message}`);
+      if(current())setMetaAdsSyncMessage('Sync unconfirmed or unavailable. Reload saved campaign observations; no complete result is claimed.');
     } finally {
-      setMetaAdsSyncing(false);
+      if(current())setMetaAdsSyncing(false);
     }
   };
 
@@ -727,7 +726,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         <div>
           <span className="font-bold text-slate-900">Production Security & Direct API Credential Binding:</span>
           <p className="mt-1 leading-relaxed">
-            API credentials are tied strictly to this company&apos;s workspace and stored securely in your database. Tokens are masked on the frontend, never logged in plaintext, and verified directly with official third-party servers (Meta Graph API, Google Cloud APIs, Telegram Bot Father, Razorpay).
+            Saved credentials belong to this workspace and are masked in this view. Configuration is not proof of live connection, permission, provider acceptance or delivery. Places lookup does not establish GBP OAuth. Tenant email and optional adapters remain unavailable until their own acceptance gates pass.
           </p>
         </div>
       </div>
@@ -1491,7 +1490,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   ) : (
                     <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                   )}
-                  <span>{emailSendResult.success ? 'Email Delivered Successfully' : 'Delivery Failed'}</span>
+                  <span>{emailSendResult.success ? 'Request acknowledged; delivery unverified' : 'Client sender check unavailable'}</span>
                 </div>
                 <p className="text-[11px] leading-relaxed pl-6">{emailSendResult.message}</p>
               </div>

@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+19 November2026 IST — Portable exported forms now require configured HTTPS PUBLIC_APP_URL and matching verified client domain (or canonical app origin); public-only POST/OPTIONS CORS omits credentials. Authenticated API CORS unchanged. Tenant email test no longer invokes platform account transport: explicit scoped503 TENANT_EMAIL_UNAVAILABLE until dedicated sender/reply/bounce implementation. Ads UI validates actual syncResult/partial count/scope. Release preparation is private artifact-only and cannot deploy. See GROUPED_READINESS_DELIVERY.md and CANARY_RUNBOOK.md.
+
 19 November2026 IST — Fulfillment GET/PUT, strict parent/record CAS, REPEAT_BUSINESS workflow enum and fulfillment-bound retention enrollment/context: see [RETENTION_FULFILLMENT.md](RETENTION_FULFILLMENT.md). Won/free-text evidence no longer suffices for non-inquiry enrollment. Legacy retention snapshots without binding fail closed. Existing primary edits revoke active declarations; canonical opportunity/qualification responses omit nested private receipt fields. No migration or automatic external send.
 
 19 November2026 IST — Four private qualification-handoff endpoints, strict create/action inputs, assignee lifecycle and retained qualification history: see [QUALIFICATION_HANDOFFS.md](QUALIFICATION_HANDOFFS.md). Existing qualification input remains compatible; active handoffs now fence qualification replacement, with a 32 KiB total limit and ten retained assignments per contact. No schema change or external notification/send.

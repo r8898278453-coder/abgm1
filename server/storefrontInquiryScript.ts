@@ -12,7 +12,7 @@ export function storefrontInquiryScript(token:string,source:string,endpoint:stri
  async function lookup(){
   if(!state||checking||sending)return;checking=true;ready=false;lock(true);check.disabled=true;
   try{
-   const response=await fetch(receiptEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({publicFormToken:token,requestId:state.id}),signal:AbortSignal.timeout(8000)});
+   const response=await fetch(receiptEndpoint,{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify({publicFormToken:token,requestId:state.id}),signal:AbortSignal.timeout(8000)});
    const data=await response.json();if(!response.ok||data.success!==true||data.requestId!==state.id)throw new Error('unconfirmed');
    if(data.receipt?.status==='RECEIVED'&&typeof data.receipt.leadId==='string'){received(data.receipt.leadId);}
    else if(data.receipt?.status==='NOT_FOUND'&&state.status==='PENDING'){ready=true;lock(false);check.hidden=false;show('No saved receipt observed yet. Submit the same inquiry using this reference, or check again.');}
@@ -27,7 +27,7 @@ export function storefrontInquiryScript(token:string,source:string,endpoint:stri
   try{
    if(!state)persist({v:1,id:crypto.randomUUID(),status:'PENDING'});
    const payload={publicFormToken:token,requestId:state.id,name:document.getElementById('leadName').value,phone:document.getElementById('leadPhone').value,email:document.getElementById('leadEmail').value,service:document.getElementById('leadService').value,notes:document.getElementById('leadMessage').value,source};
-   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});const data=await response.json();
+   const response=await fetch(endpoint,{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});const data=await response.json();
    if(response.ok&&data.success===true&&data.requestId===state.id&&data.idempotent===true&&typeof data.lead?.id==='string')received(data.lead.id,true);
    else if([400,401,403,404,413,422,429].includes(response.status)&&data.success===false){ready=true;lock(false);check.hidden=false;show('Inquiry was rejected. Check your details or contact the business.');}
    else{check.hidden=false;show(response.status===409?'This reference belongs to different inquiry details. Check the previous receipt before starting again.':'Submission was not confirmed. Keep these details and check the receipt before retrying.');}

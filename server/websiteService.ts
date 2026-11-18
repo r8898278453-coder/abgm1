@@ -1,3 +1,4 @@
+import {storefrontApiOrigin} from './storefrontOrigin';
 import {storefrontInquiryScript} from './storefrontInquiryScript';
 import {normalizeWebsiteDomain} from '../shared/website';
 import JSZip from 'jszip';
@@ -353,21 +354,23 @@ export function generateStorefrontHtml(
 export async function generateStaticExportZip(
   company: DbCompany,
   config?: DbWebsiteConfig | null,
-  targetDomain = 'bga.aaditechs.in'
+  targetDomain = 'bga.aaditechs.in',
+  apiOrigin?: string
 ): Promise<Buffer> {
   targetDomain=normalizeWebsiteDomain(targetDomain);
+  const formEnabled=config?.enable_inquiry_form!==false&&Boolean(company.public_form_token);const leadEndpoint=formEnabled?storefrontApiOrigin(apiOrigin)+'/api/public/leads':'/api/public/leads';
   const zip = new JSZip();
 
   // 1. Main index.html
-  const mainHtml = generateStorefrontHtml(company, config, 'main', 'https://bga.aaditechs.in/api/public/leads');
+  const mainHtml = generateStorefrontHtml(company, config, 'main', leadEndpoint);
   zip.file('index.html', mainHtml);
 
   // 2. Local SEO Hub landing page
-  const localSeoHtml = generateStorefrontHtml(company, config, 'local-seo', 'https://bga.aaditechs.in/api/public/leads');
+  const localSeoHtml = generateStorefrontHtml(company, config, 'local-seo', leadEndpoint);
   zip.file('local-seo.html', localSeoHtml);
 
   // 3. Instant consultation page
-  const instantInquiryHtml = generateStorefrontHtml(company, config, 'instant-inquiry', 'https://bga.aaditechs.in/api/public/leads');
+  const instantInquiryHtml = generateStorefrontHtml(company, config, 'instant-inquiry', leadEndpoint);
   zip.file('instant-inquiry.html', instantInquiryHtml);
 
   // 4. XML Sitemap
@@ -459,7 +462,7 @@ Sitemap: https://${targetDomain}/sitemap.xml
 This zip package contains a static website package for **${company.name}**, pre-configured with:
 - Semantic JSON-LD Schema.org markup (LocalBusiness)
 - Geo-targeted Local SEO landing pages
-- Inquiry form, when enabled and a public form token exists, sends to https://bga.aaditechs.in/api/public/leads. Confirm API availability and cross-origin policy after hosting; an unconfirmed submission never shows success. Regenerate old ZIPs for request-reference/receipt recovery. The page needs HTTPS, Web Crypto and session storage; only receipt metadata is kept in that tab, not contact values. Closing/clearing the tab loses its recovery reference. Legacy forms without a requestId remain non-idempotent.
+- Inquiry form, when enabled and a public form token exists, sends to ${formEnabled?leadEndpoint:'no endpoint (form disabled)'}. Confirm API availability and cross-origin policy after hosting; an unconfirmed submission never shows success. Regenerate old ZIPs for request-reference/receipt recovery. The page needs HTTPS, Web Crypto and session storage; only receipt metadata is kept in that tab, not contact values. Closing/clearing the tab loses its recovery reference. Legacy forms without a requestId remain non-idempotent.
 - WhatsApp and phone contact links follow saved CTA preferences
 - Fast responsive Tailwind styling
 - Google Search Console XML Sitemap & Robots.txt

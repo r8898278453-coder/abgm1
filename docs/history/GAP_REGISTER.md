@@ -1,0 +1,43 @@
+# Historical document — superseded, not current acceptance
+
+Preserved on 19 November2026 IST for audit history. Earlier COMPLETE/production-ready/provider verification statements and deployment commands below are not current acceptance or authorization. Use ../implementation/CAPABILITIES.md, STATUS.md and CANARY_RUNBOOK.md.
+
+# Gap Register
+
+| Gap ID | Feature Area | Description | Status | Evidence Level | Priority | Phase |
+|---|---|---|---|---|---|---|
+| GAP-001 | Content Studio | Remotion Reel Video Rendering Engine & Job Pool | REAL | E5 (Verified) | P1 | Phase 1 |
+| GAP-002 | Content & Calendar | Video Post Persistence & Scheduling Pipeline | REAL | E5 (Verified) | P1 | Phase 1 |
+| GAP-003 | Database & Schema | MySQL Self-Healing Columns (`video_url`, etc.) | REAL | E4 (Verified) | P1 | Phase 1 |
+| GAP-004 | Multi-tenant Auth | Per-tenant Company & Data Isolation | REAL | E4 (Verified) | P1 | Phase 1 |
+| GAP-005 | Google Profile Sync | Live Google Business Profile & Places API Real-Time Review Ingestion | REAL | E5 (Verified) | P2 | Phase 2 |
+| GAP-006 | Local SEO Rank Tracking | Provider-Based 3x3 Geo-Grid Rank Tracker & Historical Observations Engine (DataForSEO / SerpAPI adapter) | REAL | E5 (Verified) | P1 | Phase 2 |
+| GAP-006-COMP | Competitor Intelligence | Provider-Based Competitor Intelligence, Historical Snapshot Engine & Change Detection (Places API / SerpAPI) | REAL | E5 (Verified) | P1 | Phase 2 |
+| GAP-007 | WhatsApp / Meta Publishing | Real Cloud API Direct Dispatch for Meta & WhatsApp | REAL | E5 (Verified) | P2 | Phase 2 |
+| GAP-007-HARDEN | Meta & WhatsApp Production Hardening | Mandatory HMAC-SHA256 webhook signature verification, strict multi-tenant isolation with zero generic routing leaks, authenticated & authorized direct send/publish routes, webhook event idempotency, provider ID persistence, and no fake success with NOT_CONFIGURED status | REAL | E5 (Verified) | P0 | Integration Hardening |
+| GAP-008 | Billing & Payment Gateway | Real Razorpay Webhook Gateway, Settlement Capture & Invoice Ledger Sync | REAL | E5 (Verified) | P3 | Phase 3 |
+| GAP-008-HARDEN | Razorpay Production Billing Hardening | Mandatory HMAC-SHA256 signature verification in prod, secret validation, webhook/event idempotency, duplicate invoice & subscription prevention, strict non-simulated live payment checks, and multi-state provider lifecycle mapping (trial, active, past_due, payment_failed, cancelled, expired) | REAL | E5 (Verified) | P0 | Billing Hardening |
+| GAP-009 | Website Builder | Production Static Hosting Export & Custom Domain Binding with DNS Verification | REAL | E5 (Verified) | P3 | Phase 3 |
+| GAP-P0-SEC | Tenant Security & IDOR | Strict authentication and tenant authorization on /api/integrations and /api/integrations/test | REAL | E5 (Verified) | P0 | Security Hardening |
+| GAP-P0-TRUTH | Data Truth & Metric Integrity | Centralized DataStatusBadge with 10 states, dynamic dashboard calculations, elimination of unverified LIVE badges | REAL | E5 (Verified) | P0 | Production Safety |
+| GAP-P0-PUB | No Fake Provider Success | Verified provider dispatch in /api/meta/publish-post and scheduler.ts cron auto-publish | REAL | E5 (Verified) | P0 | Production Safety |
+| GAP-005-SEP | Google Integrations Separation | Strict separation of Google Places (API Key), Google Business Profile (OAuth), and Google Search Console with honest NOT_CONFIGURED status and deduplicated review pipeline | REAL | E5 (Verified) | P0 | Integration Integrity |
+| GAP-GROWTH-SCORE | Growth Intelligence Score Engine | Single centralized deterministic Growth Score calculation service with full telemetry, audit trail, and zero metric invention | REAL | E5 (Verified) | P0 | Core Engine |
+| GAP-AUTONOMOUS-GOV | Autonomous Governance & Lifecycle Engine | 8-Stage Lifecycle (OBSERVE → DETECT → ANALYZE → RECOMMEND → APPROVE → EXECUTE → VERIFY → MEASURE) with evidence IDs, zero metric invention, emergency kill switch, high-risk human approval policy, rate limiting, and immutable audit logs | REAL | E5 (Verified) | P0 | Governance & Autopilot |
+| GAP-PHASE0-CONSOL | Core Capability Consolidation | Established ONE canonical implementation for all 17 core capabilities, eliminated publishing status mutation bypass in ContentStudio, and established truthful zero-metric baseline for newly provisioned company workspaces | REAL | E5 (Verified) | P0 | Phase 0 Consolidation |
+| GAP-PHASE1-SEC | Production Security & Tenant Isolation | Production fail-fast on missing/short AUTH_SECRET, universal resolveUserCompanyId tenant isolation, removal of companies[0] silent fallbacks, integration state machine (SAVED -> VERIFIED), and mandatory webhook signature checks | REAL | E5 (Verified) | P0 | Phase 1 Security |
+| GAP-PHASE1-DATA-TRUTH | Zero-Fabrication Data Truth & Authority | Strict client data authority boundaries on PUT /api/companies/:id/data, nullable ratings and dates without fake substitutions, no keyword default queries, strict revenue payment provider checks, and unified Growth Score calculation | REAL | E5 (Verified) | P0 | Phase 1 Data Truth |
+| GAP-PHASE3-PROVIDER-TRUTH | Universal Provider State & Verified Telemetry | 9-state universal provider model, honest Google OAuth lifecycle without fake verification, nullable review ratings/dates, review reply LOCAL_ONLY vs GOOGLE_PUBLISHED states, 422 LOCATION_NOT_RESOLVED on unknown cities, and competitor identity confidence scoring | REAL | E5 (Verified) | P0 | Phase 3 Provider Truth |
+| GAP-PHASE3-REAL-EXEC | Real Execution Only & Zero Fake Actions | Canonical publishing enforcement, disallowing PATCH status=published, real Meta & WhatsApp provider dispatch, deterministic intent scoring, autonomous action provider execution with no fake verified=true, and emergency kill switch | REAL | E5 (Verified) | P0 | Phase 3 Real Execution |
+| GAP-DB-FAIL-CLOSED | Database Fail-Closed | Production database errors trigger DATABASE_UNAVAILABLE (HTTP 503) without silent in-memory fallback | REAL | E5 (Verified) | P0 | Final Production Closure |
+| GAP-CRED-ENC | Provider Credential Encryption | Authenticated AES-256-GCM encryption at rest with IV and auth tag for all sensitive credentials | REAL | E5 (Verified) | P0 | Final Production Closure |
+| GAP-AUDIT-REMEDIATION | Audit Remediation Lifecycle | Backend-driven remediation state machine (OPEN -> FIX_REQUESTED -> REMEDIATION_EXECUTED / MANUAL_ACTION_REQUIRED -> RESOLVED) | REAL | E5 (Verified) | P0 | Final Production Closure |
+| GAP-AUTONOMOUS-SYNC | Autonomous UI/Backend Sync | Real backend-authoritative status polling and kill-switch activation with error reversion | REAL | E5 (Verified) | P0 | Final Production Closure |
+| GAP-PHASE8-FAIL-CLOSED | Complete Repository Fail-Closed | All 28 CRUD repository functions throw DATABASE_UNAVAILABLE/DATABASE_OPERATION_FAILED in production | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-CRED-ISOL | Tenant Provider Isolation | Zero fallback to global env credentials for Local SEO & Competitor radar scans | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-REVIEW-TRUTH | Manual Review Provenance | Null rating & null date preserved without fake 5★ or today substitutions; USER_ENTERED provenance | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-PHASE8-SCHEMA-INTEG | Checksum & Constraint Verification | SHA-256 migration checksum comparison against schema_migrations; 28 canonical table & index checks | REAL | E5 (Verified) | P0 | Phase 8 Source Truth |
+| GAP-P1-QUEUE | Durable Job Queue & Hostinger Cron | MySQL-backed persistent job queue with atomic lease locking, attempts tracking, dead-letter retry states, and external /api/scheduler/tick webhook ping | REAL | E5 (Verified) | P0 | Scaling Adaptation |
+| GAP-P1-CAMP-BIND | Campaign Execution Binding | Direct relational campaign_id binding on content_posts with multi-tenant isolation, indexed retrieval, and UI pipeline display | REAL | E5 (Verified) | P0 | Scaling Adaptation |
+| GAP-P2-E2E-SYNC | Frontend State & Pipeline Synchronization | Full end-to-end API synchronization for CRM lead stages (`updateLeadStageApi`), post publishing (`publishContentPostApi`), post & review deletions, keyword persistence, and sandbox-safe non-blocking feedback in Website Builder | REAL | E5 (Verified) | P0 | Platform Verification |
+

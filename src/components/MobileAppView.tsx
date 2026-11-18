@@ -58,7 +58,7 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
           LocalPulse AI Mobile Management Companion
         </h2>
         <p className="text-xs text-slate-500">
-          Optimized for on-the-go business owners with bottom navigation & instant Ask AI voice/chat.
+          Layout preview with decorative device indicators; this is not a running mobile device or live network/battery telemetry.
         </p>
       </div>
 

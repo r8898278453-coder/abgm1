@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "npm run db:check:sources && vite build && node --import tsx server/scripts/buildServer.ts",
+    "build": "node --import tsx server/scripts/buildRelease.ts",
     "start": "node dist/server.cjs",
     "db:migrate": "tsx server/scripts/dbMigrate.ts",
     "db:verify": "tsx server/scripts/dbVerify.ts",
@@ -75,7 +75,10 @@
     "frontend:check": "node --import tsx server/scripts/checkFrontendChunks.ts",
     "test:browser:features": "node --import tsx test/browser/lazyFeatures.test.ts",
     "test:browser:feature-group": "node --import tsx server/scripts/browserFeatureGroup.ts",
-    "test:browser:growth": "node --import tsx test/browser/growthOperations.test.ts"
+    "test:browser:growth": "node --import tsx test/browser/growthOperations.test.ts",
+    "docs:capabilities": "node --import tsx server/scripts/capabilityReport.ts",
+    "docs:capabilities:check": "node --import tsx server/scripts/capabilityReport.ts --check",
+    "release:prepare": "node --import tsx server/scripts/releasePackage.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

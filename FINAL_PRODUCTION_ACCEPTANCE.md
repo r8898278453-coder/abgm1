@@ -1,109 +1,13 @@
-# Final Production Acceptance Gate Report
+# Current project status and operations
 
-**Date & Time**: 2026-10-06  
-**Target Environment**: Production (React 19 + Vite Frontend, Node.js 22.x + Express Backend, MySQL Multi-Tenant Store)  
-**Verification Result**: 22/22 Test Suites Passed (100% Pass Rate, 0 Failures)
+19 November2026 IST. The previous contents of this document are historical and superseded. They do not establish production readiness, live provider access, completed tasks or deployment authorization.
 
----
+- [Current capability evidence](docs/implementation/CAPABILITIES.md): implemented scope, reviewed/off/unverified activation and remaining prerequisites.
+- [Original 93-task tracker](docs/implementation/STATUS.md) and [source tracker](docs/implementation/TASKS.csv).
+- [Current execution evidence](docs/implementation/EXECUTION.md).
+- [Review-only canary and rollback runbook](docs/implementation/CANARY_RUNBOOK.md).
+- [Preserved historical text](docs/history/FINAL_PRODUCTION_ACCEPTANCE.md).
 
-## 1. Executive Status
+Current source schema:053_calendar_plans/93 canonical tables; next054. Fixed IST (Asia/Kolkata). Billing excluded; rendering and exact external sales sending require their existing default-off gates. No current production acceptance is claimed. Shared-hosting branding is not proof of Node/worker/cron/render support.
 
-```
-============================================================
-CORE PLATFORM READY: YES
-FINAL_PRODUCTION_ACCEPTANCE = PASSED
-============================================================
-```
-
-The application has satisfied all mandatory acceptance gates under strict zero-fabrication, complete multi-tenant IDOR isolation, real provider verification, encrypted credentials at rest, fail-closed database mode, self-initializing versioned migrations, and canonical architecture rules.
-
----
-
-## 2. Core Capabilities Audit (14-Point Zero-Gap Verification)
-
-Every core capability was evaluated across all 14 mandatory dimensions:
-1. Implementation present? (`YES`)
-2. Exactly ONE canonical implementation? (`YES`)
-3. Database persistence correct? (`YES`)
-4. Tenant authorization correct? (`YES`)
-5. Provider integration real? (`YES`)
-6. Error handling present? (`YES`)
-7. Idempotency present where required? (`YES`)
-8. Data provenance present? (`YES`)
-9. UI consuming canonical backend? (`YES`)
-10. Automated tests present? (`YES`)
-11. End-to-end behavior verified? (`YES`)
-12. Blocking TODO/FIXME items? (`NO`)
-13. Demo/seed data isolated? (`YES`)
-14. Deployment compatible? (`YES`)
-
-### Capability Verification Matrix
-
-| Core Capability | Implementation Engine | Status | Canonical Execution Path |
-| :--- | :--- | :--- | :--- |
-| **Authentication & RBAC** | `server/auth.ts`, `server/db.ts` | `COMPLETE` | PBKDF2-SHA512 (210,000 iter), timingSafeEqual, JWT HMAC-SHA256, self-healing hash upgrade |
-| **Multi-Tenant CRM** | `server/db.ts`, `server.ts` | `COMPLETE` | Explicit `company_id` linking, lifecycle pipeline (`new` → `qualified` → `opportunity` → `won`), zero unlinked leads |
-| **Google Places & Reviews** | `server.ts`, `server/db.ts` | `COMPLETE` | Strict tenant-isolated credentials (zero global env fallback), honest review date/rating provenance (null when unprovided, USER_ENTERED status), unconfigured Places returns PROVIDER_NOT_CONFIGURED |
-| **Local SEO Geo-Radar (3x3)** | `server/localSeoProvider.ts` | `COMPLETE` | 9 real coordinate node scans, single provider resolution (DataForSEO/SerpAPI), strict LIVE/PARTIAL/FAILED state |
-| **Competitor Intelligence** | `server/competitorProvider.ts` | `COMPLETE` | Historical baseline snapshots, delta calculation (+15 reviews, +0.2 rating), zero synthetic volume |
-| **Content Publishing** | `server/publishingEngine.ts` | `COMPLETE` | `SCHEDULED → JOB → PROVIDER → PERSIST EXTERNAL ID → VERIFY → PUBLISHED`, mutex lock, failed returns `FAILED` |
-| **WhatsApp Cloud API** | `server/metaWhatsAppService.ts` | `COMPLETE` | HMAC-SHA256 signature verification, event deduplication, deterministic intent scoring engine |
-| **Meta Direct Publishing** | `server/metaWhatsAppService.ts` | `COMPLETE` | Facebook Page Graph API v21.0 & Instagram Business 2-step media container publishing |
-| **Growth Intelligence Engine** | `server/growthScoreEngine.ts` | `COMPLETE` | 1 canonical 8-pillar engine, zero defaults (`null ≠ 0`), explicit formulas, timestamped telemetry |
-| **AI Executive Summary** | `server/aiExecutiveSummary.ts` | `COMPLETE` | Grounded structured evidence builder (`evidenceId`, `status`, `source`), zero hallucinated growth |
-| **Revenue Attribution & ROI** | `server/revenueAttribution.ts` | `COMPLETE` | Explicit relationship: `lead` → `opportunity` → `deal` → `payment`, provider-verified receipts, `UNAVAILABLE` ROI when spend unconfigured |
-| **Autonomous Governance** | `server/autonomousEngine.ts` | `COMPLETE` | 8-stage execution gate, human authorization requirement for high-risk actions, global kill switch, immutable audit trail |
-| **Clean Tenant Isolation** | `server/db.ts`, `server/growthScoreEngine.ts` | `COMPLETE` | Clean workspace provisions 0 leads, 0 reviews, 0 invoices, 0 fake score; returns `UNAVAILABLE` |
-| **Encrypted Credentials** | `server/db.ts` | `COMPLETE` | Authenticated AES-256-GCM encryption at rest with IV and auth tag for all sensitive tokens/keys |
-| **Database Fail-Closed** | `server/db.ts` | `COMPLETE` | Universal fail-closed across all 16 domains (throws `DATABASE_UNAVAILABLE` 503 / `DATABASE_OPERATION_FAILED` 500 in production; zero in-memory fallback) |
-| **Hostinger Auto Migrations** | `server/migrator.ts` | `COMPLETE` | Distributed MySQL locking, schema_migrations ledger, automatic table creation on deploy, zero phpMyAdmin needed |
-
----
-
-## 3. Evidence & Verification Trail
-
-- **Automated Test Matrix**: 22 dedicated test suites executed in series via `npm test`:
-  1. `test/hostingerDatabaseMigration.test.ts`
-  2. `test/phase8SourceTruthAndFailClosed.test.ts`
-  3. `test/phase7FinalClosure.test.ts`
-  4. `test/phase5FrontendTruth.test.ts`
-  5. `test/phase3ProviderTruth.test.ts`
-  6. `test/dataTruthAndAuthority.test.ts`
-  7. `test/phase6ProductionReadiness.test.ts`
-  8. `test/phase5BusinessIntelligenceClosure.test.ts`
-  9. `test/phase4LocalBusinessIntelligence.test.ts`
-  10. `test/phase3RealExecution.test.ts`
-  11. `test/phase1SecurityHardening.test.ts`
-  12. `test/phase2DataTruth.test.ts`
-  13. `test/growthScoreEngine.test.ts`
-  14. `test/aiExecutiveSummary.test.ts`
-  15. `test/revenueAttribution.test.ts`
-  16. `test/billingRazorpay.test.ts`
-  17. `test/metaWhatsApp.test.ts`
-  18. `test/campaignTelemetrySeparation.test.ts`
-  19. `test/passwordResetEmail.test.ts`
-  20. `test/integrationsHub.test.ts`
-  21. `test/autonomousGovernance.test.ts`
-  22. `test/e2eUserJourneyAudit.test.ts`
-- **TypeScript Typecheck**: `npm run lint` (`tsc --noEmit`) → 0 errors.
-- **Production Build**: `compile_applet` (`vite build` + `esbuild`) → Succeeded.
-
----
-
-## 4. Security & Isolation Verification
-
-- **Hardcoded Secrets**: **0** (All credentials loaded from environment variables).
-- **IDOR Vulnerabilities**: **0** (Strict tenant authorization middleware and DB query scoping across all routes).
-- **Webhook Forgery**: **0** (HMAC-SHA256 signature verification enforced for Meta/WhatsApp and Razorpay).
-- **Replay / Race Conditions**: **0** (Deduplication IDs in `processed_webhook_events` and mutex locking on scheduled jobs).
-- **Credential Storage**: Authenticated AES-256-GCM encryption at rest.
-- **Database Availability**: Fail-closed in production mode (HTTP 503).
-
----
-
-## 5. Explicit Out-of-Scope Items
-
-As specified in project instructions:
-1. **Razorpay Payment Gateway Implementation / Live Settlement Testing**: Retained existing integration logic and signature verification tests; marked `OUT_OF_SCOPE` for live settlement.
-2. **SSL Certificate Automation**: Handled via edge infrastructure / CDN; marked `OUT_OF_SCOPE`.
-3. **Deployment Infrastructure Configuration**: Production-ready deployment instructions provided in `HOSTINGER_DEPLOYMENT.md`; marked `OUT_OF_SCOPE`.
+Useful local commands: `npm ci`, `npm run lint`, `npm test`, `npm run build`, `npm run docs:status`, `npm run docs:check`, `npm run docs:capabilities`, `npm run docs:capabilities:check`, `npm run frontend:check`. `db:status`, `db:verify` and `deploy:validate` inspect the configured database; run only against the intended authorized environment. They do not authorize `db:migrate`, a restore, provider sends or deployment.

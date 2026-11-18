@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';
+const banned:Record<string,string[]>={
+ 'src/components/GoogleProfileView.tsx':['92 / 100','45 / 100','Save & Push to Google','Rewriting with Gemini','verified support, and fast turnaround'],
+ 'src/components/IntegrationsView.tsx':['Email Delivered Successfully','Live test verification email dispatched successfully!','syncedCampaignsCount ?? 0'],
+ 'src/components/ResetSystemModal.tsx':['Backup restored successfully!'],
+ 'src/components/ContentStudioView.tsx':['Brand Kit settings & colors saved successfully!'],
+ 'src/components/DashboardView.tsx':['100% response velocity'],
+ 'server.ts':['Live Email Dispatch Verified','Status: Verified & Operational']
+};for(const[file,patterns]of Object.entries(banned))for(const pattern of patterns)assert.ok(!fs.readFileSync(file,'utf8').includes(pattern),file+' retains unsupported claim');for(const file of ['FINAL_FEATURE_MATRIX.md','FINAL_PRODUCTION_ACCEPTANCE.md','FINAL_E2E_ACCEPTANCE_REPORT.md','PRODUCTION_READINESS_REPORT.md','CODEBASE_MAP.md','DEPLOYMENT.md','HOSTINGER_DEPLOYMENT.md','DATABASE.md','MIGRATIONS.md']){const current=fs.readFileSync(file,'utf8');assert.match(current,/superseded/);assert.match(current,/CAPABILITIES.md/);assert.ok(fs.existsSync('docs/history/'+file));}const reset=fs.readFileSync('src/components/ResetSystemModal.tsx','utf8');assert.match(reset,/if\(isLiveMode.*Live database restore/);assert.match(reset,/if\(isLiveMode.*Live database reset/);const origin=fs.readFileSync('server.ts','utf8');assert.match(origin,/publicLeadPath\(req.path\)\?publicLeadCors/);assert.match(fs.readFileSync('server/storefrontInquiryScript.ts','utf8'),/credentials:'omit'/);console.log('Truth audit: known fabricated score/OAuth/AI/push/email/restore claims removed, live preview reset/import blocked, historical acceptance superseded and public intake credentials separated.');

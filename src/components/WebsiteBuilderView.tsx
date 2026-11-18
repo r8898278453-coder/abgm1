@@ -971,7 +971,7 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderViewProps> = ({ business
               {exportSuccess && (
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-200">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Static zip bundle downloaded successfully! Ready to deploy.</span>
+                  <span>Static bundle prepared for download. Hosting, API origin, approved domain and TLS still need verification.</span>
                 </div>
               )}
             </div>
