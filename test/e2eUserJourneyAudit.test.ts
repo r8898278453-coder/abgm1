@@ -438,10 +438,10 @@ async function runE2EWalkthrough() {
 
   assert.strictEqual(attribution.totalLeads, 2);
   assert.strictEqual(attribution.wonLeads, 1);
-  assert.strictEqual(attribution.totalRevenue, 4236.44);
-  assert.strictEqual(attribution.revenueBySource.Google.revenue, 4236.44);
-  assert.strictEqual(attribution.attributionStatus, 'VERIFIED');
-  assert.ok(typeof attribution.overallRoi === 'number' && attribution.overallRoi > 100);
+  assert.strictEqual(attribution.totalRevenue, 0);
+  assert.strictEqual(attribution.revenueBySource.Google.revenue, 0);
+  assert.strictEqual(attribution.attributionStatus, 'CALCULATED');
+  assert.strictEqual(attribution.overallRoi,'UNAVAILABLE');
 
   // Recalculate Final Growth Score
   const freshCompany = await getCompanyById(company.id);

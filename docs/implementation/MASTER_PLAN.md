@@ -1,5 +1,11 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Current truth correction: historical notes that treated a plausible invoice/payment ID as verified customer revenue, or campaign budget as spend, are superseded by SOURCE_OUTCOME_TRUTH.md. Verified customer revenue/spend/ROI remain unavailable until authoritative evidence contracts exist.
+
+Source/outcome verification —18 November2026 IST:135 credential-isolated regression programs,27/27 serial browser workflows and complete disposable native MariaDB suite passed. Recorded first/last ambiguity, opportunity revisions, declared cost integrity/voids,5001-row history withholding and private HTTP/CSV/current-client fences verified. TypeScript/build,248 route declarations/48 registrations and frontend583058 raw/168878 gzip bytes pass existing guards. Schema052/90 unchanged; next053. Tracker28 validated/34 in progress/30 planned/1 blocked; no parent/phase/live promotion. See SOURCE_OUTCOME_TRUTH.md and evidence/source-outcome-truth.json. Billing/provider sends/deployment unchanged.
+
+Source/outcome truth group —18 November2026 IST:24 connected slices repair budget-as-spend, invoice-label verification, tenant/source/lifecycle and campaign wire/badge errors; add read-only known-interaction source models, current opportunity revisions and exact separate declared currency totals. Schema052/90 unchanged; next053. P08-05/P01-05/P01-09 remain in progress; no phase/live promotion. See SOURCE_OUTCOME_TRUTH.md, SOURCE_OUTCOME_BATCHES.csv and evidence/source-outcome-truth.json. Billing and provider sends unchanged.
+
 Client report portal verification —18 November2026 IST:26 functional slices;134 isolated regression programs,26/26 serial browser workflows plus exact-content recovery recheck, native MariaDB fresh/upgrade/index/width/CAS/privacy/recovery matrix passed. Forward052/90; frozen V4 unchanged; next053. P09-05 optional approved-report scope locally validated;28 validated/34 in progress/30 planned/1 blocked. Sharing is off. Full daily reconciliation, external content approvals, providers and phase/hosting/live gates remain open. Evidence: CLIENT_REPORT_PORTAL.md and evidence/client-report-portal.json. No deployment or real sends/spend.
 
 Client report portal group (18 November2026 IST):26 connected functional slices add source-bound drafts, private-note redaction, exact-version approvals, encrypted expiring/revocable share links, anonymous mobile reports and key/hash-based recovery. Forward052/90; frozen V4 unchanged; next053. Sharing remains off. See [CLIENT_REPORT_PORTAL.md](CLIENT_REPORT_PORTAL.md), CLIENT_REPORT_BATCHES.csv and evidence/client-report-portal.json. Local approved-report acceptance is validated; phase/live gates remain open.
@@ -75,7 +81,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.50 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.51 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

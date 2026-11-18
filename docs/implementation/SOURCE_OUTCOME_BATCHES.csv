@@ -1,0 +1,25 @@
+slice,scope,parents,state
+A01,Campaign budget removed from spend input,P08-05;P01-05;P01-09,local_verified
+A02,Plausible invoice/payment-ID verification removed,P08-05;P01-05;P01-09,local_verified
+A03,Subscription invoice data excluded from CRM endpoints,P08-05;P01-05;P01-09,local_verified
+A04,Exact source aliases and ambiguous-label Unknown,P08-05;P01-05;P01-09,local_verified
+A05,Strict scoped lead identity and duplicate exclusion,P08-05;P01-05;P01-09,local_verified
+A06,Canonical contacted/proposal/quotation lifecycle,P08-05;P01-05;P01-09,local_verified
+A07,Two existing GET URLs share scoped reader,P08-05;P01-05;P01-09,local_verified
+A08,Database failure stays unavailable; no empty fallback,P08-05;P01-05;P01-09,local_verified
+A09,Bounded metadata-only legacy SQL/deadline,P08-05;P01-05;P01-09,local_verified
+A10,Typed client/server legacy wire agreement,P08-05;P01-05;P01-09,local_verified
+A11,Recorded won counts and honest campaign badges,P08-05;P01-05;P01-09,local_verified
+A12,Hypothetical calculator separated from evidence,P08-05;P01-05;P01-09,local_verified
+A13,Read-only source/outcome snapshot from existing stores,P08-05;P01-05;P01-09,local_verified
+A14,Fresh SQL actor/client read authority,P08-05;P01-05;P01-09,local_verified
+A15,Timed inquiry and inbound first/last boundaries,P08-05;P01-05;P01-09,local_verified
+A16,Current declared source kept separate from acquisition,P08-05;P01-05;P01-09,local_verified
+A17,Same-time conflicting sources stay ambiguous,P08-05;P01-05;P01-09,local_verified
+A18,Null/unlinked/orphan/future/outbound evidence rules,P08-05;P01-05;P01-09,local_verified
+A19,History limits withhold unsupported first/last attribution,P08-05;P01-05;P01-09,local_verified
+A20,Current opportunity version and outcome state,P08-05;P01-05;P01-09,local_verified
+A21,Exact currency-separated manual won amounts,P08-05;P01-05;P01-09,local_verified
+A22,Canonical declared cost hash/void validation,P08-05;P01-05;P01-09,local_verified
+A23,Unallocated cost and unavailable verified ROI,P08-05;P01-05;P01-09,local_verified
+A24,Demand-loaded mobile/session/client-safe validated report and CSV,P08-05;P01-05;P01-09,local_verified

@@ -1,3 +1,4 @@
+import {registerRevenueAttributionRoutes} from './server/revenueAttributionRoutes';
 import {registerClientReportRoutes} from './server/clientReportRoutes';
 import {registerGrowthOperations} from './server/growthOperationRoutes';
 import {registerProspectImportHistory,readProspectImportHistory,readProspectImport} from './server/prospectImportHistory';
@@ -228,10 +229,7 @@ import {
   ExecutiveSummaryResult,
 } from './server/aiExecutiveSummary';
 import {
-  calculateRevenueAttribution,
-  normalizeSource,
-  isProviderVerifiedPayment,
-  SUPPORTED_SOURCES,
+  readAttributionLeads,
 } from './server/revenueAttribution';
 import {
   verifyRazorpayWebhookSignature,
@@ -823,113 +821,7 @@ app.get('/api/companies/:id/ai/executive-summary', async (req, res) => {
 
 // ==================== REVENUE ATTRIBUTION & LIFECYCLE ENGINE ==================== //
 
-// GET /api/companies/:id/revenue-attribution - Real provider-verified revenue attribution
-app.get('/api/companies/:id/revenue-attribution', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company workspace not found' });
-      return;
-    }
-
-    // Strict Tenant Isolation: Only owner or platform_admin can access
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    // Fetch verified CRM leads and provider-verified invoices for this isolated tenant
-    const [leads, invoices, payload] = await Promise.all([
-      getAllLeads(id).catch(() => []),
-      getInvoicesByCompany(id).catch(() => []),
-      getCompanyDataPayload(id).catch(() => null),
-    ]);
-
-    // Extract optional verified marketing cost/spend data if available in company payload
-    const campaigns = (payload as any)?.campaigns || [];
-    const costBySource: Partial<Record<string, number | null>> = {};
-    let totalCost: number | null = null;
-
-    if (campaigns.length > 0) {
-      let sumBudget = 0;
-      let hasValidBudget = false;
-      for (const camp of campaigns) {
-        if (typeof camp.budget === 'number' && camp.budget > 0) {
-          sumBudget += camp.budget;
-          hasValidBudget = true;
-          if (camp.channels && Array.isArray(camp.channels)) {
-            for (const ch of camp.channels) {
-              const normSrc = normalizeSource(ch);
-              costBySource[normSrc] = (costBySource[normSrc] || 0) + (camp.budget / camp.channels.length);
-            }
-          }
-        }
-      }
-      if (hasValidBudget) {
-        totalCost = sumBudget;
-      }
-    }
-
-    const attribution = calculateRevenueAttribution({
-      companyId: id,
-      leads,
-      invoices,
-      costBySource: costBySource as any,
-      totalCost,
-    });
-
-    res.json({
-      success: true,
-      attribution,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// GET /api/revenue-attribution - Retrieve attribution for current user's company
-app.get('/api/revenue-attribution', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const targetCompanyId = (req.query.companyId || req.query.company_id) as string | undefined;
-    const resolved = await resolveUserCompanyId(user, targetCompanyId);
-    if (!resolved.companyId) {
-      res.status(resolved.status).json({ success: false, error: resolved.error });
-      return;
-    }
-    const effectiveCompanyId = resolved.companyId;
-
-    const [leads, invoices] = await Promise.all([
-      getAllLeads(effectiveCompanyId).catch(() => []),
-      getInvoicesByCompany(effectiveCompanyId).catch(() => []),
-    ]);
-
-    const attribution = calculateRevenueAttribution({
-      companyId: effectiveCompanyId,
-      leads,
-      invoices,
-    });
-
-    res.json({
-      success: true,
-      attribution,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerRevenueAttributionRoutes(app,{auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,access:async(user,company)=>{const pool=await getDbPool();if(!pool)throw new Error('Storage unavailable');return agencyClientAccess(pool,user,company,'read');},leads:async(company)=>{const pool=await getDbPool();if(!pool)throw new Error('Storage unavailable');return readAttributionLeads(pool,company);}});
 
 // ==================== COMPANY BRAND ASSETS APIS ==================== //
 

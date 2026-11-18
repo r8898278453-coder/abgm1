@@ -1,0 +1,76 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "ca77a76869f7c817f2c4e329bc935c3d27f69ca4",
+  "schema": "052_client_reports",
+  "canonicalTables": 90,
+  "nextMigration": "053",
+  "sqlMigrationAdded": false,
+  "frozenReportCoverage": 4,
+  "functionalSlices": 24,
+  "parentPromotions": [],
+  "verification": "passed_local",
+  "productionWrites": false,
+  "billingFlowChanges": false,
+  "providerSends": false,
+  "deployment": false,
+  "tracker": {
+    "validated": 28,
+    "in_progress": 34,
+    "planned": 30,
+    "blocked": 1,
+    "total": 93
+  },
+  "tests": {
+    "defaultRegressionPrograms": 135,
+    "defaultRegression": "passed; inherited production credentials excluded",
+    "browserRegistryPrograms": 27,
+    "completeSerialBrowserGroup": "27/27 passed",
+    "targetedSourceCampaignSalesBrowser": "3/3 passed before full matrix",
+    "nativeSQL": "complete disposable MariaDB10.11.19 suite passed through052/90; source/outcome restricted-user fixture included",
+    "nativeCases": [
+      "current-client SQL authority and assignment revocation",
+      "metadata-only privacy; no names/contacts/messages/provider refs/cost notes",
+      "timed inquiry/inbound first/last and equal-time ambiguity",
+      "canonical current opportunity revision/manual amount",
+      "active declared currency costs; void exclusion",
+      "outbound/future/unlinked/orphan records",
+      "corrupt saved opportunity evidence refused",
+      "strict private GET/no query overrides/no-store",
+      "5001-row history suppresses first/last models",
+      "zero customer/provider dispatch intents"
+    ],
+    "uploadedExportRestore": "prior ca77a76 checkpoint preserved through052/90; not repeated because no schema migration was introduced",
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "routeDeclarations": 248,
+    "routeRegistrations": 48,
+    "routeCollisions": 0,
+    "frontend": {
+      "initialJsBytes": 583058,
+      "initialJsGzipBytes": 168878,
+      "rawBudget": 600000,
+      "gzipBudget": 180000,
+      "normalAppClosureIncluded": true
+    }
+  },
+  "truthRepairs": [
+    "Campaign budgets are not marketing spend",
+    "Invoice status/payment identifiers are not customer-payment verification",
+    "Subscription invoice amounts are not client customer revenue",
+    "Unknown source strings are not classified by substring or plan/payment labels",
+    "Missing/foreign tenant records and duplicate lead identity do not inflate lifecycle counts",
+    "Contacted is not an opportunity; proposal/quotation aligned",
+    "Read failures do not masquerade as empty success",
+    "Campaign consumer uses actual sourcesList/qualifiedLeads/won fields and unavailable financial labels"
+  ],
+  "remaining": [
+    "Authoritative customer payment/refund/reversal evidence",
+    "Verified provider spend and currency/time-window matching",
+    "Immutable released source/outcome history",
+    "Explicit source/campaign cost allocation",
+    "Verified ROI",
+    "Full P01-05/P01-09/P08-05 and phase acceptance",
+    "Actual hosting/runtime/cron/backup and production release gates"
+  ],
+  "hostingToolDiscovery": "18 November2026 IST: active tool catalog contains zero Hostinger account operation tools; actual runtime/cron/backup prerequisite remains blocked"
+}

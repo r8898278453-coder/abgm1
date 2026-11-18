@@ -546,6 +546,11 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/source-outcomes",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/sales/workflow-enrollments",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
@@ -943,7 +948,7 @@
     {
       "method": "GET",
       "path": "/api/companies/:id/revenue-attribution",
-      "owner": "server.ts"
+      "owner": "server/revenueAttributionRoutes.ts#registerRevenueAttributionRoutes"
     },
     {
       "method": "GET",
@@ -1158,7 +1163,7 @@
     {
       "method": "GET",
       "path": "/api/revenue-attribution",
-      "owner": "server.ts"
+      "owner": "server/revenueAttributionRoutes.ts#registerRevenueAttributionRoutes"
     },
     {
       "method": "GET",
@@ -1241,5 +1246,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 47
+  "registrationCount": 48
 }

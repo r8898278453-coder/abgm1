@@ -277,7 +277,8 @@ async function runDataTruthAndAuthorityTests() {
   });
 
   assert.strictEqual(unverifiedAttribution.totalRevenue, 0, 'Total verified revenue must be 0 for unverified payments');
-  assert.strictEqual(unverifiedAttribution.unverifiedRevenueIgnored, 15000, 'Unverified invoice amount tracked in unverifiedRevenueIgnored');
+  assert.strictEqual(unverifiedAttribution.unverifiedRevenueIgnored, 0, 'Platform invoice amounts are not client sales metrics');
+  assert.strictEqual(unverifiedAttribution.unverifiedInvoicesCount, 1, 'Unsupported invoice is explicitly counted as unverified');
   console.log('  ✅ Test 11 Passed: Manual/simulated invoices are excluded from verified revenue attribution.\n');
 
   // =========================================================================

@@ -409,26 +409,15 @@ async function runPhase5AcceptanceTests() {
   assert.ok(unrepliedIssue?.evidence.includes('1 of 5 reviews marked replied = false'));
   console.log('  ✅ 3.3 Audit Engine: Pinpoints exact unreplied review without generating false claims.');
 
-  // 3.4 Revenue Attribution & Real ROI Calculation
-  const actualSpend = 30000; // Actual verified marketing spend
-  const fullAttribution = calculateRevenueAttribution({
-    companyId: 'comp_full_03',
-    leads: fullLeads,
-    invoices: fullInvoices,
-    totalCost: actualSpend,
-    costBySource: { Google: 20000, WhatsApp: 10000 },
-  });
-
-  assert.strictEqual(fullAttribution.totalRevenue, 230000, '150k + 80k = 230k verified revenue');
-  assert.strictEqual(fullAttribution.totalSpend, 30000, 'Spend = 30,000');
-  assert.strictEqual(fullAttribution.revenueBySource.Google.revenue, 150000, 'Google attributed via explicit lead_id');
-  assert.strictEqual(fullAttribution.revenueBySource.WhatsApp.revenue, 80000, 'WhatsApp attributed via explicit lead_id');
-
-  // ROI = ((230,000 - 30,000) / 30,000) * 100 = (200,000 / 30,000) * 100 = 666.67%
-  const expectedRoi = 666.67;
-  assert.strictEqual(fullAttribution.overallRoi, expectedRoi, 'Overall ROI calculated mathematically');
-  assert.strictEqual(fullAttribution.attributionStatus, 'VERIFIED');
-  console.log(`  ✅ 3.4 Revenue Attribution: Verified ₹2,30,000 revenue with exact explicit lead_id attribution and ${fullAttribution.overallRoi}% ROI.`);
+  // 3.4 Customer revenue/spend evidence must be independent of invoice labels and budgets.
+  const fullAttribution = calculateRevenueAttribution({companyId:'comp_full_03',leads:fullLeads,invoices:fullInvoices,totalCost:30000,costBySource:{Google:20000,WhatsApp:10000}});
+  assert.strictEqual(fullAttribution.totalRevenue,0,'Invoice labels do not prove customer revenue');
+  assert.strictEqual(fullAttribution.totalSpend,null,'Scalar cost claims have no verified spend evidence');
+  assert.strictEqual(fullAttribution.revenueBySource.Google.revenue,0);
+  assert.strictEqual(fullAttribution.revenueBySource.WhatsApp.revenue,0);
+  assert.strictEqual(fullAttribution.overallRoi,'UNAVAILABLE');
+  assert.strictEqual(fullAttribution.attributionStatus,'CALCULATED');
+  console.log('  Customer attribution: saved CRM counts remain calculated; payment/spend/ROI claims remain unavailable.');
 
   console.log('\n=========================================================================');
   console.log('🎉 ALL PHASE 5 BUSINESS INTELLIGENCE CLOSURE TESTS PASSED PERFECTLY!');

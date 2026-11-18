@@ -1,3 +1,4 @@
+import {validateRevenueAttributionView} from '../../shared/revenueAttributionView';
 import {notifyFeatureSessionChanged,USER_SESSION_KEY,ACTIVE_COMPANY_STORAGE_KEY} from './featureSession';
 import {sessionTransport,storedSessionToken,CSRF_KEY} from './sessionTransport';
 import {validWorkspaceRevision} from '../../shared/workspaceRevision';
@@ -1257,32 +1258,7 @@ export interface WebsiteConfigRecord {
   pages_json?: string;
 }
 
-export interface RevenueAttributionResult {
-  companyId: string;
-  totalLeads: number;
-  qualifiedLeads: number;
-  opportunityLeads: number;
-  dealLeads: number;
-  customerCount: number;
-  conversionRate: number;
-  totalRevenue: number;
-  currency: string;
-  roi: number | 'UNAVAILABLE';
-  sources: Array<{
-    source: string;
-    leads: number;
-    qualified: number;
-    opportunities: number;
-    deals: number;
-    customers: number;
-    revenue: number;
-    conversionRate: number;
-    cost: number | null;
-    roi: number | 'UNAVAILABLE';
-    status: string;
-  }>;
-  calculatedAt: string;
-}
+export type RevenueAttributionResult=import('../../shared/revenueAttributionView').RevenueAttributionSummary;
 
 export async function fetchRevenueAttributionApi(companyId?: string): Promise<RevenueAttributionResult | null> {
   try {
@@ -1290,9 +1266,9 @@ export async function fetchRevenueAttributionApi(companyId?: string): Promise<Re
       ? `/api/companies/${encodeURIComponent(companyId)}/revenue-attribution`
       : '/api/revenue-attribution';
     const res = await apiRequest<{ success: boolean; attribution: RevenueAttributionResult }>(url);
-    return res.attribution || null;
+    if(res.success!==true)throw new Error('Attribution unavailable');return validateRevenueAttributionView(res.attribution,companyId);
   } catch (err) {
-    console.warn('Failed to fetch revenue attribution:', err);
+    console.warn('Revenue attribution unavailable.');
     return null;
   }
 }

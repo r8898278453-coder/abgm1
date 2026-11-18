@@ -398,7 +398,7 @@ async function runProductionReadinessMatrix() {
     status: 'Paid',
   });
 
-  assert.strictEqual(isProviderVerifiedPayment(paidInvoice), true, 'Invoice has provider-verified payment ID');
+  assert.strictEqual(isProviderVerifiedPayment(paidInvoice), false, 'Payment ID labels do not establish customer payment verification');
 
   const attribution = calculateRevenueAttribution({
     companyId: tenantAId,
@@ -408,12 +408,12 @@ async function runProductionReadinessMatrix() {
     costBySource: { WhatsApp: 20000 },
   });
 
-  assert.strictEqual(attribution.totalRevenue, 120000);
-  assert.strictEqual(attribution.revenueBySource.WhatsApp.revenue, 120000, 'Revenue attributed directly to WhatsApp via explicit lead_id');
-  // ROI = ((120,000 - 20,000) / 20,000) * 100 = 500%
-  assert.strictEqual(attribution.overallRoi, 500);
-  assert.strictEqual(attribution.attributionStatus, 'VERIFIED');
-  console.log('  ✅ Revenue Attribution: Explicit lead-to-payment lifecycle revenue and 500% ROI verified.');
+  assert.strictEqual(attribution.totalRevenue, 0);
+  assert.strictEqual(attribution.revenueBySource.WhatsApp.revenue, 0, 'Lead links do not verify invoice claims');
+  // Declared cost scalars and invoice claims cannot establish verified ROI.
+  assert.strictEqual(attribution.overallRoi, 'UNAVAILABLE');
+  assert.strictEqual(attribution.attributionStatus, 'CALCULATED');
+  console.log('  ✅ Revenue Attribution: Recorded CRM lifecycle; unsupported invoice/spend claims excluded.');
 
   // =========================================================================
   // 10. AUTONOMOUS GOVERNANCE & SAFETY MATRIX: Recommend, Approve, Kill Switch

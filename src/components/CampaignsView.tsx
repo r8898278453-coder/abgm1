@@ -656,10 +656,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Calculator className="w-5 h-5 text-indigo-600" />
-                  Business ROI & Revenue Attribution Model
+                  Hypothetical return calculator
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Simulate return on ad spend and calculate customer acquisition cost (CAC) based on custom or observed performance.
+                  Enter scenario assumptions to explore return on ad spend and customer acquisition cost. These values are not saved or verified client performance.
                 </p>
               </div>
               <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl self-start sm:self-auto">
@@ -741,19 +741,19 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Compass className="w-4 h-4 text-indigo-600" />
-                  Verified Multi-Touch Attribution Journey Tracking
+                  Recorded CRM source and outcome counts
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   CRM lifecycle tracking across Google, WhatsApp, Website, Social, and Telegram channels.
                 </p>
               </div>
               <DataStatusBadge
-                status={attributionData?.totalRevenue ? 'VERIFIED' : 'CALCULATED'}
-                label={attributionData?.totalRevenue ? 'VERIFIED LEDGER' : 'CALCULATED PIPELINE'}
+                status={attributionData?.totalLeads ? 'CALCULATED' : 'UNAVAILABLE'}
+                label={attributionData?.totalLeads ? 'RECORDED PIPELINE' : 'ATTRIBUTION UNAVAILABLE'}
               />
             </div>
 
-            {attributionData?.sources && attributionData.sources.length > 0 ? (
+            {attributionData?.sourcesList && attributionData.sourcesList.some(source=>source.leads>0) ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
@@ -763,12 +763,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                       <th className="px-4 py-3">Inquiries</th>
                       <th className="px-4 py-3">Qualified</th>
                       <th className="px-4 py-3">Won Deals</th>
-                      <th className="px-4 py-3">Conversion</th>
-                      <th className="px-4 py-3 rounded-r-xl">Attributed Revenue</th>
+                      <th className="px-4 py-3">Recorded win rate</th>
+                      <th className="px-4 py-3 rounded-r-xl">Verified customer revenue</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {attributionData.sources.map((src, sIdx) => (
+                    {attributionData.sourcesList.filter(source=>source.leads>0).map((src, sIdx) => (
                       <tr key={sIdx} className="hover:bg-slate-50/60 transition">
                         <td className="px-4 py-3 font-bold text-slate-900 flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${
@@ -783,11 +783,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                           <DataStatusBadge status={src.status} />
                         </td>
                         <td className="px-4 py-3">{src.leads} leads</td>
-                        <td className="px-4 py-3">{src.qualified}</td>
-                        <td className="px-4 py-3 font-bold text-emerald-600">{src.customers} won</td>
-                        <td className="px-4 py-3 font-semibold text-indigo-600">{src.conversionRate}%</td>
+                        <td className="px-4 py-3">{src.qualifiedLeads}</td>
+                        <td className="px-4 py-3 font-bold text-emerald-600">{src.won} recorded won</td>
+                        <td className="px-4 py-3 font-semibold text-indigo-600">{src.leads ? ((src.won/src.leads)*100).toFixed(2) : '0.00'}%</td>
                         <td className="px-4 py-3 font-black text-slate-900">
-                          {src.revenue > 0 ? `₹${src.revenue.toLocaleString()}` : '₹0'}
+                          Unavailable
                         </td>
                       </tr>
                     ))}
@@ -797,9 +797,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             ) : (
               <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
                 <Compass className="w-8 h-8 text-slate-300 mx-auto" />
-                <div className="text-xs font-bold text-slate-800">No Multi-Touch Inquiries Recorded</div>
+                <div className="text-xs font-bold text-slate-800">No recorded CRM source counts available</div>
                 <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                  Inbound leads from Google Maps, WhatsApp, and Website forms will automatically be mapped here to compute closed revenue attribution.
+                  Saved lead declarations can describe a pipeline. Invoices, campaign budgets and manual deal values do not prove customer revenue or ROI.
                 </p>
               </div>
             )}
