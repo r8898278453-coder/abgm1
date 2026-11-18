@@ -2,8 +2,8 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 45,
-    "in_progress": 21,
+    "validated": 49,
+    "in_progress": 17,
     "planned": 26,
     "blocked": 1
   },
@@ -696,14 +696,14 @@
       "id": "P06-02",
       "phase": "P06",
       "title": "Implement durable batched webhook intake and event replay",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "All entries processed; signature/dedupe/out-of-order/crash tests; failed persistence never marked processed"
     },
     {
       "id": "P06-03",
       "phase": "P06",
       "title": "Implement message dispatch and real delivery states",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Accepted not delivered; correct receipts advance state; ambiguous timeout reconciles; tenant identity required"
     },
     {
@@ -717,7 +717,7 @@
       "id": "P06-05",
       "phase": "P06",
       "title": "Implement contact permission suppression and sending eligibility",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Opt-out stored before next dispatch; template/window/quiet caps enforced; imported contact does not imply consent"
     },
     {
@@ -759,7 +759,7 @@
       "id": "P07-03",
       "phase": "P07",
       "title": "Execute workflow steps through existing queue and policy",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "No second scheduler/send path; quiet hours/timezones/caps/retries; stale approval/version prevents dispatch"
     },
     {

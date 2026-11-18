@@ -1,3 +1,4 @@
+import {receiptCorrelation} from '../shared/dispatchCorrelation';
 import {parseWhatsAppTimestamp,type VerifiedWhatsAppEvent} from '../shared/whatsAppEvents';
 import express,{type Express,type Request,type RequestHandler} from 'express';
 import {createHmac,timingSafeEqual} from 'node:crypto';
@@ -28,7 +29,7 @@ export function registerWhatsAppWebhook(app:Express,deps:{secret:()=>string|unde
       const phone=value.metadata?.phone_number_id;if((statuses.length||messages.length)&&(typeof phone!=='string'||!/^\d{1,64}$/.test(phone)))throw new Error();
       for(const status of statuses){
        if(!['sent','delivered','read','failed'].includes(status?.status)){ignored++;continue;}
-       const input=receiptInput.parse({phoneNumberId:phone,providerId:status.id,status:status.status,occurredAtMs:parseWhatsAppTimestamp(status.timestamp),...(status.errors?.[0]?.code!==undefined?{errorCode:status.errors[0].code}:{})});
+       const correlation=receiptCorrelation.safeParse({proof:status.biz_opaque_callback_data,recipient:status.recipient_id});const input=receiptInput.parse({...(correlation.success?{correlation:correlation.data}:{}),phoneNumberId:phone,providerId:status.id,status:status.status,occurredAtMs:parseWhatsAppTimestamp(status.timestamp),...(status.errors?.[0]?.code!==undefined?{errorCode:status.errors[0].code}:{})});
        if(input.occurredAtMs>Date.now()+300000)throw new Error();work.push({phone,waba:entry.id,receipt:input});
       }
       for(const message of messages){

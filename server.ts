@@ -2582,7 +2582,8 @@ app.post('/api/whatsapp/send', validateBody(whatsappSendSchema), async (req, res
     // Call official Meta Graph API v21.0
     const dispatchPool=await getDbPool();if(!dispatchPool)throw new Error('Durable dispatch store unavailable');
     const dispatchInput={sender:creds.phoneNumberId,to:cleanTo,message,templateName,languageCode,components,templateParams,mediaType,mediaUrl,caption};
-    const waRes = await dispatchMessageIntent(dispatchPool,effectiveCompanyId,req.body.requestKey,dispatchInput,()=>sendWhatsAppCloudMessage(creds, {
+    const waRes = await dispatchMessageIntent(dispatchPool,effectiveCompanyId,req.body.requestKey,dispatchInput,(correlation)=>sendWhatsAppCloudMessage(creds, {
+      opaqueCallbackData:correlation?.opaqueCallbackData,
       to: cleanTo,
       message,
       templateName,
@@ -2661,7 +2662,7 @@ app.post('/api/whatsapp/broadcast', validateBody(whatsappBroadcastSchema), async
     const outcome=await runWhatsAppBroadcast(recipients,(phone,recipientName)=>{
       const input={sender:creds.phoneNumberId,to:phone,message,templateName,languageCode,templateParams:templateParams||(recipientName?[recipientName]:undefined),mediaType,mediaUrl};
       const key=createHash('sha256').update(`wa-broadcast:${req.body.requestKey}:${phone}`).digest('hex');
-      return dispatchMessageIntent(dispatchPool,effectiveCompanyId,key,input,()=>sendWhatsAppCloudMessage(creds,{...input,companyId:effectiveCompanyId}),user.id);
+      return dispatchMessageIntent(dispatchPool,effectiveCompanyId,key,input,(correlation)=>sendWhatsAppCloudMessage(creds,{...input,opaqueCallbackData:correlation?.opaqueCallbackData,companyId:effectiveCompanyId}),user.id);
     });
     res.json({...outcome,requestKey:req.body.requestKey,campaignName:campaignName||'WhatsApp campaign',configured:true});
 

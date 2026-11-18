@@ -1,3 +1,4 @@
+import {dispatchProof} from '../shared/dispatchCorrelation';
 import {salesSendEligibility} from './salesWorkspace';
 import {getDbPool} from './db';
 import {resolveWhatsAppTenant} from './whatsAppTenant';
@@ -29,6 +30,7 @@ export interface MetaSocialCredentials {
 }
 
 export interface WhatsAppSendOptions {
+  opaqueCallbackData?: string;
   automatic?: boolean;
   to: string;
   message?: string;
@@ -468,6 +470,7 @@ export async function sendWhatsAppCloudMessage(
     recipient_type: 'individual',
     to: cleanTo,
   };
+  if(options.opaqueCallbackData!==undefined){if(!dispatchProof.safeParse(options.opaqueCallbackData).success)return{success:false,status:'REJECTED',error:'Invalid internal dispatch correlation'};payload.biz_opaque_callback_data=options.opaqueCallbackData;}
 
   if (mediaType && mediaUrl) {
     payload.type = mediaType;

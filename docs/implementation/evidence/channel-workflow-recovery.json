@@ -1,0 +1,75 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "channel-workflow-recovery",
+  "originalTasksValidated": [
+    "P06-02",
+    "P06-03",
+    "P06-05",
+    "P07-03"
+  ],
+  "originalAcceptanceChanged": false,
+  "tracker": {
+    "validated": 49,
+    "in_progress": 17,
+    "planned": 26,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "target": "053_calendar_plans",
+    "canonicalTables": 93,
+    "newMigration": false,
+    "next": 54,
+    "frozenReportV4Changed": false
+  },
+  "scope": "Local supported WhatsApp and shared queue; not production acceptance",
+  "tests": {
+    "defaultPrograms": 150,
+    "targetedBrowserFixtures": [
+      "workspaceIsolation",
+      "salesWorkspace",
+      "salesWorkflows",
+      "approvedSalesMessages",
+      "salesInquiryRules"
+    ],
+    "sql": "Complete disposable MariaDB10.11.19 suite; signed local HTTP and intercepted official Meta fetch",
+    "typecheck": true,
+    "build": true,
+    "routeDeclarations": 277,
+    "routeRegistrations": 51,
+    "frontend": {
+      "initialJsBytes": 587555,
+      "initialJsGzipBytes": 170613,
+      "rawBudget": 600000,
+      "gzipBudget": 180000
+    },
+    "results": "passed"
+  },
+  "proofs": [
+    "Eight-way signed receipt replay, one acceptance audit, no resend",
+    "Wrong recipient, token, input hash, sender, tenant and provider ambiguity refused",
+    "Receipt+intent+audit atomic rollback",
+    "Receipt-before-HTTP and failed-delivery API acceptance",
+    "Encrypted intake cleanup and no callback/token in inbox or audit",
+    "UNKNOWN counted by cap; actual SQL IST quiet hours and reply window/template tests",
+    "Historical recovery cannot steal live lease or revive exited work",
+    "Current owned worker observes acceptance without another send",
+    "Failed delivery cancels queued successors",
+    "Late opt-out prevents next send; imports grant no consent"
+  ],
+  "remaining": [
+    "Tenant email verified sender/read/reply/bounce",
+    "Cross-channel inbox/attachments and identity merge",
+    "External calendar booking and broader exit-race acceptance",
+    "Outbound discovery/enrichment and full accountability",
+    "Hostinger/provider acceptance and production release"
+  ],
+  "productionActions": {
+    "databaseWrites": false,
+    "providerSends": false,
+    "modelSpend": false,
+    "deployment": false,
+    "renderActivation": false,
+    "billingChanges": false
+  }
+}

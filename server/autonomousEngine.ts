@@ -594,7 +594,7 @@ export async function executeAutonomousAction(
       }
 
       const messagePool=await getDbPool();if(!messagePool)throw new Error('Durable message dispatch storage unavailable');
-      const waRes = await dispatchAutonomousMessage(messagePool,action.company_id,actionId,creds.phoneNumberId,recipientPhone,message,(phone,text)=>sendWhatsAppCloudMessage(creds,{to:phone,message:text,companyId:action.company_id}),context.userId||context.actor||'system');
+      const waRes = await dispatchAutonomousMessage(messagePool,action.company_id,actionId,creds.phoneNumberId,recipientPhone,message,(phone,text,correlation)=>sendWhatsAppCloudMessage(creds,{to:phone,message:text,opaqueCallbackData:correlation?.opaqueCallbackData,companyId:action.company_id}),context.userId||context.actor||'system');
 
       if (!waRes.success || !waRes.messageId) {
         const state=waRes.status||'UNKNOWN';

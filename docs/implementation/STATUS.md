@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-19 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 149 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 150 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 45 / 21 / 1 / 26.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 49 / 17 / 1 / 26.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -18,8 +18,8 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P03 | 5 | 1 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
 | P05 | 3 | 1 | 0 | 7 |
-| P06 | 1 | 5 | 0 | 2 |
-| P07 | 4 | 2 | 0 | 2 |
+| P06 | 4 | 2 | 0 | 2 |
+| P07 | 5 | 1 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
 | P09 | 4 | 3 | 0 | 1 |
 | P10 | 3 | 0 | 0 | 5 |
@@ -104,17 +104,17 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | P04-09 |
 | P05-11 | planned | Marketing parity and publication gate | P04-09 |
 | P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
-| P06-02 | in_progress | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
-| P06-03 | in_progress | Implement message dispatch and real delivery states | P05-11, P06-02 |
-| P06-04 | planned | Add tenant email sender and reply/bounce integration | P05-11, P06-03 |
-| P06-05 | in_progress | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
-| P06-06 | in_progress | Replace per-message lead creation and build unified client inbox | P05-11, P06-05 |
+| P06-02 | validated | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
+| P06-03 | validated | Implement message dispatch and real delivery states | P05-11 |
+| P06-04 | planned | Add tenant email sender and reply/bounce integration | P05-11 |
+| P06-05 | validated | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
+| P06-06 | in_progress | Replace per-message lead creation and build unified client inbox | P05-11 |
 | P06-07 | validated | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
 | P06-08 | planned | CRM and channel truth gate | P05-11 |
 | P07-01 | validated | Implement grounded qualification and sales handoff | P06-08 |
 | P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | P06-08 |
-| P07-03 | in_progress | Execute workflow steps through existing queue and policy | P06-08 |
-| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
+| P07-03 | validated | Execute workflow steps through existing queue and policy | P06-08 |
+| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08 |
 | P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
 | P07-06 | validated | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
 | P07-07 | validated | Expose review and bounded autopilot controls | P06-08 |
