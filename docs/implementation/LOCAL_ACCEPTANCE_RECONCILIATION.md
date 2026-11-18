@@ -1,5 +1,7 @@
 # Local acceptance reconciliation — 17 November 2026 IST
 
+Latest review: [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) audits20 original tasks against unchanged criteria and records9 additional local acceptance decisions after the grouped matrix. Older checkpoint counts below are historical; no phase/provider/hosting acceptance is inferred.
+
 A task is an original parent work package, not a commit, field or module count. Twenty module integrations in TWENTY_FEATURE_DELIVERY.md do not mean twenty complete parent tasks. The following acceptance decisions reconcile work already implemented and now revalidated with the current grouped changes. Phase prerequisites and production gates remain separately open.
 
 | Parent | Local decision | Concrete acceptance evidence | Limit |

@@ -1,3 +1,4 @@
+import {clientActiveForExecution} from './clientActivity';
 import {z} from 'zod';
 import {isGlobalEmergencyStopActive} from './executionStop';
 export function tenantMetaAdsCredentials(company:string,integration:any){
@@ -8,14 +9,16 @@ export function tenantMetaAdsCredentials(company:string,integration:any){
  return typeof token==='string'&&token.trim()&&match?{token,account:match[1]}:null;
 }
 const command=z.object({externalCampaignId:z.string().regex(/^\d{1,32}$/),status:z.enum(['ACTIVE','PAUSED']),adjustmentType:z.literal('status_change'),adCampaignId:z.string().max(64).optional()}).strict();
-export async function changeMetaCampaignStatus(company:string,input:unknown,integration:any,transport:typeof fetch=fetch){
+export async function changeMetaCampaignStatus(company:string,input:unknown,integration:any,transport:typeof fetch=fetch,canExecute?:()=>Promise<boolean>){
  const parsed=command.safeParse(input);
  if(!parsed.success)return {status:'BLOCKED',code:'UNSUPPORTED_CAMPAIGN_COMMAND',verified:false};
  const credentials=tenantMetaAdsCredentials(company,integration);
  if(!credentials)return {status:'BLOCKED',code:'PROVIDER_NOT_CONFIGURED',verified:false};
  const target=parsed.data.externalCampaignId,url=`https://graph.facebook.com/v21.0/${target}`;
  const read=async()=>{const response=await transport(`${url}?fields=id,account_id,configured_status`,{headers:{Authorization:`Bearer ${credentials.token}`},signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Campaign inspection unavailable');const value=await response.json();if(value.id!==target||String(value.account_id)!==credentials.account)throw new Error('Campaign account mismatch');return value;};
+ const allowed=async()=>{try{return await(canExecute?canExecute():clientActiveForExecution(company));}catch{return false;}};if(!await allowed())return{status:'PAUSED',code:'CLIENT_EXECUTION_PAUSED',verified:false};
  try{await read();}catch{return {status:'BLOCKED',code:'CAMPAIGN_SCOPE_UNCONFIRMED',verified:false};}
+ if(!await allowed())return{status:'PAUSED',code:'CLIENT_EXECUTION_PAUSED',verified:false};
  if(isGlobalEmergencyStopActive())return {status:'PAUSED',code:'GLOBAL_STOP',verified:false};
  let response:Response;
  try{response=await transport(url,{method:'POST',headers:{Authorization:`Bearer ${credentials.token}`,'Content-Type':'application/json'},body:JSON.stringify({status:parsed.data.status}),signal:AbortSignal.timeout(5000)});}catch{return {status:'UNKNOWN',code:'CAMPAIGN_WRITE_UNCONFIRMED',verified:false};}

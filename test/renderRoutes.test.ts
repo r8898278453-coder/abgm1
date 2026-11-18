@@ -5,13 +5,13 @@ import path from 'node:path';
 import os from 'node:os';
 import {registerRenderRoutes} from '../server/renderRoutes';
 import {operationForRequest} from '../server/agencyPolicy';
-let reads=0,renders=0,themes=0,fail=false;
+let reads=0,renders=0,themes=0,fail=false,revoked=false,revokeDuringRender=false;
 const root=await fs.mkdtemp(path.join(os.tmpdir(),'render-http-'));
 const app=express();app.use(express.json());
-registerRenderRoutes(app,{auth:async req=>req.headers.authorization?{id:'owner'} as any:null,resolve:async(_,companyId)=>companyId==='owned'?{companyId,status:200}:{status:403,error:'Denied'},access:async(_,company)=>({authorized:company==='owned',status:company==='owned'?200:403}),limiter:(_,__,next)=>next(),uploadsRoot:root,pool:async()=>({query:async()=>[[]]} as any),
+registerRenderRoutes(app,{auth:async req=>req.headers.authorization?{id:'owner'} as any:null,resolve:async(_,companyId)=>companyId==='owned'?{companyId,status:200}:{status:403,error:'Denied'},access:async(_,company)=>({authorized:company==='owned'&&!revoked,status:company==='owned'&&!revoked?200:403}),limiter:(_,__,next)=>next(),uploadsRoot:root,pool:async()=>({query:async()=>[[]]} as any),
  company:async()=>{reads++;return {id:'owned',name:'Canonical brand'} as any;},data:async()=>({} as any),assets:async()=>[],
  theme:async()=>{themes++;return {templateId:'fixture',template:{name:'Fixture'},palette:{id:'fixture',name:'Fixture',category:'fixture',primaryColor:'#112233',secondaryColor:'#445566',accentColor:'#778899',textColor:'#ffffff'}} as any;},
- creative:async(_,input)=>{renders++;assert.equal(input.businessName,'Canonical brand');assert.equal(input.caption,'');if(fail)throw new Error('PRIVATE_RENDER_CREDENTIAL');return Buffer.from('fixture only; not a real rendered PNG');}
+ creative:async(_,input)=>{renders++;if(revokeDuringRender)revoked=true;assert.equal(input.businessName,'Canonical brand');assert.equal(input.caption,'');if(fail)throw new Error('PRIVATE_RENDER_CREDENTIAL');return Buffer.from('fixture only; not a real rendered PNG');}
 });
 const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const saved=process.env.ENABLE_REEL_RENDERING;delete process.env.ENABLE_REEL_RENDERING;
@@ -22,6 +22,7 @@ try{
  await call(route,409,{companyId:'owned',photoUrl:'http://127.0.0.1/private'});assert.equal(renders+themes,0);
  await call(route,409,{companyId:'owned',logoUrl:'/uploads/foreign/logo.png'});assert.equal(renders+themes,0);
  const result=await call(route,200,{companyId:'owned',companyName:'Forged brand'});assert.equal(result.companyId,'owned');assert.equal(renders,1);assert.equal(themes,1);assert.match(result.imageUrl,/^\/uploads\/owned\/generated\/creative_/);
+ const savedFiles=await fs.readdir(path.join(root,'owned','generated'));revokeDuringRender=true;await call(route,403,{companyId:'owned'});assert.deepEqual(await fs.readdir(path.join(root,'owned','generated')),savedFiles);revokeDuringRender=false;revoked=false;
  fail=true;await call(route,503,{companyId:'owned'});
  const scene={scene:1,visual:'Draft',audio:'Draft'};
  await call('/api/ai/render-reel',409,{companyId:'owned',reelScript:[scene,scene,scene]});

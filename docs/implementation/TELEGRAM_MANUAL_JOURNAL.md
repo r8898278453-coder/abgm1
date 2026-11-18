@@ -1,5 +1,7 @@
 # Durable manual Telegram journal — 16 November 2026 IST
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P09-04 against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 Reporting continuation: [MANUAL_TELEGRAM_REPORTING.md](MANUAL_TELEGRAM_REPORTING.md) closes the manual activity/backlog reporting gap below. Historical scope/limits from the journal implementation remain recorded here.
 
 Manual client test alerts now have a durable, metadata-only intent journal. This closes the console's earlier manual-journal gap without treating Telegram API acceptance as recipient delivery.

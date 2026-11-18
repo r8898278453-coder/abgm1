@@ -93,7 +93,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('web');
   const [isAutopilotOn, setIsAutopilotOn] = useState<boolean>(false);
   const [isEmergencyPaused, setIsEmergencyPaused] = useState<boolean>(false);
-  const [notificationsCount, setNotificationsCount] = useState<number>(3);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isAskAiOpen, setIsAskAiOpen] = useState<boolean>(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState<boolean>(false);
@@ -678,6 +678,8 @@ export default function App() {
       <div className="flex-1 flex max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 gap-6 items-start">
         {/* Left Navigation Sidebar */}
         <Sidebar
+          key={activeCompanyId||'no-client'}
+          companyId={workspaceLoadState==='ready'?(activeCompanyId||undefined):undefined}
           currentTab={renderedTab as any}
           setCurrentTab={(tab) => {
             setActiveTab(tab as any);

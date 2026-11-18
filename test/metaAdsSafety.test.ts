@@ -21,6 +21,7 @@ try{
  const command={externalCampaignId:'456',status:'PAUSED',adjustmentType:'status_change'};
  assert.equal((await changeMetaCampaignStatus('A',{externalCampaignId:'456',adjustmentType:'budget_reallocation'},integration,transport)).status,'BLOCKED');assert.equal(urls.length,0);
  assert.equal((await changeMetaCampaignStatus('A',command,integration,transport)).status,'VERIFIED');assert.equal(posts,1);
+ const beforeArchive=posts;let activityChecks=0;const archived=await changeMetaCampaignStatus('A',command,integration,transport,async()=>++activityChecks===1);assert.equal(archived.code,'CLIENT_EXECUTION_PAUSED');assert.equal(posts,beforeArchive);
  for(const [state,expected] of [['foreign','BLOCKED'],['paused','PAUSED'],['network','UNKNOWN'],['bad-ack','UNKNOWN'],['server-error','UNKNOWN'],['rejected','REJECTED'],['mismatch','API_ACCEPTED']]){
   mode=state;const before=posts;const outcome=await changeMetaCampaignStatus('A',command,integration,transport);assert.equal(outcome.status,expected);assert.ok(!JSON.stringify(outcome).includes('private-'));if(['foreign','paused'].includes(state))assert.equal(posts,before);stop.setGlobalEmergencyStop(false);
  }

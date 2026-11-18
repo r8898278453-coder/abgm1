@@ -1,5 +1,7 @@
 # Critical operational episodes and bounded escalation
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P09-03 against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 17 November2026 IST. P09-03 remains in progress. Schema049/87 tables, next050. Historical migrations001–048 unchanged. No production migration, opt-in activation, real provider send or deployment occurred.
 
 ## Signals and episodes

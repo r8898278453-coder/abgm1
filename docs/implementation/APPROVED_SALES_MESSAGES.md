@@ -1,5 +1,7 @@
 Current continuation: SALES_INQUIRY_RULES.md adds opt-in automatic enrollment into an internal inquiry review. It does not grant message approval. Current schema040/76; older checkpoint details below retain their original scope.
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P07-07 controls only against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 # Exact approved WhatsApp replies — 12 November 2026 IST
 
 This batch connects saved workflow review tasks to the existing durable message dispatcher. It adds one-use human approval for exact free-text replies. It does not make inquiry enrollment, content approval or customer conversations autonomous. `ENABLE_APPROVED_SALES_SEND` defaults off; no environment, production schema, scheduler or live provider was changed.

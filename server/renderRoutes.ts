@@ -1,7 +1,7 @@
 import {inspectAssetLibrary} from './assetLibrary';
 import {getDbPool} from './db';
 import {enqueueReel,readReels,cancelReel} from './reelJobs';
-import {approvedRenderAssets,readRenderAssets,reviewRenderAsset,assetReviewInput,RenderError} from './renderAssets';
+import {approvedRenderAssets,readRenderAssets,reviewRenderAsset,assetReviewInput,verifyRenderAssetRefs,RenderError} from './renderAssets';
 import type {Express,Request,RequestHandler} from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -120,6 +120,7 @@ app.post('/api/ai/render-creative', aiRateLimiter, async (req, res) => {
       tag: (tag && typeof tag === 'string') ? tag.trim() : undefined,
     });
 
+    const currentActor=await deps.auth(req);if(!currentActor){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}const currentAccess=await deps.access(currentActor,targetCompanyId);if(!currentAccess.authorized){res.status(currentAccess.status).json({success:false,error:'RENDER_ACCESS_CHANGED'});return;}await verifyRenderAssetRefs(sql,UPLOADS_BASE_DIR,targetCompanyId,approved.refs,true);
     // Save PNG into company's generated uploads folder
     const safeCompId = targetCompanyId.replace(/[^a-zA-Z0-9_-]/g, '');
     const generatedDir = path.join(UPLOADS_BASE_DIR, safeCompId, 'generated');

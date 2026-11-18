@@ -1,5 +1,7 @@
 # Telegram evidence console — 15 November 2026 IST
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P09-04 against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 Critical alert continuation (17 November2026 IST): [CRITICAL_ALERTS.md](CRITICAL_ALERTS.md) adds the third default-off policy and bounded incident escalation using the existing scheduler/journal/transport. Forward049/87; next050. Historical notes below retain their original scope; no live or phase acceptance.
 
 Scheduled delivery continuation (17 November2026 IST): [SCHEDULED_NOTIFICATION_POLICIES.md](SCHEDULED_NOTIFICATION_POLICIES.md) adds exact default-off client/kind opt-in and bound journal safety. Forward048/85; next049. P09-03 in progress; no phase or live acceptance.

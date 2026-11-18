@@ -1,5 +1,7 @@
 # Durable reels and asset approvals — 12 November 2026 IST
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P05-09 optional-worker-gate branch against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 Reel state now lives in the existing SQL job_queue and its transactional action ledger/outbox. The memory manager has been removed. Rendering remains disabled by default; no hosting setting, production database, dispatcher schedule or provider configuration was changed.
 
 ## Delivered behavior

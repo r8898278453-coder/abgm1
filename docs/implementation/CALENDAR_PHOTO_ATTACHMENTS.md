@@ -1,5 +1,7 @@
 # Explicit calendar photo attachment and guarded publishing
 
+Latest local acceptance (18 November2026 IST): [ORIGINAL_TASK_CLOSURE_REVIEW.md](ORIGINAL_TASK_CLOSURE_REVIEW.md) validates P05-08 against the original criterion after the full grouped matrix. Older in-progress/status counts below are historical. Other explicit gaps and all phase/live gates remain open; no automatic activation.
+
 18 November2026 IST. Continuation of P05-07/P05-08. Saved, mapped calendar drafts now support explicit photo attachment/detachment, canonical reapproval and provider-boundary validation. It reuses existing plan items/revisions, content posts, publication workflow/audit, asset approvals and publishing claims. No new migration, content writer, provider sender, scheduler or approval table is introduced.
 
 ## User workflow

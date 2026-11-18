@@ -1,3 +1,6 @@
+import {ClientWorkGuide} from './ClientWorkGuide';
+import {primaryWorkTabs} from '../../shared/clientWorkGuide';
+import type {CapabilityPack} from '../../shared/capabilityPacks';
 import React from 'react';
 import {
   LayoutDashboard,
@@ -24,6 +27,7 @@ import {
 import { NavTab } from '../types';
 
 interface SidebarProps {
+  companyId?:string;
   currentTab: NavTab;
   setCurrentTab: (tab: NavTab) => void;
   unansweredReviewsCount: number;
@@ -33,6 +37,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  companyId,
   currentTab,
   setCurrentTab,
   unansweredReviewsCount,
@@ -40,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   newLeadsCount,
   isAutopilotOn,
 }) => {
+  const [pack,setPack]=React.useState<CapabilityPack|null>(null),[showAll,setShowAll]=React.useState(false);
   const navSections = [
     {
       title: 'COMMAND CENTER',
@@ -192,27 +198,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-64 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col flex-shrink-0 h-[calc(100vh-6rem)] sticky top-20 overflow-y-auto p-3 m-3 space-y-4">
-      {/* 24/7 AI Marketing Status Bento Tile */}
-      <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md flex flex-col justify-between">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="text-slate-300 font-bold flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
-            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            AI Marketing Agent
-          </span>
-          <span className="bg-emerald-500/20 text-emerald-300 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30">
-            ACTIVE
-          </span>
-        </div>
-        <p className="text-[11px] text-slate-300 leading-snug font-normal">
-          Monitoring 3-Pack, drafting review replies & generating local footfall.
-        </p>
-        <div className="h-1 bg-slate-800 w-full rounded-full mt-3">
-          <div className="h-full bg-indigo-400 w-[94%] rounded-full shadow-[0_0_10px_rgba(129,140,248,0.5)]" />
-        </div>
-      </div>
-
+      <section className="p-4 bg-slate-900 text-white rounded-2xl text-xs"><h2>Execution preference</h2><p>{isAutopilotOn?'Autopilot requested':'Autopilot paused'}</p><p>Saved preference is not proof of running work or business growth. Review recorded activity in the dashboard.</p></section>
+      {companyId&&<ClientWorkGuide key={companyId} companyId={companyId} onNavigate={setCurrentTab} onPack={p=>{setPack(p);setShowAll(false);}}/>}
+      {pack&&<label className="text-xs"><input type="checkbox" aria-label="Show all workspace tools" checked={showAll} onChange={e=>setShowAll(e.target.checked)}/>Show all workspace tools</label>}
       <nav className="flex-1 space-y-5 px-1 pb-4">
-        {navSections.map((section) => (
+        {navSections.map(section=>({...section,items:section.items.filter(item=>!pack||showAll||primaryWorkTabs(pack).includes(item.id))})).filter(section=>section.items.length).map((section) => (
           <div key={section.title} className="space-y-1.5">
             <h3 className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               {section.title}

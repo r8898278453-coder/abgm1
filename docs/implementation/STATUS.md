@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-18 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 141 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 142 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 28 / 35 / 1 / 29.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 37 / 26 / 1 / 29.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -13,15 +13,15 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | Phase | Validated locally | In progress | Blocked | Planned |
 | --- | ---: | ---: | ---: | ---: |
 | P00 | 4 | 1 | 1 | 0 |
-| P01 | 4 | 5 | 0 | 1 |
+| P01 | 5 | 4 | 0 | 1 |
 | P02 | 4 | 3 | 0 | 1 |
-| P03 | 3 | 3 | 0 | 1 |
+| P03 | 5 | 1 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
-| P05 | 0 | 3 | 0 | 8 |
+| P05 | 2 | 1 | 0 | 8 |
 | P06 | 0 | 6 | 0 | 2 |
-| P07 | 0 | 6 | 0 | 2 |
+| P07 | 2 | 4 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
-| P09 | 2 | 5 | 0 | 1 |
+| P09 | 4 | 3 | 0 | 1 |
 | P10 | 0 | 1 | 0 | 7 |
 
 ## Explicit blockers
@@ -59,8 +59,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P00-05 | validated | Freeze historical migrations and choose source-independent extension strategy | — |
 | P00-06 | in_progress | Baseline and contract-decision gate | — |
 | P01-01 | validated | Repair health routing and redact sensitive logs | P00-06 |
-| P01-02 | in_progress | Repair workspace-switch stale state and pending writes | P00-06 |
-| P01-03 | validated | Validate queue payloads and bind every resource to job tenant | P00-06, P01-02 |
+| P01-02 | validated | Repair workspace-switch stale state and pending writes | P00-06 |
+| P01-03 | validated | Validate queue payloads and bind every resource to job tenant | P00-06 |
 | P01-04 | validated | Implement real SQL claim leases fencing and bounded retries | P00-06 |
 | P01-05 | in_progress | Make provider and persistence outcomes truthful | P00-06 |
 | P01-06 | in_progress | Introduce transactional action ledger outbox and replayable event intake | P00-06, P01-05 |
@@ -78,10 +78,10 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P02-08 | planned | Canonical architecture compatibility gate | P01-10, P02-07 |
 | P03-01 | validated | Add agency memberships and backfill existing owners | P02-08 |
 | P03-02 | in_progress | Apply canonical RBAC to every tenant operation | P02-08 |
-| P03-03 | in_progress | Persist locations geography locale and client lifecycle under fixed IST policy | P02-08, P03-02 |
-| P03-04 | validated | Replace local agency branch UI and establish scoped app shell | P02-08, P03-03 |
-| P03-05 | in_progress | Define capability packs goals and operational limits | P02-08 |
-| P03-06 | validated | Secure PWA and client browser storage boundaries | P02-08, P03-05 |
+| P03-03 | validated | Persist locations geography locale and client lifecycle under fixed IST policy | P02-08, P03-02 |
+| P03-04 | validated | Replace local agency branch UI and establish scoped app shell | P02-08 |
+| P03-05 | validated | Define capability packs goals and operational limits | P02-08 |
+| P03-06 | validated | Secure PWA and client browser storage boundaries | P02-08 |
 | P03-07 | planned | Agency and client isolation gate | P02-08 |
 | P04-01 | validated | Implement private source storage and truthful ingestion runs | P03-07 |
 | P04-02 | validated | Implement bounded website importer and extracted fact provenance | P03-07 |
@@ -99,9 +99,9 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-05 | planned | Complete canonical GBP post and media dispatch | P04-09, P05-04 |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P04-09, P05-05 |
 | P05-07 | in_progress | Build client-specific creative and approved asset library | P04-09, P05-06 |
-| P05-08 | in_progress | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
-| P05-09 | in_progress | Move reel state into durable jobs with resource limits | P04-09, P05-08 |
-| P05-10 | planned | Harden campaign linking ads telemetry and portable storefront capture | P04-09, P05-09 |
+| P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
+| P05-09 | validated | Move reel state into durable jobs with resource limits | P04-09 |
+| P05-10 | planned | Harden campaign linking ads telemetry and portable storefront capture | P04-09 |
 | P05-11 | planned | Marketing parity and publication gate | P04-09, P05-10 |
 | P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
 | P06-02 | in_progress | Implement durable batched webhook intake and event replay | P05-11, P06-01 |
@@ -112,13 +112,13 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P06-07 | in_progress | Add opportunity stage outcome and next-action management | P05-11, P06-06 |
 | P06-08 | planned | CRM and channel truth gate | P05-11, P06-07 |
 | P07-01 | in_progress | Implement grounded qualification and sales handoff | P06-08 |
-| P07-02 | in_progress | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
-| P07-03 | in_progress | Execute workflow steps through existing queue and policy | P06-08, P07-02 |
+| P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | P06-08, P07-01 |
+| P07-03 | in_progress | Execute workflow steps through existing queue and policy | P06-08 |
 | P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08, P07-03 |
 | P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
 | P07-06 | in_progress | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
-| P07-07 | in_progress | Expose review and bounded autopilot controls | P06-08, P07-06 |
-| P07-08 | planned | Marketing-to-appointment pilot gate | P06-08, P07-07 |
+| P07-07 | validated | Expose review and bounded autopilot controls | P06-08, P07-06 |
+| P07-08 | planned | Marketing-to-appointment pilot gate | P06-08 |
 | P08-01 | validated | Build client ICP exclusions prospect imports and source contracts | P07-08 |
 | P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08 |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes | P07-08, P08-02 |
@@ -131,9 +131,9 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P08-10 | planned | Outbound outcomes and optimization gate | P07-08 |
 | P09-01 | in_progress | Build reconciled daily client report read model | P08-10 |
 | P09-02 | in_progress | Build agency overview and exception prioritization | P08-10, P09-01 |
-| P09-03 | in_progress | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
-| P09-04 | in_progress | Replace Telegram simulator with evidence-backed operations | P08-10, P09-03 |
-| P09-05 | validated | Deliver optional client report and approval portal | P08-10, P09-04 |
+| P09-03 | validated | Implement scoped scheduled digest delivery and critical alerts | P08-10, P09-02 |
+| P09-04 | validated | Replace Telegram simulator with evidence-backed operations | P08-10 |
+| P09-05 | validated | Deliver optional client report and approval portal | P08-10 |
 | P09-06 | validated | Persist agency settings and decide white-label domain scope | P08-10 |
 | P09-07 | in_progress | Finish responsive mobile accessibility and operational UX | P08-10 |
 | P09-08 | planned | Agency accountability acceptance gate | P08-10, P09-07 |

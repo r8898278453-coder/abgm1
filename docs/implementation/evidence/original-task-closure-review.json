@@ -1,0 +1,334 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "d11aca72452e564d3ea341af4686bab847c9fcf7",
+  "originalTasksAudited": 20,
+  "decisions": [
+    {
+      "taskId": "P01-02",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Browser A to empty B clears docs facts contacts; late A request/autosave cannot change B; refresh and logout covered",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Workspace switching, empty clients, stale async/autosave, refresh and logout meet the original listed scenarios.",
+      "evidence": [
+        "test/browser/workspaceIsolation.test.ts",
+        "test/browser/knowledgeWorkflow.test.ts",
+        "test/browser/onboardingWorkflow.test.ts",
+        "test/browser/sessionTransport.test.ts"
+      ],
+      "limits": "No global provider/RBAC/retention acceptance is inferred.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P01-05",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "UNAVAILABLE/FAILED/null provider results cannot succeed; persistence failure stays failed/retryable; coordinates validated including zero",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Complete provider/persistence outcome coverage across all legacy entry points still needs explicit closure; covered adapters are not every path.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P01-06",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Intent/state changes and outbox atomic; attempts link action/provider evidence; crash/retry reconciles; no secret content",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Atomic ledger/outbox covers registered queue and implemented intake families, not every domain mutation/provider attempt globally.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P01-08",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Global/agency/client/channel stops checked by all send/publish workers; atomic quota reservation and fair bounded batches",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Agency-wide policy, all action-family/cost reservations and measured fairness remain incomplete; covered-family admission is not a universal budget.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P01-09",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Errors show failure; no hardcoded connection/provider-success messages; Place ID does not prove OAuth access",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Sidebar fake ACTIVE/progress/footfall removed now; remaining legacy surfaces require a complete unsupported-success/badge audit.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P03-02",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Cross-agency/client/role tests cover read/write/report/download and jobs; legacy user_id no bypass",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "All legacy endpoints/downloads/provider/jobs still require full role and revocation-race parity audit.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P03-03",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Branches persist and reload; locations not duplicate clients; archive pauses work; null geography never replaced with Maharashtra",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Saved branch CRUD/null coordinates/IST and lifecycle CAS/archive/reactivation are verified; new final Ads/legacy Telegram and creative completion guards close identified archive gaps.",
+      "evidence": [
+        "test/integration/agencyFoundationSql.test.ts",
+        "test/browser/agencyWorkspace.test.ts",
+        "test/renderRoutes.test.ts",
+        "test/metaAdsSafety.test.ts"
+      ],
+      "limits": "Already admitted external requests cannot be recalled; all-endpoint role parity remains P03-02.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P03-05",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Local appointments/local service/B2B/product modes select relevant modules; no universal campaigns or unauthorized activation",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Four saved packs/goals select mode-relevant primary navigation and priorities; unsupported booking/catalog stays labelled; shared covered-family admissions remain explicit rather than universal budget claims.",
+      "evidence": [
+        "test/clientWorkGuide.test.ts",
+        "test/browser/clientWorkGuide.test.ts",
+        "test/integration/securityPolicySql.test.ts"
+      ],
+      "limits": "Guide loads explicitly; preference is not permission. Whole-platform action/cost budget coverage remains P01-08/P10-02.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P05-07",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Brand/language/offer facts respected; asset source/license/approval stored; image vs template capabilities labeled",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Comprehensive creative/brand/locale/rights lifecycle and semantic/perceptual/media strategy remain incomplete despite approved exact asset library.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P05-08",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Any industry gets relevant current IST dates/times; edits invalidate approval; saved count truthful; cancel/reschedule works",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Current IST cadence, arbitrary client context/approved facts, durable plans/counts/history, approval invalidation, cancel/reschedule and mapped photo reapproval satisfy the original criterion.",
+      "evidence": [
+        "test/clientCalendar.test.ts",
+        "test/integration/calendarPlansSql.test.ts",
+        "test/browser/clientCalendar.test.ts",
+        "test/browser/calendarAttachment.test.ts"
+      ],
+      "limits": "Festival/perceptual/creative strategy and live channel acceptance remain separate P05-07/05-11/P10 work; they are not invented calendar closure requirements.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P05-09",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Restart/status recovery and cleanup; measured max concurrency; no unsupported placeholder success",
+      "externalPrerequisites": "Actual render browser/CPU support or optional worker gate",
+      "decision": "validated_local",
+      "reason": "Durable jobs restart/lease/status/cancel/cleanup and resource bounds pass; a three-worker synthetic-renderer run measures max active admission callback1; unsupported rendering remains behind the explicit optional worker gate.",
+      "evidence": [
+        "test/integration/reelJobsSql.test.ts",
+        "test/browser/renderOperations.test.ts",
+        "server/reelWorkerProcess.ts"
+      ],
+      "limits": "Accepted local durable-queue/optional-worker gate branch only. No actual CPU/browser render benchmark or hosting readiness claimed; production rendering remains off.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P06-03",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Accepted not delivered; correct receipts advance state; ambiguous timeout reconciles; tenant identity required",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "WhatsApp acceptance/receipt truth is implemented; full channel and uncertain-provider reconciliation acceptance remains open.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P06-07",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Stage transitions validated; won/lost reasons and attribution links; manual value not provider-verified revenue",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Multiple deals per contact and consolidation of legacy quick-stage writers are still missing.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P07-01",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Industry questions and explainable fit/intent; unknown answers escalate; no invented price/commitments",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Full industry qualification and actual routed handoff remain incomplete; manually declared answers and grounded snapshots are not autonomous qualification.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P07-02",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Trigger/delay/eligibility/step/exit/version defined; one active enrollment key; approvals bound to immutable input",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Versioned bounded supported workflow definitions persist trigger/delay/eligibility/step/exit/approval semantics, immutable snapshots and one active enrollment key.",
+      "evidence": [
+        "test/salesWorkflows.test.ts",
+        "test/integration/salesWorkflowsSql.test.ts",
+        "test/browser/salesWorkflows.test.ts"
+      ],
+      "limits": "Definition/enrollment contract only. Richer branching, additional execution adapters, booking and complete P07-03/04/05 are not accepted.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P07-03",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "No second scheduler/send path; quiet hours/timezones/caps/retries; stale approval/version prevents dispatch",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "Supported queue review/exact-message execution exists; broader workflow action-family execution and full operational acceptance remain open.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P07-07",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Defaults review; only validated low-risk approved flows auto-send; sensitive commitments handoff; scoped pause works",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Default review, exact human-approved supported message grants, private worker permits, sensitive/unknown handoff and current scoped pause/stop boundaries are enforced; unsupported autonomous sends stay blocked.",
+      "evidence": [
+        "test/approvedSalesMessages.test.ts",
+        "test/integration/approvedSalesMessagesSql.test.ts",
+        "test/browser/approvedSalesMessages.test.ts",
+        "test/salesInquiryRules.test.ts"
+      ],
+      "limits": "Approved-message transport feature stays default off. This does not validate autonomous closing, template/email/booking execution or the full qualification task.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P09-01",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Plan vs done/partial/failed/blocked/skipped/recovery totals reconcile; fixed IST cutoff and late amendments",
+      "externalPrerequisites": "none",
+      "decision": "retain_in_progress",
+      "reason": "All-module plan-vs-actual reconciliation and complete late-amendment coverage remain incomplete; current counters/frozen V4 are not full accountability acceptance.",
+      "evidence": [],
+      "limits": "No status promotion without the missing implementation/acceptance.",
+      "statusAfter": "in_progress"
+    },
+    {
+      "taskId": "P09-03",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Explicit destinations; retry-safe daily catch-up; critical incident dedupe/escalation; no private cross-client content",
+      "externalPrerequisites": "Authorized Telegram/email destinations",
+      "decision": "validated_local",
+      "reason": "Selected Telegram scheduled digest/reminder/critical transport implements exact opt-in destination binding, bounded catch-up, durable no-resend and incident dedupe/escalation with private content.",
+      "evidence": [
+        "test/integration/notificationPolicyDispatchSql.test.ts",
+        "test/integration/criticalAlertIncidentsSql.test.ts",
+        "test/integration/criticalAlertDispatchSql.test.ts",
+        "test/browser/notificationPolicies.test.ts"
+      ],
+      "limits": "Local implementation for supported Telegram channel; actual cron/recipient/provider acceptance remains P00/P10. Email transport activation is not inferred.",
+      "statusAfter": "validated"
+    },
+    {
+      "taskId": "P09-04",
+      "statusBefore": "in_progress",
+      "originalAcceptanceCriterion": "Connected identity real; action confirmations link records; inbound commands require verified user/client selection if enabled",
+      "externalPrerequisites": "none",
+      "decision": "validated_local",
+      "reason": "Console uses current getMe-bound expiring identity evidence, durable manual journal and canonical action/job/provider references instead of a simulator; inbound commands are explicitly not enabled.",
+      "evidence": [
+        "test/integration/telegramIdentitySql.test.ts",
+        "test/integration/telegramManualSql.test.ts",
+        "test/browser/telegramOperations.test.ts",
+        "src/components/ActionHistory.tsx"
+      ],
+      "limits": "Uses original conditional inbound-command requirement: commands remain disabled. No live bot/destination delivery proof is manufactured.",
+      "statusAfter": "validated"
+    }
+  ],
+  "acceptanceCriteriaChanged": false,
+  "phaseGatesAccepted": false,
+  "productionAccepted": false,
+  "verification": "passed_local",
+  "baselineTracker": {
+    "validated": 28,
+    "in_progress": 35,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "implementationChanges": [
+    "Mode-aware primary navigation and explicit read-only client work priorities",
+    "Single pure capability-pack registry, shared existing server contracts",
+    "Remove hardcoded ACTIVE/94-percent/local-footfall sidebar claims",
+    "Fresh active-client checks for legacy Ads/Telegram boundaries",
+    "Fresh actor/approval completion check before creative artifact write",
+    "Measured native three-worker reel render-admission concurrency"
+  ],
+  "providerSends": false,
+  "productionWrites": false,
+  "renderingEnabled": false,
+  "billingChanges": false,
+  "deployment": false,
+  "localPromotions": [
+    "P01-02",
+    "P03-03",
+    "P03-05",
+    "P05-08",
+    "P05-09",
+    "P07-02",
+    "P07-07",
+    "P09-03",
+    "P09-04"
+  ],
+  "trackerAfter": {
+    "validated": 37,
+    "in_progress": 26,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "tests": {
+    "defaultRegressionPrograms": 142,
+    "defaultRegression": "142/142 passed; initial stale STATUS registry count tripped drift guard, document regenerated then full142 passed",
+    "browserRegistry": 31,
+    "fullSerialBrowserRegistry": "31/31 passed",
+    "initialTargetedBrowserGroup": "clientWorkGuide/workspaceIsolation/agencyWorkspace3/3 passed",
+    "nativeMariaDB": "10.11.19 full disposable suite through053/93 passed",
+    "newNativeArchiveProof": "Archived client legacy Telegram/Ads made zero provider requests; reactivation did not enable autopilot",
+    "renderAdmissionMeasurement": {
+      "contendingWorkers": 3,
+      "maxActiveSyntheticRenderCallbacks": 1,
+      "actualVideoBenchmark": false
+    },
+    "typeScript": "passed",
+    "build": "passed",
+    "initialAppClosureRawBytes": 587033,
+    "initialAppClosureGzipBytes": 170485,
+    "routeDeclarations": 267,
+    "routeRegistrations": 50,
+    "migrations": 53,
+    "schemaChanged": false,
+    "exportRestore": "Not repeated; unchanged053 previous rehearsal retained"
+  }
+}
