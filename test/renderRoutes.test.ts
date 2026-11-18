@@ -28,6 +28,7 @@ try{
  assert.equal(operationForRequest('POST',route),'write');assert.equal(operationForRequest('POST','/api/ai/render-reel'),'write');
  assert.equal(operationForRequest('POST','/api/companies/owned/asset-approvals/photo'),'approve');
  for(const [url,status] of [['/api/ai/render-reel/reel_'+ 'a'.repeat(32)+'/status',400],['/api/companies/foreign/reel-jobs',403],['/api/companies/owned/reel-jobs',200],['/api/companies/owned/asset-approvals',200]] as const){const response=await fetch(origin+url,{headers:{Authorization:'fixture'}});assert.equal(response.status,status);assert.equal(response.headers.get('cache-control'),'no-store');}
+ for(const [url,status,auth] of [['/api/companies/owned/asset-library',401,false],['/api/companies/foreign/asset-library',403,true],['/api/companies/owned/asset-library?limit=1000',400,true],['/api/companies/owned/asset-library?before=x&before=y',400,true]] as const){const response=await fetch(origin+url,{headers:auth?{Authorization:'fixture'}:{}});assert.equal(response.status,status);assert.equal(response.headers.get('cache-control'),'no-store');}
  await call('/api/companies/owned/asset-approvals/photo',400,{decision:'APPROVED'});
  console.log('Render HTTP: auth, explicit scope, pre-effect asset rejection, canonical brand, safe failures, disabled reel capability passed');
 }finally{if(saved===undefined)delete process.env.ENABLE_REEL_RENDERING;else process.env.ENABLE_REEL_RENDERING=saved;await new Promise<void>((r,j)=>server.close(e=>e?j(e):r()));await fs.rm(root,{recursive:true,force:true});}

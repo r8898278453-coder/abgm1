@@ -1,0 +1,17 @@
+slice,parent,scope,status,evidence
+IAL-01,P05-07;P05-09,On-demand scoped catalog inspection,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-02,P05-07;P05-09,Bounded ten-file current local observations,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-03,P05-07;P05-09,Separate stored review and observed file state,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-04,P05-07;P05-09,Observed page-only exact duplicate groups,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-05,P05-07;P05-09,Library-wide recorded approval match caveats,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-06,P05-07;P05-09,Metadata-fingerprint anchored pagination,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-07,P05-07;P05-09,Post-inspection metadata and authority recheck,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-08,P05-07;P05-09,Private page-only spreadsheet-safe CSV,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-09,P05-07;P05-09,Session/client/corrupt-response UI fences,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-10,P05-07;P05-09,Default render photo hash deduplication,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-11,P05-07;P05-09,Historical and explicit render refs preserved,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-12,P05-07;P05-09,Fresh SQL actor/admin approval authority,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-13,P05-07;P05-09,Exact unsigned64 approval revision exhaustion,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-14,P05-07;P05-09,Canonical writer input validation,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-15,P05-07;P05-09,Existing approval UI and render queue ownership,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts
+IAL-16,P05-07;P05-09,Native browser regression and tracking evidence,implemented_local,INSPECTED_ASSET_LIBRARY.md; test/assetLibrary.test.ts; test/integration/reelJobsSql.test.ts; test/browser/assetLibrary.test.ts

@@ -1,3 +1,4 @@
+import {AssetLibraryPanel} from './AssetLibraryPanel';
 import {RenderOperationsPanel} from './RenderOperationsPanel';
 import {formatPlatformDateTime} from '../../shared/platformTime';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -952,6 +953,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
             </div>
           </div>
 
+          <AssetLibraryPanel companyId={effectiveCompanyId}/>
           <RenderOperationsPanel key={effectiveCompanyId} companyId={effectiveCompanyId} refresh={reelHistoryRefresh+assets.length} selectedJobId={reelJob?.id} onJob={adoptReelJob}/>
 
           {/* Feedback Messages */}
