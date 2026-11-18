@@ -38,10 +38,11 @@
     "typecheck": true,
     "build": true,
     "frontend": {
-      "initialJsBytes": 588508,
-      "initialJsGzipBytes": 171052,
+      "initialJsBytes": 588558,
+      "initialJsGzipBytes": 171062,
       "rawBudget": 600000,
-      "gzipBudget": 180000
+      "gzipBudget": 180000,
+      "measuredSourceCommit": "8cb024f28880bfc60a6c410183baa3b6c302618d"
     },
     "finalFocusedBrowsers": [
       "observationTruth",
