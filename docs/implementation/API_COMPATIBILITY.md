@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+19 November2026 IST — Fulfillment GET/PUT, strict parent/record CAS, REPEAT_BUSINESS workflow enum and fulfillment-bound retention enrollment/context: see [RETENTION_FULFILLMENT.md](RETENTION_FULFILLMENT.md). Won/free-text evidence no longer suffices for non-inquiry enrollment. Legacy retention snapshots without binding fail closed. Existing primary edits revoke active declarations; canonical opportunity/qualification responses omit nested private receipt fields. No migration or automatic external send.
+
 19 November2026 IST — Four private qualification-handoff endpoints, strict create/action inputs, assignee lifecycle and retained qualification history: see [QUALIFICATION_HANDOFFS.md](QUALIFICATION_HANDOFFS.md). Existing qualification input remains compatible; active handoffs now fence qualification replacement, with a 32 KiB total limit and ten retained assignments per contact. No schema change or external notification/send.
 
 19 November2026 IST — Multiple-deal routes and legacy stage contract: see [MULTIPLE_DEALS.md](MULTIPLE_DEALS.md). Four private no-store routes add bounded independent deals; existing primary writes preserve them. Generic lead-stage PATCH refuses tracked/terminal transitions so reason/revision rules cannot be bypassed. No schema change.

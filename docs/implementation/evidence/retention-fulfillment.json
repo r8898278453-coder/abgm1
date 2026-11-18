@@ -1,0 +1,98 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "fulfillment-gated-retention-and-repeat-business",
+  "originalTask": "P07-06",
+  "state": "validated_local",
+  "functionalSlices": 15,
+  "tracker": {
+    "validated": 40,
+    "in_progress": 23,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "migration": 53,
+    "canonicalTables": 93,
+    "nextMigration": 54,
+    "changed": false,
+    "frozenReport": "V4 unchanged"
+  },
+  "validation": {
+    "defaultRegressionPrograms": 145,
+    "focusedContracts": "passed",
+    "nativeSql": "complete disposable MariaDB10.11.19 passed",
+    "nativeCoverage": [
+      "won is not fulfilled",
+      "eight-way fulfillment receipt replay",
+      "elapsed interval gating",
+      "three retention triggers",
+      "independent deal preservation",
+      "eight-way enrollment replay",
+      "internal review queue/no message intent",
+      "per-event dedupe",
+      "normalized-contact cooldown including duplicate leads",
+      "private customer identity binding",
+      "atomic fulfillment-revocation exits",
+      "pending retention opt-out exits",
+      "audit rollback and lost commit ACK",
+      "primary edit invalidation",
+      "canonical nested receipt omission",
+      "fresh actor and archive refusal"
+    ],
+    "browserPassed": [
+      "retention",
+      "salesWorkflows",
+      "salesWorkspace"
+    ],
+    "browserRegistry": 34,
+    "fullBrowserRegistryRerun": false,
+    "typeScript": "passed",
+    "productionBuild": "passed",
+    "routes": 277,
+    "registrations": 50,
+    "routeCollisions": 0,
+    "migrationSources": 53,
+    "frontend": {
+      "rawBytes": 587033,
+      "gzipBytes": 170485,
+      "budget": "passed"
+    }
+  },
+  "boundaries": [
+    "manual declaration is not verified fulfillment/payment/consent",
+    "primary won required and future completion refused",
+    "aftercare1day/review7days/repeat30days plus configured step delays",
+    "one event/trigger enrollment; normalized contact cooldown even across duplicate leads",
+    "latest fulfillment receipt only; no permanent request ledger",
+    "primary edits revoke; additional deals preserve",
+    "16KiB shared opportunity details; no new history table",
+    "legacy retention without binding fails closed",
+    "explicit reviewed internal enrollment; no new autonomous scanner/recurring scheduler",
+    "existing final exact-send approval/window/consent/provider gates remain",
+    "no production writes/deployment or real model/provider/customer traffic;billing excluded;rendering default off"
+  ],
+  "remaining": [
+    "booking adapter and broader workflow exit-race acceptance",
+    "full cross-channel CRM/inbox and identity merge",
+    "reconciled daily/agency reporting and cost/outcome allocation",
+    "whole-platform stop/role/fairness coverage",
+    "hosting inventory/provider/production pilot acceptance"
+  ],
+  "files": {
+    "shared/retention.ts": "166b817c27c7fb3d366ef3dfafa50d17a48a19f481f9cf4d316f142fec6d80bc",
+    "shared/salesWorkflows.ts": "085fed5d79a59ab8ea83b403b013bb9fadac0a1e4913095e557cb4e798c13b11",
+    "server/retention.ts": "d5d5440b8b3208d77bb2ec937f394c570084f311722d12bdee8c6438639208f1",
+    "server/salesWorkflows.ts": "fa74eba0a334d37c07ed018c28bb96864839a5ea3304b5ff368d44818d0e5b81",
+    "server/salesWorkspace.ts": "1d9ebd7ff2dc7b56926203f476082579dbd7524c876114b0192c434fc238387e",
+    "server/salesRoutes.ts": "94d7986c1d736b7fb44746a818c9ed25465a908104e55f0064c788af5e2303d9",
+    "src/components/FulfillmentPanel.tsx": "c8963d74ae6d80bfb1cbd6ae95e1c038bff042e5f317d8e6f5544c398bb71755",
+    "src/components/SalesWorkflowPanel.tsx": "71be15abb57c80099f8c2f83de1706ced7b373fd09a3b7a8c4d27de3d6a8f570",
+    "src/components/SalesWorkspacePanel.tsx": "83553086d537e01696481844c332eb7aab1e67bacf75fcabf63f5ced9cf93452",
+    "test/retention.test.ts": "4ad27fd98bcbc5551ef23a3e1b60d189abee2b0c711d597283602a9f960de213",
+    "test/integration/retentionSql.test.ts": "1afe1ebcf7a18d0bb13065d9b84efee9c9588a95795eb94fb0fcf07837e957ab",
+    "test/integration/salesWorkflowsSql.test.ts": "3cbaccde7e7aa160549c1ff69da9453651144aed081044f1593c3530e21b3ced",
+    "test/integration/qualificationHandoffsSql.test.ts": "8c33991b2e663936ba1f36d6bdfc796306ff02cdf21dfd3c945475755b10046b",
+    "test/browser/retention.test.ts": "e54ff0f92a0a0297a88baabd03bd8964588a7d9cd582e9f8b3cba005d87c738a"
+  }
+}

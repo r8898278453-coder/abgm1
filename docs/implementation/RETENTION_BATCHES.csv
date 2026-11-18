@@ -1,0 +1,16 @@
+slice,implemented_scope,validation
+R01,Separate primary service fulfillment,Won alone refuses retention enrollment
+R02,Manual evidence completion time and actor,Strict contract and no verified-delivery/payment claim
+R03,Parent and fulfillment revisions,Eight-way record replay and stale comparisons
+R04,Receipt recovery and atomic audit,Lost commit ACK and rollback
+R05,Aftercare feedback and repeat-business gates,SQL-clock 1/7/30-day minimums
+R06,Per-event enrollment dedupe,New request and workflow cannot repeat same fulfillment trigger
+R07,Contact enrollment cooldown,New declaration cannot immediately reset interval
+R08,Existing queue and review execution,Internal task persisted without message intent
+R09,Fulfillment revoke cancellation,Canonical task job and enrollment exits
+R10,Consent withdrawal cancellation,Pending retention exits on permission change
+R11,Primary invalidation and independent deals,Primary edits revoke and extra-deal writes preserve declaration
+R12,Context checks through final permit,Existing approval worker provider-eligibility and settlement reuse
+R13,IST evidence and uncertainty UI,Scoped report retained draft and explicit reload
+R14,Honest feedback and repeat-business presets,No rating filtering fabricated reviews incentives or invented order
+R15,Private reporting and legacy safety,Receipt omission metadata-only audit and no text-note backfill
