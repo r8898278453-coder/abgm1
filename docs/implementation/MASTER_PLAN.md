@@ -1,5 +1,9 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Client calendar verification —18 November2026 IST:final136 credential-isolated programs,28/28 serial browser workflows and full disposable MariaDB suite passed. Canonical review/reschedule/cancel,8-way save/approval races, lost-ACK recovery, sealed-key race, UTC/IST month boundary and exact uint64 exhaustion verified. TypeScript/build,253 route declarations/49 registrations and frontend583016 raw/168864 gzip bytes pass existing guards. Schema052/90 unchanged; next053. Tracker28 validated/35 in progress/29 planned/1 blocked; P05-08 remains in progress. See CLIENT_CALENDAR_WORKFLOWS.md and evidence/client-calendar-workflows.json. Rendering default off; billing/provider sends/deployment unchanged.
+
+Client calendar group —18 November2026 IST:26 connected slices replace fixed draft dates and stale prop state with a current scoped IST calendar, chosen cadence, goal-bound text draft receipts, exact lost-ACK recovery, durable request sealing and canonical review/approval/reschedule/cancel actions. UNKNOWN dispatch states remain blocked. Schema052/90 unchanged; next053. P05-08 is in progress; batch strategy/festival/content-history and phase/live scope remain open. See CLIENT_CALENDAR_WORKFLOWS.md, CLIENT_CALENDAR_BATCHES.csv and evidence/client-calendar-workflows.json. No live AI/provider calls, render activation, billing or deployment changes.
+
 Current truth correction: historical notes that treated a plausible invoice/payment ID as verified customer revenue, or campaign budget as spend, are superseded by SOURCE_OUTCOME_TRUTH.md. Verified customer revenue/spend/ROI remain unavailable until authoritative evidence contracts exist.
 
 Source/outcome verification —18 November2026 IST:135 credential-isolated regression programs,27/27 serial browser workflows and complete disposable native MariaDB suite passed. Recorded first/last ambiguity, opportunity revisions, declared cost integrity/voids,5001-row history withholding and private HTTP/CSV/current-client fences verified. TypeScript/build,248 route declarations/48 registrations and frontend583058 raw/168878 gzip bytes pass existing guards. Schema052/90 unchanged; next053. Tracker28 validated/34 in progress/30 planned/1 blocked; no parent/phase/live promotion. See SOURCE_OUTCOME_TRUTH.md and evidence/source-outcome-truth.json. Billing/provider sends/deployment unchanged.
@@ -81,7 +85,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.51 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.52 • updated 18 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

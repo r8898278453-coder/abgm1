@@ -1,3 +1,6 @@
+import crypto from 'node:crypto';
+import {canonicalJson} from '../../shared/canonicalJson';
+import {calendarInstant} from '../../shared/clientCalendar';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
@@ -66,6 +69,7 @@ try {
   let betaFailureStatus = 0;
   let failReviewCreate=true,failReviewDelete=true;const reviewCreates:any[]=[],reviewDeletes:string[]=[];let savedReviews:any[]=[];
   let failAudit=false,holdAudit=false;let signalAudit:(()=>void)|undefined;const auditActions:any[]=[];
+  const calendarIntents=new Map<string,any>();
   let plannedPosts:any[]=[],crmLeads:any[]=[];const contentCreates:any[]=[],contentDeletes:string[]=[],leadStageWrites:any[]=[],crmCreates:any[]=[],whatsAppWrites:any[]=[];let planAiCalls=0,failContentCreate=true,failContentDelete=true,failLeadStage=true,failCrmCreate=true,failLeadReads=false;
   let failAutoRead=false,wrongAutoAck=false,holdAutoApproval=false;let signalAutoApproval:(()=>void)|undefined;const autoControls:any[]=[],autoApprovals:any[]=[],autoExecutions:any[]=[];const autoState:Record<string,boolean>={A:false,B:true};
   let holdCampaignSync=false,failCampaignRead=false;let signalCampaignSync:(()=>void)|undefined;const campaignSyncs:any[]=[];
@@ -104,6 +108,14 @@ try {
       const lead=crmLeads.find(lead=>lead.id===url.pathname.split('/')[3]);assert.equal(input.companyId,lead.company_id);assert.equal(input.expectedStage,lead.stage);lead.stage=input.stage;body={success:true,lead};
     }
     else if(url.pathname==='/api/whatsapp/send'){whatsAppWrites.push(route.request().postDataJSON());body={success:false,method:'wa_link',waLink:'https://wa.me/fixture'};}
+    else if(/\/api\/companies\/[AB]\/content-calendar(?:\/|$)/.test(url.pathname)){
+      const company=url.pathname.split('/')[3],ctx={companyId:company,business:{name:company==='A'?'Alpha Clinic':'Beta',category:'Service',city:''},profileVersion:'0',operationsVersion:'0',pack:'local_service',goal:'LEADS',monthlyTarget:null,status:'ACTIVE',contextHash:'d'.repeat(64),canWrite:true,canApprove:true};
+      const dto=(p:any)=>({id:p.id,companyId:company,title:p.title,headline:p.headline||'',caption:p.caption||'',cta:p.cta||'',hashtags:p.hashtags||[],platforms:p.platforms||['google'],status:p.status,date:p.scheduled_date,time:p.scheduled_time||p.time_slot||'11:00',scheduledAtMs:calendarInstant(p.scheduled_date,p.scheduled_time||p.time_slot||'11:00'),sourceVersion:p.sourceVersion,workflowVersion:'0',dispatchState:null,hasImage:false,hasVideo:false});
+      if(url.pathname.endsWith('/drafts/close-request')){const p=route.request().postDataJSON();calendarIntents.set(p.requestKey,{inputHash:p.inputHash,cancelled:true});body={success:true,companyId:company,requestKey:p.requestKey,inputHash:p.inputHash,cancelled:true,found:true};}
+      else if(url.pathname.includes('/drafts/by-request/')){const requestKey=url.pathname.split('/').at(-1)!,known=calendarIntents.get(requestKey);body={success:true,companyId:company,found:Boolean(known),requestKey,...known};}
+      else if(url.pathname.endsWith('/drafts')){const input=route.request().postDataJSON();contentCreates.push({...input,companyId:company,status:'draft'});if(failContentCreate){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false})});return;}const {requestKey,...raw}=input,inputHash=crypto.createHash('sha256').update(canonicalJson({purpose:'calendar-text-draft-v1',actor:user.id,company,input:raw})).digest('hex');const p={id:`planned-${contentCreates.length}`,company_id:company,title:input.title,headline:input.headline,caption:input.caption,cta:input.cta,hashtags:input.hashtags,platforms:[input.platform],type:'educational',status:'draft',scheduled_date:input.date,scheduled_time:input.time,time_slot:input.time,sourceVersion:'c'.repeat(64)};plannedPosts.unshift(p);calendarIntents.set(requestKey,{inputHash,post:dto(p),cancelled:false});body={success:true,companyId:company,requestKey,inputHash,post:dto(p),reused:false,contextChanged:false};}
+      else body={success:true,companyId:company,calendar:{model:1,companyId:company,month:url.searchParams.get('month'),timeZone:'Asia/Kolkata',checkedAtMs:Date.now(),context:ctx,posts:plannedPosts.filter(p=>p.company_id===company&&p.scheduled_date?.slice(0,7)===url.searchParams.get('month')).map(dto)}};
+    }
     else if(url.pathname==='/api/content-posts'&&route.request().method()==='POST'){
       const input=route.request().postDataJSON();contentCreates.push(input);if(failContentCreate){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false})});return;}
       const post={...input,id:`planned-${contentCreates.length}`,company_id:input.companyId,sourceVersion:'c'.repeat(64)};plannedPosts.unshift(post);body={success:true,post};
@@ -644,19 +656,25 @@ try {
   assert.equal(workflowWrites.length,5);assert.deepEqual(workflowWrites[3].schedule,{date:'2026-11-04',time:'14:30'});assert.equal(workflowWrites[1].expectedVersion,'a'.repeat(64));assert.equal(workflowWrites[2].expectedVersion,'b'.repeat(64));
   console.log('Browser stage: truthful-content-planning');
   await page.getByRole('button',{name:'30-Day Content Plan',exact:true}).click();
-  assert.equal(await page.getByText('September 2026 Strategic Plan & Local Festivities',{exact:true}).count(),0);
-  await page.getByRole('button',{name:'Create 3 AI Drafts for Next Month',exact:true}).click();
-  const planPanel=page.getByRole('region',{name:'Draft plan results'});await planPanel.getByText(/save unconfirmed/).waitFor();assert.equal(contentCreates.length,1);assert.equal(contentCreates[0].status,'draft');
-  assert.ok(await page.getByRole('button',{name:'Create 3 AI Drafts for Next Month',exact:true}).isDisabled());
+  await page.getByLabel('Maximum draft attempts',{exact:true}).fill('3');
+  await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).click();
+  await page.getByRole('region',{name:'Calendar draft recovery'}).waitFor();assert.equal(contentCreates.length,1);assert.equal(contentCreates[0].status,'draft');
+  assert.ok(await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).isDisabled());
   await page.getByRole('button',{name:/^Lead CRM & Sales AI/}).click();
-  await page.getByRole('button',{name:'30-Day Content Plan',exact:true}).click();failContentCreate=false;
-  await page.getByRole('button',{name:'Create 3 AI Drafts for Next Month',exact:true}).click();
-  await page.getByText('2 of 3 AI drafts saved for review. No posts were scheduled or published.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'30-Day Content Plan',exact:true}).click();
+  await page.getByRole('button',{name:'Safely close draft request'}).click();
+  await page.getByText('The saved request key is closed. Late retries cannot create a post.',{exact:true}).waitFor();
+  failContentCreate=false;await page.getByLabel('Maximum draft attempts',{exact:true}).fill('3');
+  await page.getByRole('button',{name:'Create 3 text drafts for review',exact:true}).click();
+  await page.getByText('2 new draft(s) saved; 0 existing post(s) recovered. No posts were approved, scheduled or published.',{exact:true}).waitFor();
   assert.equal(contentCreates.length,3);assert.ok(contentCreates.every(post=>post.status==='draft'&&post.companyId==='A'));
-  assert.equal(await planPanel.getByText(/generation failed/).count(),1);
-  const deletePlanned=page.getByRole('button',{name:'Delete stored post planned-3',exact:true});page.once('dialog',dialog=>void dialog.accept());await deletePlanned.click();
-  await page.getByText(/Failed to delete post:/).waitFor();assert.equal(contentDeletes.length,1);assert.equal(plannedPosts.length,2);
-  failContentDelete=false;page.once('dialog',dialog=>void dialog.accept());await deletePlanned.click();await page.getByText('✓ Post deleted from MySQL database.',{exact:true}).waitFor();assert.equal(contentDeletes.length,2);assert.equal(plannedPosts.length,1);
+  await page.getByRole('list',{name:'Calendar plan results'}).getByText(/generation_unavailable/).waitFor();
+  // Plain legacy draft deletion remains covered in its canonical Content Studio owner.
+  plannedPosts.push({id:'planned-manual',company_id:'A',title:'Legacy plain draft',type:'educational',platforms:['google'],caption:'Plain editable draft',headline:'Legacy plain draft',cta:'',hashtags:[],status:'draft',scheduled_date:'2026-11-25',scheduled_time:'11:00',time_slot:'11:00',sourceVersion:'f'.repeat(64)});
+  await page.reload();await page.getByRole('button',{name:/AI Content & Reels/}).click();await page.getByRole('button',{name:'Posts Queue (4)',exact:true}).click();
+  const deletePlanned=page.getByRole('button',{name:'Delete stored post planned-manual',exact:true});page.once('dialog',dialog=>void dialog.accept());await deletePlanned.click();
+  await page.getByText(/Failed to delete post from MySQL:/).waitFor();assert.equal(contentDeletes.length,1);assert.equal(plannedPosts.length,3);
+  failContentDelete=false;page.once('dialog',dialog=>void dialog.accept());await deletePlanned.click();await page.getByText('✓ Post deleted from MySQL database.',{exact:true}).waitFor();assert.equal(contentDeletes.length,2);assert.equal(plannedPosts.length,2);
   plannedPosts=[];
   console.log('Browser stage: truthful-crm');
   crmLeads=[{id:'lead-crm',company_id:'A',name:'CRM fixture',phone:'9999999999',stage:'new',intent_score:0,ai_suggested_reply:'Draft fixture'}];

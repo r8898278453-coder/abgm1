@@ -1,0 +1,27 @@
+slice,scope,parent,state
+C01,Current SQL client/month records instead of stale props,P05-08,local_verified
+C02,Bound business goal/pack/profile/operations context,P05-08,local_verified
+C03,Chosen plan month and weekdays,P05-08,local_verified
+C04,Bounded draft count and selected IST time,P05-08,local_verified
+C05,Future-only366-day plan window,P05-08,local_verified
+C06,Actual IST month/offset/leap boundaries,P05-08,local_verified
+C07,Supported target filter and text-draft scope,P05-08,local_verified
+C08,Existing approved-fact AI route and client goal prompts,P05-08,local_verified
+C09,Per-item generation/invalid/save/recovered/not-started outcomes,P05-08,local_verified
+C10,Purpose/actor/client/input-bound draft receipts,P05-08,local_verified
+C11,Eight-way duplicate-save convergence,P05-08,local_verified
+C12,Lost-ACK exact retry and refresh lookup,P05-08,local_verified
+C13,Atomic close-or-recover sealed-key receipts,P05-08,local_verified
+C14,Late save and concurrent close/create fencing,P05-08,local_verified
+C15,Fresh SQL role and assignment authority,P05-08,local_verified
+C16,Archive read-only behavior and safe request close,P05-08,local_verified
+C17,Stored caption/source-version review,P05-08,local_verified
+C18,Pending-only future schedule approval,P05-08,local_verified
+C19,Reschedule invalidates previous approval,P05-08,local_verified
+C20,Cancellation returns to draft without erasing history,P05-08,local_verified
+C21,UNKNOWN/in-flight dispatch control fences,P05-08,local_verified
+C22,Canonical transaction and approval history reuse,P05-08,local_verified
+C23,Exact uint64 workflow revisions and exhaustion,P05-08,local_verified
+C24,Metadata-only scope/session-safe CSV,P05-08,local_verified
+C25,Mobile/client/session/late-response isolation,P05-08,local_verified
+C26,Main workspace integration and retained plain-draft deletion owner,P05-08,local_verified

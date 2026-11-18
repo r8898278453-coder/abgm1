@@ -287,6 +287,31 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/content-calendar",
+      "owner": "server/clientCalendarRoutes.ts#registerClientCalendarRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/content-calendar/drafts",
+      "owner": "server/clientCalendarRoutes.ts#registerClientCalendarRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/content-calendar/drafts/by-request/:requestKey",
+      "owner": "server/clientCalendarRoutes.ts#registerClientCalendarRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/content-calendar/drafts/close-request",
+      "owner": "server/clientCalendarRoutes.ts#registerClientCalendarRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/content-calendar/posts/:postId/decision",
+      "owner": "server/clientCalendarRoutes.ts#registerClientCalendarRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/critical-alerts",
       "owner": "server/criticalAlertRoutes.ts#registerCriticalAlertRoutes"
     },
@@ -1246,5 +1271,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 48
+  "registrationCount": 49
 }

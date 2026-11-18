@@ -1,7 +1,7 @@
 import {loadPublicationPolicy} from './publicationPolicy';
 import {scheduledTimeMs} from './scheduleTime';
 import {randomUUID} from 'node:crypto';
-import type {Pool} from 'mysql2/promise';
+import type {Pool,PoolConnection} from 'mysql2/promise';
 import {z} from 'zod';
 import {publishingSourceVersion} from './publishingSource';
 import {PublishingReviewError} from './publishingReview';
@@ -13,7 +13,13 @@ export async function transitionPublication(pool:Pool,postId:string,actor:string
  const connection=await pool.getConnection();
  try{
   await connection.beginTransaction();
-  const [posts]:any=await connection.query('SELECT * FROM content_posts WHERE id = ? AND company_id = ? FOR UPDATE',[postId,parsed.companyId]);
+  const result=await transitionPublicationInTransaction(connection,postId,actor,parsed);await connection.commit();return result;
+ }catch(error){await connection.rollback();throw error;}finally{connection.release();}
+}
+
+/** Canonical state/audit mutation, reusable only inside a caller-owned transaction. */
+export async function transitionPublicationInTransaction(connection:PoolConnection,postId:string,actor:string,parsed:z.infer<typeof workflowInput>){
+  const [posts]:any=await connection.query('SELECT *,CAST(workflow_revision AS CHAR) workflow_revision FROM content_posts WHERE id = ? AND company_id = ? FOR UPDATE',[postId,parsed.companyId]);
   if(!posts.length)throw new PublishingReviewError(404,'Stored post not found in this workspace');
   const post=posts[0];
   if(publishingSourceVersion(post)!==parsed.expectedVersion)throw new PublishingReviewError(409,'Post changed. Reload before approving or editing status.');
@@ -23,11 +29,11 @@ export async function transitionPublication(pool:Pool,postId:string,actor:string
   const policy=await loadPublicationPolicy(connection,parsed.companyId);
   const nextPost={...post,status:parsed.status,...(parsed.schedule?{scheduled_date:parsed.schedule.date,scheduled_time:parsed.schedule.time,time_slot:parsed.schedule.time}:{})};
   if(parsed.status==='scheduled' && scheduledTimeMs(nextPost.scheduled_date,nextPost.scheduled_time,nextPost.time_slot)===null)throw new PublishingReviewError(409,'Stored schedule is invalid. Reschedule for approval first.');
-  const revision=BigInt(post.workflow_revision || 0)+1n;
+  const currentRevision=String(post.workflow_revision||0);if(!/^\d{1,20}$/.test(currentRevision)||BigInt(currentRevision)>=18446744073709551615n)throw new PublishingReviewError(409,'Workflow revision exhausted or invalid');
+  const revision=BigInt(currentRevision)+1n;
   const resultingVersion=publishingSourceVersion({...nextPost,workflow_revision:revision.toString()});
   await connection.query('UPDATE content_posts SET status = ?,workflow_revision = ?,scheduled_date = ?,scheduled_time = ?,time_slot = ? WHERE id = ? AND company_id = ?',[parsed.status,revision.toString(),nextPost.scheduled_date || null,nextPost.scheduled_time || null,nextPost.time_slot || null,postId,parsed.companyId]);
   const id=randomUUID();
   await connection.query(`INSERT INTO publication_workflow_audit (id,company_id,post_id,actor_id,from_status,to_status,source_version,resulting_version,change_kind,schedule_before,schedule_after,policy_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,[id,parsed.companyId,postId,actor,post.status,parsed.status,parsed.expectedVersion,resultingVersion,parsed.schedule?'RESCHEDULE':'STATUS',parsed.schedule?JSON.stringify({date:post.scheduled_date,time:post.scheduled_time,timeSlot:post.time_slot}):null,parsed.schedule?JSON.stringify(parsed.schedule):null,policy.version]);
-  await connection.commit();return {id,status:parsed.status,sourceVersion:resultingVersion};
- }catch(error){await connection.rollback();throw error;}finally{connection.release();}
+  return {id,status:parsed.status,sourceVersion:resultingVersion};
 }

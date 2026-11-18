@@ -1,0 +1,87 @@
+{
+  "dateIST": "2026-11-18",
+  "baseCommit": "d1f02ba0519b7bb77f796e10c4b23fa21a4332cf",
+  "previousPendingPush": "d1f02ba successfully pushed to existing branch at start of group",
+  "schema": "052_client_reports",
+  "canonicalTables": 90,
+  "nextMigration": "053",
+  "sqlMigrationAdded": false,
+  "frozenReportCoverage": 4,
+  "functionalSlices": 26,
+  "parentChanges": {
+    "P05-08": "planned_to_in_progress"
+  },
+  "verification": "passed_local",
+  "billingChanges": false,
+  "productionWrites": false,
+  "providerSends": false,
+  "liveModelCalls": false,
+  "renderingEnabled": false,
+  "deployment": false,
+  "tracker": {
+    "validated": 28,
+    "in_progress": 35,
+    "planned": 29,
+    "blocked": 1,
+    "total": 93
+  },
+  "tests": {
+    "defaultRegressionPrograms": 136,
+    "finalDefaultRegression": "passed; production credentials excluded",
+    "browserRegistryPrograms": 28,
+    "fullSerialBrowserGroup": "28/28 passed",
+    "targetedCalendarAndRootWorkspace": "2/2 passed",
+    "nativeMariaDB": "10.11.19 full disposable suite passed through052/90; restricted-user calendar fixture included",
+    "nativeCases": [
+      "eight-way save dedupe and approval CAS",
+      "actor/input/source/context/version/role and assignment guards",
+      "canonical reschedule and return-to-draft audit",
+      "UNKNOWN dispatch blocks changes; zero provider sends",
+      "lost-ACK exact replay and key lookup",
+      "idempotent sealed request and simultaneous close/save race",
+      "archive read-only with own safe request close",
+      "audit rollback; no partial intent/post",
+      "Instagram missing-image approval blocked",
+      "legacy UTC date appears in correct IST month",
+      "exact uint64 maximum-minus-one advances to maximum; exhaustion refused",
+      "strict authenticated private GET/POST/no-store queries"
+    ],
+    "testCorrections": [
+      "UTC boundary read model now filters actual IST execution dates",
+      "Workflow revisions are selected as CHAR to avoid bigint rounding",
+      "Root plain-draft deletion regression moved into canonical Content Studio after calendar direct deletion was removed"
+    ],
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "routeDeclarations": 253,
+    "routeRegistrations": 49,
+    "routeCollisions": 0,
+    "frontend": {
+      "initialJsBytes": 583016,
+      "initialJsGzipBytes": 168864,
+      "rawBudget": 600000,
+      "gzipBudget": 180000,
+      "normalAppClosureIncluded": true,
+      "featureEntriesInitiallyLoaded": 0
+    },
+    "uploadedSqlExport": "previous through052/90 preservation evidence retained; no new migration/restore in this group"
+  },
+  "canonicalReuse": [
+    "publication_draft_intents",
+    "content_posts",
+    "publication_workflow_audit",
+    "normalizeContentPost/insertContentPost",
+    "transitionPublicationInTransaction",
+    "approved-fact AI generation/budget route",
+    "canonical publishing claims and execution policy"
+  ],
+  "remaining": [
+    "Immutable batch-plan/content snapshot store",
+    "Semantic topic and asset deduplication",
+    "Maintained user-confirmed festival and approved-offer source",
+    "Full audience/language/brand/strategy planning",
+    "Platform-wide mandatory approval governance",
+    "Media/library strategy and production/provider validation",
+    "Hosting/runtime/cron/backup and phase/release gates"
+  ]
+}

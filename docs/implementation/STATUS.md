@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-18 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 052_client_reports; 90 canonical tables. Registered default regression programs: 135 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 052_client_reports; 90 canonical tables. Registered default regression programs: 136 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 28 / 34 / 1 / 30.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 28 / 35 / 1 / 29.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -17,7 +17,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 3 | 3 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
-| P05 | 0 | 2 | 0 | 9 |
+| P05 | 0 | 3 | 0 | 8 |
 | P06 | 0 | 6 | 0 | 2 |
 | P07 | 0 | 6 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
@@ -99,7 +99,7 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-05 | planned | Complete canonical GBP post and media dispatch | P04-09, P05-04 |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P04-09, P05-05 |
 | P05-07 | in_progress | Build client-specific creative and approved asset library | P04-09, P05-06 |
-| P05-08 | planned | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
+| P05-08 | in_progress | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
 | P05-09 | in_progress | Move reel state into durable jobs with resource limits | P04-09, P05-08 |
 | P05-10 | planned | Harden campaign linking ads telemetry and portable storefront capture | P04-09, P05-09 |
 | P05-11 | planned | Marketing parity and publication gate | P04-09, P05-10 |
