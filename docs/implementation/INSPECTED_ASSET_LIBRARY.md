@@ -1,5 +1,7 @@
 # Inspected asset library and exact duplicate photo selection
 
+Continuation: [CALENDAR_PHOTO_GUIDANCE.md](CALENDAR_PHOTO_GUIDANCE.md) binds explicitly reviewed per-topic references to immutable plans. It adds generation-boundary validation, while actual attachment/use binding with publication checks remains pending.
+
 18 November2026 IST. P05-07 continuation, with supporting P05-09 render admission fixes. The existing company_assets table, render_asset_approvals records, rights/source declaration, owned-file reader and render queue remain canonical. No new migration, worker, scheduler, provider client or approval store is introduced.
 
 ## Read-only inspection

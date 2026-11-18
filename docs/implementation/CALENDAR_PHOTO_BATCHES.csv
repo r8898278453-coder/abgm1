@@ -1,0 +1,17 @@
+slice,parent,scope,status,evidence
+CPG-01,P05-07;P05-08,Strict optional photo-guidance input,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-02,P05-07;P05-08,Exact revision hash slot reference bounds,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-03,P05-07;P05-08,Explicit same-byte repeat policy,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-04,P05-07;P05-08,Inspected approved-photo picker,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-05,P05-07;P05-08,Review confirmation and topic-change invalidation,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-06,P05-07;P05-08,Page-local candidate replacement,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-07,P05-07;P05-08,Immutable config/history guidance retention,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-08,P05-07;P05-08,Same-company approved photo resolution,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-09,P05-07;P05-08,Plan-create owned-file byte check,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-10,P05-07;P05-08,Pre-model mapped slot approval/byte check,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-11,P05-07;P05-08,Post-model revocation/byte-change discard,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-12,P05-07;P05-08,Sequential unique asset verification,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-13,P05-07;P05-08,Recorded approval freshness separate from bytes,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-14,P05-07;P05-08,Text-only saved result/no implicit attachment,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-15,P05-07;P05-08,Legacy input and key-only recovery compatibility,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
+CPG-16,P05-07;P05-08,SQL browser regression and tracker evidence,implemented_local,CALENDAR_PHOTO_GUIDANCE.md; test/calendarPhotos.test.ts; test/integration/calendarPlansSql.test.ts; test/browser/clientCalendar.test.ts
