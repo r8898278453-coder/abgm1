@@ -1,0 +1,23 @@
+slice,area,implemented_behavior
+1,Selected identity,Canonical company/Google Places selection rechecked at commit; Places is not OAuth
+2,Exact branch,Rank attribution requires exact Place ID; same-name listings remain candidates
+3,Queued identity,Existing rank worker passes the selected tenant Place ID
+4,Provider status,HTTP200 application errors cannot become LIVE observations
+5,Bounded transport,One-MiB provider JSON and redirect refusal
+6,Grid budget,Twenty-second scan deadline; remaining nodes fail visibly
+7,Batch budget,At most three keyword attempts per request and a bounded wall-clock admission
+8,Continuation,Explicit offset/nextOffset lets the next click continue the remaining keywords
+9,Partial outcomes,Per-keyword SAVED/providerStatus/UNAVAILABLE/CONFLICT/NOT_ATTEMPTED
+10,Atomic save,Observation rows plus exact workspace revision plus audit share one transaction
+11,Fresh authority,Role/archive and company/selected-source fingerprint rechecked before commit
+12,Concurrent edits,Eight contenders yield one revision/history/audit winner
+13,Comparable baseline,Same source/provider/coordinate and strictly earlier fresh centre observation only
+14,Stale competitor,Older/equal/future/stale provider observation cannot overwrite current tracked metrics
+15,Identity retention,Provider refresh cannot silently rebind an existing competitor Place ID
+16,Calculated profile,Saved populated-field completeness replaces verified Google-health inference
+17,Null metrics,Invalid/null ratings excluded from averages; invalid counts stay null
+18,Reply evidence,Saved draft/replied flag cannot count as provider-verified response
+19,Score parity,GET/recalculate share a private current read model without hidden writes or failure-as-empty
+20,Canonical ranks,Editable keyword/legacy ranks and failed/stale/research/mock observations cannot qualify
+21,Summary truth,"Executive summary uses recorded reviews and current keyword centres, not best corners"
+22,Operator UI,"Stale notices, honest batch wording, industry-derived suggestions and IST observation times"

@@ -533,7 +533,7 @@ async function runE2EWalkthrough() {
   });
 
   assert.strictEqual(finalGrowthScore.status, 'CALCULATED', 'Final growth score must achieve CALCULATED state');
-  assert.ok(finalGrowthScore.overall !== null && finalGrowthScore.overall >= 60, `Calculated score (${finalGrowthScore.overall}) must reflect verified business signals`);
+  assert.equal(finalGrowthScore.overall,48,'Fixed saved evidence yields 48; local reply drafts cannot inflate verified response coverage');assert.equal(finalGrowthScore.breakdown.customerEngagement,0,'No provider-verified response evidence was recorded');
   assert.strictEqual(finalGrowthScore.telemetry.length, 8, 'All 8 growth intelligence pillars must report telemetry');
 
   console.log(`  ✅ Step 9 Passed: Growth score calculated dynamically (${finalGrowthScore.overall}/100) with complete 8-pillar telemetry audit trail.`);

@@ -157,7 +157,7 @@ const realEvidence = buildStructuredEvidence({
 assert.ok(realEvidence.length >= 6, 'Should generate comprehensive structured evidence');
 const revEvidence = realEvidence.find((e) => e.metric === 'Google reviews count');
 assert.strictEqual(revEvidence?.value, 2, 'Should capture exact verified reviews count (2)');
-assert.strictEqual(revEvidence?.status, 'VERIFIED', 'Status should be VERIFIED for linked account');
+assert.strictEqual(revEvidence?.status, 'CALCULATED', 'Saved review count is calculated; a profile flag cannot verify Google access');
 
 const leadEvidence = realEvidence.find((e) => e.metric === 'Total CRM leads');
 assert.strictEqual(leadEvidence?.value, 1, 'Should capture exact CRM leads count (1)');
@@ -169,8 +169,8 @@ assert.ok(prompt.includes('You must NOT invent'), 'Prompt must contain anti-hall
 
 const deterministicSummary = generateDeterministicSummary('Aaditech Solution', 'Thane', realEvidence);
 assert.ok(deterministicSummary.headline.includes('1 active leads'), 'Headline must strictly use verified leads');
-assert.ok(deterministicSummary.summary.includes('2 verified reviews'), 'Summary must strictly cite verified reviews');
-assert.ok(deterministicSummary.summary.includes('#2'), 'Summary must cite verified rank #2');
+assert.ok(deterministicSummary.summary.includes('2 recorded reviews'), 'Summary must strictly cite verified reviews');
+assert.ok(deterministicSummary.summary.includes('Local Map Pack rank telemetry is currently unavailable'),'Places text-search/corner research is not a current centre rank');
 console.log('  ✅ Test 1 Passed: Real verified evidence correctly grounded without hallucination.\n');
 
 // 2. Missing Evidence Test (e.g. No Rank, No Domain)
@@ -321,7 +321,7 @@ assert.strictEqual(conflictingRank?.status, 'UNAVAILABLE', 'Invalid rank 0 must 
 
 const conflictingReviewCount = conflictingEvidence.find((e) => e.metric === 'Google reviews count');
 assert.strictEqual(conflictingReviewCount?.value, 2);
-assert.strictEqual(conflictingReviewCount?.status, 'USER_ENTERED', 'Disconnected provider must be USER_ENTERED');
+assert.strictEqual(conflictingReviewCount?.status, 'CALCULATED', 'Saved row count is calculated without asserting provider verification');
 
 console.log('  ✅ Test 5 Passed: Conflicting and irregular data resolved safely.\n');
 

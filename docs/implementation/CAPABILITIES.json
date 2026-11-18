@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 49,
+    "validated": 51,
     "in_progress": 17,
-    "planned": 26,
+    "planned": 24,
     "blocked": 1
   },
   "total": 93,
@@ -619,14 +619,14 @@
       "id": "P05-02",
       "phase": "P05",
       "title": "Make local profile audit and growth scoring evidence-based",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Real baseline inputs and timestamps; scores labeled calculated; unavailable inputs stay null; recommendations actionable"
     },
     {
       "id": "P05-03",
       "phase": "P05",
       "title": "Harden keyword research rank grids and competitor refresh",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Coordinates/provider/identity validated; rank vs research separated; history baselines/stale/null statuses accurate"
     },
     {

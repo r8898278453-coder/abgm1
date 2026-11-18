@@ -1,3 +1,4 @@
+import {currentObservation} from '../../shared/localMarketingEvidence';
 import {competitorVersion} from '../../shared/competitors';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -278,8 +279,8 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {competitors.map((comp) => {
                   const isSelf = comp.isSelf;
-                  const classification =
-                    comp.dataClassification || 'UNAVAILABLE';
+                  const stale=['LIVE','VERIFIED'].includes(comp.dataClassification||'')&&!currentObservation(comp);
+                  const classification=stale?'UNAVAILABLE':comp.dataClassification||'UNAVAILABLE';
 
                   return (
                     <tr
@@ -309,7 +310,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
 
                       {/* Data Status Badge */}
                       <td className="p-3.5">
-                        <DataStatusBadge status={classification} />
+                        <DataStatusBadge status={classification} />{stale&&<span className="block text-xs text-amber-800">Historical observation; current metrics unavailable</span>}
                       </td>
 
                       {/* Google Rating */}
@@ -577,7 +578,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
                         </div>
                         <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
                           <Clock className="w-3 h-3" />
-                          <span>{obs.timestamp ? new Date(obs.timestamp).toLocaleString() : 'N/A'}</span>
+                          <span>{obs.timestamp ? new Date(obs.timestamp).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST' : 'N/A'}</span>
                         </div>
                       </div>
 

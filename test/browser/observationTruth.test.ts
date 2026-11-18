@@ -22,6 +22,7 @@ try{
  const context=await browser.newContext({serviceWorkers:'block'});
  await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin!==origin){await route.abort();return;}if(url.pathname==='/'){await route.fulfill({contentType:'text/html',body:await vite.transformIndexHtml('/',`<div id="root"></div><script type="module" src="${fixture}"></script>`)});return;}await route.continue();});
  const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>console.error(error.message));await page.goto(origin);
+ await page.getByText(/Current rank unavailable: this saved observation is stale/).waitFor();
  await page.getByText('No comparable baseline',{exact:true}).waitFor();
  const rows=page.locator('tbody tr');assert.match(await rows.nth(0).innerText(),/No comparable baseline/);assert.doesNotMatch(await rows.nth(0).innerText(),/Steady/);
  assert.match(await rows.nth(1).innerText(),/Steady/);assert.match(await rows.nth(2).innerText(),/\+5 spots/);

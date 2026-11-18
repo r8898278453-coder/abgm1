@@ -149,6 +149,7 @@ function runTests() {
     ];
 
     const fullInputs: GrowthScoreInputs = {
+      overrideTimestamp:"2026-09-21T00:00:00Z",
       businessProfile: mockProfile,
       reviews: mockReviews,
       rankObservations: mockRankObs,
@@ -165,7 +166,7 @@ function runTests() {
     assert(res.breakdown.localSeo !== null && res.breakdown.localSeo >= 95, 'Top 1-2 rank grid must score >= 95');
     assert(res.breakdown.website === 100, 'Connected site with verified domain & clean audit must score 100');
     assert(res.breakdown.reviews !== null, 'Reviews score must exist');
-    assert(res.breakdown.customerEngagement !== null, 'Customer engagement (67% response rate) must exist');
+    assert(res.breakdown.customerEngagement === 0, 'Saved reply text is not a provider-verified response');
     assert(res.breakdown.content !== null, 'Content score must exist');
 
     // Verify payload transformer

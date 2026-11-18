@@ -4,7 +4,7 @@ import {createServer} from 'vite';
 const fixture='/__competitor_fixture.tsx';
 const vite=await createServer({plugins:[{name:'competitor-fixture',resolveId(id){if(id===fixture)return id;},load(id){if(id!==fixture)return;return `
 import React,{useState} from 'react';import{createRoot}from'react-dom/client';import{CompetitorsView}from'/src/components/CompetitorsView.tsx';
-const initial=[{id:'c',name:'Alpha competitor',rating:4,reviewsCount:10,dataClassification:'USER_ENTERED',provider:'manual'},{id:'d',name:'Second competitor',rating:null,reviewsCount:null}];
+const initial=[{id:'c',name:'Alpha competitor',rating:4,reviewsCount:10,dataClassification:'USER_ENTERED',provider:'manual'},{id:'d',name:'Second competitor',rating:null,reviewsCount:null,dataClassification:'LIVE',provider:'google_places',lastObservedAt:'2026-01-01T00:00:00Z'}];
 window.acks=[];function App(){const[company,setCompany]=useState('A'),[items,setItems]=useState(initial);window.changeClient=()=>{setCompany('B');setItems([{id:'b',name:'Beta competitor'}]);};return <CompetitorsView key={company} companyId={company} competitors={items} onNavigate={()=>{}} onUpdateCompetitors={(rows,ack)=>{window.acks.push(ack);setItems(rows);}}/>;}createRoot(document.getElementById('root')).render(<App/>);
 `;}}],server:{host:'127.0.0.1',port:0},logLevel:'error'});
 await vite.listen();let browser:Awaited<ReturnType<typeof chromium.launch>>|undefined,release:(()=>void)|undefined;
@@ -22,7 +22,7 @@ try{
   }
   await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
  });
- const page=await context.newPage();page.setDefaultTimeout(15000);await page.goto(origin);await page.getByText('Alpha competitor',{exact:true}).waitFor();
+ const page=await context.newPage();page.setDefaultTimeout(15000);await page.goto(origin);await page.getByText('Historical observation; current metrics unavailable',{exact:true}).waitFor();await page.getByText('Alpha competitor',{exact:true}).waitFor();
  await page.getByTitle('Remove competitor',{exact:true}).first().click();await page.getByText('Delete unconfirmed. Record retained; reload workspace before retrying.',{exact:true}).waitFor();assert.equal(await page.getByText('Alpha competitor',{exact:true}).count(),1);assert.equal(await page.evaluate(()=>(window as any).acks.length),0);
  mode='save-failure';await page.reload();await page.getByTitle('Edit competitor',{exact:true}).first().click();await page.getByPlaceholder('e.g. Star Tech Solutions').fill('Retained edit');await page.getByRole('button',{name:'Update Competitor',exact:true}).click();await page.getByText('Save unconfirmed. Your form is retained. Reload workspace before retrying.',{exact:true}).waitFor();assert.equal(await page.getByPlaceholder('e.g. Star Tech Solutions').inputValue(),'Retained edit');assert.equal(await page.evaluate(()=>(window as any).acks.length),0);
  mode='history';await page.reload();await page.getByTitle('View snapshot history in MySQL',{exact:true}).first().click();await page.waitForFunction(()=>document.body.innerText.includes('Observation History: Alpha competitor'));assert.equal(firstHistory,true);

@@ -610,12 +610,14 @@ export default function App() {
     setKeywords(previous=>{const index=previous.findIndex(item=>item.keyword.toLowerCase()===target.toLowerCase());return index<0?[result.keyword,...previous]:previous.map((item,i)=>i===index?result.keyword:item);});
     if(!workspaceSaverRef.current?.observe(result.previousVersion,result.version))setWorkspaceWritePaused(true);
   };
+  const rankRefreshOffset=useRef({scope:'',offset:0});
   const handleRefreshAllKeywords=async()=>{
     const company=activeCompanyId,generation=workspaceLoadGenerationRef.current;if(!company)throw new Error('Select a workspace.');
-    const result=await refreshAllKeywordRanksApi(company);
+    const scope=company+'|'+generation+'|'+JSON.stringify(keywords.map(k=>k.keyword));const offset=rankRefreshOffset.current.scope===scope?rankRefreshOffset.current.offset:0;
+    const result=await refreshAllKeywordRanksApi(company,offset);
     if(activeCompanyIdRef.current!==company||workspaceLoadGenerationRef.current!==generation)return;
     if(result.success!==true||result.companyId!==company||!Array.isArray(result.keywords))throw new Error('Rank refresh unconfirmed.');
-    setKeywords(result.keywords);if(!workspaceSaverRef.current?.observe(result.previousVersion,result.version))setWorkspaceWritePaused(true);
+    rankRefreshOffset.current={scope,offset:result.nextOffset??0};setKeywords(result.keywords);const delta=result.revisionDelta??1;if(delta===0?result.previousVersion!==result.version:!workspaceSaverRef.current?.observe(result.previousVersion,result.version,delta))setWorkspaceWritePaused(true);
   };
   const handleScanSingleKeyword=handleAddKeyword;
   const handleAddCompetitorFromSerp=async(comp:{name:string;rating:number;reviewsCount:number})=>{

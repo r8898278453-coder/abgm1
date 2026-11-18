@@ -1,3 +1,4 @@
+import {currentRank,rankPosition,providerRating,googleProfileCompleteness} from '../shared/localMarketingEvidence';
 import {
   BusinessProfile,
   GrowthScore,
@@ -71,67 +72,18 @@ export function calculateGrowthIntelligenceScore(
 
   // 1. Google Business Profile Health
   const profile = inputs.businessProfile;
-  const hasPlaceId = Boolean(profile?.connectedAccounts?.googleBusiness || profile?.address);
-  const isGoogleConnected = Boolean(profile?.connectedAccounts?.googleBusiness);
-  const hasAddress = Boolean(profile?.address && profile.address.trim().length > 3);
-  const hasPhone = Boolean(profile?.phone && profile.phone.trim().length > 5);
-  const hasHours = Boolean(profile?.openingHours && profile.openingHours.trim().length > 3);
-  const hasDescription = Boolean(profile?.description && profile.description.trim().length > 10);
-
-  const googleProfileInputs = {
-    hasPlaceId,
-    isGoogleConnected,
-    hasAddress,
-    hasPhone,
-    hasHours,
-    hasDescription,
-  };
-
-  let googleProfileScore: number | null = null;
-  let googleProfileStatus: PillarScoreTelemetry['status'] = 'UNAVAILABLE';
-  const googleProfileFormula =
-    '(hasPlaceId ? 35 : 0) + (isGoogleConnected ? 25 : 0) + (hasAddress ? 10 : 0) + (hasPhone ? 10 : 0) + (hasHours ? 10 : 0) + (hasDescription ? 10 : 0)';
-
-  if (profile && (hasPlaceId || isGoogleConnected || hasAddress || hasPhone)) {
-    let score = 0;
-    if (hasPlaceId) score += 35;
-    if (isGoogleConnected) score += 25;
-    if (hasAddress) score += 10;
-    if (hasPhone) score += 10;
-    if (hasHours) score += 10;
-    if (hasDescription) score += 10;
-
-    googleProfileScore = Math.min(100, Math.max(0, score));
-    googleProfileStatus = isGoogleConnected ? 'VERIFIED' : 'USER_ENTERED';
-  }
-
-  telemetry.push({
-    pillarKey: 'googleProfile',
-    metricName: 'Google Business Profile Health',
-    score: googleProfileScore,
-    status: googleProfileStatus,
-    inputValues: googleProfileInputs,
-    formula: googleProfileFormula,
-    source: isGoogleConnected ? 'Google Places API' : 'Business Profile Configuration',
-    timestamp: nowIso,
-    notes:
-      googleProfileScore === null
-        ? 'No Google Business Profile connected or location data provided'
-        : undefined,
-  });
+  const completeness=googleProfileCompleteness(profile);
+  const isGoogleConnected=false; // Saved connection flags cannot establish provider authority.
+  const googleProfileScore=completeness.score;
+  telemetry.push({pillarKey:'googleProfile',metricName:'Saved Business Profile Completeness',score:googleProfileScore,status:googleProfileScore===null?'UNAVAILABLE':'CALCULATED',inputValues:completeness.fields,formula:completeness.formula,source:completeness.source,timestamp:nowIso,notes:'Calculated saved-field coverage only. No Google account/location verification or measured health is inferred.'});
 
   // 2. Local SEO & Map Pack
   const rankObs = inputs.rankObservations || [];
   const keywordRanks = inputs.keywordRanks || [];
-  const primaryRank = typeof inputs.rankPosition === 'number' ? inputs.rankPosition : null;
-
-  const validObsPositions = rankObs
-    .map((o) => o.position)
-    .filter((p): p is number => typeof p === 'number' && p > 0);
-
-  const validKwPositions = keywordRanks
-    .map((k) => k.rank)
-    .filter((p): p is number => typeof p === 'number' && p > 0);
+  const primaryRank = null; // Unscoped legacy rank_position has no provider/time provenance.
+  const evidenceNow=Date.parse(nowIso);
+  const validObsPositions = rankObs.filter(o=>currentRank(o,evidenceNow)).map(o=>rankPosition(o.position)).filter((p):p is number=>p!==null);
+  const validKwPositions:number[]=[]; // Editable keyword snapshots are not canonical provider evidence.
 
   let localSeoScore: number | null = null;
   let localSeoStatus: PillarScoreTelemetry['status'] = 'UNAVAILABLE';
@@ -142,14 +94,11 @@ export function calculateGrowthIntelligenceScore(
   if (validObsPositions.length > 0) {
     avgRank =
       validObsPositions.reduce((sum, val) => sum + val, 0) / validObsPositions.length;
-    localSeoStatus = 'LIVE';
+    localSeoStatus = 'CALCULATED';
   } else if (validKwPositions.length > 0) {
     avgRank =
       validKwPositions.reduce((sum, val) => sum + val, 0) / validKwPositions.length;
-    localSeoStatus = 'VERIFIED';
-  } else if (primaryRank !== null && primaryRank > 0) {
-    avgRank = primaryRank;
-    localSeoStatus = 'VERIFIED';
+    localSeoStatus = 'CALCULATED';
   }
 
   if (avgRank !== null) {
@@ -189,8 +138,9 @@ export function calculateGrowthIntelligenceScore(
   // 3. Reviews & Reputation
   const reviews = inputs.reviews || [];
   const totalReviews = reviews.length;
-  const ratingSum = reviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0);
-  const avgRating = totalReviews > 0 ? ratingSum / totalReviews : null;
+  const ratedReviews=reviews.filter(r=>providerRating(r.rating)!==null);
+  const ratingSum=ratedReviews.reduce((sum,r)=>sum+r.rating,0);
+  const avgRating=ratedReviews.length?ratingSum/ratedReviews.length:null;
 
   let reviewsScore: number | null = null;
   let reviewsStatus: PillarScoreTelemetry['status'] = 'UNAVAILABLE';
@@ -201,7 +151,7 @@ export function calculateGrowthIntelligenceScore(
     const ratingComponent = (Math.min(5, Math.max(1, avgRating)) / 5.0) * 60;
     const volumeComponent = (Math.min(50, totalReviews) / 50.0) * 40;
     reviewsScore = Math.min(100, Math.max(0, Math.round(ratingComponent + volumeComponent)));
-    reviewsStatus = 'VERIFIED';
+    reviewsStatus = 'CALCULATED';
   }
 
   telemetry.push({
@@ -211,6 +161,8 @@ export function calculateGrowthIntelligenceScore(
     status: reviewsStatus,
     inputValues: {
       totalReviews,
+      ratedReviews:ratedReviews.length,
+      excludedRatings:totalReviews-ratedReviews.length,
       averageRating: avgRating !== null ? Number(avgRating.toFixed(2)) : null,
       fiveStarCount: reviews.filter((r) => r.rating >= 5).length,
     },
@@ -222,7 +174,7 @@ export function calculateGrowthIntelligenceScore(
   });
 
   // 4. Customer Engagement & Review Response Rate
-  const repliedReviews = reviews.filter((r) => r.replied || (r.replyText && r.replyText.trim().length > 0));
+  const repliedReviews = reviews.filter((r) => r.replyVerified===true || (r.replyStatus==='VERIFIED'&&typeof r.providerReplyId==='string'&&r.providerReplyId.length>0));
   const unrepliedReviews = totalReviews - repliedReviews.length;
 
   let customerEngagementScore: number | null = null;
@@ -237,7 +189,7 @@ export function calculateGrowthIntelligenceScore(
 
   telemetry.push({
     pillarKey: 'customerEngagement',
-    metricName: 'Review Response & Customer Engagement',
+    metricName: 'Provider-verified Review Response Coverage',
     score: customerEngagementScore,
     status: customerEngagementStatus,
     inputValues: {
@@ -259,7 +211,7 @@ export function calculateGrowthIntelligenceScore(
   });
 
   // 5. Website Presence & Experience
-  const hasWebsiteUrl = Boolean(profile?.website && profile.website.trim().length > 4);
+  const hasWebsiteUrl=(()=>{try{const u=new URL(profile?.website);return ['https:','http:'].includes(u.protocol)&&!!u.hostname&&!u.username&&!u.password;}catch{return false;}})();
   const isWebsiteConnected = Boolean(profile?.connectedAccounts?.website);
   const isDomainVerified = Boolean(inputs.customDomainVerified);
   const unresolvedAuditIssues = (inputs.auditItems || []).filter(
@@ -269,19 +221,18 @@ export function calculateGrowthIntelligenceScore(
   let websiteScore: number | null = null;
   let websiteStatus: PillarScoreTelemetry['status'] = 'UNAVAILABLE';
   const websiteFormula =
-    'clamp(0, 100, 50 + (isDomainVerified ? 30 : 0) + max(0, 20 - (unresolvedAuditIssues * 5)))';
+    '(hasValidSavedWebsiteUrl ? 50 : 0) + (isDomainVerified ? 50 : 0); no performance or absence-of-audit bonus';
 
-  if (hasWebsiteUrl || isWebsiteConnected) {
+  if (hasWebsiteUrl) {
     let score = 50;
-    if (isDomainVerified) score += 30;
-    score += Math.max(0, 20 - unresolvedAuditIssues * 5);
+    if (isDomainVerified) score += 50;
     websiteScore = Math.min(100, Math.max(0, score));
-    websiteStatus = 'VERIFIED';
+    websiteStatus = 'CALCULATED';
   }
 
   telemetry.push({
     pillarKey: 'website',
-    metricName: 'Website Experience & Performance',
+    metricName: 'Saved Website Configuration Coverage',
     score: websiteScore,
     status: websiteStatus,
     inputValues: {
@@ -453,13 +404,13 @@ export function calculateGrowthIntelligenceScore(
     );
     overallStatus = 'INCOMPLETE_DATA';
     statusLabel = 'INCOMPLETE DATA';
-    insufficientDataReason = `Computed from ${availableCount} of ${totalCorePillars} pillars. Minimum 3 verified pillars required for full composite score.`;
+    insufficientDataReason = `Computed from ${availableCount} of ${totalCorePillars} pillars. Minimum 3 available calculated pillars required; this is not provider verification.`;
   } else {
     overall = Math.round(
       availableScores.reduce((sum, s) => sum + s, 0) / availableCount
     );
     overallStatus = 'CALCULATED';
-    statusLabel = 'CALCULATED (EVIDENCE-BASED)';
+    statusLabel = 'CALCULATED (AVAILABLE SAVED EVIDENCE)';
     insufficientDataReason = null;
   }
 

@@ -41,12 +41,16 @@ export function observationLimit(value:number){return number(value,1,500,true);}
 const comparable=(row:Record<string,any>,fields:string[])=>JSON.stringify(fields.map(key=>row[key]??null));
 const rankFields=['id','company_id','keyword','latitude','longitude','grid_index','grid_label','timestamp','provider','position','status','source_evidence','top_competitors_json'];
 const competitorFields=['id','company_id','competitor_id','name','place_id','address','rating','reviews_count','photos_count','posts_per_week','rank_position','provider','timestamp','status','raw_payload'];
-export async function saveRanksSql(pool:Pool,records:DbRankObservation[]){
- if(!records.length)return;if(records.length>100||records.some(row=>row.company_id!==records[0].company_id))return fail();const conn=await pool.getConnection();try{
-  await conn.beginTransaction();const [owner]:any=await conn.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[records[0].company_id]);if(owner.length!==1)throw new ObservationError('OBSERVATION_WORKSPACE_NOT_FOUND',404);
+export async function saveRanksInTransaction(conn:Pick<Pool,'query'>,records:DbRankObservation[]){
+ if(!records.length)return;if(records.length>100||records.some(row=>row.company_id!==records[0].company_id))return fail();
   const [existing]:any=await conn.query('SELECT *,UNIX_TIMESTAMP(timestamp)*1000 stamp_ms FROM rank_observations WHERE id IN (?) FOR UPDATE',[records.map(row=>row.id)]);const byId=new Map(existing.map((row:any)=>[row.id,rankRow(row)]));
   const fresh=records.filter(row=>{const old=byId.get(row.id) as any;if(!old)return true;if(comparable(old,rankFields)!==comparable(row,rankFields))throw new ObservationError('OBSERVATION_IDENTITY_CONFLICT',409);return false;});
   if(fresh.length){const tuples=fresh.map(()=>'(?,?,?,?,?,?,?,FROM_UNIXTIME(?),?,?,?,?,?)').join(',');const values=fresh.flatMap(row=>[row.id,row.company_id,row.keyword,row.latitude,row.longitude,row.grid_index,row.grid_label??null,Date.parse(row.timestamp)/1000,row.provider,row.position,row.status,row.source_evidence??null,row.top_competitors_json??null]);await conn.query('INSERT INTO rank_observations(id,company_id,keyword,latitude,longitude,grid_index,grid_label,timestamp,provider,position,status,source_evidence,top_competitors_json) VALUES '+tuples,values);}
+}
+export async function saveRanksSql(pool:Pool,records:DbRankObservation[]){
+ if(!records.length)return;if(records.length>100||records.some(row=>row.company_id!==records[0].company_id))return fail();const conn=await pool.getConnection();try{
+  await conn.beginTransaction();const [owner]:any=await conn.query('SELECT id FROM companies WHERE id=? FOR UPDATE',[records[0].company_id]);if(owner.length!==1)throw new ObservationError('OBSERVATION_WORKSPACE_NOT_FOUND',404);
+  await saveRanksInTransaction(conn,records);
   await conn.commit();
  }catch(error){await conn.rollback();throw error;}finally{conn.release();}
 }

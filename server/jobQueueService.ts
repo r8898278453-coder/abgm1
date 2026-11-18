@@ -179,7 +179,8 @@ export async function executeJob(
         const scanResult = await provider.scanRankGrid(
           {
             companyId,
-            businessName: company?.name || 'Local Business',
+            businessName: company?.name || '',
+            placeId:company?.google_place_id||integrations.find(i=>i.provider==='google_business')?.credentials?.placeId||undefined,
             keyword,
             city,
             centerLat,

@@ -1,3 +1,5 @@
+import {localProviderJson} from './localProviderJson';
+import {rankIdentity,providerResponseRows,providerRating,providerCount} from '../shared/localMarketingEvidence';
 import crypto from 'crypto';
 
 export interface GeoCoordinate {
@@ -81,7 +83,7 @@ const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
  * Resolves center coordinates for a business from its explicit location or city name
  */
 export function resolveCenterCoordinates(city?: string, customLat?: number, customLng?: number): { lat: number; lng: number } | null {
-  if(customLat!==undefined||customLng!==undefined){
+  if(customLat!=null||customLng!=null){
     if(typeof customLat!=='number'||typeof customLng!=='number'||!Number.isFinite(customLat)||!Number.isFinite(customLng)||Math.abs(customLat)>90||Math.abs(customLng)>180)return null;
     return {lat:customLat,lng:customLng};
   }
@@ -156,6 +158,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
   }
 
   async scanRankGrid(context: RankScanContext, credentials?: Record<string, any>): Promise<RankScanResult> {
+    if(typeof context.placeId!=='string'||!context.placeId.trim()||context.placeId.length>128)throw Error('RANK_IDENTITY_UNAVAILABLE');
     const login = credentials?.login;
     const password = credentials?.password;
 
@@ -170,8 +173,11 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
     const allCompetitors: Map<string, { name: string; rating: number; reviewsCount: number; position: number }> = new Map();
 
     // Query DataForSEO for center node or sample nodes
+    const deadline=Date.now()+20000;
     for (const coord of context.coordinates) {
+      const remaining=deadline-Date.now();
       try {
+        if(remaining<=0)throw Error('RANK_SCAN_BUDGET_EXHAUSTED');
         const postData = [
           {
             keyword: context.keyword,
@@ -182,18 +188,18 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
         ];
 
         const response = await fetch('https://api.dataforseo.com/v3/serp/google/maps/live/advanced', {
-          method: 'POST',
+          method: 'POST',redirect:'error',
           headers: {
             Authorization: authHeader,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(postData),
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(Math.max(1,Math.min(10000,remaining))),
         });
 
         if (response.ok) {
-          const resJson: any = await response.json();
-          const items = resJson?.tasks?.[0]?.result?.[0]?.items || [];
+          const resJson: any = await localProviderJson(response);
+          const items=providerResponseRows(resJson,'dataforseo');
           let nodeRank: number | null = null;
           let matchedEvidence = '';
 
@@ -219,10 +225,7 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
 
           items.forEach((item: any, idx: number) => {
             const itemClean = (item.title || item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const isMatch =
-              (context.placeId && item.place_id === context.placeId) ||
-              (cleanBizName.length > 3 && itemClean.includes(cleanBizName)) ||
-              (itemClean.length > 3 && cleanBizName.includes(itemClean));
+            const isMatch=rankIdentity(context.placeId,context.businessName,item);
 
             if (isMatch && nodeRank === null) {
               nodeRank = idx + 1;
@@ -232,8 +235,8 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
               if (!allCompetitors.has(compName)) {
                 allCompetitors.set(compName, {
                   name: compName,
-                  rating: typeof item.rating?.value === 'number' ? item.rating.value : (typeof item.rating === 'number' ? item.rating : (null as any)),
-                  reviewsCount: typeof (item.rating?.votes_count ?? item.reviews_count) === 'number' ? (item.rating?.votes_count ?? item.reviews_count) : (null as any),
+                  rating: providerRating(item.rating?.value??item.rating) as any,
+                  reviewsCount: providerCount(item.rating?.votes_count??item.reviews_count) as any,
                   position: idx + 1,
                 });
               }
@@ -251,8 +254,8 @@ export class DataForSeoLocalProvider implements ILocalSeoRankProvider {
             timestamp: nowIso,
             provider: this.providerId,
             position: nodeRank,
-            status: 'LIVE',
-            sourceEvidence: matchedEvidence || `DataForSEO observed 20 SERP listings; business not ranked in top 20 at @${coord.lat},${coord.lng}`,
+            status: nodeRank===null&&items.some((item:any)=>typeof item.place_id!=='string'||!item.place_id.trim())?'UNAVAILABLE':'LIVE',
+            sourceEvidence: matchedEvidence || `DataForSEO observed ${items.length} listings; no attributable target position at @${coord.lat},${coord.lng}`,
           });
         } else {
           observations.push({
@@ -333,6 +336,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
   }
 
   async scanRankGrid(context: RankScanContext, credentials?: Record<string, any>): Promise<RankScanResult> {
+    if(typeof context.placeId!=='string'||!context.placeId.trim()||context.placeId.length>128)throw Error('RANK_IDENTITY_UNAVAILABLE');
     const apiKey = credentials?.apiKey || credentials?.api_key;
     if (!apiKey) {
       throw new Error('SerpApi API Key not configured for tenant');
@@ -343,18 +347,21 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
     const observations: RankObservation[] = [];
     const allCompetitors: Map<string, { name: string; rating: number; reviewsCount: number; position: number }> = new Map();
 
+    const deadline=Date.now()+20000;
     for (const coord of context.coordinates) {
+      const remaining=deadline-Date.now();
       try {
+        if(remaining<=0)throw Error('RANK_SCAN_BUDGET_EXHAUSTED');
         const serpUrl = new URL('https://serpapi.com/search.json');
         serpUrl.searchParams.set('engine', 'google_maps');
         serpUrl.searchParams.set('q', context.keyword);
         serpUrl.searchParams.set('ll', `@${coord.lat},${coord.lng},14z`);
         serpUrl.searchParams.set('api_key', String(apiKey).trim());
 
-        const res = await fetch(serpUrl.toString(), { signal: AbortSignal.timeout(10000) });
+        const res = await fetch(serpUrl.toString(), { redirect:'error',signal: AbortSignal.timeout(Math.max(1,Math.min(10000,remaining))) });
         if (res.ok) {
-          const data: any = await res.json();
-          const localResults = data.local_results || [];
+          const data: any = await localProviderJson(res);
+          const localResults=providerResponseRows(data,'serpapi');
           let nodeRank: number | null = null;
           let matchedEvidence = '';
 
@@ -380,10 +387,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
 
           localResults.forEach((item: any, idx: number) => {
             const itemClean = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const isMatch =
-              (context.placeId && item.place_id === context.placeId) ||
-              (cleanBizName.length > 3 && itemClean.includes(cleanBizName)) ||
-              (itemClean.length > 3 && cleanBizName.includes(itemClean));
+            const isMatch=rankIdentity(context.placeId,context.businessName,item);
 
             if (isMatch && nodeRank === null) {
               nodeRank = idx + 1;
@@ -393,8 +397,8 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
               if (!allCompetitors.has(compName)) {
                 allCompetitors.set(compName, {
                   name: compName,
-                  rating: typeof item.rating === 'number' ? item.rating : (null as any),
-                  reviewsCount: typeof item.reviews === 'number' ? item.reviews : (null as any),
+                  rating: providerRating(item.rating) as any,
+                  reviewsCount: providerCount(item.reviews) as any,
                   position: idx + 1,
                 });
               }
@@ -412,7 +416,7 @@ export class SerpApiLocalProvider implements ILocalSeoRankProvider {
             timestamp: nowIso,
             provider: this.providerId,
             position: nodeRank,
-            status: 'LIVE',
+            status: nodeRank===null&&localResults.some((item:any)=>typeof item.place_id!=='string'||!item.place_id.trim())?'UNAVAILABLE':'LIVE',
             sourceEvidence: matchedEvidence || `SerpApi scan at @${coord.lat},${coord.lng}`,
           });
         } else {

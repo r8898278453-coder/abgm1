@@ -963,6 +963,10 @@ export interface RankRadarScanResponse {
   recommendation?: string;
   message?: string;
   error?: string;
+  revisionDelta?:number;
+  nextOffset?:number|null;
+  partial?:boolean;
+  results?:Array<{keyword:string;status:string;providerStatus?:string}>;
 }
 
 export async function scanKeywordRankApi(
@@ -976,9 +980,9 @@ export async function scanKeywordRankApi(
   });
 }
 
-export async function refreshAllKeywordRanksApi(companyId: string): Promise<RankRadarScanResponse> {
+export async function refreshAllKeywordRanksApi(companyId: string,offset=0): Promise<RankRadarScanResponse> {
   return apiRequest<RankRadarScanResponse>(`/api/companies/${encodeURIComponent(companyId)}/rank-radar/refresh-all`, {
-    method: 'POST',
+    method: 'POST',body:JSON.stringify({offset}),
   });
 }
 

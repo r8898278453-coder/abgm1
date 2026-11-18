@@ -378,7 +378,7 @@ async function runProductionReadinessMatrix() {
   assert.ok(evidence.every((e) => typeof e.evidenceId === 'string'));
   const summary = generateDeterministicSummary(companyA.name, 'Thane', evidence);
   assert.strictEqual(summary.overallStatus, 'VERIFIED');
-  assert.ok(summary.summary.includes('1 verified review'));
+  assert.ok(summary.summary.includes('1 recorded review'));
   console.log('  ✅ Growth Score & AI Summary: Evidence-grounded calculation and strict anti-hallucination verified.');
 
   // =========================================================================

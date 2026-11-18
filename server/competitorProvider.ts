@@ -1,3 +1,5 @@
+import {localProviderJson} from './localProviderJson';
+import {providerRating,providerCount,normalizedBusinessName} from '../shared/localMarketingEvidence';
 import crypto from 'crypto';
 
 export interface NormalizedCompetitorObservation {
@@ -50,29 +52,14 @@ export function calculateIdentityConfidence(
   targetPlaceId?: string | null,
   candidatePlaceId?: string | null
 ): { confidence: number; verified: boolean; isCandidateOnly: boolean } {
-  if (targetPlaceId && candidatePlaceId && targetPlaceId.trim() === candidatePlaceId.trim()) {
+  if (targetPlaceId && candidatePlaceId && targetPlaceId.trim().length>0 && targetPlaceId.trim() === candidatePlaceId.trim()) {
     return { confidence: 1.0, verified: true, isCandidateOnly: false };
   }
 
-  const cleanTarget = targetName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanCand = candidateName.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  if (!cleanTarget || !cleanCand) {
-    return { confidence: 0.0, verified: false, isCandidateOnly: true };
-  }
-
-  if (cleanTarget === cleanCand) {
-    return { confidence: 0.95, verified: true, isCandidateOnly: false };
-  }
-
-  if (
-    (cleanTarget.length >= 4 && cleanCand.includes(cleanTarget)) ||
-    (cleanCand.length >= 4 && cleanTarget.includes(cleanCand))
-  ) {
-    return { confidence: 0.75, verified: true, isCandidateOnly: false };
-  }
-
-  return { confidence: 0.35, verified: false, isCandidateOnly: true };
+  const cleanTarget=normalizedBusinessName(targetName),cleanCand=normalizedBusinessName(candidateName);
+  if(targetPlaceId&&candidatePlaceId)return{confidence:0,verified:false,isCandidateOnly:true};
+  // A same-name listing may be a different branch. Search candidates require a selected Place ID.
+  return {confidence:cleanTarget&&cleanTarget===cleanCand?0.6:0,verified:false,isCandidateOnly:true};
 }
 
 export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
@@ -106,8 +93,8 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
         searchUrl.searchParams.set('fields', 'place_id,name,formatted_address');
         searchUrl.searchParams.set('key', key);
 
-        const searchRes = await fetch(searchUrl.toString(), { signal: AbortSignal.timeout(8000) });
-        const searchData = await searchRes.json();
+        const searchRes = await fetch(searchUrl.toString(), { redirect:'error',signal: AbortSignal.timeout(8000) });
+        const searchData = await localProviderJson(searchRes);
         if (searchData.status === 'OK' && searchData.candidates && searchData.candidates.length > 0) {
           resolvedPlaceId = searchData.candidates[0].place_id;
           matchedCandidateName = searchData.candidates[0].name || context.name;
@@ -142,8 +129,8 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
       detailsUrl.searchParams.set('fields', 'name,rating,user_ratings_total,photos,formatted_address');
       detailsUrl.searchParams.set('key', key);
 
-      const detailsRes = await fetch(detailsUrl.toString(), { signal: AbortSignal.timeout(8000) });
-      const detailsData = await detailsRes.json();
+      const detailsRes = await fetch(detailsUrl.toString(), { redirect:'error',signal: AbortSignal.timeout(8000) });
+      const detailsData = await localProviderJson(detailsRes);
 
       if (detailsData.status === 'OK' && detailsData.result) {
         const res = detailsData.result;
@@ -157,8 +144,8 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
           name: candName,
           placeId: resolvedPlaceId,
           address: res.formatted_address || null,
-          rating: typeof res.rating === 'number' ? Number(res.rating.toFixed(1)) : null,
-          reviewsCount: typeof res.user_ratings_total === 'number' ? res.user_ratings_total : null,
+          rating: providerRating(res.rating),
+          reviewsCount: providerCount(res.user_ratings_total),
           photosCount: Array.isArray(res.photos) ? res.photos.length : null,
           postsPerWeek: null, // Google Places API does not provide post frequency, strictly null
           rankPosition: null, // SERP position is separate from Places API, strictly null
@@ -173,7 +160,7 @@ export class GooglePlacesCompetitorProvider implements ICompetitorProvider {
         };
       }
     } catch (err: any) {
-      console.warn('[GooglePlacesCompetitorProvider] Error:', err?.message);
+      console.warn('[GooglePlacesCompetitorProvider] Provider observation unavailable');
     }
 
     return {
@@ -232,8 +219,8 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
         url.searchParams.set('q', `${context.name} ${context.city || ''}`.trim());
       }
 
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
-      const data = await res.json();
+      const res = await fetch(url.toString(), { redirect:'error',signal: AbortSignal.timeout(10000) });
+      const data = await localProviderJson(res);
 
       if (data.local_results && data.local_results.length > 0) {
         let targetItem = data.local_results[0];
@@ -267,9 +254,9 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
           name: targetItem.title || context.name,
           placeId: targetItem.place_id || null,
           address: targetItem.address || null,
-          rating: typeof targetItem.rating === 'number' ? Number(targetItem.rating.toFixed(1)) : null,
-          reviewsCount: typeof targetItem.reviews === 'number' ? targetItem.reviews : null,
-          photosCount: typeof targetItem.photos_count === 'number' ? targetItem.photos_count : null,
+          rating: providerRating(targetItem.rating),
+          reviewsCount: providerCount(targetItem.reviews),
+          photosCount: providerCount(targetItem.photos_count),
           postsPerWeek: null, // Never fabricate
           rankPosition: observedRank,
           provider: this.providerName,
@@ -283,7 +270,7 @@ export class SerpApiCompetitorProvider implements ICompetitorProvider {
         };
       }
     } catch (err: any) {
-      console.warn('[SerpApiCompetitorProvider] Error:', err?.message);
+      console.warn('[SerpApiCompetitorProvider] Provider observation unavailable');
     }
 
     return {

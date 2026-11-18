@@ -888,12 +888,12 @@
     {
       "method": "GET",
       "path": "/api/companies/:id/growth-score",
-      "owner": "server.ts"
+      "owner": "server/growthReadRoutes.ts#registerGrowthReadRoutes"
     },
     {
       "method": "POST",
       "path": "/api/companies/:id/growth-score/recalculate",
-      "owner": "server.ts"
+      "owner": "server/growthReadRoutes.ts#registerGrowthReadRoutes"
     },
     {
       "method": "GET",
@@ -1083,12 +1083,12 @@
     {
       "method": "POST",
       "path": "/api/companies/:id/rank-radar/refresh-all",
-      "owner": "server.ts"
+      "owner": "server/rankRadarRoutes.ts#registerRankRadarRoutes"
     },
     {
       "method": "POST",
       "path": "/api/companies/:id/rank-radar/scan",
-      "owner": "server.ts"
+      "owner": "server/rankRadarRoutes.ts#registerRankRadarRoutes"
     },
     {
       "method": "GET",
@@ -1391,5 +1391,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 51
+  "registrationCount": 53
 }

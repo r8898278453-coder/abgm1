@@ -1,0 +1,69 @@
+{
+  "dateIST": "2026-11-19",
+  "group": "local-marketing-evidence",
+  "functionalSlices": 22,
+  "originalTasksValidated": [
+    "P05-02",
+    "P05-03"
+  ],
+  "originalAcceptanceChanged": false,
+  "tracker": {
+    "validated": 51,
+    "in_progress": 17,
+    "planned": 24,
+    "blocked": 1,
+    "total": 93
+  },
+  "schema": {
+    "target": "053_calendar_plans",
+    "canonicalTables": 93,
+    "newMigration": false,
+    "next": 54,
+    "frozenReportV4Changed": false
+  },
+  "tests": {
+    "defaultPrograms": 153,
+    "targetedBrowserFixtures": [
+      "readinessTruth",
+      "lazyFeatures",
+      "workspaceIsolation",
+      "observationTruth",
+      "competitorWorkflow"
+    ],
+    "sql": "Complete disposable MariaDB10.11.19 fresh/upgrade053 suite with rank and competitor persistence fixtures",
+    "routeDeclarations": 277,
+    "registrations": 53,
+    "sourceGuard": 53,
+    "results": "passed",
+    "typecheck": true,
+    "build": true,
+    "frontend": {
+      "initialJsBytes": 588508,
+      "initialJsGzipBytes": 171052,
+      "rawBudget": 600000,
+      "gzipBudget": 180000
+    },
+    "finalFocusedBrowsers": [
+      "observationTruth",
+      "competitorWorkflow"
+    ]
+  },
+  "limits": {
+    "currentRankDays": 7,
+    "futureToleranceMinutes": 5,
+    "providerJsonMaxBytes": 1048576,
+    "gridDeadlineMs": 20000,
+    "batchMaxKeywords": 3,
+    "trackedKeywordMax": 25,
+    "noAutomaticPaidLoop": true
+  },
+  "productionAccepted": false,
+  "productionActions": {
+    "databaseWrites": false,
+    "providerScansOrSends": false,
+    "modelSpend": false,
+    "deployment": false,
+    "renderActivation": false,
+    "billingChanges": false
+  }
+}

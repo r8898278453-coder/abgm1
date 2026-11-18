@@ -1,3 +1,4 @@
+import {currentRank,providerRating,rankPosition} from '../shared/localMarketingEvidence';
 import {
   ReviewItem,
   ContentPost,
@@ -68,12 +69,12 @@ export function buildStructuredEvidence(
   evidence.push({
     evidenceId: 'ev_google_business_connection',
     metric: 'Google Business Connection',
-    value: isGoogleConnected ? 'Connected' : 'Disconnected',
-    source: isGoogleConnected ? 'Google Business API' : 'Business Profile Configuration',
+    value: isGoogleConnected ? 'Saved connection flag; owner access unverified' : 'Disconnected',
+    source: 'Saved business profile configuration; not OAuth evidence',
     timestamp,
-    status: isDemo ? 'DEMO' : isGoogleConnected ? 'VERIFIED' : 'USER_ENTERED',
+    status: isDemo ? 'DEMO' : 'USER_ENTERED',
     notes: isGoogleConnected
-      ? 'Google Business Profile account is linked'
+      ? 'Saved flag does not establish current Google account/location authority'
       : 'No verified Google Business Profile linked yet',
   });
 
@@ -81,24 +82,19 @@ export function buildStructuredEvidence(
   const reviews = inputs.reviews || [];
   if (reviews.length > 0) {
     const totalReviews = reviews.length;
-    const avgRating = Number(
-      (reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / totalReviews).toFixed(1)
-    );
-    const unrepliedCount = reviews.filter((r) => !r.replied).length;
+    const rated=reviews.filter(r=>providerRating(r.rating)!==null);
+    const avgRating=rated.length?Number((rated.reduce((sum,r)=>sum+r.rating,0)/rated.length).toFixed(1)):null;
+    const unrepliedCount=reviews.filter(r=>!(r.replyVerified===true||(r.replyStatus==='VERIFIED'&&r.providerReplyId))).length;
     const positiveCount = reviews.filter((r) => r.rating >= 4).length;
-    const positiveSentimentPct = Math.round((positiveCount / totalReviews) * 100);
+    const positiveSentimentPct=rated.length?Math.round((positiveCount/rated.length)*100):null;
 
-    const reviewStatus: EvidenceStatus = isDemo
-      ? 'DEMO'
-      : isGoogleConnected
-      ? 'VERIFIED'
-      : 'USER_ENTERED';
+    const reviewStatus:EvidenceStatus=isDemo?'DEMO':'CALCULATED';
 
     evidence.push({
       evidenceId: 'ev_reviews_count',
       metric: 'Google reviews count',
       value: totalReviews,
-      source: isGoogleConnected ? 'Google Places Provider' : 'Reputation Database',
+      source: 'Saved reputation records; source fields do not establish current Google verification',
       timestamp,
       status: reviewStatus,
     });
@@ -107,7 +103,7 @@ export function buildStructuredEvidence(
       evidenceId: 'ev_reviews_avg_rating',
       metric: 'Average customer rating',
       value: avgRating,
-      source: isGoogleConnected ? 'Google Places Provider' : 'Reputation Database',
+      source: 'Saved reputation records; source fields do not establish current Google verification',
       timestamp,
       status: reviewStatus,
     });
@@ -124,7 +120,7 @@ export function buildStructuredEvidence(
     evidence.push({
       evidenceId: 'ev_reviews_positive_sentiment',
       metric: 'Positive sentiment ratio',
-      value: `${positiveSentimentPct}%`,
+      value: positiveSentimentPct===null?null:`${positiveSentimentPct}%`,
       source: 'Reputation Sentiment Analyzer',
       timestamp,
       status: 'CALCULATED',
@@ -198,10 +194,10 @@ export function buildStructuredEvidence(
   }
 
   // 4. Local SEO Rank & Geo-Observations
-  const rankObs = inputs.rankObservations || [];
+  const rankObs=(inputs.rankObservations||[]).filter(o=>currentRank(o,Date.parse(timestamp))&&(o.grid_index===4||o.gridIndex===4));
   const validRankPositions = rankObs
     .map((o) => (typeof o.position === 'number' ? o.position : typeof o.rankPosition === 'number' ? o.rankPosition : null))
-    .filter((p): p is number => p !== null && p > 0);
+    .filter((p):p is number=>rankPosition(p)!==null);
 
   if (validRankPositions.length > 0) {
     const topRank = Math.min(...validRankPositions);
@@ -209,7 +205,7 @@ export function buildStructuredEvidence(
       evidenceId: 'ev_seo_local_rank',
       metric: 'Local Map Pack rank',
       value: `#${topRank}`,
-      source: 'Local SEO Geo-Radar Observations (MySQL)',
+      source: 'Best current centre position among saved keyword observations; not the best corner or a universal business rank',
       timestamp,
       status: isDemo ? 'DEMO' : 'VERIFIED',
     });
@@ -438,7 +434,7 @@ export function generateDeterministicSummary(
   } else if (totalLeads > 0) {
     headline = `${bName} pipeline active with ${totalLeads} CRM leads${loc}.`;
   } else if (reviewsEv && reviewsEv.value !== null) {
-    headline = `${bName} reputation health active with ${reviewsEv.value} verified reviews${loc}.`;
+    headline = `${bName} reputation health active with ${reviewsEv.value} recorded reviews${loc}.`;
   } else {
     headline = `${bName} executive overview active with recorded marketing signals${loc}.`;
   }
@@ -448,7 +444,7 @@ export function generateDeterministicSummary(
 
   if (reviewsEv && reviewsEv.value !== null && ratingEv && ratingEv.value !== null) {
     summaryParts.push(
-      `Reputation shows ${reviewsEv.value} verified reviews with an average rating of ${ratingEv.value}/5.`
+      `Reputation shows ${reviewsEv.value} recorded reviews with an average rating of ${ratingEv.value}/5.`
     );
   } else {
     summaryParts.push('Public review data is currently unavailable.');
@@ -459,11 +455,11 @@ export function generateDeterministicSummary(
       `${unrepliedCount} customer review${unrepliedCount > 1 ? 's are' : ' is'} awaiting response in the inbox.`
     );
   } else if (reviewsEv && reviewsEv.value !== null) {
-    summaryParts.push('All recorded reviews are currently answered.');
+    summaryParts.push('All recorded reviews have provider-verified response evidence.');
   }
 
   if (rankEv && rankEv.value !== null) {
-    summaryParts.push(`Local search radar observes top positioning at ${rankEv.value}.`);
+    summaryParts.push(`Current keyword centre evidence records positioning at ${rankEv.value}.`);
   } else {
     summaryParts.push('Local Map Pack rank telemetry is currently unavailable.');
   }

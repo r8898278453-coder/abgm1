@@ -1,0 +1,32 @@
+# Local marketing evidence and bounded rank operations
+
+19 November 2026 IST. This connected group implements 22 functional slices, mapped to two unchanged original tasks: P05-02 and P05-03. Slices are not new original-task completions. Tracker: 51 validated, 17 in progress, 24 planned, 1 blocked of 93. Dependency phases and actual hosting/provider acceptance remain unaccepted. Billing is excluded and rendering remains default off.
+
+## What the platform now does
+
+Growth GET and recalculation evaluate the same authorized current saved evidence without modifying workspace revisions. A failed source read returns unavailable rather than an empty successful score. A calculated saved-profile completeness score uses populated name, address, phone, hours and description fields, and requires at least one detail beyond the name; a new name/category/city-only client stays unavailable. A saved connection flag or Place ID cannot prove Google owner access or health. Website configuration coverage uses a valid saved HTTP(S) URL and explicit verified-domain evidence, with no bonus for missing audit data. Formula, inputs, source and evaluation timestamp remain available in telemetry.
+
+Only recent canonical DataForSEO/SerpAPI observations qualify for rank calculations. Seven-day freshness and five-minute future-clock tolerance are explicit. Failed/unavailable/manual/mock/research observations, editable keyword snapshots and the legacy unscoped rank field cannot supply a fallback. Valid numeric ratings alone enter the rating average; null ratings do not become zero. A local reply draft or `replied` flag cannot count as provider-verified response. The executive summary follows the same rules, labels recorded reviews honestly and uses current keyword centres rather than the best grid corner.
+
+Direct and queued supported rank scans use an explicitly selected Place ID. The direct scan reads the canonical company identity or its saved Google Places integration; this is public-listing identity, not OAuth authority. Exact Place ID matching replaces name-substring ranking. Same-name competitor searches remain candidates until an identity is explicitly selected. When returned listings lack Place IDs, an unmatched target stays UNAVAILABLE rather than being declared unranked. Coordinates include legitimate zero values and city fallback only when explicit coordinates are absent; invalid partial/out-of-range coordinates fail.
+
+Provider transport uses fixed service URLs, refuses redirects, caps decoded JSON at one MiB and checks application-level result status. Each grid has a 20-second request deadline; unstarted/failed nodes stay failed instead of gaining fabricated positions. A partial or unavailable result can be saved as such. Saving observations is not a claim of a successful live ranking result.
+
+Rank observation history, keyword snapshot, profile revision and audit now commit in one transaction. Commit rechecks the current actor, archive state, selected company/Places source and exact workspace revision. A conflict or audit/storage failure rolls everything back. A trend requires the same source fingerprint, provider, centre coordinates, strictly earlier timestamp and a baseline no older than seven days. Legacy records lacking the new source fingerprint do not establish a baseline for a new scan. Scan timestamps have database-second precision; scans in the same second do not manufacture movement.
+
+Refresh operates on at most three keywords per request and stops admitting work after 20 seconds. Each item returns SAVED plus actual provider status, UNAVAILABLE, CONFLICT or NOT_ATTEMPTED. `nextOffset` continues the remaining list on the next explicit click; it does not repeatedly refresh the first three forever. A conflict stops further admission and requires a current workspace view. The app accounts for the exact number of committed revisions and does not label all keywords refreshed. No automatic paid loop was added.
+
+Competitor refresh rejects stale/future/nonmonotonic observations and a different Place ID for an already selected identity. Historical observations remain visible, with current-unavailable labels when stale. Recorded rating/review changes compare the same provider/identity; monthly growth is not invented. Dates are displayed in Asia/Kolkata. Industry suggestions use the actual selected category/city rather than hardcoded agency services.
+
+## Acceptance and compatibility
+
+| Original task | Local acceptance | Remaining external scope |
+| --- | --- | --- |
+| P05-02 | Real saved inputs, timestamps, explicit calculated scores/nulls and actionable evidence-based guidance | Actual Google account/location permission and provider acceptance remain P05-01/P05-11 |
+| P05-03 | Validated coordinates/provider/identity, rank/research separation, atomic history and trustworthy stale/null/baseline behavior | Real provider responses, quota/latency/hosting measurements and operator activation remain separate |
+
+No new route path or migration. Existing four growth/rank routes move into dedicated owners; 277 route declarations, 53 registration calls, no collisions. Rank scan accepts strict keyword/city; refresh additionally accepts optional integer offset 0–24. Unsupported targetAreas/provider/body authority is rejected. Responses add per-item outcomes, revisionDelta, nextOffset and partial. Recalculation is now a read model (`persisted:false`), and cannot race the workspace editor with a hidden score save. Schema053/93, next054 and frozen report V4 are unchanged.
+
+Verification is recorded in EXECUTION.md and evidence/local-marketing-evidence.json: 153 isolated default programs, complete disposable MariaDB10.11.19, targeted browser workflows, TypeScript/build and route/source/docs/frontend guards. SQL covers eight-way CAS, comparable/provider-separated baselines, complete rollback, foreign actor/tenant, source edit, archive and uint64 exhaustion; competitor SQL adds stale/future rejection. Actual adapter fetches are intercepted with synthetic Responses. This is not evidence that a live Google/SEO account or production scan succeeded.
+
+P05-01 OAuth, P05-04 reviews publication/reminders, P05-05 GBP posts, P05-06 Meta consolidation and the marketing gate remain pending, as do the explicit CRM/email/booking/outbound/accountability tasks. No real provider scan/message, model spend, production database change, deployment or billing work was performed.

@@ -209,7 +209,7 @@ async function runPhase5AcceptanceTests() {
   assert.strictEqual(seoEv?.value, null, 'SEO rank remains null / UNAVAILABLE');
 
   const partialSummary = generateDeterministicSummary('Aaditech Partial Lab', 'Thane', partialEvidence);
-  assert.ok(partialSummary.summary.includes('1 verified review'), 'Cites verified review');
+  assert.ok(partialSummary.summary.includes('1 recorded review'), 'Cites verified review');
   assert.ok(partialSummary.summary.includes('Local Map Pack rank telemetry is currently unavailable'), 'Notes unavailable SEO');
   console.log('  ✅ 2.2 AI Summary: Real verified numbers cited while explicitly stating unavailable signals.');
 
@@ -365,7 +365,7 @@ async function runPhase5AcceptanceTests() {
 
   assert.strictEqual(fullGrowthResult.status, 'CALCULATED', 'Status must be CALCULATED');
   assert.ok(fullGrowthResult.availablePillarsCount >= 5, 'Must have at least 5 available verified pillars');
-  assert.ok(typeof fullGrowthResult.overall === 'number' && fullGrowthResult.overall >= 70, 'Score reflects strong telemetry');
+  assert.ok(typeof fullGrowthResult.overall === 'number'&&fullGrowthResult.overall>=0&&fullGrowthResult.overall<=100,'Calculated score stays bounded');assert.equal(fullGrowthResult.breakdown.customerEngagement,0,'Local reply text is not a verified external response');
   assert.strictEqual(fullGrowthResult.breakdown.googleProfile, 100, 'Google profile 100/100');
   assert.strictEqual(fullGrowthResult.breakdown.website, 100, 'Website & custom domain verified 100/100');
   console.log(`  ✅ 3.1 Growth Score: Composite score ${fullGrowthResult.overall}/100 calculated across ${fullGrowthResult.availablePillarsCount} verified pillars.`);
@@ -388,8 +388,8 @@ async function runPhase5AcceptanceTests() {
 
   const fullSummary = generateDeterministicSummary('Aaditech Digital Enterprise', 'Thane', fullEvidence);
   assert.strictEqual(fullSummary.overallStatus, 'VERIFIED');
-  assert.ok(fullSummary.summary.includes('5 verified reviews'));
-  assert.ok(fullSummary.summary.includes('1 customer review is awaiting response'));
+  assert.ok(fullSummary.summary.includes('5 recorded reviews'));
+  assert.ok(fullSummary.summary.includes('5 customer reviews are awaiting response'));
   assert.ok(fullSummary.summary.includes('positioning at #1'));
   console.log('  ✅ 3.2 AI Summary: Verified status with complete multi-channel telemetry breakdown.');
 
@@ -406,7 +406,7 @@ async function runPhase5AcceptanceTests() {
 
   const unrepliedIssue = fullAuditItems.find((a) => a.id.includes('aud_reviews_unreplied'));
   assert.ok(unrepliedIssue, 'Must flag 1 unreplied review');
-  assert.ok(unrepliedIssue?.evidence.includes('1 of 5 reviews marked replied = false'));
+  assert.ok(unrepliedIssue?.evidence.includes('5 of 5 reviews without recorded provider-verified reply evidence'));
   console.log('  ✅ 3.3 Audit Engine: Pinpoints exact unreplied review without generating false claims.');
 
   // 3.4 Customer revenue/spend evidence must be independent of invoice labels and budgets.

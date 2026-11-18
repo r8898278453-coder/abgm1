@@ -164,15 +164,15 @@ async function runProviderTruthTests() {
   assert.strictEqual(exactPlaceMatch.isCandidateOnly, false);
 
   const nameExactMatch = calculateIdentityConfidence('Apex Solutions', 'Apex Solutions');
-  assert.strictEqual(nameExactMatch.confidence, 0.95);
-  assert.strictEqual(nameExactMatch.verified, true);
+  assert.strictEqual(nameExactMatch.confidence, 0.6);
+  assert.strictEqual(nameExactMatch.verified, false);
 
   const nameSubstringMatch = calculateIdentityConfidence('Apex Solutions', 'Apex Solutions Pvt Ltd');
-  assert.strictEqual(nameSubstringMatch.confidence, 0.75);
-  assert.strictEqual(nameSubstringMatch.verified, true);
+  assert.strictEqual(nameSubstringMatch.confidence, 0);
+  assert.strictEqual(nameSubstringMatch.verified, false);
 
   const lowConfidenceMatch = calculateIdentityConfidence('Apex Solutions', 'Completely Different Bakery');
-  assert.strictEqual(lowConfidenceMatch.confidence, 0.35);
+  assert.strictEqual(lowConfidenceMatch.confidence, 0);
   assert.strictEqual(lowConfidenceMatch.verified, false);
   assert.strictEqual(lowConfidenceMatch.isCandidateOnly, true);
 

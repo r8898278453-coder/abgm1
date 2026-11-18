@@ -1,3 +1,4 @@
+import {currentObservation} from '../shared/localMarketingEvidence';
 import crypto from 'node:crypto';
 import type {Pool} from 'mysql2/promise';
 import {competitorVersion,competitorDto} from '../shared/competitors';
@@ -21,6 +22,9 @@ export async function mutateCompetitorSql(pool:Pool,company:string,command:Compe
   else{
    if(command.kind==='refresh'){
     const obs=command.observation;if(!obs||obs.companyId!==company||obs.competitorId!==command.id||!['LIVE','VERIFIED'].includes(obs.dataClassification)||obs.candidate)throw new ObservationError('COMPETITOR_OBSERVATION_UNAVAILABLE',503);
+    if(!currentObservation(obs))throw new ObservationError('COMPETITOR_OBSERVATION_STALE',409);
+    if(existing?.placeId&&existing.placeId!==obs.placeId)throw new ObservationError('COMPETITOR_IDENTITY_CHANGED',409);
+    if(existing?.provider===obs.provider&&existing?.placeId===obs.placeId&&['LIVE','VERIFIED'].includes(existing?.dataClassification)&&Math.floor(Date.parse(obs.timestamp)/1000)<=Math.floor(Date.parse(existing.lastObservedAt)/1000))throw new ObservationError('COMPETITOR_OBSERVATION_STALE',409);
     const comparable=existing?.provider===obs.provider&&existing?.placeId&&existing.placeId===obs.placeId&&['LIVE','VERIFIED'].includes(existing?.dataClassification)&&Date.parse(obs.timestamp)>Date.parse(existing.lastObservedAt);
     next={...existing,name:existing.name,placeId:obs.placeId,address:obs.address,rating:obs.rating,reviewsCount:obs.reviewsCount,photosCount:obs.photosCount,postsPerWeek:obs.postsPerWeek,localVisibilityRank:obs.rankPosition,provider:obs.provider,lastObservedAt:obs.timestamp,dataClassification:obs.dataClassification,reviewGrowthThisMonth:null,reviewChangeSincePreviousObservation:comparable&&typeof existing.reviewsCount==='number'&&typeof obs.reviewsCount==='number'?obs.reviewsCount-existing.reviewsCount:null};
    }else{

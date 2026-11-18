@@ -1,3 +1,7 @@
+import {registerGrowthReadRoutes} from './server/growthReadRoutes';
+import {registerRankRadarRoutes} from './server/rankRadarRoutes';
+import {commitRankRadar,readRankCompany} from './server/rankRadarSql';
+import {ObservationError} from './server/observationStore';
 import {publicLeadPath,publicLeadCors,publicLeadOriginAllowed} from './server/storefrontOrigin';
 import {registerTenantEmailRoutes} from './server/tenantEmailRoutes';
 import {registerCalendarPlanRoutes} from './server/calendarPlanRoutes';
@@ -528,176 +532,7 @@ registerCompanyDataRoutes(app,{auth:getAuthUserFromRequest,company:getCompanyByI
 // ==================== GROWTH INTELLIGENCE SCORE APIS ==================== //
 
 // Retrieve centralized calculated growth score with full formula telemetry and data classification
-app.get('/api/companies/:id/growth-score', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    const payload: any = (await getCompanyDataPayload(id)) || {};
-    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
-      getCompanyReviews(id).catch(() => []),
-      getCompanyPosts(id).catch(() => []),
-      getAllLeads(id).catch(() => []),
-      getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id).catch(() => []),
-    ]);
-
-    const activeReviews = dbReviews;
-    const activePosts = dbPosts;
-    const activeLeads = dbLeads;
-    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
-
-    const result = calculateGrowthIntelligenceScore({
-      businessProfile: payload.business || {
-        id: company.id,
-        name: company.name,
-        category: company.category,
-        city: company.city,
-        phone: company.phone || '',
-        website: company.website || '',
-        address: '',
-        subCategory: company.category,
-        state: '',
-        country: '',
-        email: '',
-        whatsapp: company.phone || '',
-        description: '',
-        services: [],
-        products: [],
-        priceRange: '',
-        openingHours: '',
-        serviceAreas: [company.city],
-        brandKit: {
-          logoUrl: '',
-          primaryColor: '#4f46e5',
-          secondaryColor: '#0f172a',
-          fontFamily: 'Plus Jakarta Sans',
-          tagline: '',
-          brandTone: '',
-          preferredLanguage: 'English',
-        },
-        connectedAccounts: {
-          googleBusiness: Boolean(company.google_place_id),
-          metaFacebook: false,
-          metaInstagram: false,
-          whatsappBusiness: false,
-          telegramBot: false,
-          website: Boolean(company.website),
-        },
-      },
-      reviews: activeReviews,
-      rankObservations: latestObs as any,
-      keywordRanks: payload.keywords || [],
-      contentPosts: activePosts,
-      leads: activeLeads,
-      campaigns: payload.campaigns || [],
-      auditItems: payload.audit_items || [],
-      customDomainVerified: isDomainVerified,
-      rankPosition: company.rank_position,
-    });
-
-    const growthPayload = toGrowthScorePayload(result);
-
-    res.json({
-      success: true,
-      growthScore: growthPayload,
-      telemetry: result.telemetry,
-      status: result.status,
-      statusLabel: result.statusLabel,
-      insufficientDataReason: result.insufficientDataReason,
-      availablePillarsCount: result.availablePillarsCount,
-      totalPillarsCount: result.totalPillarsCount,
-      timestamp: result.timestamp,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-// Explicitly trigger recalculation and save snapshot
-app.post('/api/companies/:id/growth-score/recalculate', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    const payload: any = (await getCompanyDataPayload(id)) || {};
-    const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs] = await Promise.all([
-      getCompanyReviews(id).catch(() => []),
-      getCompanyPosts(id).catch(() => []),
-      getAllLeads(id).catch(() => []),
-      getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id).catch(() => []),
-    ]);
-
-    const activeReviews = dbReviews;
-    const activePosts = dbPosts;
-    const activeLeads = dbLeads;
-    const isDomainVerified = dbDomains.some((d: any) => d.status === 'verified');
-
-    const result = calculateGrowthIntelligenceScore({
-      businessProfile: payload.business,
-      reviews: activeReviews,
-      rankObservations: latestObs as any,
-      keywordRanks: payload.keywords || [],
-      contentPosts: activePosts,
-      leads: activeLeads,
-      campaigns: payload.campaigns || [],
-      auditItems: payload.audit_items || [],
-      customDomainVerified: isDomainVerified,
-      rankPosition: company.rank_position,
-    });
-
-    const growthPayload = toGrowthScorePayload(result);
-
-    // Persist updated score into company data payload
-    payload.growth_score = growthPayload;
-    await saveCompanyDataPayload(id, payload);
-
-    res.json({
-      success: true,
-      growthScore: growthPayload,
-      telemetry: result.telemetry,
-      status: result.status,
-      statusLabel: result.statusLabel,
-      insufficientDataReason: result.insufficientDataReason,
-      availablePillarsCount: result.availablePillarsCount,
-      totalPillarsCount: result.totalPillarsCount,
-      timestamp: result.timestamp,
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
+registerGrowthReadRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,read:async(id)=>{const company=await getCompanyById(id);if(!company)throw Error('Workspace unavailable');const payload:any=(await getCompanyDataPayload(id))||{};const[reviews,posts,leads,domains,observations]=await Promise.all([getCompanyReviews(id),getCompanyPosts(id),getAllLeads(id),getCustomDomainsByCompany(id),getLatestKeywordObservations(id)]);return calculateGrowthIntelligenceScore({businessProfile:payload.business||{name:company.name,phone:company.phone,website:company.website},reviews,contentPosts:posts,leads,rankObservations:observations as any,keywordRanks:payload.keywords||[],campaigns:payload.campaigns||[],auditItems:payload.audit_items||[],customDomainVerified:domains.some((d:any)=>d.status==='verified')});}});
 
 // AI Grounded Executive Summary (Strict evidence-grounded summarization)
 app.get('/api/companies/:id/ai/executive-summary', async (req, res) => {
@@ -722,12 +557,12 @@ app.get('/api/companies/:id/ai/executive-summary', async (req, res) => {
 
     const payload: any = (await getCompanyDataPayload(id)) || {};
     const [dbReviews, dbPosts, dbLeads, dbDomains, latestObs, latestCompetitors] = await Promise.all([
-      getCompanyReviews(id).catch(() => []),
-      getCompanyPosts(id).catch(() => []),
-      getAllLeads(id).catch(() => []),
-      getCustomDomainsByCompany(id).catch(() => []),
-      getLatestKeywordObservations(id).catch(() => []),
-      getLatestCompetitorObservations(id).catch(() => []),
+      getCompanyReviews(id),
+      getCompanyPosts(id),
+      getAllLeads(id),
+      getCustomDomainsByCompany(id),
+      getLatestKeywordObservations(id),
+      getLatestCompetitorObservations(id),
     ]);
 
     const activeReviews = dbReviews;
@@ -757,7 +592,7 @@ app.get('/api/companies/:id/ai/executive-summary', async (req, res) => {
         category: company.category,
         city: company.city,
         connectedAccounts: {
-          googleBusiness: Boolean(company.google_place_id),
+          googleBusiness: false,
         },
       },
       reviews: activeReviews,
@@ -1278,10 +1113,11 @@ async function performRankScan(
 
   const provider = resolveRankProvider(rankCreds);
 
+  if(provider.providerId!=='unconfigured'&&!(company.rankPlaceId||company.google_place_id))throw new ObservationError('RANK_PLACE_ID_REQUIRED',422);
   const context: RankScanContext = {
     companyId: company.id,
     businessName: company.name,
-    placeId: company.google_place_id || rankCreds?.placeId,
+    placeId: company.rankPlaceId || company.google_place_id || undefined,
     keyword: keyword.trim(),
     city: targetCity,
     centerLat: centerCoords.lat,
@@ -1292,29 +1128,16 @@ async function performRankScan(
 
   const scanResult = await provider.scanRankGrid(context, rankCreds);
 
-  // Persist all 9 real observations to relational table
-  if (scanResult.observations && scanResult.observations.length > 0) {
-    await saveRankObservations(company.id,keyword,scanResult.observations);
-  }
-
-  // Calculate historical trend strictly from stored DB observations
-  const trend = await calculateHistoricalTrend(company.id, keyword, scanResult.overallRank);
-
   // Map 9 node observations to gridRankings dictionary for frontend visualizer
   const gridRankings: Record<string, number> = {};
   scanResult.observations.forEach((obs) => {
     gridRankings[`node_${obs.gridIndex}`] = obs.position || 0;
-    // Backwards-compatible aliases for legacy 4 corners
-    if (obs.gridIndex === 0) gridRankings.vashi = obs.position || 0;
-    if (obs.gridIndex === 6) gridRankings.nerul = obs.position || 0;
-    if (obs.gridIndex === 2) gridRankings.sanpada = obs.position || 0;
-    if (obs.gridIndex === 8) gridRankings.belapur = obs.position || 0;
   });
 
   return {
     rank: scanResult.overallRank,
-    previousRank: trend.previousRank,
-    diff: trend.diff,
+    previousRank: null,
+    diff: null,
     searchVolume: scanResult.searchVolume,
     dataClassification: scanResult.status,
     provider: scanResult.provider,
@@ -1323,161 +1146,15 @@ async function performRankScan(
     gridRankings,
     evidenceNotes: scanResult.evidenceNotes,
     recommendation:
-      scanResult.status === 'UNAVAILABLE'
-        ? 'No verified SERP ranking provider is configured. Connect DataForSEO or SerpAPI in Integrations to track live 3-Pack rank positions across real coordinates.'
+      ['UNAVAILABLE','FAILED'].includes(scanResult.status)
+        ? 'Current rank is unavailable. Check provider configuration, selected Place ID and per-node outcomes before requesting another bounded scan.'
         : scanResult.overallRank && scanResult.overallRank <= 3
         ? `Ranking in Google 3-Pack (#${scanResult.overallRank}). Maintain position with active photo uploads and review velocity.`
         : `Rank position #${scanResult.overallRank ?? 'unranked'}. Optimize business category signals and local review keywords.`,
   };
 }
 
-// Live Keyword Rank Scan endpoint
-app.post('/api/companies/:id/rank-radar/scan', validateBody(rankScanSchema), async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const { keyword, city } = req.body;
-
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied to this company workspace' });
-      return;
-    }
-
-    // Check for configured local_seo_serp, dataforseo, or serpapi integration
-    const serpIntegration =
-      (await getCompanyIntegration(id, 'local_seo_serp')) ||
-      (await getCompanyIntegration(id, 'dataforseo')) ||
-      (await getCompanyIntegration(id, 'serpapi'));
-
-    const scanResult = await performRankScan(company, keyword, city, serpIntegration?.credentials);
-
-    // Persist into company profile payload
-    const payload = (await getCompanyDataPayload(id)) || { keywords: [], competitors: [] };
-    if (!Array.isArray(payload.keywords)) payload.keywords = [];
-    if (!Array.isArray(payload.competitors)) payload.competitors = [];
-
-    const existingIndex = payload.keywords.findIndex(
-      (k: any) => (k.keyword || '').toLowerCase().trim() === keyword.toLowerCase().trim()
-    );
-
-    const newKeywordEntry = {
-      id: existingIndex >= 0 ? payload.keywords[existingIndex].id : `kw_${crypto.randomUUID().slice(0, 8)}`,
-      keyword: keyword.trim(),
-      rank: scanResult.rank,
-      previousRank: scanResult.previousRank,
-      diff: scanResult.diff,
-      searchVolume: scanResult.searchVolume,
-      dataClassification: scanResult.dataClassification,
-      provider: scanResult.provider,
-      lastScannedAt: new Date().toISOString(),
-      observations: scanResult.observations,
-      topCompetitors: scanResult.topCompetitors,
-      gridRankings: scanResult.gridRankings,
-      evidenceNotes: scanResult.evidenceNotes,
-    };
-
-    if (existingIndex >= 0) {
-      payload.keywords[existingIndex] = newKeywordEntry;
-    } else {
-      payload.keywords.unshift(newKeywordEntry);
-    }
-
-    // Discovered SERP names remain candidates on the keyword result. Tracking a
-    // competitor is a separate explicit command with its own source classification.
-
-    const previousVersion=companyDataVersion(payload);
-    if(!await saveCompanyDataPayload(id,payload))throw new Error('Rank profile save unconfirmed');
-
-    res.json({
-      success: true,companyId:id,previousVersion,version:companyDataVersion(payload),
-      keyword: newKeywordEntry,
-      keywords: payload.keywords,
-      observations: scanResult.observations,
-      recommendation: scanResult.recommendation,
-    });
-  } catch (err: any) {
-    const status=err instanceof WorkspaceConflict?409:err?.code==='LOCATION_NOT_RESOLVED'?422:503;
-    res.status(status).json({success:false,error:status===409?'Workspace changed. Reload before another scan.':'Rank scan unavailable or save unconfirmed'});
-  }
-});
-
-// Refresh all tracked keywords for a company
-app.post('/api/companies/:id/rank-radar/refresh-all', async (req, res) => {
-  try {
-    const user = await getAuthUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const { id } = req.params;
-    const company = await getCompanyById(id);
-    if (!company) {
-      res.status(404).json({ success: false, error: 'Company not found' });
-      return;
-    }
-
-    if (company.user_id !== user.id && !user.is_platform_admin) {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const payload = (await getCompanyDataPayload(id)) || { keywords: [], competitors: [] };
-    if (!Array.isArray(payload.keywords) || payload.keywords.length === 0) {
-      res.json({ success: true, message: 'No keywords currently tracked to refresh', keywords: [] });
-      return;
-    }
-
-    const serpIntegration =
-      (await getCompanyIntegration(id, 'local_seo_serp')) ||
-      (await getCompanyIntegration(id, 'dataforseo')) ||
-      (await getCompanyIntegration(id, 'serpapi'));
-
-    if(payload.keywords.length>25||payload.keywords.some((item:any)=>typeof item.keyword!=='string'||!item.keyword.trim()||item.keyword.length>191)){res.status(400).json({success:false,error:'Refresh supports at most 25 valid keywords per request'});return;}
-    const updatedKeywords: any[] = [];
-
-    for (const kw of payload.keywords) {
-      const scanResult = await performRankScan(company, kw.keyword, company.city, serpIntegration?.credentials);
-      updatedKeywords.push({
-        ...kw,
-        previousRank: scanResult.previousRank,
-        diff: scanResult.diff,
-        rank: scanResult.rank,
-        searchVolume: scanResult.searchVolume,
-        dataClassification: scanResult.dataClassification,
-        provider: scanResult.provider,
-        lastScannedAt: new Date().toISOString(),
-        observations: scanResult.observations,
-        topCompetitors: scanResult.topCompetitors,
-        gridRankings: scanResult.gridRankings,
-        evidenceNotes: scanResult.evidenceNotes,
-      });
-    }
-
-    payload.keywords = updatedKeywords;
-    const previousVersion=companyDataVersion(payload);
-    if(!await saveCompanyDataPayload(id,payload))throw new Error('Rank profile save unconfirmed');
-
-    res.json({
-      success: true,companyId:id,previousVersion,version:companyDataVersion(payload),
-      message: `Refreshed rank radar for ${updatedKeywords.length} keywords.`,
-      keywords: payload.keywords,
-    });
-  } catch (err: any) {
-    res.status(err instanceof WorkspaceConflict?409:503).json({success:false,error:'Rank refresh unavailable or save unconfirmed'});
-  }
-});
+registerRankRadarRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,company:async(company)=>{const pool=await getDbPool();if(!pool)throw Error('Durable rank scope unavailable');return readRankCompany(pool,company);},snapshot:async(company)=>{const data=await getCompanyDataPayload(company);return{data,version:companyDataVersion(data)};},scan:async(company,keyword,city)=>{const integration=(await getCompanyIntegration(company.id,'local_seo_serp'))||(await getCompanyIntegration(company.id,'dataforseo'))||(await getCompanyIntegration(company.id,'serpapi'));return performRankScan(company,keyword,city,integration?.credentials);},commit:async(user,company,version,source,scan)=>{const pool=await getDbPool();if(!pool)throw new ObservationError('RANK_STORAGE_UNAVAILABLE',503);return commitRankRadar(pool,user,company,version,source,scan);}});
 
 registerObservationHistoryRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,ranks:getKeywordObservationHistory,competitors:getCompetitorObservationHistory});
 

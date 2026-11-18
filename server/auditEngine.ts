@@ -1,3 +1,4 @@
+import {currentRank,rankPosition} from '../shared/localMarketingEvidence';
 import { BusinessProfile, ReviewItem, ContentPost, LeadItem, RankObservation } from '../src/types';
 
 export type AuditItemLifecycleStatus =
@@ -99,7 +100,7 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
   // 2. Reviews & Reputation Engagement
   const reviews = inputs.reviews || [];
   if (reviews.length > 0) {
-    const unreplied = reviews.filter((r) => !r.replied);
+    const unreplied=reviews.filter(r=>!(r.replyVerified===true||(r.replyStatus==='VERIFIED'&&typeof r.providerReplyId==='string'&&r.providerReplyId)));
     const lowRatingReviews = reviews.filter((r) => typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 3);
 
     if (unreplied.length > 0) {
@@ -109,7 +110,7 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
         title: 'Unanswered Customer Reviews in Queue',
         category: 'reviews',
         severity: unreplied.length >= 3 ? 'critical' : 'important',
-        evidence: `${unreplied.length} of ${reviews.length} reviews marked replied = false`,
+        evidence: `${unreplied.length} of ${reviews.length} reviews without recorded provider-verified reply evidence`,
         source: 'MySQL Reviews Database',
         timestamp,
         recommendation: 'Respond to pending customer reviews to boost local consumer trust and Google engagement algorithm signals.',
@@ -142,10 +143,10 @@ export function generateEvidenceBasedAudit(inputs: AuditEngineInputs): AuditItem
   }
 
   // 3. Local SEO & Map Pack Radar Observations
-  const rankObs = inputs.rankObservations || [];
+  const rankObs = (inputs.rankObservations || []).filter(o=>currentRank(o,Date.parse(timestamp)));
   const validPositions = rankObs
     .map((o) => o.position)
-    .filter((p): p is number => typeof p === 'number' && p > 0);
+    .filter((p): p is number => rankPosition(p)!==null);
 
   if (validPositions.length > 0) {
     const avgRank = validPositions.reduce((a, b) => a + b, 0) / validPositions.length;

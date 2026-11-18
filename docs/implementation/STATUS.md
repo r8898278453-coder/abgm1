@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-19 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 150 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 053_calendar_plans; 93 canonical tables. Registered default regression programs: 153 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 49 / 17 / 1 / 26.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 51 / 17 / 1 / 24.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -17,7 +17,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 5 | 1 | 0 | 1 |
 | P04 | 7 | 1 | 0 | 1 |
-| P05 | 3 | 1 | 0 | 7 |
+| P05 | 5 | 1 | 0 | 5 |
 | P06 | 4 | 2 | 0 | 2 |
 | P07 | 5 | 1 | 0 | 2 |
 | P08 | 4 | 1 | 0 | 5 |
@@ -93,9 +93,9 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content | P03-07 |
 | P04-09 | planned | Business memory and onboarding gate | P03-07 |
 | P05-01 | planned | Complete authorized Google account and location connection | P04-09 |
-| P05-02 | planned | Make local profile audit and growth scoring evidence-based | P04-09, P05-01 |
-| P05-03 | planned | Harden keyword research rank grids and competitor refresh | P04-09, P05-02 |
-| P05-04 | planned | Unify Google review save publish verify and reminders | P04-09, P05-03 |
+| P05-02 | validated | Make local profile audit and growth scoring evidence-based | P04-09, P05-01 |
+| P05-03 | validated | Harden keyword research rank grids and competitor refresh | P04-09 |
+| P05-04 | planned | Unify Google review save publish verify and reminders | P04-09 |
 | P05-05 | planned | Complete canonical GBP post and media dispatch | P04-09, P05-04 |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P04-09, P05-05 |
 | P05-07 | in_progress | Build client-specific creative and approved asset library | P04-09, P05-06 |

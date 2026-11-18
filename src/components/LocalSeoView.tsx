@@ -1,3 +1,4 @@
+import {currentRank} from '../../shared/localMarketingEvidence';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   TrendingUp,
@@ -42,8 +43,8 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
   onRefreshAll,
   onScanSingle,
   onAddCompetitor,
-  city = 'Thane',
-  category = 'IT Services & Web Development',
+  city = '',
+  category = '',
   isScanning = false,
 }) => {
   const mounted=useRef(true);useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
@@ -64,7 +65,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
       if (onAddKeyword) {
         await onAddKeyword(target);
         if(!mounted.current)return;setNewKw('');
-        setStatusMessage(`Local SERP scan processed for "${target}".`);
+        setStatusMessage(`Scan request finished; inspect the recorded provider status for "${target}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } catch {
@@ -80,7 +81,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onRefreshAll) {
         await onRefreshAll();
-        if(!mounted.current)return;setStatusMessage('Tracked keyword rank observations refreshed.');
+        if(!mounted.current)return;setStatusMessage('Batch finished. Inspect provider statuses; click again to continue any remaining keywords.');
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } catch {
@@ -95,7 +96,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     try {
       if (onScanSingle) {
         await onScanSingle(kwText);
-        if(!mounted.current)return;setStatusMessage(`Refreshed rank radar for "${kwText}".`);
+        if(!mounted.current)return;setStatusMessage(`Scan request finished; inspect provider status for "${kwText}".`);
         setTimeout(() => setStatusMessage(null), 5000);
       }
     } catch {
@@ -112,12 +113,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
     catch{if(mounted.current)setStatusMessage('Competitor save unconfirmed. Reload workspace before retrying.');}
     finally{if(mounted.current)setTracking(false);}
   };
-  const suggestions = [
-    `custom website development in ${city}`,
-    `mobile app developer near me`,
-    `best ${category.toLowerCase().slice(0, 20)} agency`,
-    `google 3-pack local seo services`,
-  ];
+  const suggestions = category.trim()?[`${category.trim()}${city.trim()?' in '+city.trim():''}`,`${category.trim()} near me`]:[];
 
   const getClassificationBadge = (classification?: string) => {
     return <DataStatusBadge status={classification || 'UNAVAILABLE'} />;
@@ -158,7 +154,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
             className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition flex items-center gap-2 shadow-2xs disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isRefreshingAll ? 'animate-spin text-indigo-600' : ''}`} />
-            {isRefreshingAll ? 'Scanning Grid...' : 'Refresh All Rankings'}
+            {isRefreshingAll ? 'Scanning Grid...' : 'Refresh Next Rank Batch'}
           </button>
         </div>
       </div>
@@ -172,6 +168,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
       )}
 
       {/* Provider Status Notice */}
+      {selectedKw&&!currentRank(selectedKw)&&<p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Current rank unavailable: this saved observation is stale, unverified or failed. Historical values below do not establish a current position.</p>}
       {selectedKw?.dataClassification === 'UNAVAILABLE' && (
         <div className="bg-amber-50/90 border border-amber-200 rounded-3xl p-5 shadow-sm flex items-start gap-3.5">
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -257,7 +254,7 @@ export const LocalSeoView: React.FC<LocalSeoViewProps> = ({
                 )}
                 {selectedKw.lastScannedAt && (
                   <span className="text-[10px] text-slate-400">
-                    Scanned {new Date(selectedKw.lastScannedAt).toLocaleString()}
+                    Scanned {new Date(selectedKw.lastScannedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST'}
                   </span>
                 )}
               </div>

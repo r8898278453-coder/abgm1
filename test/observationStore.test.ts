@@ -13,11 +13,11 @@ for(const args of [[Infinity,73],[91,73],[18,181],[18,undefined]])assert.equal(r
 const original=globalThis.fetch;let mode='empty',calls=0;
 assert.equal(resolveCenterCoordinates('Navi Mumbai, Maharashtra')?.lng,73.0297);assert.equal(resolveCenterCoordinates('notmumbai'),null);const city=resolveCenterCoordinates('Pune')!;city.lat=0;assert.equal(resolveCenterCoordinates('Pune')?.lat,18.5204);
 try{
- const coordinates=generate3x3GridCoordinates(18,73),context={companyId:'A',businessName:'Fixture Company',keyword:'Dentist',city:'Pune',centerLat:18,centerLng:73,coordinates,radiusKm:3.5};
+ const coordinates=generate3x3GridCoordinates(18,73),context={companyId:'A',businessName:'Fixture Company',placeId:'selected',keyword:'Dentist',city:'Pune',centerLat:18,centerLng:73,coordinates,radiusKm:3.5};
  for(const [provider,credentials] of [[new DataForSeoLocalProvider(),{login:'fixture',password:'fixture'}],[new SerpApiLocalProvider(),{apiKey:'fixture-api-key'}]] as const){
   globalThis.fetch=async()=>{throw new Error('must not call provider with invalid coordinates');};await assert.rejects(provider.scanRankGrid({...context,coordinates:[{lat:Infinity,lng:0,label:'invalid',gridIndex:4}]},credentials),/INVALID_SCAN_GEOMETRY/);
   for(const next of ['empty','failed','ranked','network']){
-   mode=next;calls=0;globalThis.fetch=async()=>{const center=calls++===4;if(mode==='network')throw new Error('private-api-key-in-url');if(center&&mode==='failed')return new Response('{}',{status:500});const items=center&&mode==='empty'?[]:center&&mode==='ranked'?[{title:'Other A'},{title:'Other B'},{title:'Fixture Company'}]:[{title:'Fixture Company'}];return new Response(JSON.stringify({tasks:[{result:[{items}]}],local_results:items}),{status:200});};
+   mode=next;calls=0;globalThis.fetch=async()=>{const center=calls++===4;if(mode==='network')throw new Error('private-api-key-in-url');if(center&&mode==='failed')return new Response('{}',{status:500});const items=center&&mode==='empty'?[]:center&&mode==='ranked'?[{title:'Other A'},{title:'Other B'},{title:'Fixture Company',place_id:'selected'}]:[{title:'Fixture Company',place_id:'selected'}];return new Response(JSON.stringify({status_code:20000,tasks:[{status_code:20000,result:[{items}]}],local_results:items}),{status:200});};
    const result=await provider.scanRankGrid(context,credentials);assert.equal(calls,9);assert.equal(result.overallRank,mode==='ranked'?3:null);assert.ok(!JSON.stringify(result).includes('private-api-key'));
   }
  }
