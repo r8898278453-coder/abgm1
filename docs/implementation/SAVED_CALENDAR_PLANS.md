@@ -1,5 +1,7 @@
 # Saved calendar plans
 
+Continuation: [REVIEWED_CALENDAR_STRATEGY.md](REVIEWED_CALENDAR_STRATEGY.md) adds optional reviewed audience/brand/service/offer preferences and lexical saved-topic preview. The full autonomous/festival/semantic/asset strategy remains pending. Earlier verification figures below retain their original scope.
+
 18 November 2026 IST. This continuation delivers durable batch definitions, per-slot generation admission, first-text snapshots and revision history for P05-08. It does not complete the full content strategy or the parent phase. See [SAVED_CALENDAR_BATCHES.csv](SAVED_CALENDAR_BATCHES.csv) and [evidence/saved-calendar-plans.json](evidence/saved-calendar-plans.json).
 
 ## User workflow

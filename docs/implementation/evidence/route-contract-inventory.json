@@ -286,6 +286,16 @@
       "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/calendar-plans/planning-options",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-plans/topic-preview",
+      "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/client-report-links/:id/revoke",
       "owner": "server/clientReportRoutes.ts#registerClientReportRoutes"
