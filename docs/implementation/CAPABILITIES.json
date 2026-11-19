@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 51,
-    "in_progress": 17,
-    "planned": 24,
+    "validated": 53,
+    "in_progress": 16,
+    "planned": 23,
     "blocked": 1
   },
   "total": 93,
@@ -689,7 +689,7 @@
       "id": "P06-01",
       "phase": "P06",
       "title": "Extend canonical lead identity channels opportunities and touchpoints",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Tenant-local E.164/email/provider identity; reversible dedupe; multiple opportunities; amount/currency provenance"
     },
     {
@@ -724,7 +724,7 @@
       "id": "P06-06",
       "phase": "P06",
       "title": "Replace per-message lead creation and build unified client inbox",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Existing lead reused; messages/attachments/thread history persist; ambiguous match creates task; assigned users only"
     },
     {
@@ -738,7 +738,7 @@
       "id": "P06-08",
       "phase": "P06",
       "title": "CRM and channel truth gate",
-      "state": "planned",
+      "state": "in_progress",
       "acceptance": "Replay/batch/receipt/consent/dedupe/browser tests pass; safe authorized channel send/reply evidence or disabled capability"
     },
     {

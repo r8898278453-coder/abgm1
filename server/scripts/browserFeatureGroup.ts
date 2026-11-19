@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';import {isolatedTestEnvironment} from './testEnvironment';
 const programs=[
+ 'crmIdentity',
  'readinessTruth','portableStorefront','retention','qualificationHandoffs','extraDeals','clientWorkGuide','calendarAttachment','assetLibrary','clientCalendar','sourceOutcomes','clientReportPublic','clientReportPortal','growthOperations','lazyFeatures','workspaceIsolation','websiteIsolation','observationTruth','competitorWorkflow','integrationIsolation','knowledgeWorkflow','campaignPlanning','knowledgeFacts','agencyWorkspace','onboardingWorkflow','renderOperations','salesWorkspace','salesWorkflows','approvedSalesMessages','salesInquiryRules','telegramOperations','notificationPolicies','reportSnapshots','reportCaptureSchedule','companyCreation','sessionTransport','privatePwa',
 ];
 const selected=process.argv.slice(2);if(selected.some(name=>!programs.includes(name)))throw new Error('BROWSER_GROUP_SELECTION_INVALID');const run=selected.length?programs.filter(name=>selected.includes(name)):programs;

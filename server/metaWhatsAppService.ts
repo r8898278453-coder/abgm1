@@ -1,7 +1,7 @@
 import {dispatchProof} from '../shared/dispatchCorrelation';
 import {salesSendEligibility} from './salesWorkspace';
 import {getDbPool} from './db';
-import {resolveWhatsAppTenant} from './whatsAppTenant';
+import {resolveWhatsAppTenant,tenantWhatsAppCredentials} from './whatsAppTenant';
 import {isGlobalEmergencyStopActive} from './executionStop';
 import crypto from 'crypto';
 import {
@@ -80,22 +80,7 @@ export async function resolveWhatsAppCredentials(companyId?: string): Promise<Wh
   if (companyId) {
     try {
       const integration = await getCompanyIntegration(companyId, 'whatsapp_cloud');
-      if (integration && integration.credentials && (integration.status === 'connected' || integration.status === 'verified' || integration.status === 'saved')) {
-        const phoneNumberId = String(integration.credentials.phoneNumberId || '').trim();
-        const accessToken = String(integration.credentials.accessToken || '').trim();
-        const wabaId = String(integration.credentials.wabaId || '').trim();
-        const appSecret = String(integration.credentials.appSecret || '').trim();
-        const webhookSecret = String(integration.credentials.webhookSecret || '').trim();
-
-        return {
-          phoneNumberId,
-          accessToken,
-          wabaId,
-          appSecret,
-          webhookSecret,
-          configured: Boolean(phoneNumberId && accessToken),
-        };
-      }
+      return tenantWhatsAppCredentials(integration);
     } catch {}
 
     // Strict tenant isolation: Tenant without integration gets NOT_CONFIGURED

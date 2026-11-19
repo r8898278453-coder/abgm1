@@ -1,0 +1,32 @@
+slice,status,scope
+Strict scoped identity commands,implemented_verified,Connected functional slice; not an additional original task
+Canonical phone and email matching,implemented_verified,Connected functional slice; not an additional original task
+Provider identity provenance,implemented_verified,Connected functional slice; not an additional original task
+Reversible alias overlay,implemented_verified,Connected functional slice; not an additional original task
+Fingerprint stale-source fencing,implemented_verified,Connected functional slice; not an additional original task
+Idempotent command receipts,implemented_verified,Connected functional slice; not an additional original task
+Identity audit rollback,implemented_verified,Connected functional slice; not an additional original task
+Workflow invalidation on identity change,implemented_verified,Connected functional slice; not an additional original task
+Cross-address automatic inquiry review,implemented_verified,Connected functional slice; not an additional original task
+Ambiguous inbound review tasks,implemented_verified,Connected functional slice; not an additional original task
+Unlinked-only message assignment,implemented_verified,Connected functional slice; not an additional original task
+Historical review registration,implemented_verified,Connected functional slice; not an additional original task
+Dismissed backlog exclusion,implemented_verified,Connected functional slice; not an additional original task
+Contact directory pagination,implemented_verified,Connected functional slice; not an additional original task
+Review and command history pagination,implemented_verified,Connected functional slice; not an additional original task
+Grouped conversation history,implemented_verified,Connected functional slice; not an additional original task
+Group cursor invalidation,implemented_verified,Connected functional slice; not an additional original task
+Private validated attachment upload,implemented_verified,Connected functional slice; not an additional original task
+Context-bound encryption and hash,implemented_verified,Connected functional slice; not an additional original task
+Per-message and client storage quotas,implemented_verified,Connected functional slice; not an additional original task
+Private authenticated download,implemented_verified,Connected functional slice; not an additional original task
+Signed provider reference distinction,implemented_verified,Connected functional slice; not an additional original task
+Explicit provider metadata import,implemented_verified,Connected functional slice; not an additional original task
+Fixed-host bounded media download,implemented_verified,Connected functional slice; not an additional original task
+Concurrent import ownership,implemented_verified,Connected functional slice; not an additional original task
+Expired claim recovery,implemented_verified,Connected functional slice; not an additional original task
+Credential rotation fencing,implemented_verified,Connected functional slice; not an additional original task
+Lost-ACK exact retry UI,implemented_verified,Connected functional slice; not an additional original task
+Client and session UI isolation,implemented_verified,Connected functional slice; not an additional original task
+Live CRM activity reporting,implemented_verified,Connected functional slice; not an additional original task
+Migration shape and index guards,implemented_verified,Connected functional slice; not an additional original task

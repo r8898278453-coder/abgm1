@@ -1,0 +1,31 @@
+# CRM identity and inbox — 19 November 2026 IST
+
+CRM identity and inbox group —19 November2026 IST: reversible tenant-local contact links, immutable replay commands, ambiguity review/backfill, bounded grouped threads, encrypted private files and explicit verified WhatsApp media import delivered together. Original P06-01/P06-06 locally validated; P06-08 remains in_progress. Tracker53 validated/16 in_progress/23 planned/1 blocked of93. Forward054/97 tables, next055; historical001–053 and frozen report V4 unchanged. Evidence: CRM_IDENTITY_AND_INBOX.md, CRM_IDENTITY_BATCHES.csv and evidence/crm-identity-and-inbox.json. Supported email remains unavailable; hosting/provider activation, remaining original criteria and production rollout stay pending. No deployment, production DB write, real send or model spend; billing excluded and rendering default off.
+
+## Delivered behavior
+
+Canonical contact matching uses tenant-local normalized phone/email and verified provider provenance. A reviewed link is a reversible overlay: original leads, primary/additional opportunities, amount/currency provenance, messages and permissions remain intact. Exact lead fingerprints, revision checks, immutable request receipts and audit protect link/undo replay. Chains, cycles and oversized groups are refused. Link and undo stop existing affected workflows without reviving them. A different linked phone cannot silently retarget automatic inquiry follow-up; it requires contact-channel review.
+
+Ambiguous inbound matches create durable per-message tasks. Assigned users can review the saved source preview, resolve an unlinked message or dismiss it. Explicit historical registration processes at most25 old messages; no automatic rewrite. A previously assigned message cannot be reassigned. Dismissed tasks leave actionable backlog. Contact directory pages100; reviews/history/messages page20. Group generation changes invalidate stale and undo/redo cursors. Original message ownership is retained.
+
+Private attachment uploads validate bytes, MIME, filename and signatures, then encrypt content with company/message/file context and SHA256 integrity. Supported types are PDF, JPEG, PNG and UTF8 text, maximum512KiB each;100 stored files/10MiB per client and10 stored files per message. Provider references are metadata until an explicit successful import. Current authorized private downloads use no-store, attachment disposition and sandbox headers; no static/public file paths.
+
+Verified WhatsApp imports use current own-tenant credentials and signed message/provider provenance. Metadata is limited to16KiB, shared network deadline15seconds, claim lease120seconds; download hosts/path are fixed and redirects forbidden. Size/type/hash and current actor/source/credential state are checked before committing encrypted bytes. Concurrent requests have one owner; stored replay avoids another fetch; expired claims recover and stale owners cannot overwrite. Meta media availability is limited (inbound media ID7days, temporary URL5minutes); errors remain explicit. Import performs GET only, never sends a message or grants consent/asset approval. Unsupported email is explicitly unavailable.
+
+The on-demand CRM panel provides reviewed linking/undo, source previews, history/backfill, bounded conversation pages, file upload/download/import and current client/session fences. Exact request retry handles a lost acknowledgement. Known validation failures do not report success. Live sales activity includes CRM actions; frozen V4 and raw lead/deal totals are unchanged. Contact grouping does not establish unique-person or attributed-revenue metrics.
+
+## Acceptance and evidence
+
+P06-01 and P06-06 meet their unchanged local acceptance criteria. P06-08 remains in_progress: replay, batch, receipt, consent, dedupe and selected browser fixtures are covered, but final supported-channel activation/disabled evidence and prerequisite gates remain open. P07-04 booking, P09-07 universal accessibility and global privacy/retention remain open.
+
+Verification:155 credential-isolated default programs; full disposable MariaDB10.11.19 fresh/upgrade/replay/concurrency/rollback matrix through054; exact uploaded database-export preservation and replay (97 tables/54 migrations/repeat0); six distinct browser workflows (CRM, client isolation, sales workspace, workflows, approved messages, private PWA). CRM browser includes390px overflow, lost ACK, private file bytes, source-state distinction and client/session changes. SQL covers8-way ownership, original deals/permissions, audit rollback, stale revisions, credential rotation, expired claims, cross-address review and strict authenticated routes. Provider network is intercepted. TypeScript/build/source/route/document checks are recorded separately in evidence.
+
+## Migration and operational limits
+
+Forward054 adds crm_identity_links, crm_identity_commands, crm_identity_reviews and crm_inbox_attachments with exact type/index/nullability guards. No historical migration or original business row is rewritten. Review backfill is explicit. Run a new reviewed staging/canary package before deployment; old binaries can reject the newer ledger even though this is additive. Durable command receipts currently have no pruning: any future retention must preserve replay safety and monotonic group-generation semantics. Real key recovery, hosting storage/process/backup verification and production provider acceptance are still pending.
+
+Meta reference reviewed: https://developers.facebook.com/docs/whatsapp/cloud-api/reference/media/ . Public documentation is a contract reference, not proof of this hosting account's live provider readiness.
+
+## Next connected work
+
+Next implementation groups are tenant email sender/reply/bounce integration with canonical consent/stop rules; verified Google/Meta publishing and approved creative assets; booking availability/reminders and exit races; authorized prospect discovery/enrichment; and reconciled agency/client reporting. Global RBAC/OAuth/ledger coverage, responsive accessibility, retention/key recovery, hosting benchmarks and final restore/provider/canary gates remain explicitly tracked in TASKS.csv. Planned gate tasks require their prerequisite evidence; they are not silently counted as delivered features.

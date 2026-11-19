@@ -1,5 +1,7 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+19 November2026 IST: Forward054_crm_identity adds4 tables (97 total), exact shape/index guards and no implicit historical backfill; next055. Historical001–053 and frozen report V4 unchanged. CRM_IDENTITY_AND_INBOX.md documents replay, storage and claim limits.
+
 18 November2026 IST — forward052_client_reports adds two scoped report-release/share-link tables;90 canonical tables, next053. Exact schema/index checks, fresh and041 upgrade reconstruction, repeat replay and copied-export rehearsal apply. Historical001–051 and report V1–V4 definitions remain unchanged. See CLIENT_REPORT_PORTAL.md.
 
 Current security/policy checkpoint (12 November2026 IST): [SECURITY_POLICY_GROUP.md](SECURITY_POLICY_GROUP.md) records035/63 (next036), opt-in cookie/epoch security, canonical aliases, PKCE/refresh groundwork and client goals/shared admissions. P02-05/P02-06/P04-05 are locally accepted; seven other targets remain partial. Historical001–034 unchanged; no phase, provider activation or deployment accepted. Older schema/status notes below describe earlier checkpoints; STATUS.md is current.

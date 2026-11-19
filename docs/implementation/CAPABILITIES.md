@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 51, in progress 17, planned 24, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 53, in progress 16, planned 23, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -79,14 +79,14 @@ Original tasks: 93; validated 51, in progress 17, planned 24, blocked 1. Billing
 | P05-09 | validated | Move reel state into durable jobs with resource limits |
 | P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture |
 | P05-11 | planned | Marketing parity and publication gate |
-| P06-01 | in_progress | Extend canonical lead identity channels opportunities and touchpoints |
+| P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints |
 | P06-02 | validated | Implement durable batched webhook intake and event replay |
 | P06-03 | validated | Implement message dispatch and real delivery states |
 | P06-04 | planned | Add tenant email sender and reply/bounce integration |
 | P06-05 | validated | Implement contact permission suppression and sending eligibility |
-| P06-06 | in_progress | Replace per-message lead creation and build unified client inbox |
+| P06-06 | validated | Replace per-message lead creation and build unified client inbox |
 | P06-07 | validated | Add opportunity stage outcome and next-action management |
-| P06-08 | planned | CRM and channel truth gate |
+| P06-08 | in_progress | CRM and channel truth gate |
 | P07-01 | validated | Implement grounded qualification and sales handoff |
 | P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments |
 | P07-03 | validated | Execute workflow steps through existing queue and policy |

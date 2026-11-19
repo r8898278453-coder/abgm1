@@ -541,6 +541,36 @@
       "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/identity/commands",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/identity/contacts",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/identity/history",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/identity/register-history",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/identity/reviews",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/identity/reviews/:reviewId",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:companyId/sales/inbound-conflicts",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
@@ -566,9 +596,29 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/inbox/:messageId/attachments",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
       "method": "PUT",
       "path": "/api/companies/:companyId/sales/inbox/:messageId/link",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/inbox/attachments/:attachmentId/content",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/inbox/attachments/:attachmentId/import-provider",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/sales/inbox/threads/:leadId",
+      "owner": "server/crmRoutes.ts#registerCrmRoutes"
     },
     {
       "method": "GET",
@@ -1391,5 +1441,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 53
+  "registrationCount": 54
 }

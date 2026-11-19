@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+19 November2026 IST: CRM rollout requires a fresh reviewed forward054/97-table staging/canary package and backup/restore/key evidence. Older binaries may reject the newer migration ledger; additive DDL alone does not establish rollback compatibility. Production rollout has not occurred.
+
 19 November 2026 IST. This document prepares a reviewable package. It does not approve or execute deployment, database migration, provider sends, DNS/SSL changes or rollback.
 
 ## Build and prepare

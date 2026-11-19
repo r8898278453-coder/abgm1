@@ -1,3 +1,4 @@
+import {registerCrmRoutes} from './server/crmRoutes';
 import {registerGrowthReadRoutes} from './server/growthReadRoutes';
 import {registerRankRadarRoutes} from './server/rankRadarRoutes';
 import {commitRankRadar,readRankCompany} from './server/rankRadarSql';
@@ -2030,6 +2031,7 @@ app.get('/api/templates/palettes', async (req, res) => {
   }
 });
 
+registerCrmRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerGrowthOperations(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 
