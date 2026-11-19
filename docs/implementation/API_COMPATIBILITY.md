@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November2026 IST: Developer v1 adds three explicit Bearer scoped read facades and ten current-manager application controls. Contacts reuse readIdentityContacts; sales reuses readSalesReport; no existing mutation/send authority gained. Exact route/contracts, once-only secrets and webhook receiver raw-body/timestamp/event-dedupe requirements: DEVELOPER_ACCESS.md. All control/facade responses are no-store.
+
 19 November2026 IST: CRM adds10 scoped sales identity/inbox routes in server/crmRoutes.ts. Strict params/query/body and fresh assigned-user permissions apply; downloads are private. Legacy link now assigns only previously unlinked messages and cannot overwrite existing ownership. Link/import never grant consent; source and current credentials are checked. See CRM_IDENTITY_AND_INBOX.md.
 
 19 November2026 IST — Growth GET/recalculate share a private read model, persisted:false; no hidden workspace write. Rank routes retain paths with strict inputs, optional refresh offset, bounded per-keyword outcomes, partial, revisionDelta and nextOffset. Exact selected Places identity is required for configured scans; stale/foreign/version/source changes refuse persistence atomically. Existing observation writer shares a transaction primitive; schema unchanged. See LOCAL_MARKETING_EVIDENCE.md.

@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 53,
+    "validated": 54,
     "in_progress": 16,
-    "planned": 23,
+    "planned": 22,
     "blocked": 1
   },
   "total": 93,
@@ -843,7 +843,7 @@
       "id": "P08-07",
       "phase": "P08",
       "title": "Expose scoped developer API and signed event webhooks",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Only canonical services invoked; rotated scoped keys; signatures/timestamps/replay/tenant access/rate limits tested"
     },
     {

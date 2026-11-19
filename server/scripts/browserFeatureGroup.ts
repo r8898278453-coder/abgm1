@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';import {isolatedTestEnvironment} from './testEnvironment';
 const programs=[
+ 'developerAccess',
  'crmIdentity',
  'readinessTruth','portableStorefront','retention','qualificationHandoffs','extraDeals','clientWorkGuide','calendarAttachment','assetLibrary','clientCalendar','sourceOutcomes','clientReportPublic','clientReportPortal','growthOperations','lazyFeatures','workspaceIsolation','websiteIsolation','observationTruth','competitorWorkflow','integrationIsolation','knowledgeWorkflow','campaignPlanning','knowledgeFacts','agencyWorkspace','onboardingWorkflow','renderOperations','salesWorkspace','salesWorkflows','approvedSalesMessages','salesInquiryRules','telegramOperations','notificationPolicies','reportSnapshots','reportCaptureSchedule','companyCreation','sessionTransport','privatePwa',
 ];

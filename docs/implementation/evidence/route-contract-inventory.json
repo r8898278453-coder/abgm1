@@ -407,6 +407,56 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/developer/deliveries",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/deliveries/:deliveryId/attempt",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/keys",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/keys/:keyId/revoke",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/keys/:keyId/rotate",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:companyId/developer/settings",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/subscriptions",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/subscriptions/:subscriptionId/replay",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/subscriptions/:subscriptionId/revoke",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/developer/subscriptions/:subscriptionId/rotate",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/message-dispatch/:key",
       "owner": "server/messageDispatchStatus.ts#registerMessageDispatchStatus"
     },
@@ -1212,6 +1262,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/developer/v1/companies/:companyId/contacts",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/developer/v1/companies/:companyId/events",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/developer/v1/companies/:companyId/sales-report",
+      "owner": "server/developerRoutes.ts#registerDeveloperRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/health",
       "owner": "server/health.ts#registerHealthRoutes"
     },
@@ -1441,5 +1506,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 54
+  "registrationCount": 55
 }

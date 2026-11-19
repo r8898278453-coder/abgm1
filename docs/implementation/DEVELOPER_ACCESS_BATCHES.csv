@@ -1,0 +1,36 @@
+slice,scope
+Strict read scopes and expiry contract,Connected implementation slice; not an additional original task
+Client-bound random API tokens,Connected implementation slice; not an additional original task
+Hash-only API secret storage,Connected implementation slice; not an additional original task
+One-time credential display,Connected implementation slice; not an additional original task
+Stable key-creation receipts,Connected implementation slice; not an additional original task
+Exact changed-input refusal,Connected implementation slice; not an additional original task
+Versioned key rotation,Connected implementation slice; not an additional original task
+Immediate key revocation,Connected implementation slice; not an additional original task
+Fresh issuer and client checks,Connected implementation slice; not an additional original task
+Final response permit,Connected implementation slice; not an additional original task
+Cross-process minute rate reservations,Connected implementation slice; not an additional original task
+Canonical contact facade,Connected implementation slice; not an additional original task
+Canonical IST sales-report facade,Connected implementation slice; not an additional original task
+Scoped CRM event facade,Connected implementation slice; not an additional original task
+Bounded event cursors,Connected implementation slice; not an additional original task
+Strict private control routes,Connected implementation slice; not an additional original task
+Encrypted subscription secrets,Connected implementation slice; not an additional original task
+Stable subscription-creation receipts,Connected implementation slice; not an additional original task
+Subscription cap and endpoint validation,Connected implementation slice; not an additional original task
+Atomic canonical audit/event/outbox,Connected implementation slice; not an additional original task
+Fixed metadata-only event contract,Connected implementation slice; not an additional original task
+Signed exact raw-body deliveries,Connected implementation slice; not an additional original task
+Timestamp and constant-time verifier,Connected implementation slice; not an additional original task
+Receiver event-ID dedupe contract,Connected implementation slice; not an additional original task
+DNS-pinned public HTTPS transport,Connected implementation slice; not an additional original task
+Durable delivery claim and race fencing,Connected implementation slice; not an additional original task
+Retry/backoff and dead letters,Connected implementation slice; not an additional original task
+Expired-worker recovery,Connected implementation slice; not an additional original task
+Rotation cancellation and replay receipts,Connected implementation slice; not an additional original task
+Bounded automatic scheduler drain,Connected implementation slice; not an additional original task
+Redacted dispatcher counters,Connected implementation slice; not an additional original task
+Private delivery history,Connected implementation slice; not an additional original task
+Lost-ACK and session/client UI fences,Connected implementation slice; not an additional original task
+Private PWA refusal,Connected implementation slice; not an additional original task
+Forward055 shape/index guards,Connected implementation slice; not an additional original task

@@ -1,0 +1,89 @@
+{
+  "date_ist": "2026-11-20",
+  "original_tasks_validated": [
+    "P08-07"
+  ],
+  "original_counts": {
+    "validated": 54,
+    "in_progress": 16,
+    "planned": 22,
+    "blocked": 1
+  },
+  "connected_slices": 35,
+  "schema": {
+    "migrations": 55,
+    "tables": 101,
+    "next": 56,
+    "historical_001_to_054_unchanged": true
+  },
+  "tests": {
+    "default_registry": 156,
+    "native_sql": "passed: fresh/upgrade/repeat, negative055 shape/index, 8-way key/subscription/rate/transport races, canonical event atomic rollback, stale-owner/retry/rotation/issuer/archive/tenant fences and bounded scheduler",
+    "copied_export": "passed; original rows/ledger preserved,101 tables/55 migrations/repeat0",
+    "browser_distinct": [
+      "developerAccess",
+      "crmIdentity",
+      "workspaceIsolation",
+      "salesWorkspace",
+      "privatePwa"
+    ],
+    "typescript": "passed",
+    "build": "passed",
+    "routes": {
+      "declarations": 300,
+      "registrations": 55,
+      "collisions": 0
+    },
+    "frontend": {
+      "initial_js_bytes": 588558,
+      "initial_js_gzip_bytes": 171066,
+      "feature_entries_initially_loaded": 0
+    },
+    "default_regressions": "156/156 passed",
+    "final_ui_revocation": "passed;403 clears controls, lost ACK frozen retry, late-client/session isolation and390px"
+  },
+  "receiver_contract": {
+    "raw_body_hmac": "sha256(timestamp.deliveryId.rawBody)",
+    "timestamp_window_ms": 300000,
+    "durable_dedupe": "consumer must atomically deduplicate companyId/event.id with downstream effect",
+    "delivery_semantics": "at least once; HTTP2xx acknowledgement only"
+  },
+  "limits": {
+    "active_unexpired_keys": 5,
+    "key_ttl_days_max": 90,
+    "requests_per_key_minute": 60,
+    "active_subscriptions": 5,
+    "attempts": 5,
+    "claim_ms": 120000,
+    "queued_delivery_ttl_days": 7,
+    "dns_ms": 3000,
+    "https_ms": 10000,
+    "body_bytes": 16384,
+    "scheduler_clients": 5,
+    "per_client_per_tick": 1
+  },
+  "scope_limits": [
+    "Read-only API; no send/write authority",
+    "Selected CRM metadata events only",
+    "Consumer database/private backend not certified",
+    "Global fairness/capacity, privacy retention and key recovery remain open",
+    "Hosting/provider/pilot/phase gates unchanged"
+  ],
+  "webhook_execution_default": "disabled",
+  "production_changes": false,
+  "real_external_sends": 0,
+  "model_spend": 0,
+  "source_sha256": {
+    "server/developerStore.ts": "342a6c1c87fbcee6df3e1b317c2163bcaaba8cfdf00859b429386e5c6121ebb2",
+    "server/developerDelivery.ts": "34934424e73908b13b771af79434d6f53a1f052c8dcc1ee3a7ee62aca169905f",
+    "server/developerEvents.ts": "20eb1468c0d8b76ee723f0d70d9aeb7192c3225e9d8d19b8cd35ac73b2bcb34b",
+    "server/developerRoutes.ts": "ec53d8f3127f350cfdbb9e91321a5582bd977c9193f169bb3da6fb648698477d",
+    "server/developerWebhookTransport.ts": "2aaa28378aba3d16a071edcc1d7eebf262a0426c7e9d055f4ce854eda3152da4",
+    "server/developerCrypto.ts": "1f7701ed19a39ecccbdbfea4fbefddce6b73728e2cb11a897c4c80280228a68f",
+    "server/migrations/055_developer_access.ts": "56d2b32a0193d258489fd849582b7096d399127b0ec9e942dc3bbb8ed569ddf8",
+    "src/components/DeveloperAccessPanel.tsx": "f170568fde8f3f609da7d8c9cd1920350fe33dc5a0902b8a3c2cdf8370b20976",
+    "test/integration/developerAccessSql.test.ts": "542daa4d33f71ba5e0a116a70659c3ea16528d62d99e5dc10f6b5ed4ebb64b43",
+    "test/developerAccess.test.ts": "8cf3415bd7226115617d25783c77369a33b447045bff6e47c5481c5b47ea945c",
+    "test/browser/developerAccess.test.ts": "69c7e6151fd669591e8a7b2dca300a2edefc498764194fb1411656e33cc11e84"
+  }
+}

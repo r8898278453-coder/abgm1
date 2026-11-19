@@ -1,3 +1,4 @@
+import {registerDeveloperRoutes} from './server/developerRoutes';
 import {registerCrmRoutes} from './server/crmRoutes';
 import {registerGrowthReadRoutes} from './server/growthReadRoutes';
 import {registerRankRadarRoutes} from './server/rankRadarRoutes';
@@ -2031,6 +2032,7 @@ app.get('/api/templates/palettes', async (req, res) => {
   }
 });
 
+registerDeveloperRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerCrmRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerGrowthOperations(app,{auth:getAuthUserFromRequest,pool:getDbPool});
