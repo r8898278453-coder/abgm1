@@ -1,0 +1,17 @@
+{
+  "date_ist": "2026-11-20",
+  "scope": "Shared OAuth primitives; provider adoption remains incomplete",
+  "original_task": "P02-07 in_progress",
+  "schema_changed": false,
+  "production_access": false,
+  "provider_calls": 0,
+  "native_sql": "passed; state substitution,8-way one-use/lease,archive/revocation,invalid result/snapshot,credential preservation,release recovery/stale fencing",
+  "source_sha256": {
+    "server/oauthLifecycle.ts": "6482f77d1089c01c8e6f9b2d1d4a64887cd30e387bef4cc478be348ff63a1d47",
+    "test/integration/securityPolicySql.test.ts": "259f801f40f8dfdd30308858aef1876d299e50aa3979276a7f1161fd7ad0fe21"
+  },
+  "default_regressions": "156/156 passed",
+  "typescript": "passed",
+  "production_build": "passed",
+  "tracker": "54 validated/16 in_progress/22 planned/1 blocked"
+}
