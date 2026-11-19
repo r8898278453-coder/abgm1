@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+Attribution boundary V2 group —20 November2026 IST: versioned first/last evidence snapshots, exact sorted record provenance, untimed-history withholding, strict tie/revision/count validation and private CSV/UI integration. See ATTRIBUTION_BOUNDARY_V2.md. P08-05 remains in_progress; tracker54/16/22/1 unchanged. No migration, production change, provider request or billing work.
+
 OAuth recovery group —20 November2026 IST: atomic active-client state admission, context-bound encrypted PKCE state, copied-ciphertext refusal, archive/revocation settlement fences, strict refresh token/snapshot validation and explicit stale-owner-safe lease release. See OAUTH_REFRESH_RECOVERY.md. P02-07 remains in_progress; tracker54/16/22/1 unchanged. No migration, provider exchange, deployment or production changes.
 
 Developer interoperability group —20 November2026 IST:35 connected slices add client/scoped expiring API keys, hash-only secrets, one-time issuance, stable creation receipts, rotation/revocation, SQL minute limits, canonical contacts/IST sales/event readers, encrypted metadata-webhook subscriptions, atomic CRM event outbox, signed bounded DNS-pinned HTTPS delivery, same-event retries/dead letters/stale-worker recovery and existing budgeted scheduler integration. Original P08-07 locally validated; tracker54 validated/16 in_progress/22 planned/1 blocked of93. Forward055/101 tables, next056; historical001–054/frozen V4 unchanged. Read-only API and selected CRM events only; email/MCP/other modules and hosting/provider/pilot/phase gates remain pending. Webhook delivery defaults off; no production changes, deployment, real external delivery/send or model spend. Billing excluded; rendering default off. See DEVELOPER_ACCESS.md, DEVELOPER_ACCESS_BATCHES.csv and evidence/developer-access.json.
@@ -125,7 +127,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.66 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.67 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

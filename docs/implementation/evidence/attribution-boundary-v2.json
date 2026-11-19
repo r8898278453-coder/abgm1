@@ -1,0 +1,22 @@
+{
+  "date_ist": "2026-11-20",
+  "scope": "Live source outcome model2; no frozen report or schema change",
+  "native_sql": "passed full disposable matrix through055",
+  "default_regressions": "156/156 passed",
+  "browser_fixtures": [
+    "sourceOutcomes",
+    "salesWorkspace"
+  ],
+  "typescript": "passed",
+  "build": "passed",
+  "original_tracker": "54 validated/16 in_progress/22 planned/1 blocked",
+  "parent_status": "P08-05 in_progress",
+  "production_changed": false,
+  "real_provider_calls": 0,
+  "boundary_version": "Canonical JSON content token; not cryptographic or persisted historical revision",
+  "source_sha256": {
+    "shared/sourceOutcomeReport.ts": "98b9ec7aff894f0ef40567f1a31302277222a5b1191020f3ba24ef7c851b8244",
+    "src/components/SourceOutcomePanel.tsx": "ea877c9fc1d043c7a26d668cebb1ed98b1907ddac73df0490d0838265d3dcfc5",
+    "test/sourceOutcomeReport.test.ts": "d6762f5ba487c7b7db6890c16f750abe0fa37ba06e38d1f8d0bbd3cd89c3ddbd"
+  }
+}

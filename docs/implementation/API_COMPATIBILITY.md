@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November2026 IST: live source-outcomes response explicitly advances to model2 with boundaryVersion, hasUntimedEvidence and sorted boundary evidenceIds. First/last source is withheld for linked untimed history. Canonical consumer/export updated together; frozen report V1–V4 unchanged. See ATTRIBUTION_BOUNDARY_V2.md.
+
 20 November2026 IST: Developer v1 adds three explicit Bearer scoped read facades and ten current-manager application controls. Contacts reuse readIdentityContacts; sales reuses readSalesReport; no existing mutation/send authority gained. Exact route/contracts, once-only secrets and webhook receiver raw-body/timestamp/event-dedupe requirements: DEVELOPER_ACCESS.md. All control/facade responses are no-store.
 
 19 November2026 IST: CRM adds10 scoped sales identity/inbox routes in server/crmRoutes.ts. Strict params/query/body and fresh assigned-user permissions apply; downloads are private. Legacy link now assigns only previously unlinked messages and cannot overwrite existing ownership. Link/import never grant consent; source and current credentials are checked. See CRM_IDENTITY_AND_INBOX.md.
