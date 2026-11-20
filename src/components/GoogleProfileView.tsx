@@ -48,6 +48,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
   const [isOptimizingDesc, setIsOptimizingDesc] = useState(false);
   const [description, setDescription] = useState(business.description);
   const [brandAssets, setBrandAssets] = useState<CompanyAsset[]>([]);
+  const savedPhotos = brandAssets.filter(asset => asset.asset_type === 'photo');
 
   // Live Google Places Profile Sync State
   const [googleData, setGoogleData] = useState<GoogleProfileData | null>(null);
@@ -719,7 +720,7 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <Camera className="w-3.5 h-3.5 text-indigo-600" />
-                Store Photos ({brandAssets.filter((a) => a.asset_type === 'photo').length > 0 ? brandAssets.filter((a) => a.asset_type === 'photo').length : (googleData?.photos_count ?? 94)} Synced)
+                Workspace photos ({savedPhotos.length} saved)
               </h3>
               {onNavigate && (
                 <button
@@ -731,35 +732,18 @@ export const GoogleProfileView: React.FC<GoogleProfileViewProps> = ({
               )}
             </div>
             <div className="grid grid-cols-2 gap-2.5">
-              {brandAssets.filter((a) => a.asset_type === 'photo').length > 0 ? (
-                brandAssets
-                  .filter((a) => a.asset_type === 'photo')
-                  .slice(0, 4)
-                  .map((photo, idx) => (
-                    <img
-                      key={photo.id || idx}
-                      src={photo.url}
-                      alt={photo.filename || `Store Photo ${idx + 1}`}
-                      className="w-full h-24 object-cover rounded-xl border border-slate-200"
-                    />
-                  ))
-              ) : (
-                <>
-                  <img
-                    src="https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=300&q=80"
-                    alt="Storefront"
-                    className="w-full h-24 object-cover rounded-xl border border-slate-200"
-                  />
-                  <img
-                    src="https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=300&q=80"
-                    alt="Diagnostics Lab"
-                    className="w-full h-24 object-cover rounded-xl border border-slate-200"
-                  />
-                </>
-              )}
+              {savedPhotos.slice(0, 4).map((photo, idx) => (
+                <img
+                  key={photo.id || idx}
+                  src={photo.url}
+                  alt={photo.filename || `Workspace photo ${idx + 1}`}
+                  className="w-full h-24 object-cover rounded-xl border border-slate-200"
+                />
+              ))}
             </div>
-            <p className="text-[11px] text-slate-500">
-              Profiles with regular photo uploads receive 5x more direction requests according to Google Maps analytics.
+            {!savedPhotos.length && <p className="text-xs text-slate-500">No workspace photos saved.</p>}
+            <p className="text-xs text-slate-500">
+              Google Places photo references: {googleData?.photos_count ?? 'Unavailable'}
             </p>
           </div>
 

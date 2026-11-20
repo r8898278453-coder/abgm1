@@ -1,3 +1,4 @@
+import {checkGoogleBusinessAccess} from './server/googleBusinessAccess';
 import {registerAgencyOperationsDetail} from './server/agencyOperationsDetail';
 import {registerDeveloperRoutes} from './server/developerRoutes';
 import {registerCrmRoutes} from './server/crmRoutes';
@@ -906,12 +907,13 @@ app.get('/api/companies/:id/google-profile', async (req, res) => {
         await saveGoogleProfileCache(id, placeId, profileData);
 
         // Ingest any real reviews into tenant's reviews table
-        let newReviewsSynced = 0;
+        let newReviewsSynced: number | null = 0;
         if (profileData.reviews && profileData.reviews.length > 0) {
           try {
-            newReviewsSynced = await syncGoogleReviewsToDatabase(id, profileData.reviews);
-          } catch (syncErr: any) {
-            console.warn('[google-profile] Failed to sync reviews to database:', syncErr?.message);
+            newReviewsSynced = await syncGoogleReviewsToDatabase(id, result.reviews.slice(0, 10));
+          } catch {
+            newReviewsSynced = null;
+            console.warn('[google-profile] Review sync unconfirmed');
           }
         }
 
@@ -921,6 +923,7 @@ app.get('/api/companies/:id/google-profile', async (req, res) => {
           cached: false,
           cachedAt: new Date().toISOString(),
           newReviewsSynced,
+          ...(newReviewsSynced === null ? { warning: 'Profile refreshed. Review import was not confirmed.' } : {}),
           data: profileData,
         });
         return;
@@ -1062,18 +1065,22 @@ app.post('/api/companies/:id/google-profile/sync', async (req, res) => {
 
     await saveGoogleProfileCache(id, placeId, profileData);
 
-    let syncedReviewsCount = 0;
+    let syncedReviewsCount: number | null = 0;
     if (profileData.reviews && profileData.reviews.length > 0) {
       try {
-        syncedReviewsCount = await syncGoogleReviewsToDatabase(id, profileData.reviews);
-      } catch (err: any) {
-        console.warn('[google-profile-sync] review sync notice:', err?.message);
+        syncedReviewsCount = await syncGoogleReviewsToDatabase(id, result.reviews.slice(0, 10));
+      } catch {
+        syncedReviewsCount = null;
+        console.warn('[google-profile-sync] Review sync unconfirmed');
       }
     }
 
     res.json({
       success: true,
-      message: `Google Business Profile synced successfully! (${syncedReviewsCount} new reviews ingested)`,
+      message: syncedReviewsCount === null
+        ? 'Profile refreshed.'
+        : `Google Places profile refreshed. ${syncedReviewsCount} new reviews saved.`,
+      ...(syncedReviewsCount === null ? { warning: 'Review import was not confirmed.' } : {}),
       syncedReviewsCount,
       data: profileData,
     });
@@ -1326,43 +1333,9 @@ app.post('/api/integrations/test', async (req, res) => {
     }
 
     if (provider === 'google_gmb_oauth') {
-      const oauthToken = credentials.oauthToken?.trim();
-      const accountId = credentials.accountId?.trim();
-      if (!oauthToken || !accountId) {
-        res.status(400).json(publicIntegrationCheck({
-          success: false,
-          error: 'Google Business Profile OAuth requires both Account ID and an active OAuth2 Bearer Token.',
-        }));
-        return;
-      }
-
-      try {
-        const gmbRes = await fetch(`https://mybusinessaccountmanagement.googleapis.com/v1/${encodeURIComponent(accountId)}`, {
-          headers: { Authorization: `Bearer ${oauthToken}` },
-          signal: AbortSignal.timeout(6000),
-        });
-        const gmbData = await gmbRes.json();
-        if (gmbRes.ok) {
-          res.json(publicIntegrationCheck({
-            success: true,
-            message: `Verified! Connected to Google Business Account: ${gmbData.accountName || accountId}`,
-            details: gmbData,
-          }));
-          return;
-        } else {
-          res.status(400).json(publicIntegrationCheck({
-            success: false,
-            error: gmbData.error?.message || 'Google Business Profile OAuth token rejected or expired.',
-          }));
-          return;
-        }
-      } catch (gmbErr: any) {
-        res.status(400).json(publicIntegrationCheck({
-          success: false,
-          error: `Google Business Profile API connection error: ${gmbErr?.message}`,
-        }));
-        return;
-      }
+      const result = await checkGoogleBusinessAccess(credentials);
+      res.status(result.success ? 200 : 400).json(publicIntegrationCheck(result));
+      return;
     }
 
     if (provider === 'google_search_console') {

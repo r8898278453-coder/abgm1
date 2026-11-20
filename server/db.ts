@@ -1705,80 +1705,88 @@ export async function deleteReview(reviewId: string, companyId?: string): Promis
 }
 
 export async function syncGoogleReviewsToDatabase(companyId: string, googleReviews: any[]): Promise<number> {
-  if (!Array.isArray(googleReviews) || googleReviews.length === 0) return 0;
-  let insertedCount = 0;
-  const retrievedAt = new Date().toISOString();
-
+  if (!Array.isArray(googleReviews) || !googleReviews.length) return 0;
+  const retrievedAt = new Date();
+  const candidates: DbReview[] = [];
   for (const gr of googleReviews) {
-    const author = gr.author_name || gr.author || 'Google User';
-    const content = (gr.text || gr.content || '').trim();
-    if (!content && typeof gr.rating !== 'number') continue;
-
-    const rating = typeof gr.rating === 'number' ? gr.rating : null;
-    const sentiment = typeof gr.rating === 'number' ? (gr.rating >= 4 ? 'positive' : gr.rating === 3 ? 'neutral' : 'negative') : null;
-    const date = gr.time ? new Date(gr.time * 1000).toISOString().split('T')[0] : null;
-    const relativeTime = gr.relative_time_description || null;
-    const externalReviewId = gr.review_id || gr.name || (gr.time ? `gmb_${author}_${gr.time}` : null);
-
+    if (!gr || typeof gr !== 'object') continue;
+    const rawAuthor = gr.author_name ?? gr.author;
+    const author = typeof rawAuthor === 'string' ? rawAuthor.trim().slice(0, 255) || 'Google User' : 'Google User';
+    const rawContent = gr.text ?? gr.content;
+    const content = typeof rawContent === 'string' ? rawContent.trim() : '';
+    const rating = Number.isInteger(gr.rating) && gr.rating >= 1 && gr.rating <= 5 ? gr.rating as number : null;
+    if (!content && rating === null) continue;
+    const timestamp = typeof gr.time === 'number' && Number.isFinite(gr.time) &&
+      gr.time > 0 && gr.time <= 253402300799 ? gr.time : null;
+    const date = timestamp === null ? null : new Date(timestamp * 1000).toISOString().slice(0, 10);
+    const rawIdentity = gr.review_id ?? gr.name;
+    const identity = typeof rawIdentity === 'string' && rawIdentity.length > 0 && rawIdentity.length <= 512
+      ? rawIdentity : null;
+    // A Places observation does not establish an owner-API review resource.
+    const externalReviewId = identity
+      ? 'places:' + crypto.createHash('sha256').update(identity).digest('hex') : null;
+    candidates.push({
+      id: 'rev_gmb_' + crypto.randomUUID().replace(/-/g, ''), company_id: companyId,
+      author, content, rating, date,
+      relative_time: typeof gr.relative_time_description === 'string' ? gr.relative_time_description.slice(0, 64) : null,
+      sentiment: rating === null ? null : rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative',
+      topic: 'Google Review', is_operational_issue: rating !== null && rating <= 2,
+      replied: false, source: 'google', provenance_status: 'GOOGLE_VERIFIED',
+      external_review_id: externalReviewId, retrieved_at: retrievedAt.toISOString(), reply_status: null,
+    });
+  }
+  if (!candidates.length) return 0;
+  const db = await getDbPool();
+  if (db) {
+    const connection = await db.getConnection();
     try {
-      const db = await getDbPool();
-      if (db) {
-        // Check for duplicates
-        const [existing]: any = await db.query(
-          'SELECT id FROM reviews WHERE company_id = ? AND author = ? AND (content = ? OR content LIKE ?) LIMIT 1',
-          [companyId, author, content, `${content.slice(0, 50)}%`]
+      await connection.beginTransaction();
+      const [owners]: any = await connection.query('SELECT id FROM companies WHERE id = ? FOR UPDATE', [companyId]);
+      if (owners[0]?.id !== companyId) throw new Error('Review workspace unavailable');
+      let inserted = 0;
+      for (const review of candidates) {
+        const [matches]: any = await connection.query(
+          `SELECT id FROM reviews WHERE company_id = ? AND source = 'google'
+            AND ((? IS NOT NULL AND BINARY external_review_id = ?)
+              OR ((? IS NULL OR external_review_id IS NULL) AND BINARY author = ? AND BINARY content = ?
+                  AND rating <=> ? AND date <=> ?))
+            LIMIT 1`,
+          [companyId, review.external_review_id, review.external_review_id, review.external_review_id,
+            review.author, review.content, review.rating, review.date],
         );
-        if (!existing || existing.length === 0) {
-          const id = `rev_gmb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
-          await db.query(
-            `INSERT INTO reviews (id, company_id, author, rating, date, relative_time, content, sentiment, topic, is_operational_issue, replied, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              id,
-              companyId,
-              author,
-              rating,
-              date,
-              relativeTime,
-              content,
-              sentiment,
-              'Google Review',
-              rating !== null && rating <= 2 ? 1 : 0,
-              0,
-              'google',
-            ]
-          );
-          insertedCount++;
-        }
+        if (matches.length) continue;
+        await connection.query(
+          `INSERT INTO reviews (id,company_id,author,rating,date,relative_time,content,sentiment,topic,
+             is_operational_issue,replied,source,provenance_status,external_review_id,retrieved_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [review.id, companyId, review.author, review.rating, review.date, review.relative_time, review.content,
+            review.sentiment, review.topic, review.is_operational_issue ? 1 : 0, 0, review.source,
+            review.provenance_status, review.external_review_id, review.retrieved_at],
+        );
+        inserted++;
       }
-    } catch (err: any) {
-      console.warn('[syncGoogleReviewsToDatabase] error:', err?.message);
-    }
-
-    const memExisting = inMemoryReviews.find((r) => r.company_id === companyId && r.author === author && r.content === content);
-    if (!memExisting) {
-      inMemoryReviews.unshift({
-        id: `rev_gmb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`,
-        company_id: companyId,
-        author,
-        rating,
-        date,
-        relative_time: relativeTime,
-        content,
-        sentiment,
-        topic: 'Google Review',
-        is_operational_issue: rating !== null && rating <= 2,
-        replied: false,
-        source: 'google',
-        provenance_status: 'GOOGLE_VERIFIED',
-        external_review_id: externalReviewId,
-        retrieved_at: retrievedAt,
-        reply_status: null,
-      });
-      insertedCount++;
+      await connection.commit();
+      return inserted;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
   }
-  return insertedCount;
+
+  assertNotProductionFallback('syncGoogleReviewsToDatabase');
+  let inserted = 0;
+  for (const review of candidates) {
+    const matches = inMemoryReviews.some(prior => prior.company_id === companyId && prior.source === 'google' &&
+      ((review.external_review_id !== null && prior.external_review_id === review.external_review_id) ||
+        ((!review.external_review_id || !prior.external_review_id) && prior.author === review.author &&
+          prior.content === review.content && prior.rating === review.rating && prior.date === review.date)));
+    if (matches) continue;
+    inMemoryReviews.unshift(review);
+    inserted++;
+  }
+  return inserted;
 }
 
 // ---------------- CONTENT POSTS MANAGEMENT (PER-TENANT MYSQL PERSISTENCE) ---------------- //

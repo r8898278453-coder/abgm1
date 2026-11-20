@@ -1,0 +1,11 @@
+# Google review access and sync, 20 November 2026 IST
+
+Google Business Profile connection checks now verify read access to the exact account and search up to five pages for the selected location under that account. The check refuses malformed IDs and expired saved credentials. It uses fixed Google HTTPS hosts, rejects redirects and returns a redacted result. A successful read check establishes account and location visibility. Write permissions and a complete OAuth exchange and reconnect flow still require verification.
+
+The autonomous review path now checks the saved tenant, connected integration, review provenance and exact provider review name before public dispatch. Unknown ratings, low ratings and flagged complaints go through human review. The path checks current client and credential state before writing. An identical reply already observed on the exact provider review is reconciled without a duplicate write. A matching exact-resource read after the write establishes verification. Unconfirmed writes and unverified acknowledgements remain separate outcomes.
+
+Places reviews are imported transactionally using exact provider identity when available and exact author, content, rating and date for legacy fallback. Parallel imports for one client share the company lock. Durable insert counts come from the committed SQL transaction. Places review identifiers have a separate namespace from owner review resources. Missing ratings remain null. A confirmed profile refresh can report a warning and a null import count when review persistence is unconfirmed.
+
+This batch advances P05-01, P05-04 and P01-05. Their original acceptance remains open. P05-01 still requires actual scoped account access and complete reconnect coverage. P05-04 still requires the combined review workflow and live publication evidence. P01-05 still covers provider and persistence outcomes across the rest of the platform. The count stays at 61 validated, with 15 in progress, 16 planned and one blocked.
+
+The profile shows saved workspace photos separately from the number of photo references returned by Places. Missing photo data is shown as unavailable. Verification passed across 157 default regressions, native SQL, the Chromium readiness workflow, TypeScript, build, route inventory and frontend budgets. [Verification record](evidence/google-review-access-and-sync.json)

@@ -936,8 +936,8 @@ export interface GoogleProfileResponse {
   warning?: string;
   error?: string;
   message?: string;
-  newReviewsSynced?: number;
-  syncedReviewsCount?: number;
+  newReviewsSynced?: number | null;
+  syncedReviewsCount?: number | null;
   data?: GoogleProfileData;
 }
 

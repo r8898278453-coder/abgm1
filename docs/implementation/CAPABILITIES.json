@@ -3,8 +3,8 @@
   "timeZone": "Asia/Kolkata",
   "counts": {
     "validated": 61,
-    "in_progress": 13,
-    "planned": 18,
+    "in_progress": 15,
+    "planned": 16,
     "blocked": 1
   },
   "total": 93,
@@ -612,7 +612,7 @@
       "id": "P05-01",
       "phase": "P05",
       "title": "Complete authorized Google account and location connection",
-      "state": "planned",
+      "state": "in_progress",
       "acceptance": "Actual account/location scopes verified; Places not confused with owner access; token expiry/reconnect tested"
     },
     {
@@ -633,7 +633,7 @@
       "id": "P05-04",
       "phase": "P05",
       "title": "Unify Google review save publish verify and reminders",
-      "state": "planned",
+      "state": "in_progress",
       "acceptance": "Local draft distinct; provider reply and verified status evidence; deduped reviews; null ratings and safe complaint handoff"
     },
     {

@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 61, in progress 13, planned 18, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 61, in progress 15, planned 16, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -68,10 +68,10 @@ Original tasks: 93; validated 61, in progress 13, planned 18, blocked 1. Billing
 | P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow |
 | P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content |
 | P04-09 | validated | Business memory and onboarding gate |
-| P05-01 | planned | Complete authorized Google account and location connection |
+| P05-01 | in_progress | Complete authorized Google account and location connection |
 | P05-02 | validated | Make local profile audit and growth scoring evidence-based |
 | P05-03 | validated | Harden keyword research rank grids and competitor refresh |
-| P05-04 | planned | Unify Google review save publish verify and reminders |
+| P05-04 | in_progress | Unify Google review save publish verify and reminders |
 | P05-05 | planned | Complete canonical GBP post and media dispatch |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency |
 | P05-07 | in_progress | Build client-specific creative and approved asset library |

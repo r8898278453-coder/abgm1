@@ -1,5 +1,7 @@
+import {clientActiveForExecution} from './clientActivity';
+import {googleBusinessBinding} from './googleBusinessAccess';
 import {changeMetaCampaignStatus} from './metaAdsControl';
-import {dispatchAutonomousReviewReply} from './autonomousReviewReply';
+import {dispatchAutonomousReviewReply,reviewNeedsHumanReview} from './autonomousReviewReply';
 import {dispatchAutonomousMessage} from './autonomousMessageDispatch';
 import {
   getDbPool,
@@ -147,22 +149,23 @@ export async function runAutonomousCycle(
   );
 
   for (const review of unrepliedReviews.slice(0, 3)) {
-    const isCritical = Number(review.rating) <= 3;
+    const isCritical = reviewNeedsHumanReview(review);
     const risk: 'low' | 'medium' | 'high' = isCritical ? 'medium' : 'low';
     const policy = approvalPolicy.reviewReplies || 'approval';
     const approvalReq: 'auto' | 'required' = risk === 'low' && policy === 'auto' ? 'auto' : 'required';
 
+    const ratingLabel = review.rating === null ? 'rating unavailable' : review.rating + '★';
     const suggestedReply = isCritical
-      ? `Thank you for sharing your feedback, ${review.author}. We take customer satisfaction seriously and would like to resolve this directly. Please contact our support team at ${company.phone || 'support'}.`
+      ? `Thank you for sharing your feedback, ${review.author}. We take customer satisfaction seriously and would like to resolve this directly. Please contact our support team.`
       : `Thank you for the wonderful ${review.rating}-star review, ${review.author}! We appreciate your trust in ${company.name}.`;
 
     const rec = await createAutonomousRecommendation({
       company_id: companyId,
-      observation: `Verified customer review by ${review.author} (${review.rating}★) has no recorded owner reply.`,
+      observation: `Saved review by ${review.author} (${ratingLabel}) has no recorded owner reply.`,
       evidence_ids: [review.id],
       source: 'reviews',
       timestamp: review.created_at || nowStr,
-      recommended_action: `Publish verified AI-assisted owner reply to ${review.author}'s ${review.rating}★ review.`,
+      recommended_action: isCritical ? 'Review this feedback and prepare a local reply.' : 'Review and prepare an owner reply.',
       action_type: 'review_reply',
       action_payload: {
         reviewId: review.id,
@@ -524,7 +527,14 @@ export async function executeAutonomousAction(
       const review=await getReviewById(reviewId);
       if(!review||review.company_id!==action.company_id)throw new Error('Review workspace mismatch');
       const gmbIntegration=await getCompanyIntegration(action.company_id,'google_gmb_oauth');
-      const outcome=await dispatchAutonomousReviewReply(action.company_id,review,replyText,gmbIntegration);
+      const selectedBinding=googleBusinessBinding(gmbIntegration?.credentials||{});
+      const outcome=await dispatchAutonomousReviewReply(action.company_id,review,replyText,gmbIntegration,fetch,async()=>{
+        if(!selectedBinding||!await clientActiveForExecution(action.company_id))return false;
+        const current=await getCompanyIntegration(action.company_id,'google_gmb_oauth');
+        const binding=googleBusinessBinding(current?.credentials||{});
+        return Boolean(current&&['connected','verified'].includes(current.status)&&binding&&
+          binding.account===selectedBinding.account&&binding.location===selectedBinding.location&&binding.token===selectedBinding.token);
+      });
       const replyStatus=outcome.replyStatus;
 
       const updated = await updateReviewReply(reviewId, replyText, action.company_id, replyStatus);

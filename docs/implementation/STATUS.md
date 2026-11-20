@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-20 IST. Do not edit counts manually; run np
 
 Schema target: 055_developer_access; 101 canonical tables. Registered default regression programs: 157 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 61 / 13 / 1 / 18.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 61 / 15 / 1 / 16.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -17,7 +17,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 6 | 1 | 0 | 0 |
 | P04 | 8 | 1 | 0 | 0 |
-| P05 | 6 | 1 | 0 | 4 |
+| P05 | 6 | 3 | 0 | 2 |
 | P06 | 7 | 0 | 0 | 1 |
 | P07 | 5 | 1 | 0 | 2 |
 | P08 | 5 | 1 | 0 | 4 |
@@ -92,10 +92,10 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow | P04-06 |
 | P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content | — |
 | P04-09 | validated | Business memory and onboarding gate | — |
-| P05-01 | planned | Complete authorized Google account and location connection | — |
+| P05-01 | in_progress | Complete authorized Google account and location connection | — |
 | P05-02 | validated | Make local profile audit and growth scoring evidence-based | P05-01 |
 | P05-03 | validated | Harden keyword research rank grids and competitor refresh | — |
-| P05-04 | planned | Unify Google review save publish verify and reminders | — |
+| P05-04 | in_progress | Unify Google review save publish verify and reminders | — |
 | P05-05 | planned | Complete canonical GBP post and media dispatch | P05-04 |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P05-05 |
 | P05-07 | in_progress | Build client-specific creative and approved asset library | P05-06 |

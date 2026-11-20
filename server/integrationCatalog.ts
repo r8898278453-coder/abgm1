@@ -16,12 +16,12 @@ export const INTEGRATION_CATALOG = [
         name: 'Google Business Profile (OAuth API)',
         category: 'Google',
         icon: '🏢',
-        description: 'Direct owner management via Google Business Profile APIs (requires OAuth2 authorization).',
+        description: 'Check read access to a selected Google Business Profile account and location.',
         docsUrl: 'https://developers.google.com/my-business/content/basic-setup',
         requiredFields: [
           { key: 'accountId', label: 'Google Business Account ID', placeholder: 'e.g. accounts/10839281928391', secret: false, required: true },
           { key: 'locationId', label: 'Location Resource Name', placeholder: 'e.g. locations/4829104829104', secret: false, required: true },
-          { key: 'oauthToken', label: 'OAuth2 Access / Refresh Token', placeholder: 'ya29.a0...', secret: true, required: true },
+          { key: 'oauthToken', label: 'OAuth2 Access Token', placeholder: 'ya29.a0...', secret: true, required: true },
         ],
       },
       {
