@@ -1,5 +1,7 @@
 # AI Agent State
 
+Agency operations group —20 November2026 IST: overview model4/16 metrics adds saved connection verification/expiry signals, fresh database role checks and authorized per-client capacity/declared-cost drill-down, exact private DTOs, currency-separated amounts, safe unknown-health/revenue states and on-demand390px UI. Original P09-02 locally validated; tracker55 validated/15 in_progress/22 planned/1 blocked of93. Schema055/101, next056 and frozen report V4 unchanged. No migration, production write, deployment, provider call or billing work. See AGENCY_OPERATIONS_DRILLDOWN.md and evidence/agency-operations-drilldown.json. Hosting, universal RBAC/accessibility and other phase gates remain open.
+
 Attribution boundary V2 group —20 November2026 IST: versioned first/last evidence snapshots, exact sorted record provenance, untimed-history withholding, strict tie/revision/count validation and private CSV/UI integration. See ATTRIBUTION_BOUNDARY_V2.md. P08-05 remains in_progress; tracker54/16/22/1 unchanged. No migration, production change, provider request or billing work.
 
 OAuth recovery group —20 November2026 IST: atomic active-client state admission, context-bound encrypted PKCE state, copied-ciphertext refusal, archive/revocation settlement fences, strict refresh token/snapshot validation and explicit stale-owner-safe lease release. See OAUTH_REFRESH_RECOVERY.md. P02-07 remains in_progress; tracker54/16/22/1 unchanged. No migration, provider exchange, deployment or production changes.

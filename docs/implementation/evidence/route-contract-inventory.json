@@ -232,6 +232,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/agency-operations-detail",
+      "owner": "server/agencyOperationsDetail.ts#registerAgencyOperationsDetail"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/asset-approvals",
       "owner": "server/renderRoutes.ts#registerRenderRoutes"
     },
@@ -1506,5 +1511,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 55
+  "registrationCount": 56
 }

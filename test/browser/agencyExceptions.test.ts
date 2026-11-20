@@ -1,10 +1,12 @@
+import {capacityRows} from '../../shared/operationalCapacity';
+import {platformDateKey} from '../../shared/dailyWorkReport';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { EXCEPTION_KEYS, exceptionProjection } from '../../shared/agencyExceptions';
 const fixture = '/__agency_exceptions.tsx', vite = await createServer({ plugins: [{ name: 'agency-exceptions-fixture', resolveId(id) { if (id === fixture)
                 return id; }, load(id) { if (id === fixture)
-                return `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{AgencySalesExceptions}from'/src/components/AgencySalesExceptions.tsx';function App(){const[a,set]=useState('agency');window.changeAgency=set;return <AgencySalesExceptions agencyId={a} onSelectClient={id=>window.openedClient=id}/>;}createRoot(document.getElementById('root')).render(<App/>);`; } }], server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
+                return `import '/src/index.css';import React,{useState}from'react';import{createRoot}from'react-dom/client';import{AgencySalesExceptions}from'/src/components/AgencySalesExceptions.tsx';function App(){const[a,set]=useState('agency');window.changeAgency=set;return <AgencySalesExceptions agencyId={a} onSelectClient={id=>window.openedClient=id}/>;}createRoot(document.getElementById('root')).render(<App/>);`; } }], server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 await vite.listen();
 let browser: any, release: (() => void) | undefined;
 try {
@@ -22,15 +24,16 @@ try {
     } if (!u.pathname.startsWith('/api/')) {
         await route.continue();
         return;
-    } if (route.request().method() !== 'GET')
+    } if(u.pathname.endsWith('/agency-operations-detail')){const company=u.pathname.split('/')[3],now=1700000000000;await route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,companyId:company,modelVersion:1,timeZone:'Asia/Kolkata',checkedAtMs:now,connections:[{provider:'google_gmb_oauth',status:'saved'}],declaredCostMinor:{INR:'123'},providerHealth:'UNVERIFIED',costEvidence:'DECLARED_UNVERIFIED',revenue:null,roi:null,capacity:{companyId:company,modelVersion:1,timeZone:'Asia/Kolkata',checkedAtMs:now,dayIST:platformDateKey(now),resources:capacityRows({snapshots:0,captureRuns:0,capturePending:0,dailyNotifications:0,reviewNotifications:0,criticalNotifications:0,criticalReservations:0,manualRequests:0,manualToday:0})}})});return;} if (route.request().method() !== 'GET')
         writes++; if (hold) {
         signal?.();
         await new Promise<void>(r => release = r);
-    } await route.fulfill({ status: fail ? 503 : 200, contentType: 'application/json', body: JSON.stringify({ success: !fail, overview: { agencyId: malformed ? 'foreign' : u.pathname.split('/')[3], modelVersion: 3, scope: 'CURRENT_AUTHORIZED_CLIENTS', timeZone: 'Asia/Kolkata', checkedAtMs: 1700000000000, definition: 'Current weighted backlog; not business health', clients } }) }).catch(() => { }); });
+    } await route.fulfill({ status: fail ? 503 : 200, contentType: 'application/json', body: JSON.stringify({ success: !fail, overview: { agencyId: malformed ? 'foreign' : u.pathname.split('/')[3], modelVersion: 4, scope: 'CURRENT_AUTHORIZED_CLIENTS', timeZone: 'Asia/Kolkata', checkedAtMs: 1700000000000, definition: 'Current weighted backlog; not business health', clients } }) }).catch(() => { }); });
     const page = await context.newPage();
     await page.goto(origin);
     await page.getByText('Review priority: 13', { exact: true }).waitFor();
     await page.getByText('Retained failed capture runs: 1 · weight 2',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Load operational details A',exact:true}).click();await page.getByText('INR: 123 minor units',{exact:true}).waitFor();await page.getByText('google_gmb_oauth: saved',{exact:true}).waitFor();await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
     await page.getByLabel('Exception type').selectOption('captureRecoveryNeeded');
     assert.equal(await page.getByRole('button', { name: 'Open client B', exact: true }).count(), 0);
     await page.getByLabel('Exception type').selectOption('unknownDispatches');

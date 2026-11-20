@@ -1,0 +1,50 @@
+{
+  "date_ist": "2026-11-20",
+  "original_task_validated": "P09-02",
+  "counts": {
+    "validated": 55,
+    "in_progress": 15,
+    "planned": 22,
+    "blocked": 1
+  },
+  "contract": {
+    "agency_overview_model": 4,
+    "metrics": 16,
+    "detail_model": 1,
+    "schema_migrations": 55,
+    "tables": 101,
+    "frozen_report_V4_unchanged": true
+  },
+  "verification": {
+    "default_regressions": "157/157 passed",
+    "native_sql": "passed; actual saved connection signals, active declared costs/empty other client, role revocation, forged admin rejection and privacy",
+    "browser": "agency exceptions with drilldown, real CSS390px/no-overflow, search/filter/export, error/late agency refusal",
+    "typescript": "passed",
+    "build": "passed",
+    "native_http": "passed actual401/403/200/query rejection/no-store/privacy on agency detail route",
+    "browser_fixtures": [
+      "agencyExceptions",
+      "workspaceIsolation",
+      "agencyWorkspace",
+      "salesWorkspace"
+    ]
+  },
+  "limits": [
+    "Saved ISO expiry/status only; no live provider health claim",
+    "Declared costs are unverified and separated by currency",
+    "Metadata and capacity have distinct snapshot times",
+    "Provider health UNVERIFIED; revenue/ROI unavailable",
+    "Universal RBAC/accessibility/hosting/phase gates stay open"
+  ],
+  "production_changed": false,
+  "provider_calls": 0,
+  "source_sha256": {
+    "server/agencyOperationsDetail.ts": "2a310e3f0b27e809a95a77590c5c8fe1e193c09661ca91095ea9902fce38a80b",
+    "shared/agencyOperationsDetail.ts": "3c116005c5bf06d3eccb2f1ab2abef7e2250fa25c22f38d25a5f26da07e50067",
+    "shared/agencyExceptions.ts": "f4d20351295d2548c6b666d42a4297eaf2934accef8e88c001031f8f9d70679d",
+    "src/components/AgencyOperationsDetail.tsx": "1e2b85f1374ce9c763e113807492003e8127868484b4d1f69eb05cf8f1296555",
+    "src/components/AgencySalesExceptions.tsx": "9b7b4c718d7ce08dcbc2820ca6f6af4907872bed7b42c318c5f2724d3cf661db",
+    "test/integration/agencyExceptionsSql.test.ts": "9d7629bdc15b6daa33a98c2a9f88281492fbd9dde11fb385d164887d8c3a334d",
+    "test/browser/agencyExceptions.test.ts": "32d266c39b00e432cbd571c073263a3d883abba7db83993ac226b0769cb7fc0b"
+  }
+}

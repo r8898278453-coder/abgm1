@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 54, in progress 16, planned 22, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 55, in progress 15, planned 22, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -106,7 +106,7 @@ Original tasks: 93; validated 54, in progress 16, planned 22, blocked 1. Billing
 | P08-09 | validated | Record gates for visitor identity MCP and advanced outbound extensions |
 | P08-10 | planned | Outbound outcomes and optimization gate |
 | P09-01 | in_progress | Build reconciled daily client report read model |
-| P09-02 | in_progress | Build agency overview and exception prioritization |
+| P09-02 | validated | Build agency overview and exception prioritization |
 | P09-03 | validated | Implement scoped scheduled digest delivery and critical alerts |
 | P09-04 | validated | Replace Telegram simulator with evidence-backed operations |
 | P09-05 | validated | Deliver optional client report and approval portal |

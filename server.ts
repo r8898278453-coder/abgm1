@@ -1,3 +1,4 @@
+import {registerAgencyOperationsDetail} from './server/agencyOperationsDetail';
 import {registerDeveloperRoutes} from './server/developerRoutes';
 import {registerCrmRoutes} from './server/crmRoutes';
 import {registerGrowthReadRoutes} from './server/growthReadRoutes';
@@ -2032,6 +2033,7 @@ app.get('/api/templates/palettes', async (req, res) => {
   }
 });
 
+registerAgencyOperationsDetail(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerDeveloperRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerCrmRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});

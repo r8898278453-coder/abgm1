@@ -1,4 +1,6 @@
 export const EXCEPTION_METRICS = {
+    unverifiedConnections: {label:'Saved connections needing verification',weight:2,module:'integrations'},
+    expiredConnections: {label:'Connections with expired saved credentials',weight:3,module:'integrations'},
     newLeads: { label: 'New leads awaiting review', weight: 1, module: 'sales' },
     ambiguousMessages: { label: 'Inbox identities needing review', weight: 3, module: 'inbox' },
     overdueActions: { label: 'Overdue sales actions', weight: 2, module: 'sales' },
@@ -36,7 +38,7 @@ export function exceptionProjection(input: unknown) {
     return { backlog, priorityScore };
 }
 export function validateAgencyOverview(value: any, agency: string) {
-    if (value?.agencyId !== agency || value.modelVersion !== 3 || value.scope !== 'CURRENT_AUTHORIZED_CLIENTS' || value.timeZone !== 'Asia/Kolkata' || !Number.isSafeInteger(value.checkedAtMs) || value.checkedAtMs < 0 || value.checkedAtMs > 8640000000000000 || !Array.isArray(value.clients) || value.clients.length > 100)
+    if (value?.agencyId !== agency || value.modelVersion !== 4 || value.scope !== 'CURRENT_AUTHORIZED_CLIENTS' || value.timeZone !== 'Asia/Kolkata' || !Number.isSafeInteger(value.checkedAtMs) || value.checkedAtMs < 0 || value.checkedAtMs > 8640000000000000 || !Array.isArray(value.clients) || value.clients.length > 100)
         throw new Error('AGENCY_OVERVIEW_INVALID');
     const ids = new Set<string>();
     for (const client of value.clients) {

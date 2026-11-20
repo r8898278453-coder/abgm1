@@ -1,3 +1,5 @@
+import {readAgencyOperationsDetail,registerAgencyOperationsDetail} from '../../server/agencyOperationsDetail';
+import {createGrowthRecord} from '../../server/growthOperations';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import express from 'express';
@@ -45,7 +47,7 @@ try {
     let overview = await readAgencySalesOverview(pool, users.owner, agency, date);
     assert.equal(overview.clients.length, 2);
     assert.equal(overview.clients[0].companyId, a);
-    assert.deepEqual(overview.clients[0].backlog, { newLeads: 1, ambiguousMessages: 1, overdueActions: 1, unknownDispatches: 1, staleDispatches: 1, failedIntakes: 1, deadLetterIntakes: 1, queuedIntakes: 1, unresolvedConflicts: 1, pendingReviews: 1, failedCaptureRuns:1,captureRecoveryNeeded:3,pendingCaptureRuns:5,captureActorRevoked:0 });
+    assert.deepEqual(overview.clients[0].backlog, { unverifiedConnections:0,expiredConnections:0,newLeads: 1, ambiguousMessages: 1, overdueActions: 1, unknownDispatches: 1, staleDispatches: 1, failedIntakes: 1, deadLetterIntakes: 1, queuedIntakes: 1, unresolvedConflicts: 1, pendingReviews: 1, failedCaptureRuns:1,captureRecoveryNeeded:3,pendingCaptureRuns:5,captureActorRevoked:0 });
     assert.equal(overview.clients[0].priorityScore, 40);
     assert.equal(overview.clients[1].priorityScore, 3);
     assert.equal(JSON.stringify(overview).includes('PRIVATE_CANARY'), false);
@@ -79,10 +81,12 @@ try {
     await assert.rejects(readAgencySalesOverview(pool, users.viewer, agency, date), { status: 403 });
     const app = express();
     registerSalesRoutes(app, { auth: async (req) => users[String(req.headers.authorization)] || null, pool: async () => pool });
+    registerAgencyOperationsDetail(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool});
     const server = app.listen(0, '127.0.0.1');
     await new Promise<void>(r => server.once('listening', r));
     try {
         const origin = `http://127.0.0.1:${(server.address() as any).port}`;
+        for(const[role,suffix,status]of [['missing','',401],['foreign','',403],['viewer','',403],['owner','',200],['owner','?actor=foreign',400]] as const){const response=await fetch(origin+`/api/companies/${a}/agency-operations-detail`+suffix,{headers:{Authorization:role}});assert.equal(response.status,status);assert.equal(response.headers.get('cache-control'),'no-store');assert.ok(!(await response.text()).includes('PRIVATE_CANARY'));}
         for (const [role, suffix, status] of [['missing', '', 401], ['foreign', '', 403], ['owner', '', 200], ['owner', '?date=2026-02-30', 400], ['owner', '?before=ignored', 400]] as const) {
             const r = await fetch(origin + `/api/agencies/${agency}/sales-overview` + suffix, { headers: { Authorization: role } });
             assert.equal(r.status, status);
@@ -92,6 +96,13 @@ try {
     finally {
         await new Promise<void>(r => server.close(() => r()));
     }
+    await pool.query("UPDATE client_operations SET status='ACTIVE' WHERE company_id=?",[a]);
+    await pool.query("INSERT INTO company_integrations(id,company_id,provider,status,credentials,config) VALUES (?,?,'google_gmb_oauth','saved',?,'{}')",[prefix+'_integration',a,JSON.stringify({expiresAt:'2000-01-01T00:00:00Z',oauthToken:'private-fixture-token'})]);
+    const connectionOverview=await readAgencySalesOverview(pool,users.owner,agency,date);assert.equal(connectionOverview.clients.find(c=>c.companyId===a)!.backlog.unverifiedConnections,1);assert.equal(connectionOverview.clients.find(c=>c.companyId===a)!.backlog.expiredConnections,1);
+    await createGrowthRecord(pool,users.owner,a,{requestKey:key(),kind:'COST',input:{experimentId:null,amountMinor:123,currency:'INR',category:'TOOLS',sourceReference:'Manual cost evidence',note:'Unverified declaration'}});
+    const detail=await readAgencyOperationsDetail(pool,users.owner,a);assert.deepEqual(detail.declaredCostMinor,{INR:'123'});assert.equal(detail.capacity.companyId,a);assert.equal(detail.providerHealth,'UNVERIFIED');assert.ok(!JSON.stringify(detail).includes('private-fixture-token'));await assert.rejects(readAgencyOperationsDetail(pool,users.foreign,a));
+    const otherDetail=await readAgencyOperationsDetail(pool,users.owner,b);assert.deepEqual(otherDetail.declaredCostMinor,{});assert.equal(otherDetail.connections.length,0);
+    await assert.rejects(readAgencySalesOverview(pool,{...users.foreign,is_platform_admin:true},agency,date));
     console.log('Agency exceptions SQL/HTTP:14 exact current metrics including retained failed captures, queue binding/reconciliation, current actor revocation/admin parity and disabled policy exclusion, stale threshold, weighted rank, archived visibility, no private payloads, assignment isolation/revocation, state resolution and auth/date/query guards passed without sends.');
 }
 catch (e: any) {
@@ -100,7 +111,7 @@ catch (e: any) {
 }
 finally {
     for (const c of companies) {
-        for (const t of ['report_capture_runs','report_capture_policies','job_queue','sales_workflow_tasks', 'whatsapp_intakes', 'whatsapp_inbound_events', 'message_dispatch_intents', 'sales_inbox_messages', 'sales_opportunities', 'leads', 'client_assignments', 'company_profiles_data', 'client_operations', 'agency_clients'])
+        for (const t of ['growth_operation_records','company_integrations','autonomous_audit_logs','report_capture_runs','report_capture_policies','job_queue','sales_workflow_tasks', 'whatsapp_intakes', 'whatsapp_inbound_events', 'message_dispatch_intents', 'sales_inbox_messages', 'sales_opportunities', 'leads', 'client_assignments', 'company_profiles_data', 'client_operations', 'agency_clients'])
             await pool.query(`DELETE FROM ${t} WHERE company_id=?`, [c]);
         await pool.query('DELETE FROM companies WHERE id=?', [c]);
     }

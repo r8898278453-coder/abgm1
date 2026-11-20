@@ -2,8 +2,8 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 54,
-    "in_progress": 16,
+    "validated": 55,
+    "in_progress": 15,
     "planned": 22,
     "blocked": 1
   },
@@ -878,7 +878,7 @@
       "id": "P09-02",
       "phase": "P09",
       "title": "Build agency overview and exception prioritization",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Authorized aggregate only; unattended leads stale connections overdue actions capacity/cost drilldown; no fabricated strict health"
     },
     {

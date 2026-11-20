@@ -2,6 +2,7 @@ import {spawn} from 'node:child_process';
 import {isolatedTestEnvironment} from './testEnvironment';
 // Explicit registry: programs run sequentially in separate processes; fail at the first failure.
 const programs=[
+  "test/agencyOperationsDetail.test.ts",
   "test/developerAccess.test.ts",
   "test/crmProviderMedia.test.ts",
   "test/crmIdentity.test.ts",
