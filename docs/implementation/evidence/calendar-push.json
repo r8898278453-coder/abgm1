@@ -1,0 +1,28 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P07-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "sql_http_coverage": [
+    "default-off and company-manager-only permissions",
+    "eight concurrent requests with one provider watch",
+    "early sync, token and resource binding, expiry and hidden channel metadata",
+    "duplicate/out-of-order message fencing and a bounded wake to exact polling",
+    "notification cannot directly move or cancel a booking",
+    "ambiguous watch response and local disable"
+  ],
+  "browsers": ["salesWorkspace", "salesWorkflows", "approvedSalesMessages"],
+  "default_regression_programs": 158,
+  "restore": {
+    "migrations": 60,
+    "canonical_tables": 104,
+    "business_rows_preserved": true,
+    "original_ledger_preserved": true,
+    "repeat_applied": 0,
+    "result": "passed"
+  },
+  "provider_transport": "intercepted",
+  "live_provider_requests": 0,
+  "live_acceptance": "pending",
+  "automatic_renewal": "pending",
+  "remote_stop": "pending"
+}

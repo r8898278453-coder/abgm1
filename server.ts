@@ -1,3 +1,4 @@
+import {registerCalendarPushCallback} from './server/calendarPush';
 import {calendarBinding,observeCalendar} from './server/bookingCalendar';
 import {checkGoogleBusinessAccess} from './server/googleBusinessAccess';
 import {registerAgencyOperationsDetail} from './server/agencyOperationsDetail';
@@ -337,6 +338,7 @@ app.use(securityHeadersMiddleware);
 app.use((req,res,next)=>publicLeadPath(req.path)?publicLeadCors(req,res,next):corsMiddleware(req,res,next));
 app.use('/api',browserSessionGuard(verifyAuthToken,getAuthSecret));
 app.use(requestAuditLogger);
+registerCalendarPushCallback(app,getDbPool);
 
 // Enforce fail-fast cryptographic secret verification on boot
 try {

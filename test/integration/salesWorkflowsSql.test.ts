@@ -1,3 +1,4 @@
+import {registerCalendarPushCallback} from '../../server/calendarPush';
 import {runCalendarReconciliation} from '../../server/calendarReconciliation';
 import {checkReminderCalendarBeforeSend} from '../../server/calendarObservation';
 import {saveBookingEvidence} from '../../server/bookingEvidence';
@@ -19,12 +20,25 @@ let eventPosts=0;
 let eventPatches=0,eventDeletes=0,rejectEtag=false,hideChanges=false;
 let oldEvent:any;
 let providerBusy=false;
+let watchedChannel:any,watchCalls=0,loseWatchAck=false;
+const watchResource='fixture-resource-1';
 const calendarTransport:typeof fetch=async(url,options)=>{
  calendarCalls++;
  const target=new URL(String(url));
  assert.equal(target.origin,'https://www.googleapis.com');
  assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer calendar-token-fixture');
  const eventsPath='/calendar/v3/calendars/'+encodeURIComponent(calendarId)+'/events';
+ if(target.pathname===eventsPath+'/watch'){
+  watchCalls++;
+  assert.equal(options?.method,'POST');
+  watchedChannel=JSON.parse(String(options?.body));
+  assert.equal(watchedChannel.address,'https://calendar-fixture.example.invalid/api/webhooks/google-calendar');
+  assert.equal(watchedChannel.type,'web_hook');
+  assert.equal(watchedChannel.params.ttl,'86400');
+  assert.equal((await sendCalendarSignal('1','sync')).status,204);
+  if(loseWatchAck)throw Error('fixture lost Calendar watch acknowledgement');
+  return Response.json({id:watchedChannel.id,resourceId:watchResource,expiration:String(Date.now()+86400000)});
+ }
  if(target.pathname===eventsPath){
   assert.equal(options?.method,'POST');
   assert.equal(target.searchParams.get('sendUpdates'),'none');
@@ -60,8 +74,12 @@ const calendarTransport:typeof fetch=async(url,options)=>{
  if(rotateCalendar)await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:{...calendarCredentials,accessToken:'changed-token'}});
  return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:providerBusy?[{start:input.timeMin,end:input.timeMax}]:[]}}});
 };
-const app=express();app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+const app=express();registerCalendarPushCallback(app,async()=>pool);app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const http=async(user:string,url:string,status:number,body?:any)=>{const r=await fetch(origin+url,{method:body?'POST':'GET',headers:{Authorization:user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});assert.equal(r.status,status);assert.equal(r.headers.get('cache-control'),'no-store');return r.json();};
+const sendCalendarSignal=(number:string,state='exists',extra:Record<string,string>={})=>
+ fetch(origin+'/api/webhooks/google-calendar',{method:'POST',headers:{
+  'X-Goog-Channel-Id':watchedChannel.id,'X-Goog-Channel-Token':watchedChannel.token,
+  'X-Goog-Resource-Id':watchResource,'X-Goog-Resource-State':state,'X-Goog-Message-Number':number,...extra}});
 const snapshot=()=>readSalesWorkflows(pool!,company);
 const claim=async()=>{const job=await claimSqlJob(pool!,'workflow-worker',['sales_workflow_review']);assert.ok(job);return job;};
 const faultPool=(mode:'outbox'|'commit'|'audit')=>{let once=true;return new Proxy(pool!,{get(t,k){if(k==='getConnection')return async()=>{const c=await t.getConnection();return new Proxy(c,{get(c,k){if(k==='commit')return async()=>{await c.commit();if(mode==='commit'&&once){once=false;throw new Error('fixture lost acknowledgement');}};if(k==='query')return async(sql:string,args:any[])=>{if(once&&(mode==='outbox'&&sql.startsWith('INSERT INTO job_action_outbox')||mode==='audit'&&sql.startsWith('INSERT INTO autonomous_audit_logs'))){once=false;throw new Error('fixture transaction failure');}return c.query(sql,args);};const value=Reflect.get(c,k);return typeof value==='function'?value.bind(c):value;}});};const value=Reflect.get(t,k);return typeof value==='function'?value.bind(t):value;}});};
@@ -334,6 +352,80 @@ try{
  delete process.env.ENABLE_CALENDAR_RECONCILIATION;
  console.log('Automatic Calendar SQL: default-off and budget gates, eight contenders with one GET, unavailable backoff, stale claim fencing, restart recovery, automatic move/cancel and IST counts passed.');
 
+ stage='calendar push admission';
+ const watchPath=`/api/companies/${company}/sales/calendar-push`;
+ assert.equal((await http('owner',watchPath,200)).channel.enabled,false);
+ await http('staff',watchPath,403,{action:'REGISTER'});
+ await http('foreign',watchPath,403,{action:'REGISTER'});
+ await http('owner',watchPath,409,{action:'REGISTER'});
+ process.env.ENABLE_CALENDAR_RECONCILIATION='true';
+ process.env.ENABLE_CALENDAR_PUSH='true';
+ process.env.PUBLIC_APP_URL='https://calendar-fixture.example.invalid';
+ await http('owner',watchPath,400,{action:'REGISTER',callback:'https://unexpected.invalid'});
+ const watchResponses=await Promise.all(Array.from({length:8},()=>fetch(origin+watchPath,{
+  method:'POST',headers:{Authorization:'owner','Content-Type':'application/json'},body:JSON.stringify({action:'REGISTER'})})));
+ assert.equal(watchResponses.filter(response=>response.status===200).length,1);
+ assert.equal(watchResponses.filter(response=>response.status===409).length,7);
+ assert.equal(watchCalls,1);
+ const watchStatus=await http('owner',watchPath,200);
+ assert.equal(watchStatus.channel.state,'ACTIVE');
+ assert.ok(!JSON.stringify(watchStatus).includes(watchedChannel.token));
+ assert.ok(!JSON.stringify(watchStatus).includes(watchResource));
+ const [credentials]:any=await pool.query('SELECT token_hash,CAST(last_message AS CHAR) lastMessage FROM calendar_push_channels WHERE company_id=?',[company]);
+ assert.notEqual(credentials[0].token_hash,watchedChannel.token);
+ assert.equal(credentials[0].lastMessage,'0');
+
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ const pushBooking={...newBooking,expectedVersion:'14',requestKey:key()};
+ const pushIntent=(await http('staff',createPath,200,pushBooking)).calendarIntent;
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ assert.equal(pushIntent.state,'CONFIRMED');
+ const pushOrigin=pushIntent.requestId;
+ const reschedulePoll=()=>pool!.query('UPDATE sales_calendar_intents SET sync_due_ms=(UNIX_TIMESTAMP()+500)*1000 WHERE id=?',[pushOrigin]);
+ const isDue=async()=>{
+  const [rows]:any=await pool!.query('SELECT sync_due_ms<=UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 ready FROM sales_calendar_intents WHERE id=?',[pushOrigin]);
+  return Number(rows[0].ready)===1;
+ };
+ await reschedulePoll();
+ assert.equal(await isDue(),false);
+ assert.equal((await sendCalendarSignal('2','exists',{'X-Goog-Channel-Token':'0'.repeat(64)})).status,404);
+ assert.equal((await sendCalendarSignal('2','exists',{'X-Goog-Resource-Id':'different-resource'})).status,404);
+ assert.equal((await sendCalendarSignal('18446744073709551616')).status,404);
+ assert.equal(await isDue(),false);
+ const providerReadsBeforePush=calendarCalls;
+ const notifications=await Promise.all(Array.from({length:8},()=>sendCalendarSignal('3')));
+ assert.ok(notifications.every(response=>response.status===204));
+ assert.equal(calendarCalls,providerReadsBeforePush);
+ assert.equal(await isDue(),true);
+ assert.equal((await http('viewer',bookingPath,200)).booking.version,'15');
+ await reschedulePoll();
+ await pool.query('UPDATE calendar_push_channels SET last_wake_ms=0 WHERE company_id=?',[company]);
+ assert.equal((await sendCalendarSignal('3')).status,204);
+ assert.equal((await sendCalendarSignal('2')).status,204);
+ assert.equal(await isDue(),false);
+ assert.equal((await sendCalendarSignal('4','not_exists')).status,204);
+ assert.equal(await isDue(),true);
+ const polledAfterHint=await runCalendarReconciliation(pool,()=>true,calendarTransport);
+ assert.equal(polledAfterHint.calendarSyncChecked,1);
+ assert.equal(polledAfterHint.calendarSyncChanged,0);
+ assert.equal((await http('viewer',bookingPath,200)).booking.version,'15');
+ await saveBookingEvidence(pool,users.owner,company,leadId,{operation:'CANCEL',expectedVersion:'15',requestKey:key()});
+ await pool.query('UPDATE calendar_push_channels SET expires_at_ms=0,requested_at_ms=0 WHERE company_id=?',[company]);
+ assert.equal((await sendCalendarSignal('5')).status,404);
+ loseWatchAck=true;
+ assert.equal((await http('owner',watchPath,503,{action:'REGISTER'})).error,'CALENDAR_PUSH_REGISTRATION_UNCONFIRMED');
+ assert.equal((await http('owner',watchPath,200)).channel.state,'PENDING');
+ await http('owner',watchPath,409,{action:'REGISTER'});
+ assert.equal(watchCalls,2);
+ assert.equal((await sendCalendarSignal('2')).status,404);
+ await http('owner',watchPath,200,{action:'DISABLE'});
+ assert.equal((await http('owner',watchPath,200)).channel.state,'DISABLED');
+ assert.equal((await sendCalendarSignal('1','sync')).status,404);
+ delete process.env.ENABLE_CALENDAR_PUSH;
+ delete process.env.ENABLE_CALENDAR_RECONCILIATION;
+ delete process.env.PUBLIC_APP_URL;
+ console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, expiry and ambiguous-ack protection passed.');
+
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});
  stage='orphan-recovery';const orphan=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE job_queue SET status='FAILED' WHERE id=?",[orphan.jobId]);await recoverSalesWorkflows(pool);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===orphan.id)?.exit_reason,'REVIEW_JOB_UNAVAILABLE');
@@ -360,4 +452,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

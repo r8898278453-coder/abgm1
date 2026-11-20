@@ -161,14 +161,16 @@ export async function observeCalendar(
   }
 }
 
-export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: string, company: string, lead: string) {
+export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: string, company: string, lead?: string) {
   const [actors] = await sql.query('SELECT id,is_platform_admin FROM users WHERE id=?', [actorId]);
   const actor = actors[0];
-  if (!actor || actor.id !== actorId || !(await agencyClientAccess(sql, {id: actor.id, is_platform_admin: Number(actor.is_platform_admin) === 1}, company, 'write')).authorized) {
+  if (!actor || actor.id !== actorId || !(await agencyClientAccess(sql, {id: actor.id, is_platform_admin: Number(actor.is_platform_admin) === 1}, company, lead ? 'write' : 'manage')).authorized) {
     throw new SalesError(403, 'SALES_ACCESS_DENIED');
   }
-  const [leads] = await sql.query('SELECT id FROM leads WHERE company_id=? AND id=?', [company, lead]);
-  if (leads[0]?.id !== lead) throw new SalesError(404, 'LEAD_NOT_FOUND');
+  if (lead) {
+    const [leads] = await sql.query('SELECT id FROM leads WHERE company_id=? AND id=?', [company, lead]);
+    if (leads[0]?.id !== lead) throw new SalesError(404, 'LEAD_NOT_FOUND');
+  }
   const [rows] = await sql.query(
     'SELECT id,status,credentials FROM company_integrations WHERE company_id=? AND provider=?',
     [company, CALENDAR_PROVIDER],

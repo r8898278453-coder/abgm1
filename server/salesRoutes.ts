@@ -1,3 +1,4 @@
+import {disableCalendarPushChannel,readCalendarPushStatus,registerCalendarPushChannel} from './calendarPush';
 import {refreshCalendarBooking} from './calendarObservation';
 import {calendarCreateEnabled,changeCalendarAppointment,createCalendarAppointment,reconcileCalendarAppointment} from './calendarCreate';
 import {checkBookingCalendar} from './bookingCalendar';
@@ -25,6 +26,18 @@ import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOvervie
 export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>;calendarTransport?:typeof fetch}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('get',base+'/calendar-push','manage',async(req,pool)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
+  return {channel:await readCalendarPushStatus(pool,String(req.params.companyId))};
+ });
+ route('post',base+'/calendar-push','manage',async(req,pool,user)=>{
+  if(Object.keys(req.query).length||!req.body||Array.isArray(req.body)||typeof req.body!=='object'||
+     Object.keys(req.body).length!==1||!['REGISTER','DISABLE'].includes(req.body.action))throw new SalesError(400,'CALENDAR_PUSH_INPUT_INVALID');
+  const company=String(req.params.companyId);
+  return {channel:req.body.action==='REGISTER'?await registerCalendarPushChannel(pool,user,company,deps.calendarTransport):
+    await disableCalendarPushChannel(pool,user,company)};
+ });
+
  route('post',base+'/leads/:leadId/calendar-check','write',(req,pool,user)=>{
   if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
   return checkBookingCalendar(pool,user.id,String(req.params.companyId),String(req.params.leadId),req.body,deps.calendarTransport);

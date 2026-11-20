@@ -557,6 +557,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/calendar-push",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/calendar-push",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/deals",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -1517,6 +1527,11 @@
     },
     {
       "method": "POST",
+      "path": "/api/webhooks/google-calendar",
+      "owner": "server/calendarPush.ts#registerCalendarPushCallback"
+    },
+    {
+      "method": "POST",
       "path": "/api/whatsapp/broadcast",
       "owner": "server.ts"
     },
@@ -1546,5 +1561,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 56
+  "registrationCount": 57
 }

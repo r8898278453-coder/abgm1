@@ -3,7 +3,7 @@ import {DEFAULT_SALES_POLICY} from '../../shared/salesWorkspace';
 import {EXCEPTION_KEYS,exceptionProjection} from '../../shared/agencyExceptions';
 import assert from 'node:assert/strict';import {chromium} from 'playwright-core';import {createServer} from 'vite';
 const fixture='/__sales_fixture.tsx';const vite=await createServer({plugins:[{name:'sales-fixture',resolveId(id){if(id===fixture)return id;},load(id){if(id!==fixture)return;return `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{SalesWorkspacePanel,AgencySalesExceptions}from'/src/components/SalesWorkspacePanel.tsx';function App(){const[company,setCompany]=useState('A');window.changeClient=()=>setCompany('B');return <><SalesWorkspacePanel key={company} companyId={company}/><AgencySalesExceptions agencyId="agency"/></>;}createRoot(document.getElementById('root')).render(<App/>);`;}}],server:{host:'127.0.0.1',port:0},logLevel:'error'});await vite.listen();let browser:any;
-try{const origin=`http://127.0.0.1:${(vite.httpServer!.address() as any).port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const context=await browser.newContext({serviceWorkers:'block'});let policyVersion=0,permissionVersion=0,opVersion=0,qualVersion=0,conflict=false;let stage='new',permissionState='UNKNOWN',booking:any=null;let calendarEnabled=false, calendarPending=false, calendarCreates=0;const calendarChanges:any[]=[];const bookingWrites:any[]=[];const writes:any[]=[],keys:string[]=[];let policy={paused:false,quietStart:21,quietEnd:8,dailyMessageCap:20,industries:[],excludedDomains:[],questions:['Need?','Timeline?','Handoff?']};
+try{const origin=`http://127.0.0.1:${(vite.httpServer!.address() as any).port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const context=await browser.newContext({serviceWorkers:'block'});let channelState="NOT_CONFIGURED";let policyVersion=0,permissionVersion=0,opVersion=0,qualVersion=0,conflict=false;let stage='new',permissionState='UNKNOWN',booking:any=null;let calendarEnabled=false, calendarPending=false, calendarCreates=0;const calendarChanges:any[]=[];const bookingWrites:any[]=[];const writes:any[]=[],keys:string[]=[];let policy={paused:false,quietStart:21,quietEnd:8,dailyMessageCap:20,industries:[],excludedDomains:[],questions:['Need?','Timeline?','Handoff?']};
 await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin!==origin){await route.abort();return;}if(url.pathname==='/'){await route.fulfill({contentType:'text/html',body:await vite.transformIndexHtml('/',`<div id="root"></div><script type="module" src="${fixture}"></script>`)});return;}if(!url.pathname.startsWith('/api/')){await route.continue();return;}const company=url.pathname.split('/')[3];let body:any={success:true,companyId:company},status=200;const method=route.request().method();
  if(url.pathname.includes('/agencies/'))body={success:true,overview:{agencyId:'agency',modelVersion:4,scope:'CURRENT_AUTHORIZED_CLIENTS',timeZone:'Asia/Kolkata',checkedAtMs:Date.now(),definition:'Current operational backlog priority',clients:[{companyId:'A',operationStatus:'ACTIVE',...exceptionProjection(Object.fromEntries(EXCEPTION_KEYS.map(k=>[k,k==='newLeads'?1:0])))}]}};
  else if(url.pathname.endsWith('/calendar-check')){
@@ -74,6 +74,16 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
   }
   body={...body,booking,calendarCreateEnabled:calendarEnabled,pendingCalendarRequestId:calendarPending?'c'.repeat(64):null};
  }
+ else if(url.pathname.endsWith('/calendar-push')){
+  assert.equal(company,'A');
+  if(method==='POST'){
+   const {action}=route.request().postDataJSON();
+   assert.ok(['REGISTER','DISABLE'].includes(action));
+   channelState=action==='REGISTER'?'ACTIVE':'DISABLED';
+  }
+  body={...body,channel:{state:channelState,enabled:true,originReady:true,
+   expiresAtMs:Date.now()+86400000,canRegister:channelState==='NOT_CONFIGURED'}};
+ }
  else if(method!=='GET'){const input=route.request().postDataJSON();writes.push({path:url.pathname,input});if(conflict){status=409;body={success:false,error:'SALES_POLICY_CHANGED'};}else if(url.pathname.endsWith('/policy')){assert.equal(input.expectedVersion,String(policyVersion));policyVersion++;policy=input.policy;body={...body,version:String(policyVersion)};}else if(url.pathname.endsWith('/prospects/assess')){body={...body,assessment:assessDeclaredProspect((policy as any).prospecting||DEFAULT_PROSPECTING_PROFILE,policy.industries,input,company,String(policyVersion),Date.now())};}else if(url.pathname.endsWith('/permissions')){permissionVersion++;permissionState=input.state;body={...body,version:String(permissionVersion)};}else if(url.pathname.endsWith('/opportunity')){opVersion++;stage=input.stage;body={...body,version:String(opVersion)};}else if(url.pathname.endsWith('/qualification')){qualVersion++;body={...body,version:String(qualVersion)};}else if(url.pathname.endsWith('/prospects/preview')){body={...body,readOnly:true,consentGranted:false,policyVersion:String(policyVersion),checkedAtMs:Date.now(),results:[{row:1,status:'WOULD_IMPORT'}]};}else if(url.pathname.endsWith('/prospects/import')){keys.push(input.requestKey);body={...body,results:[{row:1,status:'IMPORTED'}],consentGranted:false,reused:false};}}
  else if(url.pathname.endsWith('/inbox'))body={...body,messages:company==='A'?[{id:'a'.repeat(64),lead_id:'leadA',version:'0',direction:'INBOUND',body:'Actual saved inquiry',createdAtMs:1},{id:'b'.repeat(64),lead_id:'leadA',version:'0',direction:'OUTBOUND',body:'Reviewed reply',metadata:{receiptReconciled:true},createdAtMs:2}]:[],nextBefore:null};
  else if(url.pathname.endsWith('/report'))body={...body,report:{date:url.searchParams.get('date'),activity:{AGENCY_SALES_INBOUND_SAVED:1,AGENCY_SALES_CALENDAR_BOOKING_VERIFIED:1,AGENCY_SALES_CALENDAR_EXTERNAL_RESCHEDULE:1,AGENCY_SALES_CALENDAR_SYNC_RESCHEDULE:2,AGENCY_SALES_APPOINTMENT_REMINDER_API_ACCEPTED:1},backlog:{newLeads:1,pendingCalendarCreations:1,pendingCalendarChanges:0,pendingAppointmentReminders:2,appointmentRemindersAwaitingCalendar:1,calendarReconciliationUnavailable:2},attribution:{currencies:{INR:100},roi:null,definition:'Manual value, not verified revenue'}}};
@@ -132,6 +142,13 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  await appointment.getByRole('button',{name:'Confirm Google Calendar cancellation'}).click();
  await appointment.getByText(/Cancelled.*VerifiedFixture/).waitFor();
  assert.deepEqual(calendarChanges.map(change=>change.operation),['RESCHEDULE','CANCEL']);
+ const calendarPush=page.getByRole('region',{name:'Google Calendar push'});
+ await calendarPush.getByRole('button',{name:'Load Calendar subscription'}).click();
+ await calendarPush.getByText('No subscription',{exact:true}).waitFor();
+ await calendarPush.getByRole('button',{name:'Register Calendar subscription'}).click();
+ await calendarPush.getByText(/^Active.*IST$/).waitFor();
+ await calendarPush.getByRole('button',{name:'Disable Calendar subscription locally'}).click();
+ await calendarPush.getByText('Disabled locally',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Load sales report'}).click();
  await page.getByText(/Calendar appointments verified/).waitFor();
  await page.getByText(/External Google Calendar reschedules verified/).waitFor();
