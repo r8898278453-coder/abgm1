@@ -1,3 +1,5 @@
+import {resendWebhookSecretFormat} from '../shared/tenantEmailDomain';
+import {parseSalesEmailReply,recordSalesEmailReply,tenantEmailRepliesEnabled} from './salesEmailReplies';
 import express,{type Express,type Request,type RequestHandler} from 'express';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import type {Pool} from 'mysql2/promise';
@@ -25,7 +27,7 @@ function signedRequest(req:Request,now:number){
 }
 
 function verifySignature(request:ReturnType<typeof signedRequest>,secret:string){
- if(!/^whsec_[A-Za-z0-9+/]{22,128}={0,2}$/.test(secret))throw new EmailReceiptError(503,'EMAIL_WEBHOOK_UNAVAILABLE');
+ if(!resendWebhookSecretFormat.test(secret))throw new EmailReceiptError(503,'EMAIL_WEBHOOK_UNAVAILABLE');
  const key=Buffer.from(secret.slice(6),'base64');
  if(key.length<16||key.length>64)throw new EmailReceiptError(503,'EMAIL_WEBHOOK_UNAVAILABLE');
  const expected=createHmac('sha256',key).update(request.id+'.'+request.stamp+'.').update(request.raw).digest();
@@ -37,7 +39,7 @@ function verifySignature(request:ReturnType<typeof signedRequest>,secret:string)
  if(!match)throw new EmailReceiptError(403,'EMAIL_WEBHOOK_SIGNATURE_INVALID');
 }
 
-export function registerSalesEmailWebhook(app:Express,deps:{pool:()=>Promise<Pool|null>;enabled?:()=>boolean;clock?:()=>number}){
+export function registerSalesEmailWebhook(app:Express,deps:{pool:()=>Promise<Pool|null>;enabled?:()=>boolean;clock?:()=>number;replyTransport?:typeof fetch}){
  app.post(path,async(req,res)=>{
   res.set('Cache-Control','no-store');
   try{
@@ -52,6 +54,12 @@ export function registerSalesEmailWebhook(app:Express,deps:{pool:()=>Promise<Poo
    verifySignature(request,secret);
    let payload:unknown;
    try{payload=JSON.parse(request.raw.toString('utf8'));}catch{throw new EmailReceiptError(400,'EMAIL_WEBHOOK_INPUT_INVALID');}
+   const reply=tenantEmailRepliesEnabled()?parseSalesEmailReply(payload,now):undefined;
+   if(reply!==undefined){
+    const status=reply?await recordSalesEmailReply(pool,company,reply,secret,deps.replyTransport):'ignored';
+    res.json({status});
+    return;
+   }
    const receipt=parseSalesEmailReceipt(payload,now);
    const status=receipt?await recordSalesEmailReceipt(pool,company,request.id,receipt,secret):'ignored';
    res.json({status});

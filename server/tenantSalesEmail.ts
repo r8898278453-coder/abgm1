@@ -1,3 +1,4 @@
+import {tenantEmailRepliesEnabled} from './salesEmailReplies';
 import {hasSalesEmailSuppression} from './salesEmailReceipts';
 import type {Pool} from 'mysql2/promise';
 import {salesEmailCommand,salesEmailReadiness} from '../shared/tenantSalesEmail';
@@ -89,12 +90,13 @@ export async function sendApprovedSalesEmail(pool:Pool,user:Actor,company:string
     if(latest.blocked||latest.recipient!==command.recipient||latest.verified?.proof.checkedAtMs!==command.senderCheckedAtMs||
        latest.verified.sender.fingerprint!==preflight.fingerprint)return null;
     const id=salesHash('tenant-sales-email:'+company+':'+digest);
+    const replyTo=tenantEmailRepliesEnabled()&&latest.verified.sender.replyDomain?digest+'@'+latest.verified.sender.replyDomain:null;
     // Use the shared inbox and intent ledger to bind future provider events to this exact approved message.
-    await sql.query(`INSERT IGNORE INTO sales_inbox_messages
+    await sql.query(`INSERT INTO sales_inbox_messages
       (id,company_id,lead_id,channel,direction,contact_hash,provider_ref,dispatch_key,body,metadata_json)
-      VALUES (?,?,?,'EMAIL','OUTBOUND',?,?,?,?,?)`,
-      [id,company,lead,contactHash('EMAIL',command.recipient),digest,digest,command.text,JSON.stringify({subject:command.subject,emailSenderHash:contactHash('EMAIL',latest.verified.sender.fromEmail)})]);
-    return latest.verified.sender;
+      VALUES (?,?,?,'EMAIL','OUTBOUND',?,?,?,?,?) ON DUPLICATE KEY UPDATE metadata_json=VALUES(metadata_json)`,
+      [id,company,lead,contactHash('EMAIL',command.recipient),digest,digest,command.text,JSON.stringify({subject:command.subject,emailSenderHash:contactHash('EMAIL',latest.verified.sender.fromEmail),...(replyTo?{emailReplyAddressHash:contactHash('EMAIL',replyTo)}:{})})]);
+    return {...latest.verified.sender,replyTo};
    }).catch(()=>null);
    if(!ready||!enabled()||isGlobalEmergencyStopActive())return {success:false,status:'PAUSED'};
    return sendResend(ready,command,digest,transport);
@@ -107,12 +109,12 @@ export async function sendApprovedSalesEmail(pool:Pool,user:Actor,company:string
  }
 }
 
-async function sendResend(sender:{apiKey:string;fromEmail:string},command:Pick<ReturnType<typeof salesEmailCommand.parse>,'recipient'|'subject'|'text'>,key:string,transport:typeof fetch):Promise<DispatchResult>{
+async function sendResend(sender:{apiKey:string;fromEmail:string;replyTo:string|null},command:Pick<ReturnType<typeof salesEmailCommand.parse>,'recipient'|'subject'|'text'>,key:string,transport:typeof fetch):Promise<DispatchResult>{
  try{
   const response=await transport('https://api.resend.com/emails',{
    method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(5000),
    headers:{Authorization:'Bearer '+sender.apiKey,'Content-Type':'application/json','Idempotency-Key':key},
-   body:JSON.stringify({from:sender.fromEmail,to:[command.recipient],subject:command.subject,text:command.text}),
+   body:JSON.stringify({from:sender.fromEmail,to:[command.recipient],subject:command.subject,text:command.text,...(sender.replyTo?{reply_to:sender.replyTo}:{})}),
   });
   if(!response.ok||response.redirected){await response.body?.cancel().catch(()=>{});return {success:false,status:'UNKNOWN'};}
   const result=await localProviderJson(response,16384);

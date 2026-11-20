@@ -1,0 +1,23 @@
+{
+  "date_ist": "2026-11-21",
+  "batch_items": 26,
+  "advanced_tasks": ["P01-05", "P06-04", "P09-01"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "schema": {"migration": "063_sales_email_receipts", "canonical_tables": 107, "new_migration": false},
+  "verification": {
+    "default_regression_programs": 159,
+    "native_sql_fixture": "integrationPersistenceSql",
+    "browser_fixtures": ["crmIdentity", "integrationIsolation", "salesWorkspace"],
+    "route_declarations": 322,
+    "live_provider_requests": 0
+  },
+  "behaviors": [
+    "Default-off receiving settings and private per-dispatch Reply-To",
+    "Signed webhook and independently fetched message match tenant, original sender and receiving address",
+    "Accepted-dispatch gating, early retry, archived-client isolation and stable deduplication",
+    "Canonical CRM thread, bounded plain text, HTML-only placeholder and private correlation metadata",
+    "Explicit reply opt-out is written once and uses email consent",
+    "IST Sales reply and opt-out reporting"
+  ],
+  "pending": ["Live Resend Receiving DNS and mailbox acceptance", "Background reply recovery", "Attachment intake", "Suppression release", "Approved sequences", "Frozen daily work coverage", "Production rollout"]
+}

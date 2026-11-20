@@ -17,3 +17,6 @@ export const tenantEmailDomainStatus=z.discriminatedUnion('state',[
 ]).refine(value=>value.state!=='VERIFIED_DOMAIN'||(
  value.expiresAtMs>value.proof.checkedAtMs&&value.expiresAtMs-value.proof.checkedAtMs<=TENANT_EMAIL_DOMAIN_EVIDENCE_TTL_MS
 ));
+
+export const tenantEmailReplyDomain=tenantEmailDomainName.refine(value=>value.length<=125);
+export const resendWebhookSecretFormat=/^whsec_[A-Za-z0-9+/]{22,128}={0,2}$/;

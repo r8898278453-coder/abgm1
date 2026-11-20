@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P06-04, P01-05 and P09-01 advance through 26 linked email reply and opt-out work items. New eligible sends use a private Reply-To address. A signed reply and matching provider read link the incoming message to the original CRM conversation, and explicit reply opt-outs block future email. The IST Sales report counts replies and opt-outs. Schema 063 remains the source target. Live Resend DNS and mailbox acceptance, reply recovery and outbound sequence integration remain open. See SALES_EMAIL_REPLIES.md.
+
 21 November 2026 IST. P06-04, P01-05 and P09-01 advance through 28 locally testable email delivery work items. Signed Resend receipts bind to an accepted tenant dispatch, keep bounce and complaint suppression distinct from consent, and appear in the Sales inbox, private CRM conversation and IST Sales report. Migration 063 adds the receipt journal (107 tables). Reply threading, frozen daily accountability coverage, live Resend acceptance and release remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See SALES_EMAIL_DELIVERY.md.
 
 21 November 2026 IST. P06-04 advances with default-off Resend email for one saved CRM lead after exact operator review. The existing client consent, IST policy, dispatch ledger and Sales inbox are reused. Tenant reply threading, signed bounce/delivery evidence, workflow sequences and live acceptance remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_SALES_EMAIL.md.
@@ -201,7 +203,7 @@ The [generated status](STATUS.md) follows the [task tracker](TASKS.csv) and cont
 | P03 | Canonical tenant role enforcement on remaining legacy paths. |
 | P04 | Shared reviewed knowledge across remaining draft and chat consumers. |
 | P05 | Google account/location and review acceptance, GBP post/media dispatch, Meta reconciliation, and completion of client creative and approved assets. |
-| P06 | Live tenant dispatch and receipt acceptance, mailbox reply threading and approved sequence integration. Single-lead CRM sending defaults off and is covered by local fixtures. |
+| P06 | Live Resend sending, receiving and receipt acceptance, background reply recovery and approved sequence integration. Single-lead CRM sending defaults off and is covered by local fixtures. |
 | P07 | Live calendar and reminders validation, followed by the marketing-to-appointment pilot. |
 | P08 | Authorized buying signals, discovery, enrichment, outbound sequences and their pilot. Source evidence now reaches attendance. Cross-channel cost allocation and verified financial evidence are open. |
 | P09 | Daily client report reconciliation across the remaining modules. |

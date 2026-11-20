@@ -5,14 +5,14 @@ import {agencyClientAccess} from './agencyPolicy';
 import {agencyAudit} from './agencyRoutes';
 import {SalesError,withSalesLock} from './salesWorkspace';
 import {localProviderJson} from './localProviderJson';
-import {tenantEmailDomainName,tenantEmailDomainProof,tenantEmailDomainStatus,TENANT_EMAIL_DOMAIN_EVIDENCE_TTL_MS} from '../shared/tenantEmailDomain';
+import {tenantEmailDomainName,tenantEmailReplyDomain,resendWebhookSecretFormat,tenantEmailDomainProof,tenantEmailDomainStatus,TENANT_EMAIL_DOMAIN_EVIDENCE_TTL_MS} from '../shared/tenantEmailDomain';
 import {withReadOnlySqlDeadline,type ReadOnlySql} from './readOnlySqlDeadline';
 import {canonicalJson} from '../shared/canonicalJson';
 
 const exactDomainId=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const CHECK_WINDOW_MS=30000;
 const apiKeyPattern=/^re_[A-Za-z0-9_-]{8,253}$/;
-type Sender={fingerprint:string;domainId:string;domain:string;apiKey:string;fromEmail:string};
+type Sender={fingerprint:string;domainId:string;domain:string;apiKey:string;fromEmail:string;replyDomain:string|null};
 type Actor={id:string;is_platform_admin?:boolean};
 
 async function currentAccess(sql:ReadOnlySql,actorId:string,company:string,operation:'read'|'manage'){
@@ -41,7 +41,11 @@ async function savedSender(sql:ReadOnlySql,company:string,lock=false):Promise<Se
  const domain=rawDomain.toLowerCase();
  if(mailbox.length>64||!tenantEmailDomainName.safeParse(domain).success)throw new SalesError(409,'TENANT_EMAIL_CONFIGURATION_REQUIRED');
  const fingerprint=createHash('sha256').update(canonicalJson([company,row.id,row.provider,row.status,stored])).digest('hex');
- return {fingerprint,domainId:resendDomainId,apiKey,fromEmail,domain};
+ const reply=tenantEmailReplyDomain.safeParse(typeof credentials.resendReplyDomain==='string'?credentials.resendReplyDomain.toLowerCase():null);
+ const webhookSecret=credentials.resendWebhookSecret;
+ const canReceive=typeof webhookSecret==='string'&&resendWebhookSecretFormat.test(webhookSecret)&&
+  Buffer.from(webhookSecret.slice(6),'base64').length>=16&&Buffer.from(webhookSecret.slice(6),'base64').length<=64;
+ return {fingerprint,domainId:resendDomainId,apiKey,fromEmail,domain,replyDomain:canReceive&&reply.success?reply.data:null};
 }
 
 async function inspect(binding:Sender,fetcher:typeof fetch){

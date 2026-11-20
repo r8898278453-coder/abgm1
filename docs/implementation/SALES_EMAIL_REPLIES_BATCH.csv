@@ -1,0 +1,27 @@
+item,work,parent,verification
+ER01,Separate default-off reply feature gate,P06-04,SQL
+ER02,Require enabled tenant webhook for reply intake,P06-04,SQL
+ER03,Bounded per-client receiving-domain setting,P06-04,SQL
+ER04,Private per-dispatch Reply-To on eligible sends,P06-04,SQL
+ER05,Hashed outbound reply address binding,P06-04,SQL
+ER06,Reuse signed tenant webhook and dispatch received email,P06-04,HTTP and SQL
+ER07,Strict received provider UUID,P01-05,HTTP
+ER08,Validate signed event time,P01-05,HTTP
+ER09,Single-recipient and normalized mailbox shape,P06-04,HTTP and SQL
+ER10,Require exact original CRM email routing address,P06-04,SQL
+ER11,Require exact original recipient as reply sender,P06-04,SQL
+ER12,Tenant and active-client isolation,P06-04,SQL
+ER13,Defer replies while previous API acceptance is unresolved,P01-05,SQL
+ER14,Fixed-host tenant-authenticated provider GET,P06-04,SQL
+ER15,Independent provider message ID and mailbox verification,P01-05,SQL
+ER16,Atomic commit to original lead and original outbound reference,P06-04,SQL
+ER17,Concurrent provider-ID replay dedupe,P01-05,SQL
+ER18,Committed replay skips provider GET,P01-05,SQL
+ER19,Reject changed routing for a previously committed provider ID,P01-05,SQL
+ER20,Bound rendered plain-text size at Unicode boundaries,P01-05,SQL
+ER21,HTML-only reply placeholder and attachment exclusion,P01-05,SQL and HTTP
+ER22,Explicit reply opt-out updates email consent once,P06-04,SQL
+ER23,Private routing and replay fields withheld from read views,P01-05,SQL
+ER24,Sales inbox linked-reply and opt-out evidence,P06-04,SQL and browser
+ER25,Private CRM conversation shows linked reply,P06-04,SQL
+ER26,Scoped IST reply and reply-opt-out counts,P09-01,SQL and browser

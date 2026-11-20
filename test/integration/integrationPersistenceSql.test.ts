@@ -1,3 +1,6 @@
+import express from 'express';
+import {registerSalesEmailWebhook,salesEmailWebhookBodyParser} from '../../server/salesEmailWebhook';
+import {parseSalesEmailReply,recordSalesEmailReply} from '../../server/salesEmailReplies';
 import {readInboxThread} from '../../server/crmInbox';
 import {parseSalesEmailReceipt,recordSalesEmailReceipt,readEmailWebhookSecret} from '../../server/salesEmailReceipts';
 import {platformDateKey} from '../../shared/dailyWorkReport';
@@ -24,7 +27,7 @@ try{
  const readStatus=(actor=owner)=>readTenantEmailDomainStatus(pool,actor,a);
  const domainId=crypto.randomUUID(),privateKey='re_PRIVATE_fixture_key',fromEmail='operator@example.invalid';
  const webhookSecret='whsec_'+crypto.randomBytes(32).toString('base64');
- const credentials={provider:'resend',resendDomainId:domainId,apiKey:privateKey,fromEmail,resendWebhookSecret:webhookSecret};
+ const credentials={provider:'resend',resendDomainId:domainId,apiKey:privateKey,fromEmail,resendWebhookSecret:webhookSecret,resendReplyDomain:'reply.example.invalid'};
  const save=(patch:Record<string,string>={})=>db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{...credentials,...patch}});
  const resetCooldown=()=>pool.query("DELETE FROM autonomous_audit_logs WHERE company_id=? AND event_type='AGENCY_TENANT_EMAIL_DOMAIN_CHECK_STARTED'",[a]);
  const json=(data:unknown)=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
@@ -136,13 +139,15 @@ try{
   assert.equal(options?.redirect,'error');
   providerKey=new Headers(options?.headers).get('idempotency-key')||'';
   assert.match(providerKey,/^[a-f0-9]{64}$/);
-  assert.deepEqual(JSON.parse(String(options?.body)),{from:fromEmail,to:[recipient],subject:command.subject,text:command.text});
+  assert.deepEqual(JSON.parse(String(options?.body)),{from:fromEmail,to:[recipient],subject:command.subject,text:command.text,reply_to:providerKey+'@reply.example.invalid'});
   providerId=crypto.randomUUID();
   return json({id:providerId});
  };
  delete process.env.ENABLE_TENANT_SALES_EMAIL;
  await assert.rejects(dispatch(),{code:'SALES_EMAIL_DISABLED'});
  process.env.ENABLE_TENANT_SALES_EMAIL='true';
+ process.env.ENABLE_TENANT_EMAIL_WEBHOOKS='true';
+ process.env.ENABLE_TENANT_EMAIL_REPLIES='true';
  await saveSalesPolicy(pool,owner,a,{expectedVersion:'0',policy:{...DEFAULT_SALES_POLICY,quietStart:null,quietEnd:null,dailyMessageCap:1}});
  await assert.rejects(dispatch(),{code:'CONTACT_PERMISSION_REQUIRED'});
  await saveContactPermission(pool,owner,a,{expectedVersion:'0',channel:'EMAIL',address:recipient,state:'ALLOWED',evidence:'Explicit customer fixture consent'});
@@ -226,12 +231,96 @@ try{
  for(const forbidden of [recipient,fromEmail,webhookSecret,'PRIVATE_REASON',providerId,'msg_complaint']){
   assert.equal(JSON.stringify(privateJournal).includes(forbidden),false);
  }
+ stage='tenant-sales-email-replies';
+ const replyAlias=providerKey+'@reply.example.invalid';
+ const envelope=(id:string,from=recipient,to=replyAlias)=>({
+  type:'email.received',created_at:new Date(now).toISOString(),data:{email_id:id,from,to:[to],subject:'UNTRUSTED_WEBHOOK_SUBJECT'}
+ });
+ const replyId=crypto.randomUUID();
+ const reply=parseSalesEmailReply(envelope(replyId),now)!;
+ let reads=0;
+ const receiver=(id:string,text:unknown,override:Record<string,unknown>={}):typeof fetch=>async(url,options)=>{
+  reads++;
+  assert.equal(String(url),'https://api.resend.com/emails/receiving/'+id);
+  assert.equal(options?.method,'GET');
+  assert.equal(options?.redirect,'error');
+  assert.equal(new Headers(options?.headers).get('authorization'),'Bearer '+privateKey);
+  return json({id,from:`Customer <${recipient}>`,to:[replyAlias],text,subject:'Re: fixture',
+   html:'<b>PRIVATE_HTML</b>',attachments:[{filename:'PRIVATE_ATTACHMENT'}],...override});
+ };
+ const receive=(candidate:typeof reply,fetcher=receiver(candidate.providerId,'Thanks for confirming.'))=>
+  recordSalesEmailReply(pool,a,candidate,webhookSecret,fetcher);
+
+ delete process.env.ENABLE_TENANT_EMAIL_REPLIES;
+ assert.equal(await receive(reply),'ignored');
+ process.env.ENABLE_TENANT_EMAIL_REPLIES='true';
+ assert.equal(await recordSalesEmailReply(pool,b,reply,webhookSecret,receiver(replyId,'')),'ignored');
+ assert.equal(await receive(parseSalesEmailReply(envelope(replyId,'different@example.invalid'),now)!),'ignored');
+ assert.equal(await receive(parseSalesEmailReply(envelope(replyId,recipient,providerKey+'@wrong.example.invalid'),now)!),'ignored');
+ await pool.query("UPDATE message_dispatch_intents SET status='IN_PROGRESS' WHERE company_id=? AND request_key=?",[a,providerKey]);
+ await assert.rejects(receive(reply),{code:'EMAIL_REPLY_DISPATCH_UNCONFIRMED'});
+ await pool.query("UPDATE message_dispatch_intents SET status='API_ACCEPTED' WHERE company_id=? AND request_key=?",[a,providerKey]);
+ await pool.query("UPDATE client_operations SET status='ARCHIVED' WHERE company_id=?",[a]);
+ assert.equal(await receive(reply),'ignored');
+ await pool.query("UPDATE client_operations SET status='ACTIVE' WHERE company_id=?",[a]);
+ assert.equal(reads,0);
+ await assert.rejects(receive(reply,receiver(replyId,'Private content',{id:crypto.randomUUID()})),{code:'EMAIL_REPLY_PROVIDER_UNCONFIRMED'});
+ const resultsReply=await Promise.all(Array.from({length:8},()=>receive(reply)));
+ assert.equal(resultsReply.filter(state=>state==='recorded').length,1);
+ assert.equal(resultsReply.filter(state=>state==='duplicate').length,7);
+ const priorReads=reads;
+ assert.equal(await receive(reply),'duplicate');
+ assert.equal(reads,priorReads);
+ await assert.rejects(receive(parseSalesEmailReply(envelope(replyId,recipient,providerKey+'@wrong.example.invalid'),now)!),{code:'EMAIL_REPLY_CONFLICT'});
+
+ const htmlId=crypto.randomUUID();
+ const app=express();
+ app.use('/api/webhooks/resend/:companyId',salesEmailWebhookBodyParser);
+ registerSalesEmailWebhook(app,{pool:async()=>pool,clock:()=>now,replyTransport:receiver(htmlId,null)});
+ const server=app.listen(0,'127.0.0.1');
+ await new Promise<void>(resolve=>server.once('listening',resolve));
+ try{
+  const body=JSON.stringify(envelope(htmlId)),stamp=String(Math.floor(now/1000)),eventId='msg_reply_fixture';
+  const signature=crypto.createHmac('sha256',Buffer.from(webhookSecret.slice(6),'base64')).update(eventId+'.'+stamp+'.'+body).digest('base64');
+  const response=await fetch('http://127.0.0.1:'+(server.address() as {port:number}).port+'/api/webhooks/resend/'+a,{
+   method:'POST',headers:{'content-type':'application/json','svix-id':eventId,'svix-timestamp':stamp,'svix-signature':'v1,'+signature},body,
+  });
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{status:'recorded'});
+ }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
+
+ const longId=crypto.randomUUID(),optId=crypto.randomUUID();
+ assert.equal(await receive(parseSalesEmailReply(envelope(longId),now)!,receiver(longId,'😀'.repeat(8100))),'recorded');
+ const optReply=parseSalesEmailReply(envelope(optId),now)!;
+ assert.equal(await receive(optReply,receiver(optId,'UNSUBSCRIBE!')),'recorded');
+ assert.equal(await receive(optReply,receiver(optId,'UNSUBSCRIBE!')),'duplicate');
+ const [permissionRows]:any=await pool.query("SELECT channel,state,CAST(revision AS CHAR) version FROM sales_contact_permissions WHERE company_id=?",[a]);
+ assert.deepEqual(permissionRows,[{channel:'EMAIL',state:'OPTED_OUT',version:'4'}]);
+
+ const inbox=(await readSalesInbox(pool,a)).messages;
+ const visibleReplies=inbox.filter(row=>row.metadata?.verifiedEmailReply);
+ assert.equal(visibleReplies.length,4);
+ assert.ok(visibleReplies.every(row=>row.lead_id===lead&&/^[a-f0-9]{64}$/.test(row.metadata.replyToMessageId)));
+ assert.equal(visibleReplies.some(row=>row.body==='Plain-text reply unavailable.'&&row.metadata.textAvailable===false),true);
+ const truncated=visibleReplies.find(row=>row.metadata.truncated);
+ assert.equal(Array.from(truncated!.body).length,8000);
+ const replyThread=await readInboxThread(pool,a,lead,undefined,undefined,owner);
+ assert.equal(replyThread.messages.filter(row=>row.metadata?.verifiedEmailReply).length,4);
+ for(const privateValue of ['PRIVATE_HTML','PRIVATE_ATTACHMENT','UNTRUSTED_WEBHOOK_SUBJECT','emailReplyInputHash','emailReplyAddressHash',replyAlias,replyId]){
+  assert.equal(JSON.stringify([inbox,replyThread]).includes(privateValue),false);
+ }
+ assert.deepEqual((await readSalesReport(pool,a,platformDateKey(now))).emailReplies,{replies:4,optOuts:1});
+ assert.deepEqual((await readSalesReport(pool,b,platformDateKey(now))).emailReplies,{replies:0,optOuts:0});
+ assert.equal(sends,2);
+ console.log('Sales Email replies SQL: feature gate, outbound reply address, signed and independently fetched scope, early retry, canonical thread, eight-way replay, opt-out fencing, text bounds, privacy and IST counts passed.');
  console.log('Sales Email receipts SQL: duplicates and conflicts, exact accepted dispatch and tenant, sender and recipient fences, provider time, secret rotation, inbox status, IST aggregation, hard and soft bounce, independent suppression and privacy passed.');
  console.log('Sales Email SQL: default off, saved tenant sender, explicit consent and opt-out, exact approved recipient and observation, eight contenders, IST cap, inbox threading anchor, accepted receipt and no resend of uncertain outcomes passed.');
  console.log('Integration SQL: confirmed transactional save returns actual stable ID, genuine empty/missing reads, encrypted SMTP/login/API fields, null untested timestamp, tenant isolation, missing workspace refusal and affected-row deletion passed.');
 }catch(error:any){console.log(JSON.stringify({fixture:'integration-persistence',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/integrationPersistenceSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
 finally{
  delete process.env.ENABLE_TENANT_SALES_EMAIL;
+ delete process.env.ENABLE_TENANT_EMAIL_WEBHOOKS;
+ delete process.env.ENABLE_TENANT_EMAIL_REPLIES;
  for(const id of [a,b]){
   for(const table of ['sales_email_receipts','message_dispatch_intents','sales_inbox_messages','sales_contact_permissions','sales_client_policies','leads','company_integrations','autonomous_audit_logs','company_profiles_data','client_operations','agency_clients']){
    await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[id]);

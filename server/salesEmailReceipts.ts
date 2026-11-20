@@ -44,14 +44,18 @@ export function parseSalesEmailReceipt(payload:unknown,nowMs=Date.now()){
  return {providerId:data.email_id,kind,occurredAtMs,senderHash,contact,suppresses};
 }
 
-export async function readEmailWebhookSecret(sql:ReadOnlySql,company:string,lock=false){
+export async function readTenantResendSettings(sql:ReadOnlySql,company:string,lock=false){
  const [rows]=await sql.query(`SELECT company_id,provider,status,credentials FROM company_integrations
    WHERE company_id=? AND provider IN ('transactional_email','smtp')${lock?' FOR UPDATE':''}`,[company]);
  const row=rows[0];
  if(rows.length!==1||row.company_id!==company||!['saved','connected','verified','error'].includes(row.status))return null;
  const credentials=decryptCredentialsObject(typeof row.credentials==='string'?JSON.parse(row.credentials):row.credentials||{});
- if(credentials.provider!=='resend'||typeof credentials.resendWebhookSecret!=='string')return null;
- return credentials.resendWebhookSecret;
+ return credentials.provider==='resend'?credentials:null;
+}
+
+export async function readEmailWebhookSecret(sql:ReadOnlySql,company:string,lock=false){
+ const value=(await readTenantResendSettings(sql,company,lock))?.resendWebhookSecret;
+ return typeof value==='string'?value:null;
 }
 
 export async function recordSalesEmailReceipt(pool:Pool,company:string,eventId:string,receipt:NonNullable<ReturnType<typeof parseSalesEmailReceipt>>,verifiedSecret:string){
@@ -130,7 +134,7 @@ export async function projectInboxEmailEvidence(sql:ReadOnlySql,company:string,p
  const evidence=await readSalesEmailReceipts(sql,company,[...new Set(keys)]);
  return page.map(({dispatch_key,metadata_json,...row})=>{
   const decoded=typeof metadata_json==='string'?JSON.parse(metadata_json):metadata_json;
-  const metadata=row.channel==='EMAIL'&&decoded?Object.fromEntries(Object.entries(decoded).filter(([key])=>key!=='emailSenderHash')):decoded;
+  const metadata=row.channel==='EMAIL'&&decoded?Object.fromEntries(Object.entries(decoded).filter(([key])=>!['emailSenderHash','emailReplyAddressHash','emailReplyInputHash'].includes(key))):decoded;
   const emailDelivery=row.channel==='EMAIL'&&row.direction==='OUTBOUND'?evidence.get(dispatch_key):undefined;
   return {...row,metadata,createdAtMs:Number(row.createdAtMs),...(emailDelivery?{emailDelivery}:{})};
  });

@@ -1,3 +1,4 @@
+import {parseSalesEmailReply} from '../server/salesEmailReplies';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import express from 'express';
@@ -25,7 +26,7 @@ function header(body:string,ts=stamp){
  return {'content-type':'application/json','svix-id':id,'svix-timestamp':ts,
   'svix-signature':'v1,'+createHmac('sha256',key).update(id+'.'+ts+'.'+body).digest('base64')};
 }
-const send=async(body:string,status:number,headers=header(body),url='/api/webhooks/resend/A')=>{
+const send=async(body:string,status:number,headers:Record<string,string>=header(body),url='/api/webhooks/resend/A')=>{
  const result=await fetch(origin+url,{method:'POST',body,headers});
  assert.equal(result.status,status);
  return result.json();
@@ -70,3 +71,11 @@ for(const bad of [
  {...envelope,created_at:'2026-11-21'},
 ])assert.throws(()=>parseSalesEmailReceipt(bad,now));
 console.log('Sales email webhook: default-off, method scope, bounded raw body, signed bytes, timestamp window, tenant secret, payload validation, unsupported-event no-op, redacted failures and hard/soft bounce classification passed.');
+
+const incoming={...envelope,type:'email.received',data:{...envelope.data,to:['b'.repeat(64)+'@reply.example.invalid']}};
+assert.equal(parseSalesEmailReply(incoming,now)?.dispatchKey,'b'.repeat(64));
+assert.equal(parseSalesEmailReply({...incoming,data:{...incoming.data,to:['manual@reply.example.invalid']}},now),null);
+assert.throws(()=>parseSalesEmailReply({...incoming,data:{...incoming.data,to:['first@example.invalid','second@example.invalid']}},now));
+assert.throws(()=>parseSalesEmailReply({...incoming,data:{...incoming.data,email_id:'invalid'}},now));
+assert.throws(()=>parseSalesEmailReply({...incoming,created_at:'2026-11-21T00:06:00Z'},now));
+assert.throws(()=>parseSalesEmailReply({...incoming,data:{...incoming.data,from:'Customer\r\n <customer@example.invalid>'}},now));
