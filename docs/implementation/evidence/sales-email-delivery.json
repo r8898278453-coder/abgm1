@@ -1,0 +1,17 @@
+{
+  "date_ist": "2026-11-21",
+  "batch_items": 28,
+  "advanced_tasks": ["P01-05", "P06-04", "P09-01"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "schema": {"migration": "063_sales_email_receipts", "canonical_tables": 107},
+  "verification": {
+    "default_regression_programs": 159,
+    "native_sql_fixture": "integrationPersistenceSql",
+    "browser_fixtures": ["salesWorkspace", "crmIdentity", "approvedSalesMessages"],
+    "route_declarations": 322,
+    "restore": "Supplied export imported and migrated locally",
+    "live_provider_requests": 0
+  },
+  "delivery": "Signed Resend lifecycle evidence on accepted tenant email dispatches",
+  "pending": ["Inbound reply threading", "Suppression release workflow", "Frozen daily work receipt counts", "Live Resend acceptance", "Production release"]
+}

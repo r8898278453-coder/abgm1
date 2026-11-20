@@ -1582,6 +1582,11 @@
     },
     {
       "method": "POST",
+      "path": "/api/webhooks/resend/:companyId",
+      "owner": "server/salesEmailWebhook.ts#registerSalesEmailWebhook"
+    },
+    {
+      "method": "POST",
       "path": "/api/whatsapp/broadcast",
       "owner": "server.ts"
     },
@@ -1611,5 +1616,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 58
+  "registrationCount": 59
 }

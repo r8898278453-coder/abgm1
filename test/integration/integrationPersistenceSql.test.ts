@@ -1,5 +1,8 @@
+import {readInboxThread} from '../../server/crmInbox';
+import {parseSalesEmailReceipt,recordSalesEmailReceipt,readEmailWebhookSecret} from '../../server/salesEmailReceipts';
+import {platformDateKey} from '../../shared/dailyWorkReport';
 import {readSalesEmailReadiness,sendApprovedSalesEmail} from '../../server/tenantSalesEmail';
-import {saveContactPermission,saveSalesPolicy} from '../../server/salesWorkspace';
+import {readSalesInbox,readSalesReport,saveContactPermission,saveSalesPolicy} from '../../server/salesWorkspace';
 import {DEFAULT_SALES_POLICY} from '../../shared/salesWorkspace';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -20,7 +23,8 @@ try{
  stage='tenant-email-domain';
  const readStatus=(actor=owner)=>readTenantEmailDomainStatus(pool,actor,a);
  const domainId=crypto.randomUUID(),privateKey='re_PRIVATE_fixture_key',fromEmail='operator@example.invalid';
- const credentials={provider:'resend',resendDomainId:domainId,apiKey:privateKey,fromEmail};
+ const webhookSecret='whsec_'+crypto.randomBytes(32).toString('base64');
+ const credentials={provider:'resend',resendDomainId:domainId,apiKey:privateKey,fromEmail,resendWebhookSecret:webhookSecret};
  const save=(patch:Record<string,string>={})=>db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{...credentials,...patch}});
  const resetCooldown=()=>pool.query("DELETE FROM autonomous_audit_logs WHERE company_id=? AND event_type='AGENCY_TENANT_EMAIL_DOMAIN_CHECK_STARTED'",[a]);
  const json=(data:unknown)=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
@@ -124,7 +128,7 @@ try{
  await pool.query("INSERT INTO leads(id,company_id,name,phone,email,service,stage,source) VALUES (?,?,'Email fixture','',?,'Services','new','Referral')",[lead,a,recipient]);
  const command={requestKey:crypto.randomBytes(32).toString('hex'),recipient,senderCheckedAtMs:verified.checkedAtMs,subject:'Private fixture subject',text:'Private fixture plain text'};
  const dispatch=(c=command,send=transport)=>sendApprovedSalesEmail(pool,owner,a,lead,c,send);
- let sends=0,providerKey='';
+ let sends=0,providerKey='',providerId='';
  const transport:typeof fetch=async(url,options)=>{
   sends++;
   assert.equal(String(url),'https://api.resend.com/emails');
@@ -133,7 +137,8 @@ try{
   providerKey=new Headers(options?.headers).get('idempotency-key')||'';
   assert.match(providerKey,/^[a-f0-9]{64}$/);
   assert.deepEqual(JSON.parse(String(options?.body)),{from:fromEmail,to:[recipient],subject:command.subject,text:command.text});
-  return json({id:crypto.randomUUID()});
+  providerId=crypto.randomUUID();
+  return json({id:providerId});
  };
  delete process.env.ENABLE_TENANT_SALES_EMAIL;
  await assert.rejects(dispatch(),{code:'SALES_EMAIL_DISABLED'});
@@ -165,13 +170,70 @@ try{
  await saveContactPermission(pool,owner,a,{expectedVersion:'1',channel:'EMAIL',address:recipient,state:'OPTED_OUT',evidence:'Customer withdrew fixture consent'});
  await assert.rejects(dispatch({...command,requestKey:crypto.randomBytes(32).toString('hex')}),{code:'CONTACT_PERMISSION_REQUIRED'});
  assert.equal(sends,2);
+ stage='tenant-sales-email-receipts';
+ assert.equal(await readEmailWebhookSecret(pool,a),webhookSecret);
+ assert.equal(await readEmailWebhookSecret(pool,b),null);
+ const now=Date.now();
+ const receipt=(type:string,patch:Record<string,unknown>={},at=now)=>parseSalesEmailReceipt({
+  type,created_at:new Date(at).toISOString(),data:{email_id:providerId,from:fromEmail,to:[recipient],...patch}
+ },now)!;
+ const observe=(id:string,event:ReturnType<typeof receipt>)=>recordSalesEmailReceipt(pool,a,id,event,webhookSecret);
+ const sent=receipt('email.sent');
+ const concurrentReceipts=await Promise.all(Array.from({length:8},()=>observe('msg_sent',sent)));
+ assert.equal(concurrentReceipts.filter(result=>result==='recorded').length,1);
+ assert.equal(concurrentReceipts.filter(result=>result==='duplicate').length,7);
+ await assert.rejects(observe('msg_sent',receipt('email.delivered')),{code:'EMAIL_WEBHOOK_EVENT_CONFLICT'});
+ await assert.rejects(observe('msg_wrong_mailbox',receipt('email.delivered',{to:['other@example.invalid']})),{code:'EMAIL_WEBHOOK_DISPATCH_UNCONFIRMED'});
+ await assert.rejects(observe('msg_wrong_from',receipt('email.delivered',{from:'different@example.invalid'})),{code:'EMAIL_WEBHOOK_DISPATCH_UNCONFIRMED'});
+ await assert.rejects(observe('msg_missing_provider',receipt('email.delivered',{email_id:crypto.randomUUID()})),{code:'EMAIL_WEBHOOK_DISPATCH_UNCONFIRMED'});
+ await assert.rejects(observe('msg_too_early',receipt('email.delivered',{},now-400000)),{code:'EMAIL_WEBHOOK_DISPATCH_UNCONFIRMED'});
+ await assert.rejects(recordSalesEmailReceipt(pool,a,'msg_key_rotation',sent,'old-secret'),{code:'EMAIL_WEBHOOK_SECRET_CHANGED'});
+ await db.saveCompanyIntegration(b,'transactional_email',{status:'saved',credentials});
+ await assert.rejects(recordSalesEmailReceipt(pool,b,'msg_foreign',sent,webhookSecret),{code:'EMAIL_WEBHOOK_DISPATCH_UNCONFIRMED'});
+
+ assert.equal(await observe('msg_delivered',receipt('email.delivered')),'recorded');
+ assert.equal(await observe('msg_delivered_second',receipt('email.delivered',{},now+500)),'recorded');
+ assert.equal(await observe('msg_sent_late',receipt('email.sent',{},now+700)),'recorded');
+ const findEmail=async()=>((await readSalesInbox(pool,a)).messages as any[]).find(row=>row.emailDelivery);
+ assert.equal((await findEmail()).emailDelivery.state,'DELIVERED');
+ assert.equal((await findEmail()).emailDelivery.suppressed,false);
+ assert.equal((await findEmail()).metadata.emailSenderHash,undefined);
+ const thread=await readInboxThread(pool,a,lead,undefined,undefined,owner);
+ const threadEmail=thread.messages.find(row=>row.emailDelivery);
+ assert.equal(threadEmail?.emailDelivery.state,'DELIVERED');
+ assert.equal(threadEmail?.metadata.emailSenderHash,undefined);
+ assert.equal((await readSalesInbox(pool,b)).messages.length,0);
+ const report=await readSalesReport(pool,a,platformDateKey(now));
+ assert.equal(report.emailDelivery.SENT,1);
+ assert.equal(report.emailDelivery.DELIVERED,1);
+ assert.equal((await readSalesReport(pool,b,platformDateKey(now))).emailDelivery.DELIVERED,undefined);
+
+ await saveContactPermission(pool,owner,a,{expectedVersion:'2',channel:'EMAIL',address:recipient,state:'ALLOWED',evidence:'Explicit fixture consent restored'});
+ await observe('msg_transient',receipt('email.bounced',{bounce:{type:'Transient',message:'PRIVATE_REASON'}},now+1000));
+ assert.equal((await readSalesEmailReadiness(pool,owner,a,lead)).blocked,null);
+ assert.equal((await findEmail()).emailDelivery.state,'BOUNCED');
+ assert.equal((await findEmail()).emailDelivery.suppressed,false);
+ await observe('msg_delivered_after_transient',receipt('email.delivered',{},now+1500));
+ assert.equal((await findEmail()).emailDelivery.state,'DELIVERED');
+ await observe('msg_permanent',receipt('email.bounced',{bounce:{type:'Permanent'}}));
+ await observe('msg_complaint',receipt('email.complained'));
+ assert.equal((await findEmail()).emailDelivery.state,'COMPLAINED');
+ assert.equal((await findEmail()).emailDelivery.suppressed,true);
+ assert.equal((await readSalesEmailReadiness(pool,owner,a,lead)).blocked,'SALES_EMAIL_SUPPRESSED');
+ await assert.rejects(dispatch({...command,requestKey:crypto.randomBytes(32).toString('hex')}),{code:'SALES_EMAIL_SUPPRESSED'});
+ assert.equal(sends,2);
+ const [privateJournal]=await pool.query('SELECT * FROM sales_email_receipts WHERE company_id=?',[a]);
+ for(const forbidden of [recipient,fromEmail,webhookSecret,'PRIVATE_REASON',providerId,'msg_complaint']){
+  assert.equal(JSON.stringify(privateJournal).includes(forbidden),false);
+ }
+ console.log('Sales Email receipts SQL: duplicates and conflicts, exact accepted dispatch and tenant, sender and recipient fences, provider time, secret rotation, inbox status, IST aggregation, hard and soft bounce, independent suppression and privacy passed.');
  console.log('Sales Email SQL: default off, saved tenant sender, explicit consent and opt-out, exact approved recipient and observation, eight contenders, IST cap, inbox threading anchor, accepted receipt and no resend of uncertain outcomes passed.');
  console.log('Integration SQL: confirmed transactional save returns actual stable ID, genuine empty/missing reads, encrypted SMTP/login/API fields, null untested timestamp, tenant isolation, missing workspace refusal and affected-row deletion passed.');
 }catch(error:any){console.log(JSON.stringify({fixture:'integration-persistence',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/integrationPersistenceSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
 finally{
  delete process.env.ENABLE_TENANT_SALES_EMAIL;
  for(const id of [a,b]){
-  for(const table of ['message_dispatch_intents','sales_inbox_messages','sales_contact_permissions','sales_client_policies','leads','company_integrations','autonomous_audit_logs','company_profiles_data','client_operations','agency_clients']){
+  for(const table of ['sales_email_receipts','message_dispatch_intents','sales_inbox_messages','sales_contact_permissions','sales_client_policies','leads','company_integrations','autonomous_audit_logs','company_profiles_data','client_operations','agency_clients']){
    await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[id]);
   }
   await pool.query('DELETE FROM companies WHERE id=?',[id]);

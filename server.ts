@@ -1,3 +1,4 @@
+import {registerSalesEmailWebhook,salesEmailWebhookBodyParser} from './server/salesEmailWebhook';
 import {registerCalendarOAuthRoutes} from './server/calendarOAuthRoutes';
 import {registerCalendarPushCallback} from './server/calendarPush';
 import {calendarBinding,observeCalendar} from './server/bookingCalendar';
@@ -351,6 +352,7 @@ try {
   }
 }
 app.use('/api/whatsapp/webhook',whatsAppWebhookBodyParser);
+app.use('/api/webhooks/resend/:companyId',salesEmailWebhookBodyParser);
 app.use(
   express.json({
     limit: '5mb',
@@ -360,6 +362,7 @@ app.use(
   })
 );
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+registerSalesEmailWebhook(app,{pool:getDbPool});
 app.use(agencyRequestContext);
 registerAgencyRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 

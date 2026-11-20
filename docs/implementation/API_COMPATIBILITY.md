@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. `POST /api/webhooks/resend/:companyId` accepts signed Resend lifecycle evidence. The Sales inbox and CRM conversation add optional `emailDelivery` evidence and the IST Sales report adds `emailDelivery` counts. Existing API acceptance remains separate. See [Sales email delivery](SALES_EMAIL_DELIVERY.md).
+
 21 November 2026 IST. The saved CRM lead gains `GET /api/companies/:companyId/sales/leads/:leadId/email-readiness` and `POST /api/companies/:companyId/sales/leads/:leadId/send-email`. The POST binds one explicit approval to the reviewed recipient, sender observation, subject and plain text. Dispatch uses the existing intent ledger and is disabled by default. This adds email rows to the existing Sales inbox. [Client sales email](TENANT_SALES_EMAIL.md)
 
 21 November 2026 IST. `GET /api/companies/:companyId/tenant-email/domain-status` adds a private, read-only projection of the latest saved sender check. Verified snapshots include the observation time and expiry. Current non-verified states carry a state label only. The check command still returns its existing response shape. [Tenant email domain](TENANT_EMAIL_DOMAIN.md)

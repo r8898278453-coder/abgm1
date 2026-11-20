@@ -1,5 +1,7 @@
 # Implementation State
 
+21 November 2026 IST. P06-04, P01-05 and P09-01 advance through 28 locally testable email delivery work items. Signed Resend receipts bind to an accepted tenant dispatch, keep bounce and complaint suppression distinct from consent, and appear in the Sales inbox, private CRM conversation and IST Sales report. Migration 063 adds the receipt journal (107 tables). Reply threading, frozen daily accountability coverage, live Resend acceptance and release remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See SALES_EMAIL_DELIVERY.md.
+
 21 November 2026 IST. P06-04 advances with default-off Resend email for one saved CRM lead after exact operator review. The existing client consent, IST policy, dispatch ledger and Sales inbox are reused. Tenant reply threading, signed bounce/delivery evidence, workflow sequences and live acceptance remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_SALES_EMAIL.md.
 
 21 November 2026 IST. P06-04 advances with a reloadable clock-bounded Resend domain observation, saved-sender binding, current verifier authority and pending/inconclusive states. Only the latest check for the current settings can be displayed as verified. Tenant dispatch, signed reply and bounce intake, and live Resend validation remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.

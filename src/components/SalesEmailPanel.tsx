@@ -10,6 +10,7 @@ const blockedLabels:Record<string,string>={
  SALES_EMAIL_ACCESS_DENIED:'Sending requires both approval and execution permissions.',
  SALES_EMAIL_RECIPIENT_REQUIRED:'Add a valid email address to this lead.',
  SALES_EMAIL_IDENTITY_REVIEW_REQUIRED:'Review the lead’s email identity before sending.',
+ SALES_EMAIL_SUPPRESSED:'Delivery evidence blocks email to this contact.',
  CONTACT_PERMISSION_REQUIRED:'Save explicit email consent for this lead before sending.',
  SALES_EMAIL_VERIFICATION_REQUIRED:'Verify the sender domain in Integrations first.',
  GLOBAL_EMERGENCY_STOP:'The global stop is active.',

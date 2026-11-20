@@ -2,7 +2,7 @@
 
 Generated from TASKS.csv — 2026-11-21 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 062_appointment_outcomes; 106 canonical tables. Registered default regression programs: 158 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 063_sales_email_receipts; 107 canonical tables. Registered default regression programs: 159 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
 Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 62 / 16 / 1 / 14.
 

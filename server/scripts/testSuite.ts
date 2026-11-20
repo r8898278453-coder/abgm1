@@ -15,6 +15,7 @@ const programs=[
   "test/storefrontOrigin.test.ts",
   "test/releaseReadiness.test.ts",
   "test/tenantEmailRoutes.test.ts",
+  "test/salesEmailWebhook.test.ts",
   "test/retention.test.ts",
   "test/qualificationAssist.test.ts",
   "test/extraDeals.test.ts",

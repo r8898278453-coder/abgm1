@@ -1,0 +1,29 @@
+item,work,parent,verification
+ED01,Default-off callback activation,P06-04,HTTP
+ED02,Encrypted tenant signing-secret settings,P06-04,SQL
+ED03,Client-scoped webhook route and explicit query rejection,P06-04,HTTP
+ED04,64 KiB raw-body cap before JSON decoding,P06-04,HTTP
+ED05,Compressed body rejection,P06-04,HTTP
+ED06,Svix signature validation and signed-byte binding,P06-04,HTTP
+ED07,Past and future signature window checks,P06-04,HTTP
+ED08,Multiple supported signature candidates,P06-04,HTTP
+ED09,Out-of-scope event no-op,P06-04,HTTP
+ED10,Single-recipient and exact provider UUID validation,P06-04,HTTP
+ED11,Provider event time validation and attempt-age fence,P01-05,HTTP and SQL
+ED12,Tenant signing-secret rotation fence,P06-04,SQL
+ED13,Exact accepted dispatch match,P01-05,SQL
+ED14,Per-client correlation isolation,P06-04,SQL
+ED15,Exact saved recipient binding,P06-04,SQL
+ED16,Exact saved sender binding on new messages,P06-04,SQL
+ED17,Retryable missing or unconfirmed dispatch handling,P01-05,SQL
+ED18,Concurrent receipt dedupe,P01-05,SQL
+ED19,Changed evidence conflict for reused event ID,P01-05,SQL
+ED20,Private normalized receipt storage and redacted errors,P01-05,HTTP and SQL
+ED21,Out-of-order delivery projection and transient recovery,P01-05,SQL
+ED22,Complaint and permanent-bounce suppression,P06-04,SQL
+ED23,Transient bounce retains contact eligibility,P06-04,SQL
+ED24,Suppression enforced in readiness and dispatch,P06-04,SQL and browser
+ED25,Delivery evidence in Sales inbox,P01-05,SQL and browser
+ED26,Same private projection in contact conversation,P01-05,SQL
+ED27,Distinct delivery activity by IST date and event type,P09-01,SQL and browser
+ED28,Forward schema upgrade and incompatible-index refusal,P01-05,SQL and restore

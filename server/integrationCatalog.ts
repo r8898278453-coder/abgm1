@@ -128,6 +128,7 @@ export const INTEGRATION_CATALOG = [
           { key: 'smtpUser', label: 'SMTP Username / Auth Email', placeholder: 'noreply@yourdomain.com', secret: false, required: false },
           { key: 'smtpPass', label: 'SMTP Password / App Password', placeholder: '••••••••••••••••', secret: true, required: false },
           { key: 'apiKey', label: 'API Key / Token (if Resend/SendGrid/Postmark)', placeholder: 're_... or SG.... or token', secret: true, required: false },
+          { key: 'resendWebhookSecret', label: 'Resend Webhook Signing Secret', placeholder: 'whsec_…', secret: true, required: false },
           { key: 'resendDomainId', label: 'Resend Domain ID', placeholder: 'Domain ID from Resend', secret: false, required: false },
           { key: 'fromEmail', label: 'From Email Address', placeholder: 'noreply@aaditechs.in', secret: false, required: false },
           { key: 'fromName', label: 'From Display Name', placeholder: 'Aaditech Growth Solution', secret: false, required: false },

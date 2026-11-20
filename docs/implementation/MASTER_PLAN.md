@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+21 November 2026 IST. P06-04, P01-05 and P09-01 advance through 28 locally testable email delivery work items. Signed Resend receipts bind to an accepted tenant dispatch, keep bounce and complaint suppression distinct from consent, and appear in the Sales inbox, private CRM conversation and IST Sales report. Migration 063 adds the receipt journal (107 tables). Reply threading, frozen daily accountability coverage, live Resend acceptance and release remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See SALES_EMAIL_DELIVERY.md.
+
 21 November 2026 IST. P06-04 advances with default-off Resend email for one saved CRM lead after exact operator review. The existing client consent, IST policy, dispatch ledger and Sales inbox are reused. Tenant reply threading, signed bounce/delivery evidence, workflow sequences and live acceptance remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_SALES_EMAIL.md.
 
 21 November 2026 IST. P06-04 advances with a reloadable clock-bounded Resend domain observation, saved-sender binding, current verifier authority and pending/inconclusive states. Only the latest check for the current settings can be displayed as verified. Tenant dispatch, signed reply and bounce intake, and live Resend validation remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
@@ -171,7 +173,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.89 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.90 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

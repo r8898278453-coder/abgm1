@@ -1,3 +1,4 @@
+import {hasSalesEmailSuppression} from './salesEmailReceipts';
 import type {Pool} from 'mysql2/promise';
 import {salesEmailCommand,salesEmailReadiness} from '../shared/tenantSalesEmail';
 import {contactAddress,salesContactEligibility} from '../shared/salesWorkspace';
@@ -35,6 +36,7 @@ async function context(sql:ReadOnlySql,user:Actor,company:string,lead:string,cla
  const candidates=await leadCandidates(sql,company,'',recipient);
  if(candidates.length!==1||candidates[0].id!==lead)return {...result,blocked:'SALES_EMAIL_IDENTITY_REVIEW_REQUIRED'};
  const hash=contactHash('EMAIL',recipient);
+ if(await hasSalesEmailSuppression(sql,company,hash))return {...result,blocked:'SALES_EMAIL_SUPPRESSED'};
  const [[permission]]=await sql.query("SELECT state FROM sales_contact_permissions WHERE company_id=? AND channel='EMAIL' AND contact_hash=?",[company,hash]);
  const {policy}=await readSalesPolicy(sql,company);
  const [[clock]]=await sql.query('SELECT UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 nowMs');
@@ -91,7 +93,7 @@ export async function sendApprovedSalesEmail(pool:Pool,user:Actor,company:string
     await sql.query(`INSERT IGNORE INTO sales_inbox_messages
       (id,company_id,lead_id,channel,direction,contact_hash,provider_ref,dispatch_key,body,metadata_json)
       VALUES (?,?,?,'EMAIL','OUTBOUND',?,?,?,?,?)`,
-      [id,company,lead,contactHash('EMAIL',command.recipient),digest,digest,command.text,JSON.stringify({subject:command.subject})]);
+      [id,company,lead,contactHash('EMAIL',command.recipient),digest,digest,command.text,JSON.stringify({subject:command.subject,emailSenderHash:contactHash('EMAIL',latest.verified.sender.fromEmail)})]);
     return latest.verified.sender;
    }).catch(()=>null);
    if(!ready||!enabled()||isGlobalEmergencyStopActive())return {success:false,status:'PAUSED'};

@@ -1,3 +1,4 @@
+import {EMAIL_RECEIPT_COLUMNS,EMAIL_RECEIPT_TABLE} from '../server/migrations/063_sales_email_receipts';
 import {appointmentOutcomeColumns} from '../server/migrations/062_appointment_outcomes';
 import {calendarPushLifecycleColumns,calendarPushJobColumns} from '../server/migrations/061_calendar_push_lifecycle';
 import {calendarPushColumns} from '../server/migrations/060_calendar_push_channels';
@@ -136,6 +137,8 @@ class MockMySqlConnection {
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(BOOKING_TABLES,String(params?.[0])))return [Object.keys((BOOKING_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='calendar_push_channels')return [[...Object.keys(calendarPushColumns),...calendarPushLifecycleColumns].map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='calendar_push_jobs')return [calendarPushJobColumns.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]===EMAIL_RECEIPT_TABLE)return [Object.keys(EMAIL_RECEIPT_COLUMNS).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.includes("TABLE_NAME='"+EMAIL_RECEIPT_TABLE+"'"))return [[],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='sales_appointment_outcomes')return [Object.keys(appointmentOutcomeColumns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME='sales_appointment_outcomes'")||cleanSql.includes("INDEX_NAME='idx_booking_end'"))return [[],[]];
     if(cleanSql.includes("TABLE_NAME='calendar_push_channels'"))return [[],[]];
