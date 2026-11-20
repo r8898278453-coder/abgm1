@@ -1,0 +1,32 @@
+{
+  "date_ist": "2026-11-20",
+  "locally_validated": [
+    "P07-04"
+  ],
+  "advanced": [
+    "P07-05"
+  ],
+  "counts": {
+    "validated": 62,
+    "in_progress": 15,
+    "planned": 15,
+    "blocked": 1
+  },
+  "default_regressions": 157,
+  "native_sql": "passed including booking replay, rollback, cancellation and both provider send race orderings",
+  "browsers": [
+    "salesWorkspace",
+    "salesWorkflows",
+    "approvedSalesMessages"
+  ],
+  "restore": {
+    "migrations": 56,
+    "tables": 102,
+    "original_rows_preserved": true,
+    "original_ledger_preserved": true,
+    "repeat_applied": 0
+  },
+  "typescript": "passed",
+  "build": "passed",
+  "provider_calendar": "pending"
+}

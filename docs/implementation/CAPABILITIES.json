@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 61,
+    "validated": 62,
     "in_progress": 15,
-    "planned": 16,
+    "planned": 15,
     "blocked": 1
   },
   "total": 93,
@@ -225,7 +225,7 @@
         "P07-04",
         "P07-07"
       ],
-      "localAcceptance": "partial_or_pending",
+      "localAcceptance": "validated_local",
       "sourcePresent": true,
       "activation": "reviewed",
       "activationEvidence": "source_default_or_review_policy_only; runtime not inspected",
@@ -766,14 +766,14 @@
       "id": "P07-04",
       "phase": "P07",
       "title": "Handle reply opt-out booking and outcome exit races",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Pending steps cancelled; eligibility rechecked before side effect; stale worker fenced; unavoidable timing race recorded"
     },
     {
       "id": "P07-05",
       "phase": "P07",
       "title": "Integrate actual calendar availability booking and reminders",
-      "state": "planned",
+      "state": "in_progress",
       "acceptance": "External event ID required; concurrent slots/cancel/reschedule/timezones/reminder retries tested"
     },
     {

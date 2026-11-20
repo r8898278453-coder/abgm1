@@ -1,3 +1,4 @@
+import {readBookingEvidence,saveBookingEvidence} from './bookingEvidence';
 import {readFulfillment,saveFulfillment} from './retention';
 import {readQualificationHandoffs,changeQualificationHandoff} from './qualificationHandoffs';
 import {writeAdditionalDeal,readDealPortfolio} from './extraDeals';
@@ -21,6 +22,14 @@ import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOvervie
 export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('get',base+'/leads/:leadId/booking-evidence','read',(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'BOOKING_QUERY_INVALID');
+  return readBookingEvidence(pool,user,String(req.params.companyId),String(req.params.leadId));
+ });
+ route('post',base+'/leads/:leadId/booking-evidence','write',(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'BOOKING_QUERY_INVALID');
+  return saveBookingEvidence(pool,user,String(req.params.companyId),String(req.params.leadId),req.body);
+ });
  route('get',base+'/leads/:leadId/fulfillment','read',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'FULFILLMENT_QUERY_INVALID');return readFulfillment(p,u,String(r.params.companyId),String(r.params.leadId));});
  route('put',base+'/leads/:leadId/fulfillment','write',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'FULFILLMENT_QUERY_INVALID');return saveFulfillment(p,u,String(r.params.companyId),String(r.params.leadId),r.body);});
  route('get',base+'/qualification-handoffs','read',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'QUALIFICATION_QUERY_INVALID');return readQualificationHandoffs(p,u,String(r.params.companyId));});

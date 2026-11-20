@@ -1,5 +1,7 @@
 # Original-task closure review — 18 November 2026 IST
 
+20 November 2026 IST. P07-04 met local acceptance for the inquiry exit and send-race criteria. Versioned CRM appointment evidence cancels pending follow-up and prevents old workflows from resuming. P07-05 advances with operator-recorded confirmation, reschedule and cancellation. Live calendar availability, provider-created appointments, reminders and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. Schema 056 and 102 canonical tables. See BOOKING_EVIDENCE_AND_FOLLOWUPS.md.
+
 20 November 2026 IST. P05-11 and P06-08 met local acceptance. Google post dispatch reports unavailable before a provider attempt, Content Studio opens without an invented offer, and Integrations shows unavailable tenant email. Publishing, signed intake, receipts, consent, dedupe and approved WhatsApp reply contracts were verified in fixtures. Live provider evidence remains open. Tracker 61 validated, 13 in progress, 18 planned and one blocked. See MARKETING_CHANNEL_ACCEPTANCE.md.
 
 20 November 2026 IST. P09-07 and P09-08 met local acceptance. The workspace navigation collapses at mobile widths and the report and reply review use the available space. The three-client SQL and HTTP fixture verified separate dental clinic and manufacturing counts, an empty client and assigned-viewer access. Tracker 59 validated, 14 in progress, 19 planned and one blocked. See MOBILE_ACCOUNTABILITY_ACCEPTANCE.md.

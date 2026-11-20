@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. GET and POST /api/companies/:companyId/sales/leads/:leadId/booking-evidence expose per-lead appointment evidence. The POST command supports CONFIRM, RESCHEDULE and CANCEL with an expected revision and stable request key. Read and write permissions follow the sales workspace. Provider calendar operations require a separate connector.
+
 20 November2026 IST: agency sales-overview explicitly advances to model4/16 metrics. New private GET /api/companies/:companyId/agency-operations-detail exposes canonical capacity, provider/status metadata and declared currency-separated costs with current role checks. Overview validator/UI/CSV updated together. Frozen report V1–V4 unchanged.
 
 20 November2026 IST: live source-outcomes response explicitly advances to model2 with boundaryVersion, hasUntimedEvidence and sorted boundary evidenceIds. First/last source is withheld for linked untimed history. Canonical consumer/export updated together; frozen report V1–V4 unchanged. See ATTRIBUTION_BOUNDARY_V2.md.

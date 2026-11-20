@@ -1,5 +1,7 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+20 November 2026 IST. Forward migration 056 adds sales_booking_evidence with tenant-scoped request and revision uniqueness. The target is 102 canonical tables. Disposable restore preserved business rows and the original ledger. Repeating migration applied zero changes.
+
 20 November2026 IST: Forward055_developer_access adds four guarded key/subscription/event/delivery tables,101 canonical tables; next056. Historical001–054 and frozen report V4 unchanged. Canonical selected CRM audit/event/outbox writes are atomic; new code requires055. Negative shape/index checks and copied-export preservation/replay tested. No production migration performed.
 
 19 November2026 IST: Forward054_crm_identity adds4 tables (97 total), exact shape/index guards and no implicit historical backfill; next055. Historical001–053 and frozen report V4 unchanged. CRM_IDENTITY_AND_INBOX.md documents replay, storage and claim limits.

@@ -1,3 +1,4 @@
+import {saveBookingEvidence} from '../../server/bookingEvidence';
 import {recordMessageReceipt} from '../../server/messageDeliveryReceipts';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -44,9 +45,44 @@ try{
  assert.equal((await rows('SELECT status FROM job_queue WHERE id=?',[job.id]))[0].status,'SUCCEEDED');const recoveredEvents=(await rows("SELECT event_type FROM job_action_events WHERE job_id=? AND event_type='JOB_SUCCEEDED'",[job.id])).length;await recoverApprovedSalesMessages(pool);assert.equal((await rows("SELECT event_type FROM job_action_events WHERE job_id=? AND event_type='JOB_SUCCEEDED'",[job.id])).length,recoveredEvents);
  stage='recovery cannot steal a live lease';current=await nextReview();const liveLeaseApproval=await approve(current.t);job=await claim();let liveProof='';await executeApprovedSalesMessage(pool,job,{send:async(_sender,options)=>{calls++;liveProof=options.opaqueCallbackData!;return{success:false,status:'UNKNOWN'};}});await recordMessageReceipt(pool,company,{phoneNumberId:'123',providerId:'fixture-live-lease-reconciled',status:'sent',occurredAtMs:Date.now(),correlation:{proof:liveProof,recipient:'919999999999'}});await pool.query("UPDATE job_queue SET status='RUNNING',locked_by='other-current-worker',locked_at=NOW(),attempts=attempts+1 WHERE id=?",[job.id]);await recoverApprovedSalesMessages(pool);const owned=(await rows('SELECT status,locked_by FROM job_queue WHERE id=?',[job.id]))[0];assert.equal(owned.status,'RUNNING');assert.equal(owned.locked_by,'other-current-worker');assert.equal((await executeApprovedSalesMessage(pool,{...job,status:'RUNNING',locked_by:'other-current-worker',attempts:job.attempts+1},{send})).status,'SUCCEEDED');assert.equal(calls,5);assert.equal((await rows("SELECT id FROM job_queue WHERE company_id=? AND status='QUEUED'",[company])).length,0);
  stage='delivery failure cancels successor';current=await nextReview();const failedDelivery=await approve(current.t);job=await claim();await executeApprovedSalesMessage(pool,job,{send:async()=>{calls++;return{success:true,status:'API_ACCEPTED',messageId:'fixture-then-failed'};}});assert.equal((await rows("SELECT id FROM job_queue WHERE company_id=? AND status='QUEUED'",[company])).length,1);await recordMessageReceipt(pool,company,{phoneNumberId:'123',providerId:'fixture-then-failed',status:'failed',occurredAtMs:Date.now(),errorCode:131026});assert.equal((await rows("SELECT id FROM job_queue WHERE company_id=? AND status='QUEUED'",[company])).length,0);assert.equal((await rows('SELECT state,exit_reason FROM sales_workflow_enrollments WHERE id=?',[current.e.id]))[0].exit_reason,'OUTBOUND_DELIVERY_FAILED');assert.equal(calls,6);
+ stage='booking cancels unstarted provider send';
+ current=await nextReview();
+ const plannedSend=await approve(current.t);
+ job=await claim();
+ const appointmentStart=Date.now()+3600000;
+ await saveBookingEvidence(pool,user,company,leadId,{
+   operation:'CONFIRM',requestKey:key(),expectedVersion:'0',externalEventId:'reviewed-calendar-event',
+   startAt:new Date(appointmentStart).toISOString(),endAt:new Date(appointmentStart+1800000).toISOString(),
+ });
+ assert.equal((await rows('SELECT state,reason_code FROM sales_message_approvals WHERE id=?',[plannedSend.id]))[0].reason_code,'BOOKING_RECORDED');
+ const staleSend=await executeApprovedSalesMessage(pool,job,{send});
+ assert.notEqual(staleSend.status,'SUCCEEDED');
+ assert.equal(calls,6);
+ await saveBookingEvidence(pool,user,company,leadId,{operation:'CANCEL',requestKey:key(),expectedVersion:'1'});
+
+ stage='booking while provider response is in flight';
+ current=await nextReview();
+ const inFlight=await approve(current.t);
+ job=await claim();
+ let admittedTransportCalls=0;
+ await executeApprovedSalesMessage(pool,job,{send:async()=>{
+   admittedTransportCalls++;
+   await saveBookingEvidence(pool,user,company,leadId,{
+     operation:'CONFIRM',requestKey:key(),expectedVersion:'2',externalEventId:'inflight-calendar-event',
+     startAt:new Date(appointmentStart).toISOString(),endAt:new Date(appointmentStart+1800000).toISOString(),
+   });
+   return {success:true,status:'API_ACCEPTED',messageId:'fixture-booking-race'};
+ }});
+ assert.equal(admittedTransportCalls,1);
+ assert.equal((await rows('SELECT state FROM sales_message_approvals WHERE id=?',[inFlight.id]))[0].state,'API_ACCEPTED');
+ assert.equal((await rows('SELECT state,exit_reason FROM sales_workflow_enrollments WHERE id=?',[current.e.id]))[0].exit_reason,'BOOKING_RECORDED');
+ assert.equal((await rows("SELECT id FROM job_queue WHERE company_id=? AND status='QUEUED'",[company])).length,0);
+ await saveBookingEvidence(pool,user,company,leadId,{operation:'CANCEL',requestKey:key(),expectedVersion:'3'});
+ console.log('Booking send races: an unstarted send is fenced and one in-flight acceptance is retained without a successor.');
+
  stage='expiry';current=await nextReview();const expired=await approve(current.t);await pool.query('UPDATE sales_message_approvals SET expires_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE id=?',[expired.id]);await recoverApprovedSalesMessages(pool);assert.equal((await rows('SELECT state FROM sales_message_approvals WHERE id=?',[expired.id]))[0].state,'CANCELLED');assert.equal(calls,6);
  stage='stale-claim';current=await nextReview();const stale=await approve(current.t);job=await claim();await pool.query("UPDATE sales_message_approvals SET state='DISPATCHING',claim_token=?,claim_worker=?,claim_attempt=? WHERE id=?",[crypto.randomBytes(16).toString('hex'),job.locked_by,job.attempts,stale.id]);await pool.query('UPDATE job_queue SET locked_at=DATE_SUB(NOW(),INTERVAL 6 MINUTE) WHERE id=?',[job.id]);await recoverApprovedSalesMessages(pool);assert.equal((await rows('SELECT state FROM sales_message_approvals WHERE id=?',[stale.id]))[0].state,'UNKNOWN');assert.equal(calls,6);
  stage='history-privacy';const history=JSON.stringify(await readApprovedSalesMessages(pool,company));assert.ok(!history.includes('fixture-token'));assert.ok(!history.includes('claim_token'));assert.ok(!history.includes('senderFingerprint'));
  console.log('Approved sales SQL: transactional rollback,8-way approval/execution, default-off zero effects, one successor, sender rotation, reply cancellation, unknown quarantine, accepted reconciliation without successor, expiry, canonical Meta adapter with intercepted fetch, late reply acceptance without successor, stale claim quarantine and private history passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'approved-sales',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,300),line:e.stack?.match(/approvedSalesMessagesSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{if(savedFlag===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=savedFlag;for(const table of ['message_delivery_receipts','sales_message_approvals','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','autonomous_audit_logs','leads','company_integrations','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[owner]);await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[owner]);await pool.query('DELETE FROM users WHERE id=?',[owner]);await pool.end();}
+finally{if(savedFlag===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=savedFlag;for(const table of ['sales_booking_evidence','message_delivery_receipts','sales_message_approvals','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','autonomous_audit_logs','leads','company_integrations','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[owner]);await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[owner]);await pool.query('DELETE FROM users WHERE id=?',[owner]);await pool.end();}

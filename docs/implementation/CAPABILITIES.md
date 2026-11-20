@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 61, in progress 15, planned 16, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 62, in progress 15, planned 15, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -17,7 +17,7 @@ Original tasks: 93; validated 61, in progress 15, planned 16, blocked 1. Billing
 | CRM identity, opportunities, inbox and permission | partial_or_pending | reviewed; production unverified | Remaining identity merge, full channel delivery/threading and CRM/channel gate |
 | Tenant email sender and reply/bounce channel | partial_or_pending | off; production unverified | Dedicated tenant sender/verification/threading/receipt implementation; platform account mail is separate |
 | Grounded qualification and assigned human handoff | validated_local | reviewed; production unverified | Current approved facts/policy and authorized assignee; no invented commitments |
-| Versioned workflows and controlled execution | partial_or_pending | reviewed; production unverified | Current approvals/consent/window/stops; exact external sending default off |
+| Versioned workflows and controlled execution | validated_local | reviewed; production unverified | Current approvals/consent/window/stops; exact external sending default off |
 | External calendar availability and bookings | partial_or_pending | off; production unverified | Supported calendar adapter, external event IDs, authorized availability and real pilot |
 | Fulfillment-gated aftercare and repeat business | validated_local | reviewed; production unverified | Manual genuine fulfillment, consent, interval/cooldown and explicit reviewed enrollment |
 | Discovery, enrichment, sequences and optimization | partial_or_pending | off; production unverified | Declared research is not live discovery/enrichment; external adapters/permissions and scoped API gates remain |
@@ -90,8 +90,8 @@ Original tasks: 93; validated 61, in progress 15, planned 16, blocked 1. Billing
 | P07-01 | validated | Implement grounded qualification and sales handoff |
 | P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments |
 | P07-03 | validated | Execute workflow steps through existing queue and policy |
-| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races |
-| P07-05 | planned | Integrate actual calendar availability booking and reminders |
+| P07-04 | validated | Handle reply opt-out booking and outcome exit races |
+| P07-05 | in_progress | Integrate actual calendar availability booking and reminders |
 | P07-06 | validated | Add retention aftercare review-request and repeat-business templates |
 | P07-07 | validated | Expose review and bounded autopilot controls |
 | P07-08 | planned | Marketing-to-appointment pilot gate |

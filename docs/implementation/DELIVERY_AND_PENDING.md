@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+20 November 2026 IST. P07-04 met local acceptance for the inquiry exit and send-race criteria. Versioned CRM appointment evidence cancels pending follow-up and prevents old workflows from resuming. P07-05 advances with operator-recorded confirmation, reschedule and cancellation. Live calendar availability, provider-created appointments, reminders and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. Schema 056 and 102 canonical tables. See BOOKING_EVIDENCE_AND_FOLLOWUPS.md.
+
 20 November 2026 IST. Google account, location and review batch advances P05-01, P05-04 and P01-05. Exact scoped reads, complaint review, pre-write checks, verified reply read-back, tenant-safe concurrent Places dedupe and explicit unconfirmed import warnings are implemented. Live OAuth and complete review workflow acceptance remain open. Tracker 61 validated, 15 in progress, 16 planned and one blocked. See GOOGLE_REVIEW_ACCESS_AND_SYNC.md.
 
 20 November 2026 IST. P05-11 and P06-08 met local acceptance. Google post dispatch reports unavailable before a provider attempt, Content Studio opens without an invented offer, and Integrations shows unavailable tenant email. Publishing, signed intake, receipts, consent, dedupe and approved WhatsApp reply contracts were verified in fixtures. Live provider evidence remains open. Tracker 61 validated, 13 in progress, 18 planned and one blocked. See MARKETING_CHANNEL_ACCEPTANCE.md.

@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. The booking evidence branch requires schema 056. Verify forward migration and the previous binary compatibility before deploying. Use the isolated restore evidence in BOOKING_EVIDENCE_AND_FOLLOWUPS.md.
+
 20 November2026 IST: Developer rollout requires a new reviewed055/101 staging/canary package, backup/key-recovery proof and explicit DEVELOPER_WEBHOOKS_ENABLED configuration if delivery is desired. This flag remains unchanged/off. Verify receiver raw-body HMAC, clock tolerance and durable (company,event) dedupe before activation. Old binaries may reject055 ledger; additive schema is not a rollback guarantee. No production rollout executed.
 
 19 November2026 IST: CRM rollout requires a fresh reviewed forward054/97-table staging/canary package and backup/restore/key evidence. Older binaries may reject the newer migration ledger; additive DDL alone does not establish rollback compatibility. Production rollout has not occurred.

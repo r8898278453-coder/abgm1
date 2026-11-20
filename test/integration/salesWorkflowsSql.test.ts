@@ -1,3 +1,4 @@
+import {saveBookingEvidence} from '../../server/bookingEvidence';
 import {saveFulfillment} from '../../server/retention';
 import assert from 'node:assert/strict';import crypto from 'node:crypto';import express from 'express';
 import {saveSalesWorkflow,decideSalesWorkflow,enrollSalesWorkflow,executeSalesWorkflowJob,readSalesWorkflows,completeSalesWorkflowTask,stopSalesWorkflow,recoverSalesWorkflows} from '../../server/salesWorkflows';
@@ -25,6 +26,37 @@ try{
  stage='reply-exit';const reply=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());job=await claim();await executeSalesWorkflowJob(pool,job);await recordWhatsAppInboundLead(pool,company,'workflow-reply',lead,{body:'Please call me instead',kind:'text'});data=await snapshot();assert.equal(data.enrollments.find((e:any)=>e.id===reply.id)?.exit_reason,'CONTACT_REPLIED');assert.ok(data.tasks.filter((t:any)=>t.enrollment_id===reply.id).every((t:any)=>t.state==='CANCELLED'));
  stage='reply-review-race';const raced=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());job=await claim();await executeSalesWorkflowJob(pool,job);task=(await snapshot()).tasks.find((t:any)=>t.enrollment_id===raced.id)!;await Promise.allSettled([completeSalesWorkflowTask(pool,users.approver,company,task.id,{expectedVersion:task.version,enrollmentVersion:task.enrollmentVersion,decision:'COMPLETE_REVIEW',note:'Review racing a new reply'}),recordWhatsAppInboundLead(pool,company,'workflow-race-reply',lead,{body:'I have another question',kind:'text'})]);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===raced.id)?.state,'EXITED');
  stage='optout';const stop=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await recordWhatsAppInboundLead(pool,company,'workflow-optout',lead,{body:'STOP',kind:'text'});assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===stop.id)?.exit_reason,'CONTACT_OPTED_OUT');await assert.rejects(enrollSalesWorkflow(pool,users.staff,company,enrollmentBody()),{code:'WORKFLOW_PERMISSION_REQUIRED'});await saveContactPermission(pool,users.owner,company,{expectedVersion:'2',channel:'WHATSAPP',address:'+919999999999',state:'ALLOWED',evidence:'Customer explicitly opted in again'});permissionVersion='3';
+ stage='booking confirmation and workflow exit';
+ const bookingPath=`/api/companies/${company}/sales/leads/${leadId}/booking-evidence`;
+ assert.equal((await http('viewer',bookingPath,200)).booking,null);
+ await http('foreign',bookingPath,403);
+ const activeOnBooking=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());
+ const staleJob=await claim();
+ const future=new Date(Date.now()+3600000);
+ const end=new Date(future.getTime()+1800000);
+ const confirm={operation:'CONFIRM',requestKey:key(),expectedVersion:'0',externalEventId:'calendar-event-fixture',startAt:future.toISOString(),endAt:end.toISOString()};
+ await http('viewer',bookingPath,403,confirm);
+ await http('staff',bookingPath,400,{...confirm,startAt:end.toISOString(),endAt:future.toISOString()});
+ await assert.rejects(saveBookingEvidence(faultPool('audit'),users.staff,company,leadId,confirm));
+ assert.equal((await http('owner',bookingPath,200)).booking,null);
+ assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===activeOnBooking.id)?.state,'ACTIVE');
+ const confirmations=await Promise.all(Array.from({length:8},()=>http('staff',bookingPath,200,confirm)));
+ assert.equal(confirmations.filter(result=>result.reused===false).length,1);
+ assert.ok(confirmations.every(result=>result.booking.version==='1'));
+ assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===activeOnBooking.id)?.exit_reason,'BOOKING_RECORDED');
+ assert.notEqual((await executeSalesWorkflowJob(pool,staleJob)).status,'SUCCEEDED');
+ await assert.rejects(enrollSalesWorkflow(pool,users.staff,company,enrollmentBody()),{code:'BOOKING_RECORDED'});
+ await http('staff',bookingPath,409,{...confirm,externalEventId:'changed'});
+ await http('staff',bookingPath,409,{...confirm,operation:'RESCHEDULE',expectedVersion:'1',requestKey:key(),externalEventId:'different-event'});
+ const reschedule={...confirm,operation:'RESCHEDULE',expectedVersion:'1',requestKey:key(),startAt:new Date(future.getTime()+900000).toISOString()};
+ assert.equal((await http('staff',bookingPath,200,reschedule)).booking.version,'2');
+ const cancel={operation:'CANCEL',expectedVersion:'2',requestKey:key()};
+ assert.equal((await http('staff',bookingPath,200,cancel)).booking.state,'CANCELLED');
+ assert.equal((await http('staff',bookingPath,200,confirm)).booking.version,'1');
+ assert.equal((await http('viewer',bookingPath,200)).booking.version,'3');
+ assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===activeOnBooking.id)?.state,'EXITED');
+ console.log('Booking evidence SQL/HTTP: eight identical confirmations, rollback, stale worker fencing, reschedule/cancel CAS and no workflow revival passed.');
+
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});
  stage='orphan-recovery';const orphan=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE job_queue SET status='FAILED' WHERE id=?",[orphan.jobId]);await recoverSalesWorkflows(pool);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===orphan.id)?.exit_reason,'REVIEW_JOB_UNAVAILABLE');
@@ -51,4 +83,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+20 November 2026 IST. P07-04 met local acceptance for the inquiry exit and send-race criteria. Versioned CRM appointment evidence cancels pending follow-up and prevents old workflows from resuming. P07-05 advances with operator-recorded confirmation, reschedule and cancellation. Live calendar availability, provider-created appointments, reminders and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. Schema 056 and 102 canonical tables. See BOOKING_EVIDENCE_AND_FOLLOWUPS.md.
+
 20 November 2026 IST. Google account, location and review batch advances P05-01, P05-04 and P01-05. Exact scoped reads, complaint review, pre-write checks, verified reply read-back, tenant-safe concurrent Places dedupe and explicit unconfirmed import warnings are implemented. Live OAuth and complete review workflow acceptance remain open. Tracker 61 validated, 15 in progress, 16 planned and one blocked. See GOOGLE_REVIEW_ACCESS_AND_SYNC.md.
 
 20 November 2026 IST. P05-11 and P06-08 met local acceptance. Google post dispatch reports unavailable before a provider attempt, Content Studio opens without an invented offer, and Integrations shows unavailable tenant email. Publishing, signed intake, receipts, consent, dedupe and approved WhatsApp reply contracts were verified in fixtures. Live provider evidence remains open. Tracker 61 validated, 13 in progress, 18 planned and one blocked. See MARKETING_CHANNEL_ACCEPTANCE.md.
@@ -137,7 +139,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.72 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.73 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
