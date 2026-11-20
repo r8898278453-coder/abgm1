@@ -7,7 +7,19 @@ import {recordWhatsAppInboundLead} from '../../server/whatsAppInbound';import {c
 if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL identity required');
 const db=await import('../../server/db'),pool=await db.getDbPool();assert.ok(pool);const prefix='sw_'+crypto.randomBytes(6).toString('hex'),company=prefix+'_client',other=prefix+'_other',leadId=prefix+'_lead',users:any={},key=()=>crypto.randomBytes(32).toString('hex');let stage='setup';
 const definition={name:'Reviewed inquiry',trigger:'INQUIRY',steps:[{kind:'REVIEW_MESSAGE',delayMinutes:0,instructions:'Review this inquiry using current approved facts.'},{kind:'HUMAN_HANDOFF',delayMinutes:0,instructions:'Hand the saved context to a qualified human consultant.'}]};
-const app=express();app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+let calendarCalls=0;
+let rotateCalendar=false;
+const calendarId='clinic@group.calendar.google.com';
+const calendarCredentials={calendarId,accessToken:'calendar-token-fixture',expiresAt:new Date(Date.now()+86400000).toISOString()};
+const calendarTransport:typeof fetch=async(url,options)=>{
+ calendarCalls++;
+ assert.equal(String(url),'https://www.googleapis.com/calendar/v3/freeBusy');
+ assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer calendar-token-fixture');
+ const input=JSON.parse(String(options?.body));
+ if(rotateCalendar)await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:{...calendarCredentials,accessToken:'changed-token'}});
+ return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:[]}}});
+};
+const app=express();app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const http=async(user:string,url:string,status:number,body?:any)=>{const r=await fetch(origin+url,{method:body?'POST':'GET',headers:{Authorization:user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});assert.equal(r.status,status);assert.equal(r.headers.get('cache-control'),'no-store');return r.json();};
 const snapshot=()=>readSalesWorkflows(pool!,company);
 const claim=async()=>{const job=await claimSqlJob(pool!,'workflow-worker',['sales_workflow_review']);assert.ok(job);return job;};
@@ -26,6 +38,23 @@ try{
  stage='reply-exit';const reply=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());job=await claim();await executeSalesWorkflowJob(pool,job);await recordWhatsAppInboundLead(pool,company,'workflow-reply',lead,{body:'Please call me instead',kind:'text'});data=await snapshot();assert.equal(data.enrollments.find((e:any)=>e.id===reply.id)?.exit_reason,'CONTACT_REPLIED');assert.ok(data.tasks.filter((t:any)=>t.enrollment_id===reply.id).every((t:any)=>t.state==='CANCELLED'));
  stage='reply-review-race';const raced=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());job=await claim();await executeSalesWorkflowJob(pool,job);task=(await snapshot()).tasks.find((t:any)=>t.enrollment_id===raced.id)!;await Promise.allSettled([completeSalesWorkflowTask(pool,users.approver,company,task.id,{expectedVersion:task.version,enrollmentVersion:task.enrollmentVersion,decision:'COMPLETE_REVIEW',note:'Review racing a new reply'}),recordWhatsAppInboundLead(pool,company,'workflow-race-reply',lead,{body:'I have another question',kind:'text'})]);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===raced.id)?.state,'EXITED');
  stage='optout';const stop=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await recordWhatsAppInboundLead(pool,company,'workflow-optout',lead,{body:'STOP',kind:'text'});assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===stop.id)?.exit_reason,'CONTACT_OPTED_OUT');await assert.rejects(enrollSalesWorkflow(pool,users.staff,company,enrollmentBody()),{code:'WORKFLOW_PERMISSION_REQUIRED'});await saveContactPermission(pool,users.owner,company,{expectedVersion:'2',channel:'WHATSAPP',address:'+919999999999',state:'ALLOWED',evidence:'Customer explicitly opted in again'});permissionVersion='3';
+ stage='tenant calendar observation';
+ const calendarPath=`/api/companies/${company}/sales/leads/${leadId}/calendar-check`;
+ const window={kind:'AVAILABILITY',startAt:new Date(Date.now()+3600000).toISOString(),endAt:new Date(Date.now()+7200000).toISOString()};
+ await http('staff',calendarPath,409,window);
+ await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:calendarCredentials});
+ await http('viewer',calendarPath,403,window);
+ await http('foreign',calendarPath,403,window);
+ await http('staff',calendarPath,400,{...window,calendarId:'foreign-calendar'});
+ assert.equal(calendarCalls,0);
+ const observed=await http('staff',calendarPath,200,window);
+ assert.equal(observed.calendar.status,'FREE');
+ assert.ok(!JSON.stringify(observed).includes('calendar-token-fixture'));
+ rotateCalendar=true;
+ assert.equal((await http('staff',calendarPath,409,window)).error,'CALENDAR_CONNECTION_CHANGED');
+ assert.equal(calendarCalls,2);
+ console.log('Calendar SQL/HTTP: scoped configured calendar, viewer and foreign denial, no credential disclosure and rotation during provider call passed.');
+
  stage='booking confirmation and workflow exit';
  const bookingPath=`/api/companies/${company}/sales/leads/${leadId}/booking-evidence`;
  assert.equal((await http('viewer',bookingPath,200)).booking,null);
@@ -83,4 +112,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['company_integrations','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

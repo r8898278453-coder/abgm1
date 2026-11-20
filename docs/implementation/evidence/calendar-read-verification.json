@@ -1,0 +1,22 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": [
+    "P07-05",
+    "P02-07"
+  ],
+  "validated_count": 62,
+  "default_regressions": 158,
+  "native_sql": "passed with actual HTTP roles and credential rotation during intercepted provider call",
+  "browsers": [
+    "salesWorkspace",
+    "salesWorkflows",
+    "integrationIsolation"
+  ],
+  "typescript": "passed",
+  "build": "passed",
+  "provider_writes": 0,
+  "provider_fixture": "intercepted",
+  "live_acceptance": "pending",
+  "schema_migrations": 56,
+  "canonical_tables": 102
+}

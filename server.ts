@@ -1,3 +1,4 @@
+import {calendarBinding,observeCalendar} from './server/bookingCalendar';
 import {checkGoogleBusinessAccess} from './server/googleBusinessAccess';
 import {registerAgencyOperationsDetail} from './server/agencyOperationsDetail';
 import {registerDeveloperRoutes} from './server/developerRoutes';
@@ -1330,6 +1331,26 @@ app.post('/api/integrations/test', async (req, res) => {
           return;
         }
       }
+    }
+
+    if (provider === 'google_calendar') {
+      const binding = calendarBinding(credentials);
+      if (!binding) {
+        res.status(400).json(publicIntegrationCheck({ success: false }));
+        return;
+      }
+      const now = Date.now();
+      try {
+        await observeCalendar(binding, {
+          kind: 'AVAILABILITY',
+          startAt: new Date(now + 1000).toISOString(),
+          endAt: new Date(now + 61000).toISOString(),
+        }, fetch, now);
+        res.json(publicIntegrationCheck({ success: true }));
+      } catch {
+        res.status(400).json(publicIntegrationCheck({ success: false }));
+      }
+      return;
     }
 
     if (provider === 'google_gmb_oauth') {

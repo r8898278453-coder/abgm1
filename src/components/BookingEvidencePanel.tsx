@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiRequest, ApiRequestError, getStoredToken } from '../services/authService';
+import { calendarCheckResult } from '../../shared/bookingCalendar';
 import { formatPlatformDateTime } from '../../shared/platformTime';
+
+const istToIso = (value: string) => value + (value.length === 16 ? ':00' : '') + '+05:30';
+const toIstInput = (value: number) => new Date(value + 19800000).toISOString().slice(0,23).replace(/\.000$/, '');
 
 type Booking = {
   version: string;
@@ -28,9 +32,19 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [pending, setPending] = useState<Command | null>(null);
+  const [calendar, setCalendar] = useState<ReturnType<typeof calendarCheckResult.parse> | null>(null);
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarError, setCalendarError] = useState('');
+  const calendarRequest = useRef<AbortController | null>(null);
   const request = useRef<AbortController | null>(null);
   const acceptedSession = useRef<string | null | undefined>(undefined);
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    setCalendar(null);
+    setCalendarBusy(false);
+    setCalendarError('');
+    return () => calendarRequest.current?.abort();
+  }, [start, end, eventId, booking?.version]);
 
   const base = `/api/companies/${encodeURIComponent(companyId)}/sales/leads/${encodeURIComponent(leadId)}/booking-evidence`;
   function show(value: Booking | null, session: string | null) {
@@ -86,14 +100,46 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     }
   }
 
+  async function checkCalendar(kind: 'AVAILABILITY' | 'EVENT') {
+    const session = getStoredToken();
+    if (session !== acceptedSession.current || !canWrite) return;
+    calendarRequest.current?.abort();
+    const controller = new AbortController();
+    calendarRequest.current = controller;
+    setCalendar(null);
+    setCalendarError('');
+    setCalendarBusy(true);
+    const current = () => !controller.signal.aborted && getStoredToken() === session;
+    try {
+      const input = kind === 'AVAILABILITY'
+        ? { kind, startAt: istToIso(start), endAt: istToIso(end) }
+        : { kind, eventId: eventId.trim() };
+      const result = await apiRequest<{ success: boolean; companyId: string; calendar: unknown }>(
+        base.replace(/booking-evidence$/, 'calendar-check'),
+        { method:'POST', body: JSON.stringify(input), signal:controller.signal },
+      );
+      if (!current()) return;
+      const observed = calendarCheckResult.parse(result.calendar);
+      if (!result.success || result.companyId !== companyId || observed.kind !== kind) throw Error();
+      setCalendar(observed);
+    } catch (cause) {
+      if (!current()) return;
+      setCalendarError(cause instanceof ApiRequestError && cause.message === 'CALENDAR_CONNECTION_REQUIRED'
+        ? 'Save a current Google Calendar connection in Integrations.'
+        : 'Calendar evidence unavailable for this request.');
+    } finally {
+      if (current()) setCalendarBusy(false);
+    }
+  }
+
   function save(operation: Command['operation']) {
     if (busy || pending || !canWrite) return;
     const requestKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), value => value.toString(16).padStart(2,'0')).join('');
     const command: Command = { operation, requestKey, expectedVersion: booking?.version || '0' };
     if (operation !== 'CANCEL') {
       command.externalEventId = operation === 'RESCHEDULE' ? booking?.externalEventId : eventId.trim();
-      command.startAt = start + ':00+05:30';
-      command.endAt = end + ':00+05:30';
+      command.startAt = istToIso(start);
+      command.endAt = istToIso(end);
     }
     void call(command);
   }
@@ -115,11 +161,24 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
           <input className="block w-full" value={eventId} maxLength={255} onChange={e => setEventId(e.target.value)}/>
         </label>}
         <label className="block">Appointment start (IST)
-          <input className="block max-w-full" type="datetime-local" value={start} onChange={e => setStart(e.target.value)}/>
+          <input className="block max-w-full" type="datetime-local" step="0.001" value={start} onChange={e => setStart(e.target.value)}/>
         </label>
         <label className="block">Appointment end (IST)
-          <input className="block max-w-full" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)}/>
+          <input className="block max-w-full" type="datetime-local" step="0.001" value={end} onChange={e => setEnd(e.target.value)}/>
         </label>
+        <div className="flex flex-wrap gap-2">
+          <button disabled={calendarBusy || !start || !end} onClick={() => void checkCalendar('AVAILABILITY')}>Check calendar availability</button>
+          <button disabled={calendarBusy || !eventId.trim()} onClick={() => void checkCalendar('EVENT')}>Check calendar event</button>
+        </div>
+        {calendarError && <p role="alert">{calendarError}</p>}
+        {calendar && <div role="status">
+          {calendar.kind === 'AVAILABILITY' ? (
+            <p>{calendar.status === 'FREE' ? 'Calendar reported this window free' : 'Calendar reported a conflict'} · {formatPlatformDateTime(calendar.observedAtMs)} IST. Availability can change before booking.</p>
+          ) : <>
+            <p>Calendar confirmed this event · {formatPlatformDateTime(calendar.startAtMs)} to {formatPlatformDateTime(calendar.endAtMs)} IST.</p>
+            <button onClick={() => {setStart(toIstInput(calendar.startAtMs));setEnd(toIstInput(calendar.endAtMs));}}>Use calendar event times</button>
+          </>}
+        </div>}
         <button disabled={!start || !end || (!active && !eventId.trim())} onClick={() => save(active ? 'RESCHEDULE' : 'CONFIRM')}>
           {active ? 'Record external reschedule' : 'Record confirmed appointment'}
         </button>

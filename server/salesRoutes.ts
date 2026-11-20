@@ -1,3 +1,4 @@
+import {checkBookingCalendar} from './bookingCalendar';
 import {readBookingEvidence,saveBookingEvidence} from './bookingEvidence';
 import {readFulfillment,saveFulfillment} from './retention';
 import {readQualificationHandoffs,changeQualificationHandoff} from './qualificationHandoffs';
@@ -19,9 +20,13 @@ import type {Pool} from 'mysql2/promise';
 import {agencyClientAccess} from './agencyPolicy';
 import type {AgencyOperation} from '../shared/agency';
 import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOverview,saveSalesPolicy,saveContactPermission,saveOpportunity,saveQualification,importProspects,linkInboxLead,SalesError} from './salesWorkspace';
-export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>}){
+export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>;calendarTransport?:typeof fetch}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('post',base+'/leads/:leadId/calendar-check','write',(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
+  return checkBookingCalendar(pool,user.id,String(req.params.companyId),String(req.params.leadId),req.body,deps.calendarTransport);
+ });
  route('get',base+'/leads/:leadId/booking-evidence','read',(req,pool,user)=>{
   if(Object.keys(req.query).length)throw new SalesError(400,'BOOKING_QUERY_INVALID');
   return readBookingEvidence(pool,user,String(req.params.companyId),String(req.params.leadId));

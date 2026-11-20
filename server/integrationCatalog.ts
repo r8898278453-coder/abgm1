@@ -25,6 +25,19 @@ export const INTEGRATION_CATALOG = [
         ],
       },
       {
+        id: 'google_calendar',
+        name: 'Google Calendar',
+        category: 'Google',
+        icon: '📅',
+        description: 'Check availability and confirmed event times on a client calendar.',
+        docsUrl: 'https://developers.google.com/workspace/calendar/api/auth',
+        requiredFields: [
+          { key: 'calendarId', label: 'Calendar ID', placeholder: 'Calendar ID from Google Calendar settings', secret: false, required: true },
+          { key: 'accessToken', label: 'OAuth access token', placeholder: 'Token with calendar.readonly access', secret: true, required: true },
+          { key: 'expiresAt', label: 'Token expiry (ISO 8601)', placeholder: '2026-11-20T12:30:00+05:30', secret: false, required: true },
+        ],
+      },
+      {
         id: 'google_search_console',
         name: 'Google Search Console (API & Indexing)',
         category: 'Google',
