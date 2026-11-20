@@ -3,7 +3,7 @@ import { calendarRefreshCommand } from '../shared/bookingCalendar';
 import { crmHash, crmId } from '../shared/crmIdentity';
 import { canonicalJson } from '../shared/canonicalJson';
 import {
-  calendarHash, calendarProviderDate, readBookingCalendarBinding, readCreatedCalendarEvent, readGoogleCalendarEvent,
+  calendarHash, calendarProviderDate, calendarReconciliationClaimCurrent, readBookingCalendarBinding, readCreatedCalendarEvent, readGoogleCalendarEvent,
   type GoogleCalendarBinding,
 } from './bookingCalendar';
 import { latestBookingEvidence, saveBookingEvidence } from './bookingEvidence';
@@ -42,7 +42,7 @@ async function readCurrentTracking(sql: ReadOnlySql, company: string, lead: stri
 }
 
 export async function refreshCalendarBooking(
-  pool: Pool, user: { id: string }, company: string, lead: string, input: unknown, transport: typeof fetch = fetch,
+  pool: Pool, user: { id: string }, company: string, lead: string, input: unknown, transport: typeof fetch = fetch, syncClaim?: string,
 ) {
   const command = calendarRefreshCommand.safeParse(input);
   if (!command.success || !crmId.safeParse(company).success || !crmId.safeParse(lead).success) {
@@ -54,6 +54,9 @@ export async function refreshCalendarBooking(
     const { booking, eventId, origin } = await readCurrentTracking(sql, company, lead, expectedVersion);
     if (!origin || origin.calendarHash !== calendarHash(connection.binding.calendarId)) {
       throw new SalesError(409, 'CALENDAR_EVENT_NOT_TRACKED');
+    }
+    if (syncClaim && !await calendarReconciliationClaimCurrent(sql, company, origin.id, syncClaim)) {
+      throw new SalesError(409, 'CALENDAR_SYNC_LEASE_LOST');
     }
     const [pending] = await sql.query(
       `SELECT id FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW'
@@ -77,7 +80,7 @@ export async function refreshCalendarBooking(
   };
   const result = await saveBookingEvidence(pool, user, company, lead,
     { ...instruction, expectedVersion, requestKey: id },
-    { intentId: id, bindingFingerprint: connection.fingerprint, observedOriginId: origin.id });
+    { intentId: id, bindingFingerprint: connection.fingerprint, observedOriginId: origin.id, syncClaim });
   return { state: event.status === 'CANCELLED' ? 'CANCELLED' as const : 'RESCHEDULED' as const, version: result.booking.version };
 }
 

@@ -3,8 +3,8 @@ import {createWorkBudget,type WorkGate} from './workBudget';
 /** Cron responses expose operation counts, never per-job payloads/provider bodies or customer details. */
 export function dispatcherSummary(value:any){
  const summary:Record<string,unknown>={};
- for(const key of ['webhooksChecked','webhooksAcknowledged','webhooksDeferred','webhooksFailed','criticalAlertsAccepted','criticalCompaniesChecked','criticalAlertsFailed','criticalAlertsDeferred','reportCaptureRecoveryFailed','reportCapturesAdmitted','processed','admitted','skipped','failed','processedCount','succeededCount','failedCount','companiesProcessed','digestsSent','companiesSelected','companiesDeferred','failedCompanies','readTimeouts','workReportsUnavailable','companiesChecked','remindersSent','totalPendingReviews'])if(Number.isSafeInteger(value?.[key])&&value[key]>=0)summary[key]=value[key];
- for(const key of ['webhooksEnabled','criticalAlertsAvailable','available','deferred','reportCaptureAdmissionAvailable'])if(typeof value?.[key]==='boolean')summary[key]=value[key];
+ for(const key of ['calendarSyncChecked','calendarSyncChanged','calendarSyncDeferred','calendarSyncUnavailable','webhooksChecked','webhooksAcknowledged','webhooksDeferred','webhooksFailed','criticalAlertsAccepted','criticalCompaniesChecked','criticalAlertsFailed','criticalAlertsDeferred','reportCaptureRecoveryFailed','reportCapturesAdmitted','processed','admitted','skipped','failed','processedCount','succeededCount','failedCount','companiesProcessed','digestsSent','companiesSelected','companiesDeferred','failedCompanies','readTimeouts','workReportsUnavailable','companiesChecked','remindersSent','totalPendingReviews'])if(Number.isSafeInteger(value?.[key])&&value[key]>=0)summary[key]=value[key];
+ for(const key of ['calendarSyncEnabled','webhooksEnabled','criticalAlertsAvailable','available','deferred','reportCaptureAdmissionAvailable'])if(typeof value?.[key]==='boolean')summary[key]=value[key];
  if(value?.reason==='TICK_BUDGET_EXHAUSTED')summary.reason=value.reason;
  if(value?.error==='STAGE_FAILED')summary.error=value.error;
  return summary;

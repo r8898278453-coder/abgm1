@@ -1,3 +1,4 @@
+import { isGlobalEmergencyStopActive } from './executionStop';
 import type { Pool } from 'mysql2/promise';
 import { z } from 'zod';
 import { calendarCheck, calendarCheckResult } from '../shared/bookingCalendar';
@@ -46,6 +47,20 @@ export async function readCreatedCalendarEvent(sql: ReadOnlySql, company: string
     [company, lead, eventId],
   );
   return rows.length === 1 ? { id: String(rows[0].id), calendarHash: String(rows[0].calendar_hash) } : null;
+}
+
+export const calendarReconciliationEnabled = () => process.env.ENABLE_CALENDAR_RECONCILIATION === 'true';
+
+export async function calendarReconciliationClaimCurrent(
+  sql: ReadOnlySql, company: string, originId: string, token: string, lock = false,
+) {
+  if (!calendarReconciliationEnabled() || isGlobalEmergencyStopActive()) return false;
+  const [rows] = await sql.query(
+    `SELECT id FROM sales_calendar_intents WHERE company_id=? AND id=? AND operation='CREATE'
+      AND state='CONFIRMED' AND sync_claim=? AND sync_due_ms>UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000${lock?' FOR UPDATE':''}`,
+    [company, originId, token],
+  );
+  return rows.length === 1;
 }
 
 export async function calendarProviderJson(response: Response) {

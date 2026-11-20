@@ -1,3 +1,4 @@
+import {runCalendarReconciliation} from './calendarReconciliation';
 import {runDeveloperWebhookBatch} from './developerDelivery';
 import {runCriticalAlertsJob} from './criticalAlertScheduler';
 import {claimDispatcherTick,checkpointDispatcherStage,settleDispatcherTick} from './dispatcherStore';
@@ -307,7 +308,7 @@ export async function runSchedulerTick() {
     const claim=await claimDispatcherTick(pool);
     if(!claim)return {timestamp,available:true,status:'EXISTING',budget:{...budget.report(),deferredStages:[]}};
     admittedSlot=claim.slot;const tickTime=Number(BigInt(claim.slot)*60000n);
-    const stages={autoPublish:(gate:WorkGate)=>runAutoPublishJob(gate),queue:(gate:WorkGate)=>tickJobQueue(`scheduler_${process.pid}`,5,gate),outbox:async(gate:WorkGate)=>{const internal=await processInternalActionFeed(gate);const webhooks=await runDeveloperWebhookBatch(pool,gate);return{...internal,...webhooks,failed:(internal.failed||0)+webhooks.webhooksFailed};},digest:(gate:WorkGate)=>runDailyDigestJob(tickTime,gate),reminders:(gate:WorkGate)=>runHourlyReviewReminderJob(tickTime,gate)};
+    const stages={autoPublish:(gate:WorkGate)=>runAutoPublishJob(gate),queue:(gate:WorkGate)=>tickJobQueue(`scheduler_${process.pid}`,5,gate),outbox:async(gate:WorkGate)=>{const internal=await processInternalActionFeed(gate);const webhooks=await runDeveloperWebhookBatch(pool,gate);const calendar=await runCalendarReconciliation(pool,gate);return{...internal,...webhooks,...calendar,failed:(internal.failed||0)+webhooks.webhooksFailed+calendar.calendarSyncUnavailable};},digest:(gate:WorkGate)=>runDailyDigestJob(tickTime,gate),reminders:(gate:WorkGate)=>runHourlyReviewReminderJob(tickTime,gate)};
     const cycle=await runDispatcherCycle(claim.firstGroup,stages,(stage,state)=>checkpointDispatcherStage(pool,claim,stage,state),budget);
     await settleDispatcherTick(pool,claim,cycle.partial);
     return {timestamp,available:true,status:cycle.partial?'PARTIAL':'COMPLETED',slot:claim.slot,firstGroup:claim.firstGroup,stageStates:cycle.states,autoPublish:dispatcherSummary(cycle.results.autoPublish),queue:dispatcherSummary(cycle.results.queue),outbox:dispatcherSummary(cycle.results.outbox),notifications:{digest:dispatcherSummary(cycle.results.digest),reminders:dispatcherSummary(cycle.results.reminders)},budget:cycle.budget};

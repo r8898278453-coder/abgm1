@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. Roll forward to schema 059 with ENABLE_CALENDAR_RECONCILIATION=false. In an isolated workspace, verify dispatcher cadence, actor scope, latest booking revision and lease recovery before enabling background checks. See CALENDAR_RECONCILIATION.md.
+
 20 November 2026 IST. For the external Calendar refresh canary, move and cancel a single tracked event in an isolated Google test calendar. Verify CRM revision, stopped reminder, missing-event behavior and IST Sales report before enabling live sends. See CALENDAR_EXTERNAL_OBSERVATIONS.md.
 
 20 November 2026 IST. On a dedicated test workspace, exercise approved reminder review and cancellation after a change. Verify the existing WhatsApp sender and explicit permission, customer service window, review expiration and exact receipt states. See APPOINTMENT_REMINDER_WORKFLOW.md.

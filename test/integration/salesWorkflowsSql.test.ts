@@ -1,3 +1,4 @@
+import {runCalendarReconciliation} from '../../server/calendarReconciliation';
 import {checkReminderCalendarBeforeSend} from '../../server/calendarObservation';
 import {saveBookingEvidence} from '../../server/bookingEvidence';
 import {saveFulfillment} from '../../server/retention';
@@ -274,6 +275,64 @@ try{
  assert.deepEqual((await http('staff',refreshPath,200,{expectedVersion:'10'})).calendarRefresh,{state:'RESCHEDULED',version:'11'});
  assert.ok((await http('viewer',bookingPath,200)).booking.endAtMs<Date.now());
  console.log('External Calendar SQL/HTTP: scoped roles, missing and mismatched event evidence, unchanged and moved event, exact cancellation, stale revision, reminder exit, past move and GET-only provider traffic passed.');
+
+ stage='automatic calendar reconciliation';
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ const scheduledBooking={...newBooking,expectedVersion:'11',requestKey:key()};
+ const scheduled=(await http('staff',createPath,200,scheduledBooking)).calendarIntent;
+ assert.equal(scheduled.state,'CONFIRMED');
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ const bookingRev='12',originId=scheduled.requestId;
+ const poll=()=>runCalendarReconciliation(pool!,()=>true,calendarTransport);
+ const inspectSync=async()=>{
+  const [rows]:any=await pool!.query('SELECT sync_status,sync_claim,sync_failures,sync_due_ms FROM sales_calendar_intents WHERE company_id=? AND id=?',[company,originId]);
+  return rows[0];
+ };
+ const makeDue=()=>pool!.query('UPDATE sales_calendar_intents SET sync_due_ms=0 WHERE company_id=? AND id=?',[company,originId]);
+ assert.equal((await poll()).calendarSyncEnabled,false);
+ process.env.ENABLE_CALENDAR_RECONCILIATION='true';
+ assert.equal((await runCalendarReconciliation(pool,()=>false,calendarTransport)).calendarSyncChecked,0);
+ const beforePoll=calendarCalls;
+ const polls=await Promise.all(Array.from({length:8},poll));
+ assert.equal(polls.reduce((total,result)=>total+result.calendarSyncChecked,0),1);
+ assert.equal(calendarCalls-beforePoll,1);
+ assert.equal((await inspectSync()).sync_status,'UNCHANGED');
+ assert.equal((await http('staff',bookingPath,200)).booking.version,bookingRev);
+ assert.equal((await poll()).calendarSyncChecked,0);
+
+ await makeDue();
+ exposeEvent=false;
+ assert.equal((await poll()).calendarSyncUnavailable,1);
+ const unavailableSync=await inspectSync();
+ assert.equal(unavailableSync.sync_status,'UNAVAILABLE');
+ assert.equal(Number(unavailableSync.sync_failures),1);
+ assert.equal((await http('viewer',salesReportPath,200)).report.backlog.calendarReconciliationUnavailable,1);
+ assert.equal((await http('staff',bookingPath,200)).booking.version,bookingRev);
+ exposeEvent=true;
+ capturedEvent.start={dateTime:new Date(Date.parse(scheduledBooking.startAt)+900000).toISOString()};
+ capturedEvent.end={dateTime:new Date(Date.parse(scheduledBooking.endAt)+900000).toISOString()};
+ await makeDue();
+ const staleWorker:typeof fetch=async(url,request)=>{
+  const response=await calendarTransport(url,request);
+  await pool!.query('UPDATE sales_calendar_intents SET sync_claim=? WHERE company_id=? AND id=?',[key(),company,originId]);
+  return response;
+ };
+ await runCalendarReconciliation(pool,()=>true,staleWorker);
+ assert.equal((await http('staff',bookingPath,200)).booking.version,bookingRev);
+ await makeDue();
+ assert.equal((await poll()).calendarSyncChanged,1);
+ assert.equal((await http('staff',bookingPath,200)).booking.version,'13');
+ assert.equal((await inspectSync()).sync_claim,null);
+ assert.equal((await http('viewer',salesReportPath,200)).report.backlog.calendarReconciliationUnavailable,0);
+ capturedEvent={id:capturedEvent.id,status:'cancelled'};
+ await makeDue();
+ assert.equal((await poll()).calendarSyncChanged,1);
+ assert.equal((await http('staff',bookingPath,200)).booking.state,'CANCELLED');
+ const syncActivity=(await http('viewer',salesReportPath,200)).report.activity;
+ assert.equal(syncActivity.AGENCY_SALES_CALENDAR_SYNC_RESCHEDULE,1);
+ assert.equal(syncActivity.AGENCY_SALES_CALENDAR_SYNC_CANCEL,1);
+ delete process.env.ENABLE_CALENDAR_RECONCILIATION;
+ console.log('Automatic Calendar SQL: default-off and budget gates, eight contenders with one GET, unavailable backoff, stale claim fencing, restart recovery, automatic move/cancel and IST counts passed.');
 
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});

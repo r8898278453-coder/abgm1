@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. Live Sales reporting adds the calendarReconciliationUnavailable backlog count and automatic Google change activity. Dispatcher outbox summaries expose only batch counts and enabled status. See CALENDAR_RECONCILIATION.md.
+
 20 November 2026 IST. POST calendar-refresh adds a scoped read-back and CRM reconciliation using expectedVersion. It returns UNCHANGED, RESCHEDULED or CANCELLED with the observed CRM revision. The route reads Google and leaves provider writes under the existing separate flag. See CALENDAR_EXTERNAL_OBSERVATIONS.md.
 
 20 November 2026 IST. Existing workflow routes add the APPOINTMENT_REMINDER trigger with a bookingVersion and minutesBefore enrollment binding. Workflow reads expose due time, approval tasks expose appointment time and live Sales reporting adds a scoped open reminder count. See APPOINTMENT_REMINDER_WORKFLOW.md.

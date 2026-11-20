@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
-import { calendarHash, readBookingCalendarBinding, readCreatedCalendarEvent } from './bookingCalendar';
+import { calendarHash, calendarReconciliationClaimCurrent, readBookingCalendarBinding, readCreatedCalendarEvent } from './bookingCalendar';
 import { agencyAudit } from './agencyRoutes';
 import { agencyClientAccess } from './agencyPolicy';
 import { exitSalesWorkflows } from './salesWorkflowLifecycle';
@@ -61,7 +61,7 @@ export async function readBookingEvidence(pool: Pool, user: any, company: string
 
 export async function saveBookingEvidence(
   pool: Pool, user: any, company: string, lead: string, input: unknown,
-  calendar?: { intentId: string; bindingFingerprint: string; observedOriginId?: string },
+  calendar?: { intentId: string; bindingFingerprint: string; observedOriginId?: string; syncClaim?: string },
 ) {
   const parsed = bookingEvidenceCommand.safeParse(input);
   if (!parsed.success || !crmId.safeParse(lead).success) throw new SalesError(400, 'BOOKING_INPUT_INVALID');
@@ -96,6 +96,9 @@ export async function saveBookingEvidence(
       if (current.fingerprint !== calendar.bindingFingerprint || origin?.id !== calendar.observedOriginId ||
           origin.calendarHash !== calendarHash(current.binding.calendarId)) {
         throw new SalesError(409, 'CALENDAR_CONNECTION_CHANGED');
+      }
+      if (calendar.syncClaim && !await calendarReconciliationClaimCurrent(sql, canonicalCompany, origin.id, calendar.syncClaim, true)) {
+        throw new SalesError(409, 'CALENDAR_SYNC_LEASE_LOST');
       }
       observedCalendarHash = origin.calendarHash;
     } else if (calendar) {
@@ -150,7 +153,7 @@ export async function saveBookingEvidence(
       await sql.query("UPDATE sales_calendar_intents SET state='CONFIRMED' WHERE company_id=? AND id=?",
         [canonicalCompany, calendar.intentId]);
     }
-    await agencyAudit(sql, canonicalCompany, user.id, calendar?.observedOriginId ? 'SALES_CALENDAR_EXTERNAL_' + command.operation : calendar ? (command.operation === 'CONFIRM' ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_CALENDAR_' + command.operation + '_VERIFIED') : 'SALES_BOOKING_EVIDENCE_' + command.operation,
+    await agencyAudit(sql, canonicalCompany, user.id, calendar?.observedOriginId ? (calendar.syncClaim ? 'SALES_CALENDAR_SYNC_' : 'SALES_CALENDAR_EXTERNAL_') + command.operation : calendar ? (command.operation === 'CONFIRM' ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_CALENDAR_' + command.operation + '_VERIFIED') : 'SALES_BOOKING_EVIDENCE_' + command.operation,
       { leadId: lead, version, state, ...(calendar ? { calendarIntentId: calendar.intentId } : {}) });
     return {
       booking: publicBooking({version,state,external_event_id:eventId,start_at_ms:start,end_at_ms:end,confirmed_at_ms:now,calendar_verified:Boolean(calendar)}),

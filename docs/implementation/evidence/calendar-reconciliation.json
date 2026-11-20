@@ -1,0 +1,27 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P07-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "sql_coverage": [
+    "default-off, dispatcher budget and due-time admission",
+    "eight concurrent workers and one exact provider read",
+    "unavailable status, persisted failure count and retry delay",
+    "replaced claim fencing and expired claim recovery",
+    "automatic verified reschedules, cancellations and IST activity",
+    "unavailable tracked appointment count"
+  ],
+  "browsers": ["salesWorkspace", "salesWorkflows", "approvedSalesMessages"],
+  "default_regression_programs": 158,
+  "restore": {
+    "migrations": 59,
+    "canonical_tables": 103,
+    "business_rows_preserved": true,
+    "original_ledger_preserved": true,
+    "repeat_applied": 0,
+    "result": "passed"
+  },
+  "provider_transport": "intercepted",
+  "provider_method": "GET",
+  "live_provider_requests": 0,
+  "live_acceptance": "pending"
+}
