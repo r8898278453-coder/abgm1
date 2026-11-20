@@ -252,6 +252,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/calendar-oauth",
+      "owner": "server/calendarOAuthRoutes.ts#registerCalendarOAuthRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-oauth/begin",
+      "owner": "server/calendarOAuthRoutes.ts#registerCalendarOAuthRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/calendar-oauth/finish",
+      "owner": "server/calendarOAuthRoutes.ts#registerCalendarOAuthRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/calendar-plans",
       "owner": "server/calendarPlanRoutes.ts#registerCalendarPlanRoutes"
     },
@@ -1397,6 +1412,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/oauth/google-calendar/callback",
+      "owner": "server/calendarOAuthRoutes.ts#registerCalendarOAuthRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/posts",
       "owner": "server.ts"
     },
@@ -1561,5 +1581,5 @@
       "owner": "server.ts"
     }
   ],
-  "registrationCount": 57
+  "registrationCount": 58
 }

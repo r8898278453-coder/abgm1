@@ -1,3 +1,4 @@
+import { ensureCalendarOAuth } from './calendarOAuth';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import type { z } from 'zod';
 import { calendarChangeCommand, calendarCreateCommand } from '../shared/bookingCalendar';
@@ -95,6 +96,7 @@ async function writeCalendarAppointment(
   const hash = salesHash(canonicalJson({ ...command, company, lead, actorId: user.id }));
   const id = salesHash('calendar-intent:' + company + ':' + command.requestKey);
   const operation = 'operation' in command ? command.operation : 'CREATE';
+  if(calendarCreateEnabled()&&!isGlobalEmergencyStopActive())await ensureCalendarOAuth(pool,user.id,company,lead,transport);
   const begin = await withSalesLock(pool, user, company, 'write', async (sql, canonical) => {
     if (canonical !== company) throw new SalesError(404, 'CLIENT_NOT_FOUND');
     const connection = await readBookingCalendarBinding(sql, user.id, company, lead);
@@ -238,6 +240,7 @@ export async function reconcileCalendarAppointment(
 ) {
   checkScope(company, lead);
   if (!crmHash.safeParse(id).success) throw new SalesError(400, 'CALENDAR_INTENT_INVALID');
+  await ensureCalendarOAuth(pool,user.id,company,lead,transport);
   const intent = await withReadOnlySqlDeadline(pool, async sql => {
     await readBookingCalendarBinding(sql, user.id, company, lead);
     const [rows] = await sql.query('SELECT ' + intentColumns + ' FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND id=?', [company, lead, id]);

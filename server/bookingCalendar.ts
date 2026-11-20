@@ -1,3 +1,4 @@
+import { ensureCalendarOAuth } from './calendarOAuth';
 import { isGlobalEmergencyStopActive } from './executionStop';
 import type { Pool } from 'mysql2/promise';
 import { z } from 'zod';
@@ -14,12 +15,15 @@ export const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 const MAX_BYTES = 256 * 1024;
 const DAY_MS = 86400000;
 
+export function validCalendarId(id: unknown): id is string {
+  return typeof id==='string' && /^[A-Za-z0-9_.@+-]{1,255}$/.test(id) && !['.','..','primary'].includes(id);
+}
+
 export function calendarBinding(credentials: Record<string, unknown>, now = Date.now()) {
   const calendarId = credentials.calendarId;
   const token = credentials.accessToken;
   const expiresAt = credentials.expiresAt;
-  if (typeof calendarId !== 'string' || !/^[A-Za-z0-9_.@+-]{1,255}$/.test(calendarId) ||
-      ['.','..','primary'].includes(calendarId) || typeof token !== 'string' || !/^[!-~]{1,8192}$/.test(token) || token.includes('••••')) return null;
+  if (!validCalendarId(calendarId) || typeof token !== 'string' || !/^[!-~]{1,8192}$/.test(token) || token.includes('••••')) return null;
   const expiry = z.iso.datetime({ offset: true }).safeParse(expiresAt);
   if (!expiry.success || Date.parse(expiry.data) <= now) return null;
   return { calendarId, token, expiresAt: expiry.data };
@@ -161,7 +165,7 @@ export async function observeCalendar(
   }
 }
 
-export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: string, company: string, lead?: string) {
+export async function readCalendarCredentialSnapshot(sql: ReadOnlySql, actorId: string, company: string, lead?: string) {
   const [actors] = await sql.query('SELECT id,is_platform_admin FROM users WHERE id=?', [actorId]);
   const actor = actors[0];
   if (!actor || actor.id !== actorId || !(await agencyClientAccess(sql, {id: actor.id, is_platform_admin: Number(actor.is_platform_admin) === 1}, company, lead ? 'write' : 'manage')).authorized) {
@@ -175,17 +179,26 @@ export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: stri
     'SELECT id,status,credentials FROM company_integrations WHERE company_id=? AND provider=?',
     [company, CALENDAR_PROVIDER],
   );
-  if (rows.length !== 1 || !['saved','connected','verified'].includes(rows[0].status)) {
-    throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
-  }
+  if (rows.length > 1) throw new SalesError(409,'CALENDAR_CONNECTION_CONFLICT');
+  if (!rows.length) return null;
   const credentials = typeof rows[0].credentials === 'string' ? JSON.parse(rows[0].credentials) : rows[0].credentials;
+  return {id:String(rows[0].id),status:String(rows[0].status),credentials,
+    fingerprint:canonicalJson({id:rows[0].id,status:rows[0].status,credentials})};
+}
+
+export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: string, company: string, lead?: string) {
+  const snapshot=await readCalendarCredentialSnapshot(sql,actorId,company,lead);
+  if (!snapshot || !['saved','connected','verified'].includes(snapshot.status)) {
+    throw new SalesError(409,'CALENDAR_CONNECTION_REQUIRED');
+  }
+  const {credentials,fingerprint}=snapshot;
   const sealed = credentials?.accessToken;
   if (typeof sealed !== 'string' || !sealed.startsWith('enc:v1:')) {
     throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
   }
   const binding = calendarBinding({ ...credentials, accessToken: decryptCredential(sealed) });
   if (!binding) throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
-  return { binding, fingerprint: canonicalJson({ id: rows[0].id, status: rows[0].status, credentials }) };
+  return { binding, fingerprint };
 }
 
 export async function checkBookingCalendar(
@@ -196,6 +209,7 @@ export async function checkBookingCalendar(
   if (!command.success || !crmId.safeParse(company).success || !crmId.safeParse(lead).success) {
     throw new SalesError(400, 'CALENDAR_CHECK_INVALID');
   }
+  await ensureCalendarOAuth(pool,actorId,company,lead,transport);
   async function readBinding() {
     return withReadOnlySqlDeadline(pool, sql => readBookingCalendarBinding(sql, actorId, company, lead));
   }

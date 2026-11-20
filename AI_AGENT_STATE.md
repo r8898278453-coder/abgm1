@@ -1,5 +1,7 @@
 # AI Agent State
 
+20 November 2026 IST. P02-07 and P07-05 advance with a workspace-bound Google Calendar OAuth flow, one-use PKCE state, exact calendar probing, encrypted credentials and automatic token refresh through the existing credential lease. Booking, reconciliation, reminders and push lifecycle reuse the refreshed binding. Live Google consent and P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_OAUTH.md.
+
 20 November 2026 IST. P07-05 advances with default-off automatic Calendar channel renewal, atomic replacement, durable Google-side stops, and ambiguous-response recovery that preserves established channels and exact polling. Migration 061 adds lifecycle jobs. Live Google OAuth, callback and pilot acceptance remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_PUSH.md.
 
 20 November 2026 IST. P07-05 advances with scoped Google Calendar push registration, renewal eligibility, local disable, expiry, durable duplicate and order protection, and a bounded wake-up for exact event polling. Migration 060 adds the Calendar channel table. Live Google OAuth, public callback acceptance, and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_PUSH.md.

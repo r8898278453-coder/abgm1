@@ -1,3 +1,4 @@
+import {CalendarOAuthPanel} from './CalendarOAuthPanel';
 import {adSyncSummary} from '../../shared/integrationOutcomes';
 import {ExtensionDecisionsPanel} from './ExtensionDecisionsPanel';
 import {publicationDraftKey} from '../services/publicationDraftMemory';
@@ -444,6 +445,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {companyId&&<CalendarOAuthPanel key={'calendar-oauth:'+companyId} companyId={companyId} onConnected={()=>void fetchIntegrations()}/>}
       {/* Top Banner with Honest Status */}
       <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>

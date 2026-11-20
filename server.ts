@@ -1,3 +1,4 @@
+import {registerCalendarOAuthRoutes} from './server/calendarOAuthRoutes';
 import {registerCalendarPushCallback} from './server/calendarPush';
 import {calendarBinding,observeCalendar} from './server/bookingCalendar';
 import {checkGoogleBusinessAccess} from './server/googleBusinessAccess';
@@ -2033,6 +2034,7 @@ registerAgencyOperationsDetail(app,{auth:getAuthUserFromRequest,pool:getDbPool})
 registerDeveloperRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerCrmRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 registerSalesRoutes(app,{auth:getAuthUserFromRequest,pool:getDbPool});
+registerCalendarOAuthRoutes(app,{auth:getAuthUserFromRequest,token:verifyAuthToken,pool:getDbPool});
 registerGrowthOperations(app,{auth:getAuthUserFromRequest,pool:getDbPool});
 
 registerRenderRoutes(app,{auth:getAuthUserFromRequest,resolve:resolveUserCompanyId,access:verifyCompanyWorkspaceAccess,limiter:aiRateLimiter,uploadsRoot:UPLOADS_BASE_DIR});

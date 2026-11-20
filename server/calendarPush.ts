@@ -1,3 +1,4 @@
+import { ensureCalendarOAuth } from './calendarOAuth';
 import crypto from 'node:crypto';
 import type { Pool } from 'mysql2/promise';
 import type { Express, Request } from 'express';
@@ -69,6 +70,7 @@ export async function registerCalendarPushChannel(
   if (!allowed() || !address) throw new SalesError(409, 'CALENDAR_PUSH_UNAVAILABLE');
   const id=crypto.randomBytes(16).toString('hex');
   const token=crypto.randomBytes(32).toString('hex');
+  await ensureCalendarOAuth(pool,user.id,company,undefined,transport);
   const reservation=await withSalesLock(pool,user,company,'manage',async(sql,canonical)=>{
     if(canonical!==company)throw new SalesError(404,'CLIENT_NOT_FOUND');
     const connection=await readBookingCalendarBinding(sql,user.id,company);
@@ -237,6 +239,7 @@ export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,trans
     if(claim.affectedRows===1){
       let outcome='UNAVAILABLE';
       try{
+        await ensureCalendarOAuth(pool,stop.manager_id,stop.company_id,undefined,transport);
         const connection=await withReadOnlySqlDeadline(pool,sql=>readBookingCalendarBinding(sql,stop.manager_id,stop.company_id));
         if(allowed()&&calendarHash(connection.binding.calendarId)===stop.calendar_hash){
           outcome='UNKNOWN';

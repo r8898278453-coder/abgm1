@@ -1,3 +1,4 @@
+import { ensureCalendarOAuth } from './calendarOAuth';
 import type { Pool } from 'mysql2/promise';
 import { calendarRefreshCommand } from '../shared/bookingCalendar';
 import { crmHash, crmId } from '../shared/crmIdentity';
@@ -49,6 +50,7 @@ export async function refreshCalendarBooking(
     throw new SalesError(400, 'CALENDAR_REFRESH_INVALID');
   }
   const expectedVersion = command.data.expectedVersion;
+  await ensureCalendarOAuth(pool,user.id,company,lead,transport);
   const readTracking = () => withReadOnlySqlDeadline(pool, async sql => {
     const connection = await readBookingCalendarBinding(sql, user.id, company, lead);
     const { booking, eventId, origin } = await readCurrentTracking(sql, company, lead, expectedVersion);
@@ -88,6 +90,7 @@ export async function checkReminderCalendarBeforeSend(
   pool: Pool, actor: string, company: string, lead: string, version: string, transport: typeof fetch = fetch,
 ): Promise<string | null> {
   try {
+    await ensureCalendarOAuth(pool,actor,company,lead,transport);
     const tracking = await withReadOnlySqlDeadline(pool, async sql => {
       const { booking, eventId, origin } = await readCurrentTracking(sql, company, lead, version);
       if (!origin) {

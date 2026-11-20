@@ -1,0 +1,21 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P02-07","P07-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "sql_http_coverage": [
+    "manager and workspace scope",
+    "one-use state bound to the current session and PKCE challenge",
+    "grant rejected without both required scopes",
+    "selected calendar FreeBusy verification and sealed access and refresh tokens",
+    "one refresh across repeated calls after expiry",
+    "private callback response and removal of provider credentials from status"
+  ],
+  "browsers": ["integrationIsolation","salesWorkspace","approvedSalesMessages"],
+  "default_regression_programs": 158,
+  "schema_migrations": 61,
+  "canonical_tables": 105,
+  "new_migrations": 0,
+  "provider_transport": "intercepted",
+  "live_provider_requests": 0,
+  "live_acceptance": "pending"
+}

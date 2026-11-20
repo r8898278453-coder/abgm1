@@ -1,3 +1,4 @@
+import {registerCalendarOAuthRoutes} from '../../server/calendarOAuthRoutes';
 import {registerCalendarPushCallback,runCalendarPushLifecycle} from '../../server/calendarPush';
 import {runCalendarReconciliation} from '../../server/calendarReconciliation';
 import {checkReminderCalendarBeforeSend} from '../../server/calendarObservation';
@@ -23,9 +24,28 @@ let providerBusy=false;
 let watchedChannel:any,watchCalls=0,loseWatchAck=false;
 const watchResource='fixture-resource-1';
 const stoppedChannels:string[]=[];let loseStopAck=false;
+let oauthCodeCalls=0,oauthRefreshCalls=0,expectedChallenge='',grantReadOnly=false;
+const oauthScopes='https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.freebusy';
 const calendarTransport:typeof fetch=async(url,options)=>{
  calendarCalls++;
  const target=new URL(String(url));
+ if(target.href==='https://oauth2.googleapis.com/token'){
+  const data=new URLSearchParams(String(options?.body));
+  assert.equal(options?.method,'POST');
+  assert.equal(data.get('client_id'),'fixture-calendar-client');
+  assert.equal(data.get('client_secret'),'fixture-calendar-client-secret');
+  if(data.get('grant_type')==='authorization_code'){
+   oauthCodeCalls++;
+   assert.equal(data.get('redirect_uri'),'https://calendar-fixture.example.invalid/api/oauth/google-calendar/callback');
+   assert.equal(crypto.createHash('sha256').update(data.get('code_verifier')!).digest('base64url'),expectedChallenge);
+   return Response.json({access_token:'calendar-token-fixture',refresh_token:'calendar-refresh-fixture',
+     expires_in:3600,token_type:'Bearer',scope:grantReadOnly?'https://www.googleapis.com/auth/calendar.events.freebusy':oauthScopes});
+  }
+  assert.equal(data.get('grant_type'),'refresh_token');
+  assert.equal(data.get('refresh_token'),'calendar-refresh-fixture');
+  oauthRefreshCalls++;
+  return Response.json({access_token:'calendar-token-fixture',expires_in:3600,token_type:'Bearer'});
+ }
  assert.equal(target.origin,'https://www.googleapis.com');
  assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer calendar-token-fixture');
  const eventsPath='/calendar/v3/calendars/'+encodeURIComponent(calendarId)+'/events';
@@ -83,7 +103,11 @@ const calendarTransport:typeof fetch=async(url,options)=>{
  if(rotateCalendar)await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:{...calendarCredentials,accessToken:'changed-token'}});
  return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:providerBusy?[{start:input.timeMin,end:input.timeMax}]:[]}}});
 };
-const app=express();registerCalendarPushCallback(app,async()=>pool);app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+const app=express();registerCalendarPushCallback(app,async()=>pool);app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});registerCalendarOAuthRoutes(app,{
+ auth:async req=>users[String(req.headers.authorization).replace(/^Bearer /,'').split(':')[0]]||null,
+ token:value=>({jti:crypto.createHash('sha256').update(value).digest('hex').slice(0,32)}),
+ pool:async()=>pool,transport:calendarTransport});
+const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const http=async(user:string,url:string,status:number,body?:any)=>{const r=await fetch(origin+url,{method:body?'POST':'GET',headers:{Authorization:user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});assert.equal(r.status,status);assert.equal(r.headers.get('cache-control'),'no-store');return r.json();};
 const sendCalendarSignal=(number:string,state='exists',extra:Record<string,string>={})=>
  fetch(origin+'/api/webhooks/google-calendar',{method:'POST',headers:{
@@ -465,6 +489,58 @@ try{
  delete process.env.PUBLIC_APP_URL;
  console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, automatic renewal, exact stop CAS, old-channel continuity and ambiguous-ack fencing passed.');
 
+ stage='calendar OAuth authorization and refresh';
+ process.env.PUBLIC_APP_URL='https://calendar-fixture.example.invalid';
+ process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID='fixture-calendar-client';
+ process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET='fixture-calendar-client-secret';
+ const oauthPath=`/api/companies/${company}/calendar-oauth`;
+ const oauthHttp=(actor:string,path:string,status:number,body?:unknown)=>http('Bearer '+actor,path,status,body);
+ assert.equal((await oauthHttp('owner:main',oauthPath,200)).oauth.mode,'MANUAL');
+ await oauthHttp('staff:main',oauthPath+'/begin',403,{calendarId});
+ await oauthHttp('foreign:main',oauthPath+'/begin',403,{calendarId});
+ const invalidCalendar=await oauthHttp('owner:main',oauthPath+'/begin',400,{calendarId:'primary'});
+ assert.equal(invalidCalendar.error,'CALENDAR_OAUTH_INPUT_INVALID');
+ const beginOAuth=async()=>{
+  const result=(await oauthHttp('owner:main',oauthPath+'/begin',200,{calendarId})).oauth;
+  const consent=new URL(result.url);
+  assert.equal(consent.origin,'https://accounts.google.com');
+  assert.equal(consent.searchParams.get('scope'),oauthScopes);
+  assert.equal(consent.searchParams.get('state'),result.state);
+  assert.equal(consent.searchParams.get('code_challenge_method'),'S256');
+  assert.ok(!result.url.includes('fixture-calendar-client-secret'));
+  expectedChallenge=consent.searchParams.get('code_challenge')!;
+  return {code:'fixture-google-code',state:result.state};
+ };
+ const scopeAttempt=await beginOAuth();
+ await oauthHttp('owner:other-session',oauthPath+'/finish',409,scopeAttempt);
+ assert.equal(oauthCodeCalls,0);
+ grantReadOnly=true;
+ assert.equal((await oauthHttp('owner:main',oauthPath+'/finish',409,scopeAttempt)).error,'CALENDAR_OAUTH_SCOPE_REQUIRED');
+ grantReadOnly=false;
+ await oauthHttp('owner:main',oauthPath+'/finish',409,scopeAttempt);
+ const workingGrant=await beginOAuth();
+ await oauthHttp('owner:main',oauthPath+'/finish',200,workingGrant);
+ assert.equal(oauthCodeCalls,2);
+ const oauthStatus=await oauthHttp('owner:main',oauthPath,200);
+ assert.equal(oauthStatus.oauth.mode,'OAUTH');
+ assert.equal(oauthStatus.oauth.calendarId,calendarId);
+ const [sealedRows]:any=await pool.query("SELECT credentials FROM company_integrations WHERE company_id=? AND provider='google_calendar'",[company]);
+ const sealed=typeof sealedRows[0].credentials==='string'?JSON.parse(sealedRows[0].credentials):sealedRows[0].credentials;
+ assert.match(sealed.accessToken,/^enc:v1:/);assert.match(sealed.refreshToken,/^enc:v1:/);
+ assert.ok(!JSON.stringify(oauthStatus).includes('refresh_token'));
+ await pool.query("UPDATE company_integrations SET credentials=JSON_SET(credentials,'$.expiresAt','2020-01-01T00:00:00Z') WHERE company_id=? AND provider='google_calendar'",[company]);
+ await http('staff',calendarPath,200,window);
+ await http('staff',calendarPath,200,window);
+ assert.equal(oauthRefreshCalls,1);
+ const callback=await fetch(origin+'/api/oauth/google-calendar/callback?code=fixture-private-code');
+ assert.equal(callback.status,200);
+ assert.equal(callback.headers.get('referrer-policy'),'no-referrer');
+ assert.ok(!(await callback.text()).includes('fixture-private-code'));
+ delete process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID;
+ delete process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET;
+ delete process.env.PUBLIC_APP_URL;
+ console.log('Calendar OAuth SQL/HTTP: manager scope, session-bound one-use PKCE, required scopes, exact calendar probe, sealed credentials, automatic refresh and sanitized callback passed.');
+
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});
  stage='orphan-recovery';const orphan=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE job_queue SET status='FAILED' WHERE id=?",[orphan.jobId]);await recoverSalesWorkflows(pool);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===orphan.id)?.exit_reason,'REVIEW_JOB_UNAVAILABLE');
@@ -491,4 +567,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['oauth_states','oauth_refresh_locks','calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
