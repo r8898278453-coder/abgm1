@@ -1,3 +1,4 @@
+import {appointmentOutcomes,appointmentOutcomeColumns,appointmentOutcomeChecks} from './migrations/062_appointment_outcomes';
 import {calendarPushLifecycle,calendarPushLifecycleColumns,calendarPushJobColumns} from './migrations/061_calendar_push_lifecycle';
 import {calendarPushChannels,calendarPushColumns,calendarPushChecks} from './migrations/060_calendar_push_channels';
 import {calendarReconciliation,calendarReconciliationColumns,calendarReconciliationChecks} from './migrations/059_calendar_reconciliation';
@@ -94,6 +95,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  'sales_appointment_outcomes',
   'calendar_push_channels',
   'calendar_push_jobs',
   ...Object.keys(CALENDAR_WRITE_TABLES),
@@ -176,10 +178,11 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  sales_appointment_outcomes:['PRIMARY','uq_appointment_outcome_request','uq_appointment_outcome_revision'],
   calendar_push_jobs:['PRIMARY','idx_calendar_push_jobs_company','idx_calendar_push_jobs_due'],
   calendar_push_channels:['PRIMARY','uq_calendar_push_channel'],
   ...Object.fromEntries(Object.entries(CALENDAR_WRITE_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes),'idx_calendar_sync_due']])),
-  ...Object.fromEntries(Object.entries(BOOKING_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
+  ...Object.fromEntries(Object.entries(BOOKING_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes),'idx_booking_end']])),
   ...Object.fromEntries(Object.entries(DEVELOPER_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
   ...Object.fromEntries(Object.entries(CRM_IDENTITY_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
   ...Object.fromEntries(Object.entries(CALENDAR_PLAN_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes)]])),
@@ -241,6 +244,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  sales_appointment_outcomes:['PRIMARY','uq_appointment_outcome_request','uq_appointment_outcome_revision'],
   calendar_push_jobs:['PRIMARY'],
   calendar_push_channels:['PRIMARY','uq_calendar_push_channel'],
   ...Object.fromEntries(Object.entries(CALENDAR_WRITE_TABLES).map(([t,d])=>[t,['PRIMARY',...Object.keys(d.indexes).filter(n=>n.startsWith('uq_'))]])),
@@ -902,6 +906,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   calendarReconciliation,
   calendarPushChannels,
   calendarPushLifecycle,
+  appointmentOutcomes,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1292,6 +1297,12 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       for(const check of calendarReconciliationChecks){
        const [bad]:any=await conn.query(check.sql);
        if(bad.length)missingConstraints.push('calendar_reconciliation.shape');
+      }
+      const [outcomeColumns]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',['sales_appointment_outcomes']);
+      for(const name of Object.keys(appointmentOutcomeColumns))if(!outcomeColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('sales_appointment_outcomes.'+name);
+      for(const check of appointmentOutcomeChecks){
+       const [bad]:any=await conn.query(check.sql);
+       if(bad.length)missingConstraints.push('appointment_outcome.shape');
       }
       const [pushCols]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',['calendar_push_channels']);
       for(const name of [...Object.keys(calendarPushColumns),...calendarPushLifecycleColumns])if(!pushCols.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('calendar_push_channels.'+name);

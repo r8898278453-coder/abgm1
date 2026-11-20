@@ -1,3 +1,4 @@
+import {platformDayBounds} from '../../shared/dailyWorkReport';
 import {DEFAULT_BOOKING_POLICY} from '../../shared/bookingPolicy';
 import {registerCalendarOAuthRoutes} from '../../server/calendarOAuthRoutes';
 import {registerCalendarPushCallback,runCalendarPushLifecycle} from '../../server/calendarPush';
@@ -615,6 +616,60 @@ try{
  delete process.env.ENABLE_CALENDAR_CREATE;
  console.log('Booking policy SQL/HTTP: legacy saves preserve settings, duration/notice/horizon refuse, exact Google padding, unchanged event times, local buffer adjacency and policy-change write fencing passed.');
 
+ stage='appointment outcome history and effective IST report';
+ const outcomeLead=prefix+'_attendance';
+ await pool.query("INSERT INTO leads(id,company_id,name,phone,service,stage,source) VALUES (?,?,'Test','+919999999999','Consulting','new','Website contact form')",[outcomeLead,other]);
+ const yesterday=new Date(Date.now()+19800000-86400000).toISOString().slice(0,10);
+ const outcomeDay=platformDayBounds(yesterday);
+ const insertAppointment=(version:number,event:string,state:string,end:number)=>
+  pool!.query(`INSERT INTO sales_booking_evidence
+   (id,company_id,lead_id,actor_id,request_key,input_hash,revision,state,external_event_id,start_at_ms,end_at_ms,confirmed_at_ms)
+   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+   [crypto.randomUUID(),other,outcomeLead,users.foreign.id,key(),key(),version,state,event,end-3600000,end,end-7200000]);
+ await insertAppointment(1,'attended-event','CONFIRMED',outcomeDay.start+7200000);
+ await insertAppointment(2,'cancelled-event','CONFIRMED',outcomeDay.start+10800000);
+ await insertAppointment(3,'cancelled-event','CANCELLED',outcomeDay.start+10800000);
+ await insertAppointment(4,'boundary-event','CONFIRMED',outcomeDay.end);
+ await insertAppointment(5,'future-event','CONFIRMED',Date.now()+7200000);
+ await insertAppointment(6,'unrecorded-event','CONFIRMED',outcomeDay.start+14400000);
+ const outcomePath=`/api/companies/${other}/sales/leads/${outcomeLead}/appointment-outcomes`;
+ const reportPath=`/api/companies/${other}/sales/report?date=${yesterday}`;
+ const observedOutcome={bookingVersion:'1',expectedVersion:'0',requestKey:key(),outcome:'HELD',evidence:'Operator observed the consultation.'};
+ await http('owner',outcomePath,403);
+ await http('owner',outcomePath,403,observedOutcome);
+ const listed=(await http('foreign',outcomePath,200)).appointments;
+ assert.deepEqual(listed.map((item:any)=>item.bookingVersion),['4','6','1']);
+ await http('foreign',outcomePath,409,{...observedOutcome,bookingVersion:'2'});
+ await http('foreign',outcomePath,409,{...observedOutcome,bookingVersion:'5'});
+ const first=await Promise.all(Array.from({length:8},()=>http('foreign',outcomePath,200,observedOutcome)));
+ assert.equal(first.filter(row=>row.reused===false).length,1);
+ assert.ok(first.every(row=>row.version==='1'));
+ await http('foreign',outcomePath,409,{...observedOutcome,evidence:'Same request key with changed evidence.'});
+ const originalReport=(await http('foreign',reportPath,200)).report.appointmentOutcomes;
+ assert.deepEqual(originalReport.totals,{held:1,noShow:0,undetermined:0,unrecorded:1,superseded:0});
+ assert.equal(originalReport.byDeclaredSource.Website.held,1);
+ assert.ok(!JSON.stringify(originalReport).includes(observedOutcome.evidence));
+ await pool.query("UPDATE leads SET source='Google' WHERE company_id=? AND id=?",[other,outcomeLead]);
+ const correction={...observedOutcome,expectedVersion:'1',outcome:'NO_SHOW',evidence:'Operator corrected the initial attendance declaration.'};
+ const races=await Promise.all(Array.from({length:8},()=>fetch(origin+outcomePath,{method:'POST',
+  headers:{Authorization:'foreign','Content-Type':'application/json'},body:JSON.stringify({...correction,requestKey:key()})})));
+ assert.equal(races.filter(response=>response.status===200).length,1);
+ assert.equal(races.filter(response=>response.status===409).length,7);
+ const correctedReport=(await http('foreign',reportPath,200)).report.appointmentOutcomes;
+ assert.deepEqual(correctedReport.totals,{held:0,noShow:1,undetermined:0,unrecorded:1,superseded:0});
+ assert.equal(correctedReport.byDeclaredSource.Website.noShow,1);
+ assert.equal(correctedReport.byDeclaredSource.Google,undefined);
+ await insertAppointment(7,'attended-event','CANCELLED',outcomeDay.start+7200000);
+ const historical=(await http('foreign',outcomePath,200)).appointments.find((item:any)=>item.bookingVersion==='1');
+ assert.equal(historical.superseded,true);
+ await http('foreign',outcomePath,409,{...observedOutcome,expectedVersion:'2',requestKey:key()});
+ await http('foreign',outcomePath,200,{...observedOutcome,expectedVersion:'2',requestKey:key(),outcome:'UNDETERMINED'});
+ const withdrawn=(await http('foreign',reportPath,200)).report.appointmentOutcomes;
+ assert.equal(withdrawn.totals.undetermined,0);
+ assert.equal(withdrawn.totals.superseded,1);
+ assert.equal(withdrawn.totals.noShow,0);
+ console.log('Appointment outcomes SQL/HTTP: tenant fences, eligible historical versions, future/cancelled refusal, replay, 8-way CAS, IST boundaries, frozen source attribution, effective corrections and private notes passed.');
+
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['oauth_states','oauth_refresh_locks','calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['sales_appointment_outcomes','oauth_states','oauth_refresh_locks','calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
