@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. Sales policy accepts optional booking limits. Omission preserves stored limits and missing legacy data uses defaults. Availability can return WORKSPACE_BOOKINGS as the source of a busy result. Verify duration, notice, horizon and policy-change errors before accepting a slot.
+
 20 November 2026 IST. Calendar OAuth adds manager status, begin and finish endpoints plus a same-origin popup callback. Existing Calendar operations refresh eligible OAuth-backed credentials while the legacy manual credential format remains supported.
 
 20 November 2026 IST. Calendar push status adds automaticRenewal, renewalPending and stopState. Manual disable still takes effect locally immediately and also queues an exact provider stop for an unexpired confirmed channel.

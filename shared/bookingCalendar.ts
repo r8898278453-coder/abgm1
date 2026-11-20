@@ -7,11 +7,14 @@ export const calendarCheck = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('EVENT'), eventId: z.string().trim().regex(/^[A-Za-z0-9_-]{1,255}$/) }).strict(),
 ]);
 
-const common = { observedAtMs: z.number().int().nonnegative(), source: z.literal('GOOGLE_CALENDAR') };
+const observedAtMs = z.number().int().nonnegative();
 export const calendarCheckResult = z.discriminatedUnion('kind', [
-  z.object({ ...common, kind: z.literal('AVAILABILITY'), status: z.enum(['FREE','BUSY']) }).strict(),
   z.object({
-    ...common, kind: z.literal('EVENT'), status: z.literal('CONFIRMED'),
+    observedAtMs, kind:z.literal('AVAILABILITY'), status:z.enum(['FREE','BUSY']),
+    source:z.enum(['GOOGLE_CALENDAR','WORKSPACE_BOOKINGS']),
+  }).strict(),
+  z.object({
+    observedAtMs, source:z.literal('GOOGLE_CALENDAR'), kind: z.literal('EVENT'), status: z.literal('CONFIRMED'),
     startAtMs: z.number().int().positive(), endAtMs: z.number().int().positive(),
   }).strict(),
 ]);

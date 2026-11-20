@@ -1,3 +1,4 @@
+import {DEFAULT_BOOKING_POLICY} from '../../shared/bookingPolicy';
 import {registerCalendarOAuthRoutes} from '../../server/calendarOAuthRoutes';
 import {registerCalendarPushCallback,runCalendarPushLifecycle} from '../../server/calendarPush';
 import {runCalendarReconciliation} from '../../server/calendarReconciliation';
@@ -21,6 +22,7 @@ let eventPosts=0;
 let eventPatches=0,eventDeletes=0,rejectEtag=false,hideChanges=false;
 let oldEvent:any;
 let providerBusy=false;
+let lastFreeBusy:any,changePolicyOnRead:(()=>Promise<void>)|undefined;
 let watchedChannel:any,watchCalls=0,loseWatchAck=false;
 const watchResource='fixture-resource-1';
 const stoppedChannels:string[]=[];let loseStopAck=false;
@@ -101,6 +103,8 @@ const calendarTransport:typeof fetch=async(url,options)=>{
  assert.equal(String(url),'https://www.googleapis.com/calendar/v3/freeBusy');
  const input=JSON.parse(String(options?.body));
  if(rotateCalendar)await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:{...calendarCredentials,accessToken:'changed-token'}});
+ lastFreeBusy=input;
+ if(changePolicyOnRead)await changePolicyOnRead();
  return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:providerBusy?[{start:input.timeMin,end:input.timeMax}]:[]}}});
 };
 const app=express();registerCalendarPushCallback(app,async()=>pool);app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});registerCalendarOAuthRoutes(app,{
@@ -565,6 +569,52 @@ try{
  stage='http-roles';const base=`/api/companies/${company}/sales`;await http('unknown',base+'/workflows',401);await http('foreign',base+'/workflows',403);const viewed=await http('viewer',base+'/workflows',200);assert.equal(viewed.canWrite,false);assert.equal(viewed.canApprove,false);await http('staff',base+`/workflows/${workflowId}/decision`,403,{expectedVersion:'3',decision:'APPROVE',note:'Cannot self approve'});await http('owner',base+'/workflow-enrollments',400,{mode:'automatic'});
  stage='revoked-actor';await decideSalesWorkflow(pool,users.approver,company,workflowId,{expectedVersion:'3',decision:'APPROVE',note:'Reviewed edited version'});const revoked=await enrollSalesWorkflow(pool,users.staff,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.staff.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'ENROLLING_ACTOR_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===revoked.id)?.state,'EXITED');
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
+ stage='booking policy and buffered slot admission';
+ const slotLead=prefix+'_slot',blockedLead=prefix+'_blocked';
+ for(const item of [slotLead,blockedLead])await pool.query("INSERT INTO leads(id,company_id,name,phone,service,stage,source) VALUES (?,?,'Test','+919999999999','Consulting','new','Manual')",[item,other]);
+ await db.saveCompanyIntegration(other,'google_calendar',{status:'saved',credentials:calendarCredentials});
+ const bookingPolicy={...DEFAULT_BOOKING_POLICY,minimumMinutes:20,maximumMinutes:45,bufferBeforeMinutes:10,
+  bufferAfterMinutes:15,minimumNoticeMinutes:30,horizonDays:7};
+ await saveSalesPolicy(pool,users.foreign,other,{expectedVersion:'0',policy:{...DEFAULT_SALES_POLICY,booking:bookingPolicy}});
+ const {booking:_requirePreservation,...oldClientPolicy}=DEFAULT_SALES_POLICY;
+ assert.deepEqual((await saveSalesPolicy(pool,users.foreign,other,{expectedVersion:'1',policy:oldClientPolicy})).policy.booking,bookingPolicy);
+ const forSlot=(lead:string,action:string)=>`/api/companies/${other}/sales/leads/${lead}/${action}`;
+ const startMs=Date.now()+4*3600000;
+ const select=(offset:number,duration:number)=>({startAt:new Date(startMs+offset*60000).toISOString(),
+  endAt:new Date(startMs+(offset+duration)*60000).toISOString()});
+ const available=(offset:number,duration:number)=>({kind:'AVAILABILITY',...select(offset,duration)});
+ const create=(offset:number,duration:number)=>({requestKey:key(),expectedVersion:'0',...select(offset,duration)});
+ const beforePolicyCalls=calendarCalls;
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-check'),400,available(0,10))).error,'CALENDAR_DURATION_OUTSIDE_POLICY');
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-check'),400,available(0,60))).error,'CALENDAR_DURATION_OUTSIDE_POLICY');
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-check'),400,available(-220,30))).error,'CALENDAR_NOTICE_OR_HORIZON');
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-check'),400,available(8*24*60,30))).error,'CALENDAR_NOTICE_OR_HORIZON');
+ assert.equal(calendarCalls,beforePolicyCalls);
+ const readSlot=await http('foreign',forSlot(slotLead,'calendar-check'),200,available(0,30));
+ assert.equal(readSlot.calendar.status,'FREE');
+ assert.equal(lastFreeBusy.timeMin,new Date(startMs-10*60000).toISOString());
+ assert.equal(lastFreeBusy.timeMax,new Date(startMs+45*60000).toISOString());
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-create'),400,create(0,10))).error,'CALENDAR_DURATION_OUTSIDE_POLICY');
+ assert.equal((await http('foreign',forSlot(slotLead,'calendar-create'),200,create(0,30))).calendarIntent.state,'CONFIRMED');
+ assert.equal(capturedEvent.start.dateTime,select(0,30).startAt);
+ assert.equal(capturedEvent.end.dateTime,select(0,30).endAt);
+ const beforeConflict=calendarCalls;
+ assert.equal((await http('foreign',forSlot(blockedLead,'calendar-check'),200,available(54,30))).calendar.source,'WORKSPACE_BOOKINGS');
+ assert.equal((await http('foreign',forSlot(blockedLead,'calendar-create'),409,create(54,30))).error,'CALENDAR_LOCAL_CONFLICT');
+ assert.equal(calendarCalls,beforeConflict);
+ assert.equal((await http('foreign',forSlot(blockedLead,'calendar-check'),200,available(55,30))).calendar.status,'FREE');
+ const beforeChangedPolicyPosts=eventPosts;
+ changePolicyOnRead=async()=>{
+  changePolicyOnRead=undefined;
+  await saveSalesPolicy(pool,users.foreign,other,{expectedVersion:'2',policy:{...DEFAULT_SALES_POLICY,
+   booking:{...bookingPolicy,bufferAfterMinutes:20}}});
+ };
+ assert.equal((await http('foreign',forSlot(blockedLead,'calendar-create'),409,create(55,30))).error,'CALENDAR_POLICY_CHANGED');
+ assert.equal(eventPosts,beforeChangedPolicyPosts);
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ console.log('Booking policy SQL/HTTP: legacy saves preserve settings, duration/notice/horizon refuse, exact Google padding, unchanged event times, local buffer adjacency and policy-change write fencing passed.');
+
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
 finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['oauth_states','oauth_refresh_locks','calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

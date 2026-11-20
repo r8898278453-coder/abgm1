@@ -1,16 +1,16 @@
+import { calendarSlotConflicts, checkedCalendarSlot } from './calendarSlotPolicy';
 import { ensureCalendarOAuth } from './calendarOAuth';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import type { z } from 'zod';
 import { calendarChangeCommand, calendarCreateCommand } from '../shared/bookingCalendar';
 import { canonicalJson } from '../shared/canonicalJson';
 import { crmId, crmHash } from '../shared/crmIdentity';
-import { SalesError, salesHash, withSalesLock } from './salesWorkspace';
+import { readSalesPolicy, SalesError, salesHash, withSalesLock } from './salesWorkspace';
 import { calendarHash, googleCalendarEventUrl, googleCalendarRequest, observeCalendar, readBookingCalendarBinding, readCreatedCalendarEvent, readGoogleCalendarEvent } from './bookingCalendar';
 import { hasCurrentBooking, latestBookingEvidence, saveBookingEvidence } from './bookingEvidence';
 import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
 import { isGlobalEmergencyStopActive } from './executionStop';
 
-const dayMs = 86400000;
 export const calendarCreateEnabled = () => process.env.ENABLE_CALENDAR_CREATE === 'true';
 const bookingKey = (id: string) => salesHash('calendar-created-booking:' + id);
 type Command = z.infer<typeof calendarCreateCommand> | z.infer<typeof calendarChangeCommand>;
@@ -123,25 +123,13 @@ async function writeCalendarAppointment(
 
     const start = 'startAt' in command ? Date.parse(command.startAt) : Number(previous.start_at_ms);
     const end = 'endAt' in command ? Date.parse(command.endAt) : Number(previous.end_at_ms);
-    if (operation !== 'CANCEL' && (start <= now || end <= start || end - start > dayMs || end > now + 60 * dayMs)) {
-      throw new SalesError(400, 'CALENDAR_WINDOW_INVALID');
-    }
+    const policy = operation==='CANCEL'?null:(await readSalesPolicy(sql,company)).policy.booking;
+    const slot = policy?checkedCalendarSlot(policy,start,end,now):null;
     if (operation === 'RESCHEDULE' && start < Number(previous.end_at_ms) && end > Number(previous.start_at_ms)) {
       throw new SalesError(409, 'CALENDAR_RESCHEDULE_OVERLAPS_CURRENT');
     }
-    const [conflicts] = await sql.query<RowDataPacket[]>(`SELECT i.id FROM sales_calendar_intents i
-      WHERE i.company_id=? AND (
-        (i.state='PENDING_REVIEW' AND COALESCE(i.hold_until_ms,i.end_at_ms)>? AND i.lead_id=?)
-        OR (?<>'CANCEL' AND i.calendar_hash=? AND i.external_event_id<>? AND i.operation<>'CANCEL'
-          AND i.start_at_ms<? AND i.end_at_ms>? AND (
-            (i.state='PENDING_REVIEW' AND i.end_at_ms>?) OR
-            (i.state='CONFIRMED' AND NOT EXISTS (SELECT 1 FROM sales_calendar_intents newer
-              WHERE newer.company_id=i.company_id AND newer.lead_id=i.lead_id AND newer.external_event_id=i.external_event_id
-                AND newer.state='CONFIRMED' AND newer.expected_revision>i.expected_revision))
-          )
-        )
-      ) LIMIT 1`, [company, now, lead, operation, scope, eventId, end, start, now]);
-    if (conflicts.length) throw new SalesError(409, 'CALENDAR_LOCAL_CONFLICT');
+    const conflicts = await calendarSlotConflicts(sql,company,lead,scope,eventId,now,slot);
+    if (conflicts) throw new SalesError(409, 'CALENDAR_LOCAL_CONFLICT');
     const intent: Intent = {
       id, lead_id: lead, calendar_hash: scope, external_event_id: eventId, expectedVersion: command.expectedVersion,
       operation, state: 'PENDING_REVIEW', start_at_ms: start, end_at_ms: end,
@@ -152,7 +140,7 @@ async function writeCalendarAppointment(
       (id,company_id,lead_id,actor_id,request_key,input_hash,calendar_hash,external_event_id,expected_revision,state,start_at_ms,end_at_ms,operation,reminder_minutes,hold_until_ms)
       VALUES (?,?,?,?,?,?,?,?,?,'PENDING_REVIEW',?,?,?,?,?)`,
       [id, company, lead, user.id, command.requestKey, hash, scope, eventId, command.expectedVersion, start, end, operation, intent.reminder_minutes, holdUntil]);
-    return { intent, owner: true as const, connection, previous, originId: origin?.id };
+    return { intent, owner: true as const, connection, previous, originId: origin?.id,policy,slot };
   });
   const { intent } = begin;
   if (!begin.owner) return reconcile(pool, user, company, intent, transport);
@@ -172,13 +160,24 @@ async function writeCalendarAppointment(
       }
       etag = event.etag;
     }
-    if ('startAt' in command) {
-      const availability = await observeCalendar(begin.connection.binding,
-        { kind: 'AVAILABILITY', startAt: command.startAt, endAt: command.endAt }, transport);
+    if (begin.slot) {
+      const availability = await observeCalendar(begin.connection.binding, {
+        kind:'AVAILABILITY',startAt:new Date(begin.slot.checkStart).toISOString(),endAt:new Date(begin.slot.checkEnd).toISOString(),
+      }, transport, Date.now(), true);
       if (availability.status !== 'FREE') throw new SalesError(409, 'CALENDAR_SLOT_BUSY');
     }
     const current = await withSalesLock(pool, user, company, 'write', async sql => {
       await assertCanonicalLead(sql, company, lead);
+      if(begin.policy){
+        const current=(await readSalesPolicy(sql,company)).policy.booking;
+        if(canonicalJson(current)!==canonicalJson(begin.policy))throw new SalesError(409,'CALENDAR_POLICY_CHANGED');
+        const [clock]=await sql.query<RowDataPacket[]>('SELECT UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 nowMs');
+        const now=Number(clock[0].nowMs);
+        const slot=checkedCalendarSlot(current,Number(intent.start_at_ms),Number(intent.end_at_ms),now);
+        if(await calendarSlotConflicts(sql,company,lead,intent.calendar_hash,intent.external_event_id,now,slot,intent.id)){
+          throw new SalesError(409,'CALENDAR_LOCAL_CONFLICT');
+        }
+      }
       return readBookingCalendarBinding(sql, user.id, company, lead);
     });
     if (current.fingerprint !== begin.connection.fingerprint || !calendarCreateEnabled() || isGlobalEmergencyStopActive()) {

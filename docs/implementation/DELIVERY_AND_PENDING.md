@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+20 November 2026 IST. P07-05 advances with client-specific booking duration, padding, minimum notice and booking horizon. Availability and Calendar admission share the policy, exact event times are retained, and a changed policy fences the pending provider write. Existing policy records and older saves remain compatible. Live Calendar acceptance and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See BOOKING_SLOT_POLICY.md.
+
 20 November 2026 IST. P02-07 and P07-05 advance with a workspace-bound Google Calendar OAuth flow, one-use PKCE state, exact calendar probing, encrypted credentials and automatic token refresh through the existing credential lease. Booking, reconciliation, reminders and push lifecycle reuse the refreshed binding. Live Google consent and P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_OAUTH.md.
 
 20 November 2026 IST. P07-05 advances with default-off automatic Calendar channel renewal, atomic replacement, durable Google-side stops, and ambiguous-response recovery that preserves established channels and exact polling. Migration 061 adds lifecycle jobs. Live Google OAuth, callback and pilot acceptance remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_PUSH.md.

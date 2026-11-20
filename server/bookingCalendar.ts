@@ -1,3 +1,5 @@
+import { calendarSlotConflicts, readCalendarSlotPolicy } from './calendarSlotPolicy';
+import { latestBookingEvidence } from './bookingEvidence';
 import { ensureCalendarOAuth } from './calendarOAuth';
 import { isGlobalEmergencyStopActive } from './executionStop';
 import type { Pool } from 'mysql2/promise';
@@ -8,7 +10,7 @@ import { canonicalJson } from '../shared/canonicalJson';
 import { agencyClientAccess } from './agencyPolicy';
 import { decryptCredential } from './db';
 import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
-import { SalesError, salesHash } from './salesWorkspace';
+import { readSalesPolicy, SalesError, salesHash } from './salesWorkspace';
 
 export const CALENDAR_PROVIDER = 'google_calendar';
 export const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
@@ -99,7 +101,7 @@ type Check = z.infer<typeof calendarCheck>;
 
 export async function observeCalendar(
   binding: NonNullable<ReturnType<typeof calendarBinding>>, command: Check,
-  transport: typeof fetch = fetch, now = Date.now(),
+  transport: typeof fetch = fetch, now = Date.now(), buffered = false,
 ) {
   const headers = { Authorization: 'Bearer ' + binding.token };
   const request: RequestInit = { headers, redirect: 'error', signal: AbortSignal.timeout(6000) };
@@ -107,8 +109,9 @@ export async function observeCalendar(
     if (command.kind === 'AVAILABILITY') {
       const start = Date.parse(command.startAt);
       const end = Date.parse(command.endAt);
+      const maximumPadding = buffered ? 120 * 60000 : 0;
       if (!Number.isFinite(start) || !Number.isFinite(end) || start < now ||
-        end <= start || end - start > DAY_MS || end > now + 60 * DAY_MS) {
+        end <= start || end - start > DAY_MS + 2 * maximumPadding || end > now + 60 * DAY_MS + maximumPadding) {
         throw new SalesError(400, 'CALENDAR_WINDOW_INVALID');
       }
       const response = await transport(new URL(CALENDAR_API + '/freeBusy'), {
@@ -210,12 +213,36 @@ export async function checkBookingCalendar(
     throw new SalesError(400, 'CALENDAR_CHECK_INVALID');
   }
   await ensureCalendarOAuth(pool,actorId,company,lead,transport);
-  async function readBinding() {
-    return withReadOnlySqlDeadline(pool, sql => readBookingCalendarBinding(sql, actorId, company, lead));
+  const readBinding=()=>withReadOnlySqlDeadline(pool,sql=>readBookingCalendarBinding(sql,actorId,company,lead));
+  if(command.data.kind==='EVENT'){
+    const {binding,fingerprint}=await readBinding();
+    const result=await observeCalendar(binding,command.data,transport);
+    if((await readBinding()).fingerprint!==fingerprint)throw new SalesError(409,'CALENDAR_CONNECTION_CHANGED');
+    return {calendar:result};
   }
-
-  const { binding, fingerprint } = await readBinding();
-  const result = await observeCalendar(binding, command.data, transport);
-  if ((await readBinding()).fingerprint !== fingerprint) throw new SalesError(409, 'CALENDAR_CONNECTION_CHANGED');
-  return { calendar: result };
+  const requested=command.data;
+  const snapshot=await withReadOnlySqlDeadline(pool,async sql=>{
+    const connection=await readBookingCalendarBinding(sql,actorId,company,lead);
+    const {now,policy,slot}=await readCalendarSlotPolicy(sql,company,Date.parse(requested.startAt),Date.parse(requested.endAt));
+    const booking=await latestBookingEvidence(sql,company,lead);
+    const eventId=booking?.state==='CONFIRMED'&&Number(booking.end_at_ms)>now?booking.external_event_id:'';
+    const conflict=await calendarSlotConflicts(sql,company,lead,calendarHash(connection.binding.calendarId),eventId,now,slot);
+    return {connection,policy,slot,conflict,now};
+  });
+  if(snapshot.conflict){
+    return {calendar:calendarCheckResult.parse({kind:'AVAILABILITY',source:'WORKSPACE_BOOKINGS',status:'BUSY',observedAtMs:snapshot.now})};
+  }
+  const {binding,fingerprint}=snapshot.connection;
+  const result=await observeCalendar(binding,{
+    kind:'AVAILABILITY',startAt:new Date(snapshot.slot.checkStart).toISOString(),endAt:new Date(snapshot.slot.checkEnd).toISOString(),
+  },transport,Date.now(),true);
+  await withReadOnlySqlDeadline(pool,async sql=>{
+    if((await readBookingCalendarBinding(sql,actorId,company,lead)).fingerprint!==fingerprint){
+      throw new SalesError(409,'CALENDAR_CONNECTION_CHANGED');
+    }
+    if(canonicalJson((await readSalesPolicy(sql,company)).policy.booking)!==canonicalJson(snapshot.policy)){
+      throw new SalesError(409,'CALENDAR_POLICY_CHANGED');
+    }
+  });
+  return {calendar:result};
 }

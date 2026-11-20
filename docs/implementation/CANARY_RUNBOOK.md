@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. Verify booking duration, lead time, horizon and padded Google availability on a test calendar. Confirm exact event times and same-client buffer conflicts before enabling Calendar writes.
+
 20 November 2026 IST. Configure the exact Calendar OAuth callback on a dedicated Google OAuth web client and verify the selected test calendar, scopes, observable token expiry and successful refresh before enabling live booking or push operations.
 
 20 November 2026 IST. Roll forward to schema 061 with automatic renewal disabled. Verify confirmed replacement, old and new callback scope, exact channels.stop outcome, and fallback polling after both an ambiguous registration and an ambiguous stop on a dedicated test calendar.

@@ -1,3 +1,4 @@
+import { bookingSlot, DEFAULT_BOOKING_POLICY, type BookingPolicy } from '../../shared/bookingPolicy';
 import React, { useEffect, useRef, useState } from 'react';
 import { apiRequest, ApiRequestError, getStoredToken } from '../services/authService';
 import { calendarCheckResult } from '../../shared/bookingCalendar';
@@ -26,7 +27,7 @@ type Command = {
   endAt?: string;
 };
 
-export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string; canWrite: boolean }> = ({ companyId, leadId, canWrite }) => {
+export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string; canWrite: boolean; policy?: BookingPolicy }> = ({ companyId, leadId, canWrite, policy=DEFAULT_BOOKING_POLICY }) => {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     setCalendarBusy(false);
     setCalendarError('');
     return () => calendarRequest.current?.abort();
-  }, [start, end, eventId, booking?.version]);
+  }, [start, end, eventId, booking?.version, policy]);
 
   const base = `/api/companies/${encodeURIComponent(companyId)}/sales/leads/${encodeURIComponent(leadId)}/booking-evidence`;
   function show(value: Booking | null, session: string | null) {
@@ -240,6 +241,12 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     void call(command);
   }
 
+  const slot = start&&end ? bookingSlot(policy,Date.parse(istToIso(start)),Date.parse(istToIso(end)),Date.now()) : null;
+  const slotError = slot&&!slot.ok ? ({
+    CALENDAR_WINDOW_INVALID:'Choose a future start and an end after it.',
+    CALENDAR_DURATION_OUTSIDE_POLICY:'Appointment duration is outside the saved limits.',
+    CALENDAR_NOTICE_OR_HORIZON:'This time does not meet the booking notice, buffer or horizon.',
+  })[slot.reason] : '';
   const visible = loaded && acceptedSession.current === getStoredToken();
   const active = booking?.state === 'CONFIRMED' && booking.endAtMs > Date.now();
   const providerChangeEnabled = createEnabled && active && booking?.source === 'GOOGLE_CALENDAR_VERIFIED';
@@ -271,13 +278,14 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
           <input className="block max-w-full" type="datetime-local" step="0.001" value={end} onChange={e => setEnd(e.target.value)}/>
         </label>
         <div className="flex flex-wrap gap-2">
-          <button disabled={calendarBusy || !start || !end} onClick={() => void checkCalendar('AVAILABILITY')}>Check calendar availability</button>
+          <button disabled={calendarBusy || !slot?.ok} onClick={() => void checkCalendar('AVAILABILITY')}>Check calendar availability</button>
           <button disabled={calendarBusy || !eventId.trim()} onClick={() => void checkCalendar('EVENT')}>Check calendar event</button>
         </div>
+        {slotError&&<p>{slotError}</p>}
         {calendarError && <p role="alert">{calendarError}</p>}
         {calendar && <div role="status">
           {calendar.kind === 'AVAILABILITY' ? (
-            <p>{calendar.status === 'FREE' ? 'Calendar reported this window free' : 'Calendar reported a conflict'} · {formatPlatformDateTime(calendar.observedAtMs)} IST. Availability can change before booking.</p>
+            <p>{calendar.status === 'FREE' ? 'Calendar reported this window free' : calendar.source==='WORKSPACE_BOOKINGS' ? 'A saved booking or pending request conflicts with this window' : 'Calendar reported a conflict'} · {formatPlatformDateTime(calendar.observedAtMs)} IST. Availability can change before booking.</p>
           ) : <>
             <p>Calendar confirmed this event · {formatPlatformDateTime(calendar.startAtMs)} to {formatPlatformDateTime(calendar.endAtMs)} IST.</p>
             <button onClick={() => {setStart(toIstInput(calendar.startAtMs));setEnd(toIstInput(calendar.endAtMs));}}>Use calendar event times</button>
@@ -291,7 +299,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
             {[5, 15, 30, 60, 120].map(minutes => <option key={minutes} value={minutes}>{minutes} minutes before</option>)}
           </select>
         </label>}
-        {createEnabled && (!active || providerChangeEnabled) && calendar?.kind === 'AVAILABILITY' && calendar.status === 'FREE' && start && end &&
+        {createEnabled && (!active || providerChangeEnabled) && calendar?.kind === 'AVAILABILITY' && calendar.status === 'FREE' && slot?.ok &&
           <button onClick={() => void writeCalendar(active ? 'RESCHEDULE' : 'CREATE')}>
             {active ? 'Reschedule on Google Calendar' : 'Create appointment on Google Calendar'}
           </button>}
