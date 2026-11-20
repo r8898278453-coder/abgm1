@@ -1,0 +1,33 @@
+{
+  "date_ist": "2026-11-20",
+  "locally_validated": [
+    "P09-07",
+    "P09-08"
+  ],
+  "counts": {
+    "validated": 59,
+    "in_progress": 14,
+    "planned": 19,
+    "blocked": 1
+  },
+  "default_regressions": 157,
+  "browsers": [
+    "crmIdentity",
+    "clientReportPublic",
+    "clientReportPortal",
+    "workspaceIsolation",
+    "approvedSalesMessages",
+    "reportSnapshots",
+    "privatePwa"
+  ],
+  "viewports_px": {
+    "reply_approval": 375,
+    "owner_daily_report": 390,
+    "public_report": 375
+  },
+  "native_sql": "passed including actual report HTTP for dental, manufacturing and empty clients plus assigned viewer and foreign access",
+  "build": "passed",
+  "typescript": "passed",
+  "frontend_initial_bytes": 589128,
+  "frontend_initial_gzip_bytes": 171242
+}

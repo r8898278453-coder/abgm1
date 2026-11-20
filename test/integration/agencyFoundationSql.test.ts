@@ -1,14 +1,18 @@
+import {registerDailyWorkReport} from '../../server/dailyWorkReportRoutes';
+import {readDailyWorkReport} from '../../server/dailyWorkReport';
+import {createGrowthRecord} from '../../server/growthOperations';
+import {platformDayBounds} from '../../shared/dailyWorkReport';
 import {clientActiveForExecution} from '../../server/clientActivity';import {sendTenantTelegramAttempt} from '../../server/tenantNotifications';import {changeMetaCampaignStatus} from '../../server/metaAdsControl';
 import assert from 'node:assert/strict';import crypto from 'node:crypto';import express from 'express';import {registerAgencyRoutes} from '../../server/agencyRoutes';import {agencyClientAccess,clientArchived,attachOwnerAgency} from '../../server/agencyPolicy';import {generateAuthToken,getAuthUserFromRequest,verifyAuthToken} from '../../server/auth';import {registerSessionRoutes} from '../../server/sessionRoutes';import {reserveSecurityLimit,isSessionRevoked} from '../../server/securityStore';
 if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL identity required');
 const db=await import('../../server/db'),pool=await db.getDbPool();assert.ok(pool);const prefix='agency_'+crypto.randomBytes(7).toString('hex'),users:any={},tokens:Record<string,string>={},companies:string[]=[],agencies:string[]=[];let stage='identity',writeFault=false;
 const faultPool=new Proxy(pool,{get(target,key){if(key==='getConnection')return async()=>{const c=await target.getConnection();return new Proxy(c,{get(t,k){if(k==='query')return async(sql:string,args:any[])=>{if(sql.startsWith('INSERT INTO autonomous_audit_logs'))throw new Error('private audit fault');return t.query(sql,args);};const v=Reflect.get(t,k);return typeof v==='function'?v.bind(t):v;}});};const v=Reflect.get(target,key);return typeof v==='function'?v.bind(target):v;}});
-const app=express();app.use(express.json());registerAgencyRoutes(app,{auth:getAuthUserFromRequest,pool:async()=>writeFault?faultPool:pool});registerSessionRoutes(app,{auth:getAuthUserFromRequest,token:verifyAuthToken,pool:async()=>pool});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+const app=express();app.use(express.json());registerAgencyRoutes(app,{auth:getAuthUserFromRequest,pool:async()=>writeFault?faultPool:pool});registerSessionRoutes(app,{auth:getAuthUserFromRequest,token:verifyAuthToken,pool:async()=>pool});registerDailyWorkReport(app,{getAuthUserFromRequest,verifyCompanyWorkspaceAccess:(user,company)=>agencyClientAccess(pool,user,company,'read'),read:(company,date)=>readDailyWorkReport(pool,company,date)});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const call=async(actor:string|null,path:string,status:number,body?:any,method=body?'POST':'GET')=>{const response=await fetch(origin+path,{method,headers:{'Content-Type':'application/json',...(actor?{Authorization:'Bearer '+tokens[actor]}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.equal(response.status,status,`${method} ${path}`);return response.json();};
 try{
  const [identity]:any=await pool.query('SELECT @@hostname hostname');assert.equal(identity[0].hostname,process.env.LOCAL_SQL_CONTAINER_ID);
  for(const name of['owner','foreign','staff','approver','viewer']){const id=prefix+'_'+name;await pool.query("INSERT INTO users(id,email,password_hash,salt,full_name) VALUES (?,?,?,'fixture-salt','Fixture')",[id,id+'@example.invalid','fixture-hash']);users[name]=await db.findUserById(id);tokens[name]=generateAuthToken(users[name]);}
- for(const [name,owner]of [['a','owner'],['b','owner'],['c','foreign']]){const company=await db.createCompany({id:prefix+'_'+name,user_id:users[owner].id,name:'Client '+name,category:'Fixture',city:'Pune'});companies.push(company.id);}
+ for(const [name,owner]of [['a','owner'],['b','owner'],['c','foreign']]){const company=await db.createCompany({id:prefix+'_'+name,user_id:users[owner].id,name:'Client '+name,category:name==='a'?'Dental clinic':name==='b'?'Manufacturing':'Fixture',city:'Pune'});companies.push(company.id);}
  const [a,b,c]=companies,base=`/api/companies/${a}`;await call(null,'/api/agencies',401);const owned=await call('owner','/api/agencies',200);assert.equal(owned.agencies.length,1);const agency=owned.agencies[0].id;agencies.push(agency);const foreign=(await call('foreign','/api/agencies',200)).agencies[0].id;agencies.push(foreign);
 
  stage='agency-name';assert.equal(owned.agencies[0].canManage,true);await call('foreign',`/api/agencies/${agency}`,403,{expectedName:'Agency',name:'Foreign'},'PUT');await call('owner',`/api/agencies/${agency}`,400,{expectedName:'Agency',name:'  '},'PUT');writeFault=true;await call('owner',`/api/agencies/${agency}`,503,{expectedName:'Agency',name:'Rollback'},'PUT');writeFault=false;assert.equal((await call('owner','/api/agencies',200)).agencies[0].name,'Agency');await call('owner',`/api/agencies/${agency}`,200,{expectedName:'Agency',name:'Expert Agency'},'PUT');await call('owner',`/api/agencies/${agency}`,409,{expectedName:'Agency',name:'Stale'},'PUT');
@@ -31,6 +35,37 @@ try{
  }
  await call('owner', '/api/companies/'+c+'/locations', 403);
 
+ stage='daily report accountability';
+ const reportDate = '2026-11-15';
+ const {start} = platformDayBounds(reportDate);
+ for (const company of [a,b,b]) {
+   await createGrowthRecord(pool,users.owner,company,{
+     requestKey:crypto.randomBytes(32).toString('hex'),
+     kind:'COST',
+     input:{experimentId:null,amountMinor:500,currency:'INR',category:'TOOLS',sourceReference:'Fixture cost evidence',note:'Private test declaration'},
+   });
+ }
+ await pool.query(
+   "UPDATE autonomous_audit_logs SET timestamp=FROM_UNIXTIME(?) WHERE company_id IN (?,?) AND event_type = 'AGENCY_SALES_GROWTH_CREATED'",
+   [start/1000,a,b],
+ );
+ const workReport = (company:string) => '/api/companies/'+company+'/daily-work-report?date='+reportDate;
+ for (const [company,expected] of [[a,1],[b,2],[emptyClient,0]] as const) {
+   const {report}=await call('owner',workReport(company),200);
+   assert.equal(report.activity.growthCostsRecorded,expected);
+   assert.equal(report.timeZone,'Asia/Kolkata');
+   assert.equal(report.date,reportDate);
+   assert.ok(!JSON.stringify(report).includes('Private test declaration'));
+   if (company===emptyClient) {
+     assert.ok(Object.values(report.activity).every(count=>count===0));
+     assert.ok(Object.values(report.backlog).every(count=>count===0));
+   }
+ }
+ assert.equal((await call('viewer',workReport(a),200)).report.activity.growthCostsRecorded,1);
+ await call('viewer',workReport(b),403);
+ await call('viewer',workReport(emptyClient),403);
+ await call('foreign',workReport(a),403);
+
  stage='assignment-management';assert.equal((await call('owner',base+'/assignments',200)).assignments.length,3);await call('staff',base+'/assignments',403);await call('foreign',base+'/assignments',403);await call('foreign',base+'/assignments/'+users.viewer.id,403,undefined,'DELETE');writeFault=true;await call('owner',base+'/assignments/'+users.viewer.id,503,undefined,'DELETE');writeFault=false;assert.equal((await agencyClientAccess(pool,users.viewer,a,'read')).authorized,true);await call('owner',base+'/assignments/'+users.viewer.id,200,undefined,'DELETE');assert.equal((await agencyClientAccess(pool,users.viewer,a,'read')).authorized,false);assert.equal((await call('owner',`/api/agencies/${agency}/members`,200)).members.some((r:any)=>r.user_id===users.viewer.id),true);await call('owner',base+'/assignments/'+users.viewer.id,404,undefined,'DELETE');await call('owner',base+'/assignments',200,{userId:users.viewer.id,role:'VIEWER'},'PUT');
  stage='bounded-role-change';await call('owner',base+'/assignments',200,{userId:users.staff.id,role:'VIEWER'},'PUT');await call('owner',`/api/agencies/${agency}/members`,200,{userId:users.staff.id,role:'STAFF'},'PUT');assert.equal((await agencyClientAccess(pool,users.staff,a,'write')).authorized,false);await call('owner',base+'/assignments',200,{userId:users.staff.id,role:'STAFF'},'PUT');await call('owner',`/api/agencies/${agency}/members`,200,{userId:users.staff.id,role:'APPROVER'},'PUT');assert.equal((await agencyClientAccess(pool,users.staff,a,'approve')).authorized,false);assert.equal((await agencyClientAccess(pool,users.staff,a,'read')).authorized,true);await call('owner',`/api/agencies/${agency}/members`,200,{userId:users.staff.id,role:'STAFF'},'PUT');await call('owner',base+'/assignments',200,{userId:users.staff.id,role:'STAFF'},'PUT');
  stage='client-permissions';assert.equal((await agencyClientAccess(pool,users.staff,a,'write')).authorized,true);assert.equal((await agencyClientAccess(pool,users.staff,a,'approve')).authorized,false);assert.equal((await agencyClientAccess(pool,users.approver,a,'approve')).authorized,true);assert.equal((await agencyClientAccess(pool,users.approver,a,'execute')).authorized,false);assert.equal((await agencyClientAccess(pool,users.viewer,a,'read')).authorized,true);assert.equal((await agencyClientAccess(pool,users.viewer,a,'write')).authorized,false);assert.equal((await agencyClientAccess(pool,users.staff,b,'read')).authorized,false);assert.equal((await agencyClientAccess(pool,users.owner,c,'read')).authorized,false);assert.equal((await db.getUserCompanies(users.staff.id)).length,1);
@@ -47,4 +82,4 @@ try{
  stage='server-logout';const me=await call('owner','/api/auth/me',200);assert.ok(!JSON.stringify(me).includes('fixture-hash'));assert.ok(await getAuthUserFromRequest({headers:{authorization:'Bearer '+tokens.owner}} as any));assert.equal(await getAuthUserFromRequest({headers:{cookie:'session='+tokens.owner}} as any),null);await call('owner','/api/auth/logout',200,{});const payload=verifyAuthToken(tokens.owner)!;assert.equal(await isSessionRevoked(pool,payload.jti,users.owner.id),true);assert.equal(await getAuthUserFromRequest({headers:{authorization:'Bearer '+tokens.owner}} as any),null);await call('owner','/api/agencies',401);const fresh=generateAuthToken(users.owner);assert.ok(await getAuthUserFromRequest({headers:{authorization:'Bearer '+fresh}} as any));const [revoked]:any=await pool.query('SELECT token_hash FROM auth_revocations WHERE user_id=?',[users.owner.id]);assert.equal(revoked[0].token_hash.length,64);assert.ok(!JSON.stringify(revoked).includes(tokens.owner));
  console.log('Agency/security SQL: deterministic owner backfill/replay, case-safe owner protection, cross-agency/assigned role ceilings, membership downgrade/removal, persisted null geography, operation CAS/archive/no auto-resume, DB-clock12-way rate limit and hashed current-session revocation passed.');
 }catch(error:any){console.log(JSON.stringify({fixture:'agency-security',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/agencyFoundationSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const company of companies){for(const table of['company_integrations','autonomous_audit_logs','client_locations','client_assignments','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);}for(const agency of agencies){await pool.query('DELETE FROM autonomous_audit_logs WHERE company_id=?',[agency]);await pool.query('DELETE FROM agency_memberships WHERE agency_id=?',[agency]);await pool.query('DELETE FROM agencies WHERE id=?',[agency]);}for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM auth_revocations WHERE user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const company of companies){for(const table of['growth_operation_records','company_integrations','autonomous_audit_logs','client_locations','client_assignments','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);}for(const agency of agencies){await pool.query('DELETE FROM autonomous_audit_logs WHERE company_id=?',[agency]);await pool.query('DELETE FROM agency_memberships WHERE agency_id=?',[agency]);await pool.query('DELETE FROM agencies WHERE id=?',[agency]);}for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM auth_revocations WHERE user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

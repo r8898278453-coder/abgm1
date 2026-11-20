@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 57, in progress 15, planned 20, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 59, in progress 14, planned 19, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -111,8 +111,8 @@ Original tasks: 93; validated 57, in progress 15, planned 20, blocked 1. Billing
 | P09-04 | validated | Replace Telegram simulator with evidence-backed operations |
 | P09-05 | validated | Deliver optional client report and approval portal |
 | P09-06 | validated | Persist agency settings and decide white-label domain scope |
-| P09-07 | in_progress | Finish responsive mobile accessibility and operational UX |
-| P09-08 | planned | Agency accountability acceptance gate |
+| P09-07 | validated | Finish responsive mobile accessibility and operational UX |
+| P09-08 | validated | Agency accountability acceptance gate |
 | P10-01 | planned | Complete security privacy retention and key-recovery review |
 | P10-02 | planned | Benchmark hosting fairness rendering storage and client capacity |
 | P10-03 | validated | Optimize measured frontend and request bottlenecks |

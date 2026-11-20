@@ -197,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col flex-shrink-0 h-[calc(100vh-6rem)] sticky top-20 overflow-y-auto p-3 m-3 space-y-4">
+    <aside className="w-full lg:w-64 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col flex-shrink-0 max-h-[60vh] lg:max-h-none lg:h-[calc(100vh-6rem)] lg:sticky lg:top-20 overflow-y-auto p-3 lg:m-3 space-y-4">
       <section className="p-4 bg-slate-900 text-white rounded-2xl text-xs"><h2>Execution preference</h2><p>{isAutopilotOn?'Autopilot requested':'Autopilot paused'}</p><p>Saved preference is not proof of running work or business growth. Review recorded activity in the dashboard.</p></section>
       {companyId&&<ClientWorkGuide key={companyId} companyId={companyId} onNavigate={setCurrentTab} onPack={p=>{setPack(p);setShowAll(false);}}/>}
       {pack&&<label className="text-xs"><input type="checkbox" aria-label="Show all workspace tools" checked={showAll} onChange={e=>setShowAll(e.target.checked)}/>Show all workspace tools</label>}

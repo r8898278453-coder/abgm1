@@ -91,6 +91,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [viewMode, setViewMode] = useState<ViewMode>('web');
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [isAutopilotOn, setIsAutopilotOn] = useState<boolean>(false);
   const [isEmergencyPaused, setIsEmergencyPaused] = useState<boolean>(false);
   const [notificationsCount, setNotificationsCount] = useState<number>(0);
@@ -677,14 +678,24 @@ export default function App() {
 
 
       {/* Main View Shell with Bento Spacing */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 gap-6 items-start">
-        {/* Left Navigation Sidebar */}
+      <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 gap-4 lg:gap-6 items-start">
+        <button
+          type="button"
+          className="lg:hidden rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+          aria-expanded={mobileNavigationOpen}
+          aria-controls="workspace-navigation"
+          onClick={() => setMobileNavigationOpen(open => !open)}
+        >
+          Workspace navigation
+        </button>
+        <div id="workspace-navigation" className={mobileNavigationOpen ? 'w-full lg:contents' : 'hidden lg:contents'}>
         <Sidebar
           key={activeCompanyId||'no-client'}
           companyId={workspaceLoadState==='ready'?(activeCompanyId||undefined):undefined}
           currentTab={renderedTab as any}
           setCurrentTab={(tab) => {
             setActiveTab(tab as any);
+            setMobileNavigationOpen(false);
             if (viewMode === 'telegram' && tab !== 'telegram') {
               setViewMode('web');
             }
@@ -696,7 +707,8 @@ export default function App() {
         />
 
         {/* Content Area */}
-        <main className="flex-1 min-w-0">
+        </div>
+        <main className="w-full flex-1 min-w-0">
           {/* Emergency Alert Banner if activated */}
           {isEmergencyPaused && (
             <div className="mb-6 bg-rose-50 border border-rose-200 rounded-3xl p-5 flex items-center justify-between shadow-xs">

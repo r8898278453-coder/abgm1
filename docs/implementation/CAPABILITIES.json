@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 57,
-    "in_progress": 15,
-    "planned": 20,
+    "validated": 59,
+    "in_progress": 14,
+    "planned": 19,
     "blocked": 1
   },
   "total": 93,
@@ -913,14 +913,14 @@
       "id": "P09-07",
       "phase": "P09",
       "title": "Finish responsive mobile accessibility and operational UX",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Owner approvals/inbox/reports usable mobile; accessible forms; clear stale/errors; no private offline cross-client cache"
     },
     {
       "id": "P09-08",
       "phase": "P09",
       "title": "Agency accountability acceptance gate",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Two different-industry clients and empty client produce accurate isolated daily reports; owner/client/mobile journeys pass"
     },
     {

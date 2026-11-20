@@ -1,5 +1,7 @@
 # ABGM1 implementation blueprint
 
+20 November 2026 IST. P09-07 and P09-08 met local acceptance. The workspace navigation collapses at mobile widths and the report and reply review use the available space. The three-client SQL and HTTP fixture verified separate dental clinic and manufacturing counts, an empty client and assigned-viewer access. Tracker 59 validated, 14 in progress, 19 planned and one blocked. See MOBILE_ACCOUNTABILITY_ACCEPTANCE.md.
+
 20 November 2026 IST. Local agency and knowledge acceptance completed for P03-07 and P04-09. The tracker records 57 validated, 15 in progress, 20 planned and one blocked. Explicit role and empty-client checks, persisted locations, image-only and mixed PDF classification, source lifecycle and approved workflow context were verified. See AGENCY_KNOWLEDGE_ACCEPTANCE.md.
 
 Agency operations group —20 November2026 IST: overview model4/16 metrics adds saved connection verification/expiry signals, fresh database role checks and authorized per-client capacity/declared-cost drill-down, exact private DTOs, currency-separated amounts, safe unknown-health/revenue states and on-demand390px UI. Original P09-02 locally validated; tracker55 validated/15 in_progress/22 planned/1 blocked of93. Schema055/101, next056 and frozen report V4 unchanged. No migration, production write, deployment, provider call or billing work. See AGENCY_OPERATIONS_DRILLDOWN.md and evidence/agency-operations-drilldown.json. Hosting, universal RBAC/accessibility and other phase gates remain open.

@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-20 IST. Do not edit counts manually; run np
 
 Schema target: 055_developer_access; 101 canonical tables. Registered default regression programs: 157 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 57 / 15 / 1 / 20.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 59 / 14 / 1 / 19.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -21,7 +21,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P06 | 6 | 1 | 0 | 1 |
 | P07 | 5 | 1 | 0 | 2 |
 | P08 | 5 | 1 | 0 | 4 |
-| P09 | 5 | 2 | 0 | 1 |
+| P09 | 7 | 1 | 0 | 0 |
 | P10 | 3 | 0 | 0 | 5 |
 
 ## Explicit blockers
@@ -43,7 +43,7 @@ A gate is accepted only when its own tracker status is validated and its require
 - P07-08: planned — Marketing-to-appointment pilot gate.
 - P08-09: validated — Record gates for visitor identity MCP and advanced outbound extensions.
 - P08-10: planned — Outbound outcomes and optimization gate.
-- P09-08: planned — Agency accountability acceptance gate.
+- P09-08: validated — Agency accountability acceptance gate.
 - P10-08: planned — Final release and handover gate.
 
 ## Complete task index
@@ -135,15 +135,15 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P09-04 | validated | Replace Telegram simulator with evidence-backed operations | P08-10 |
 | P09-05 | validated | Deliver optional client report and approval portal | P08-10 |
 | P09-06 | validated | Persist agency settings and decide white-label domain scope | P08-10 |
-| P09-07 | in_progress | Finish responsive mobile accessibility and operational UX | P08-10 |
-| P09-08 | planned | Agency accountability acceptance gate | P08-10, P09-07 |
-| P10-01 | planned | Complete security privacy retention and key-recovery review | P09-08 |
-| P10-02 | planned | Benchmark hosting fairness rendering storage and client capacity | P09-08, P10-01 |
-| P10-03 | validated | Optimize measured frontend and request bottlenecks | P09-08, P10-02 |
-| P10-04 | planned | Run full acceptance restore rollback and provider verification matrix | P09-08 |
-| P10-05 | validated | Reconcile feature documentation runbooks and competitor evidence | P09-08, P10-04 |
-| P10-06 | validated | Prepare feature-flagged canary release package | P09-08 |
-| P10-07 | planned | Execute separately authorized canary and observe real outcomes | P09-08 |
-| P10-08 | planned | Final release and handover gate | P09-08, P10-07 |
+| P09-07 | validated | Finish responsive mobile accessibility and operational UX | P08-10 |
+| P09-08 | validated | Agency accountability acceptance gate | P08-10 |
+| P10-01 | planned | Complete security privacy retention and key-recovery review | — |
+| P10-02 | planned | Benchmark hosting fairness rendering storage and client capacity | P10-01 |
+| P10-03 | validated | Optimize measured frontend and request bottlenecks | P10-02 |
+| P10-04 | planned | Run full acceptance restore rollback and provider verification matrix | — |
+| P10-05 | validated | Reconcile feature documentation runbooks and competitor evidence | P10-04 |
+| P10-06 | validated | Prepare feature-flagged canary release package | — |
+| P10-07 | planned | Execute separately authorized canary and observe real outcomes | — |
+| P10-08 | planned | Final release and handover gate | P10-07 |
 
 Validation and handover records: [EXECUTION.md](EXECUTION.md), [MASTER_PLAN.md](MASTER_PLAN.md), [TASKS.csv](TASKS.csv).

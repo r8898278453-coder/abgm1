@@ -371,6 +371,27 @@ try {
   failControlRead=false;await controlsPanel.getByRole('button',{name:'Reload publishing controls',exact:true}).click();await controlsPanel.getByText(/Saved workspace pause: Off/).waitFor();
   console.log('Browser stage: daily-work-report');
   const workReport=page.getByRole('region',{name:'Daily recorded work'});
+  await workReport.getByLabel('Completed jobs',{exact:true}).filter({hasText:'7'}).waitFor();
+  const desktopViewport=page.viewportSize()!;
+  await page.setViewportSize({width:390,height:844});
+  const navigation=page.getByRole('button',{name:'Workspace navigation',exact:true});
+  await navigation.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await navigation.getAttribute('aria-expanded'),'true');
+  await page.keyboard.press('Enter');
+  assert.equal(await navigation.getAttribute('aria-expanded'),'false');
+  const reportDate=workReport.getByLabel('Recorded work date',{exact:true});
+  await reportDate.focus();
+  assert.equal(await reportDate.evaluate(node=>node===document.activeElement),true);
+  const overflowingReportElements=await workReport.evaluate(node=>
+    [node,...node.querySelectorAll<HTMLElement>('*')]
+      .filter(element=>element.clientWidth>0&&element.scrollWidth>element.clientWidth+1)
+      .map(element=>[element.tagName,element.clientWidth,element.scrollWidth,String(element.className)])
+      .slice(0,10),
+  );
+  assert.deepEqual(overflowingReportElements,[]);
+  await page.setViewportSize(desktopViewport);
+
   await workReport.getByLabel('Website inquiries received',{exact:true}).filter({hasText:'2'}).waitFor();await workReport.getByLabel('Inquiry alerts API-accepted',{exact:true}).filter({hasText:'1'}).waitFor();
   await workReport.getByLabel('Completed jobs',{exact:true}).filter({hasText:'7'}).waitFor();
   await workReport.getByLabel('Recorded message requests',{exact:true}).filter({hasText:'2'}).waitFor();
