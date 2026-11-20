@@ -4,14 +4,13 @@ import { calendarChangeCommand, calendarCreateCommand } from '../shared/bookingC
 import { canonicalJson } from '../shared/canonicalJson';
 import { crmId, crmHash } from '../shared/crmIdentity';
 import { SalesError, salesHash, withSalesLock } from './salesWorkspace';
-import { CALENDAR_API, calendarProviderJson, observeCalendar, readBookingCalendarBinding } from './bookingCalendar';
+import { calendarHash, googleCalendarEventUrl, googleCalendarRequest, observeCalendar, readBookingCalendarBinding, readCreatedCalendarEvent, readGoogleCalendarEvent } from './bookingCalendar';
 import { hasCurrentBooking, latestBookingEvidence, saveBookingEvidence } from './bookingEvidence';
 import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
 import { isGlobalEmergencyStopActive } from './executionStop';
 
 const dayMs = 86400000;
 export const calendarCreateEnabled = () => process.env.ENABLE_CALENDAR_CREATE === 'true';
-const calendarHash = (id: string) => salesHash('google-calendar:' + id);
 const bookingKey = (id: string) => salesHash('calendar-created-booking:' + id);
 type Command = z.infer<typeof calendarCreateCommand> | z.infer<typeof calendarChangeCommand>;
 type Binding = Awaited<ReturnType<typeof readBookingCalendarBinding>>;
@@ -30,19 +29,6 @@ function checkScope(company: string, lead: string) {
   }
 }
 const intentColumns = '*,CAST(expected_revision AS CHAR) expectedVersion';
-function eventUrl(connection: Binding, eventId?: string) {
-  return new URL(CALENDAR_API + '/calendars/' + encodeURIComponent(connection.binding.calendarId) +
-    '/events' + (eventId ? '/' + encodeURIComponent(eventId) : ''));
-}
-function providerOptions(connection: Binding): RequestInit {
-  return { headers: { Authorization: 'Bearer ' + connection.binding.token },
-    signal: AbortSignal.timeout(6000), redirect: 'error' };
-}
-async function readEvent(connection: Binding, eventId: string, transport: typeof fetch) {
-  const url = eventUrl(connection, eventId);
-  url.searchParams.set('fields','id,etag,status,start(dateTime),end(dateTime),extendedProperties(private),reminders,attendees(self),recurringEventId,recurrence');
-  return calendarProviderJson(await transport(url, providerOptions(connection)));
-}
 function matchesTimes(event: any, start: number, end: number) {
   return event?.status === 'confirmed' && Date.parse(event.start?.dateTime) === start && Date.parse(event.end?.dateTime) === end;
 }
@@ -82,7 +68,7 @@ async function reconcile(pool: Pool, user: any, company: string, intent: Intent,
   }
   let observed;
   try {
-    observed = await readEvent(connection, intent.external_event_id, transport);
+    observed = await readGoogleCalendarEvent(connection.binding, intent.external_event_id, transport);
   } catch {
     return dto(intent, 'PENDING_REVIEW');
   }
@@ -130,10 +116,8 @@ async function writeCalendarAppointment(
     }
     const scope = calendarHash(connection.binding.calendarId);
     const eventId = operation === 'CREATE' ? salesHash('calendar-event:' + id) : previous.external_event_id;
-    const [origins] = await sql.query<RowDataPacket[]>(
-      "SELECT id,calendar_hash FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND external_event_id=? AND operation='CREATE' AND state='CONFIRMED' LIMIT 1",
-      [company, lead, eventId]);
-    if (operation !== 'CREATE' && origins[0]?.calendar_hash !== scope) throw new SalesError(409, 'CALENDAR_CONNECTION_CHANGED');
+    const origin = operation === 'CREATE' ? null : await readCreatedCalendarEvent(sql, company, lead, eventId);
+    if (operation !== 'CREATE' && origin?.calendarHash !== scope) throw new SalesError(409, 'CALENDAR_CONNECTION_CHANGED');
 
     const start = 'startAt' in command ? Date.parse(command.startAt) : Number(previous.start_at_ms);
     const end = 'endAt' in command ? Date.parse(command.endAt) : Number(previous.end_at_ms);
@@ -166,7 +150,7 @@ async function writeCalendarAppointment(
       (id,company_id,lead_id,actor_id,request_key,input_hash,calendar_hash,external_event_id,expected_revision,state,start_at_ms,end_at_ms,operation,reminder_minutes,hold_until_ms)
       VALUES (?,?,?,?,?,?,?,?,?,'PENDING_REVIEW',?,?,?,?,?)`,
       [id, company, lead, user.id, command.requestKey, hash, scope, eventId, command.expectedVersion, start, end, operation, intent.reminder_minutes, holdUntil]);
-    return { intent, owner: true as const, connection, previous, originId: origins[0]?.id };
+    return { intent, owner: true as const, connection, previous, originId: origin?.id };
   });
   const { intent } = begin;
   if (!begin.owner) return reconcile(pool, user, company, intent, transport);
@@ -177,7 +161,7 @@ async function writeCalendarAppointment(
   let etag: string | undefined;
   try {
     if (operation !== 'CREATE') {
-      const event = await readEvent(begin.connection, intent.external_event_id, transport);
+      const event = await readGoogleCalendarEvent(begin.connection.binding, intent.external_event_id, transport);
       if (event?.id !== intent.external_event_id || event.extendedProperties?.private?.abgmBookingIntent !== begin.originId ||
           !matchesTimes(event, Number(begin.previous.start_at_ms), Number(begin.previous.end_at_ms)) ||
           typeof event.etag !== 'string' || !/^"[!#-~]{1,256}"$/.test(event.etag) ||
@@ -207,9 +191,9 @@ async function writeCalendarAppointment(
   // The intent's inserting request is the only caller allowed to send a mutation.
   let status: number | undefined;
   try {
-    const url = eventUrl(begin.connection, operation === 'CREATE' ? undefined : intent.external_event_id);
+    const url = googleCalendarEventUrl(begin.connection.binding, operation === 'CREATE' ? undefined : intent.external_event_id);
     url.searchParams.set('sendUpdates', 'none');
-    const options = providerOptions(begin.connection);
+    const options = googleCalendarRequest(begin.connection.binding);
     const body = operation === 'CANCEL' ? undefined : JSON.stringify({
       ...(operation === 'CREATE' ? { id: intent.external_event_id, summary: 'Appointment' } : {}),
       start: { dateTime: new Date(intent.start_at_ms).toISOString() },

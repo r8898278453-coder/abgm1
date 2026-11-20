@@ -1,3 +1,4 @@
+import {calendarHash} from '../../server/bookingCalendar';
 import {saveBookingEvidence} from '../../server/bookingEvidence';
 import {recordMessageReceipt} from '../../server/messageDeliveryReceipts';
 import assert from 'node:assert/strict';
@@ -91,7 +92,7 @@ try{
    appointmentReminder:{bookingVersion,minutesBefore:5},evidence:'Customer requested an appointment reminder'});
  await assert.rejects(enrollSalesWorkflow(pool,user,company,reminderInput('4')),{code:'APPOINTMENT_CHANGED'});
  const appointment=(operation:string,expectedVersion:string,startAtMs:number)=>({
-   operation,expectedVersion,requestKey:key(),externalEventId:'reminder-event',
+   operation,expectedVersion,requestKey:key(),externalEventId:'a'.repeat(64),
    startAt:new Date(startAtMs).toISOString(),endAt:new Date(startAtMs+3600000).toISOString(),
  });
  const initialStart=Date.now()+3600000;
@@ -129,15 +130,40 @@ try{
   [pendingChange,company,leadId,user.id,key(),key(),key(),key(),nextStart,nextStart+3600000]);
  await assert.rejects(approve(dueTask),{code:'APPOINTMENT_CHANGE_PENDING'});
  await pool.query('DELETE FROM sales_calendar_intents WHERE id=?',[pendingChange]);
+ const trackedCalendar='fixture@test.calendar.google.com', calendarOrigin=key();
+ await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',
+  credentials:{calendarId:trackedCalendar,accessToken:'fixture-calendar-token',expiresAt:new Date(Date.now()+3600000).toISOString()}});
+ await pool.query(`INSERT INTO sales_calendar_intents
+  (id,company_id,lead_id,actor_id,request_key,input_hash,calendar_hash,external_event_id,expected_revision,state,start_at_ms,end_at_ms,operation)
+  VALUES (?,?,?,?,?,?,?,?,4,'CONFIRMED',?,?,'CREATE')`,
+  [calendarOrigin,company,leadId,user.id,key(),key(),calendarHash(trackedCalendar),'a'.repeat(64),initialStart,initialStart+3600000]);
  await approve(dueTask);
  const sendJob=await claim();
- let reminderCalls=0;
- const reminderResult=await executeApprovedSalesMessage(pool,sendJob,{send:async(_credentials,options,policy)=>{
+ let calendarReads=0,reminderCalls=0,calendarAvailable=false;
+ const calendarTransport:typeof fetch=async(url,request)=>{
+   calendarReads++;
+   assert.equal(new URL(String(url)).pathname,'/calendar/v3/calendars/'+encodeURIComponent(trackedCalendar)+'/events/'+'a'.repeat(64));
+   assert.ok(!request?.method || request.method==='GET');
+   if(!calendarAvailable)return new Response(null,{status:404});
+   return Response.json({id:'a'.repeat(64),status:'confirmed',
+    start:{dateTime:new Date(nextStart).toISOString()},end:{dateTime:new Date(nextStart+3600000).toISOString()},
+    extendedProperties:{private:{abgmBookingIntent:calendarOrigin}}});
+ };
+ const sendReminder:NonNullable<Parameters<typeof executeApprovedSalesMessage>[2]>['send']=async(_credentials,options,policy)=>{
    assert.ok(policy);
    assert.equal(await policy.eligibility(company,options.to,false,true),null);
    reminderCalls++;
    return {success:true,messageId:'fixture-reminder-provider',status:'API_ACCEPTED'};
- }});
+ };
+ assert.equal((await executeApprovedSalesMessage(pool,sendJob,{send:sendReminder,calendarTransport})).error,'APPOINTMENT_PROVIDER_UNAVAILABLE');
+ assert.equal(reminderCalls,0);
+ assert.equal((await rows('SELECT status FROM job_queue WHERE id=?',[sendJob.id]))[0].status,'RETRY_WAIT');
+ assert.equal((await readSalesReport(pool,company,reportDate)).backlog.appointmentRemindersAwaitingCalendar,1);
+ calendarAvailable=true;
+ await pool.query('UPDATE job_queue SET scheduled_for=NOW() WHERE id=?',[sendJob.id]);
+ const reminderResult=await executeApprovedSalesMessage(pool,await claim(),{send:sendReminder,calendarTransport});
+ assert.equal(calendarReads,2);
+ assert.equal((await readSalesReport(pool,company,reportDate)).backlog.appointmentRemindersAwaitingCalendar,0);
  assert.equal(reminderResult.status,'SUCCEEDED');
  assert.equal(reminderCalls,1);
  await assert.rejects(enrollSalesWorkflow(pool,user,company,reminderInput('6')),{code:'APPOINTMENT_REMINDER_ALREADY_SCHEDULED'});

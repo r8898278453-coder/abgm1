@@ -30,20 +30,27 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
   await route.abort();
   return;
  }
+ else if(url.pathname.endsWith('/calendar-refresh')){
+  assert.equal(company,'A');
+  assert.deepEqual(route.request().postDataJSON(),{expectedVersion:'1'});
+  booking={...booking,version:'2',startAtMs:Date.parse('2027-01-01T10:15:00+05:30'),
+   endAtMs:Date.parse('2027-01-01T10:45:00+05:30')};
+  body={...body,calendarRefresh:{state:'RESCHEDULED',version:'2'}};
+ }
  else if(url.pathname.endsWith('/calendar-change')){
   assert.equal(company,'A');
   const command=route.request().postDataJSON();
   calendarChanges.push(command);
   if(command.operation==='RESCHEDULE'){
-   assert.equal(command.expectedVersion,'1');
+   assert.equal(command.expectedVersion,'2');
    assert.equal(command.startAt,'2027-01-01T12:00:00+05:30');
    assert.equal(command.reminderMinutes,0);
-   booking={...booking,version:'2',startAtMs:Date.parse(command.startAt),endAtMs:Date.parse(command.endAt)};
+   booking={...booking,version:'3',startAtMs:Date.parse(command.startAt),endAtMs:Date.parse(command.endAt)};
   }else{
    assert.equal(command.operation,'CANCEL');
-   assert.equal(command.expectedVersion,'2');
+   assert.equal(command.expectedVersion,'3');
    assert.equal(command.startAt,undefined);
-   booking={...booking,version:'3',state:'CANCELLED'};
+   booking={...booking,version:'4',state:'CANCELLED'};
   }
   body={...body,calendarIntent:{requestId:'d'.repeat(64),state:'CONFIRMED'}};
  }
@@ -69,7 +76,7 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  }
  else if(method!=='GET'){const input=route.request().postDataJSON();writes.push({path:url.pathname,input});if(conflict){status=409;body={success:false,error:'SALES_POLICY_CHANGED'};}else if(url.pathname.endsWith('/policy')){assert.equal(input.expectedVersion,String(policyVersion));policyVersion++;policy=input.policy;body={...body,version:String(policyVersion)};}else if(url.pathname.endsWith('/prospects/assess')){body={...body,assessment:assessDeclaredProspect((policy as any).prospecting||DEFAULT_PROSPECTING_PROFILE,policy.industries,input,company,String(policyVersion),Date.now())};}else if(url.pathname.endsWith('/permissions')){permissionVersion++;permissionState=input.state;body={...body,version:String(permissionVersion)};}else if(url.pathname.endsWith('/opportunity')){opVersion++;stage=input.stage;body={...body,version:String(opVersion)};}else if(url.pathname.endsWith('/qualification')){qualVersion++;body={...body,version:String(qualVersion)};}else if(url.pathname.endsWith('/prospects/preview')){body={...body,readOnly:true,consentGranted:false,policyVersion:String(policyVersion),checkedAtMs:Date.now(),results:[{row:1,status:'WOULD_IMPORT'}]};}else if(url.pathname.endsWith('/prospects/import')){keys.push(input.requestKey);body={...body,results:[{row:1,status:'IMPORTED'}],consentGranted:false,reused:false};}}
  else if(url.pathname.endsWith('/inbox'))body={...body,messages:company==='A'?[{id:'a'.repeat(64),lead_id:'leadA',version:'0',direction:'INBOUND',body:'Actual saved inquiry',createdAtMs:1},{id:'b'.repeat(64),lead_id:'leadA',version:'0',direction:'OUTBOUND',body:'Reviewed reply',metadata:{receiptReconciled:true},createdAtMs:2}]:[],nextBefore:null};
- else if(url.pathname.endsWith('/report'))body={...body,report:{date:url.searchParams.get('date'),activity:{AGENCY_SALES_INBOUND_SAVED:1,AGENCY_SALES_CALENDAR_BOOKING_VERIFIED:1,AGENCY_SALES_APPOINTMENT_REMINDER_API_ACCEPTED:1},backlog:{newLeads:1,pendingCalendarCreations:1,pendingCalendarChanges:0,pendingAppointmentReminders:2},attribution:{currencies:{INR:100},roi:null,definition:'Manual value, not verified revenue'}}};
+ else if(url.pathname.endsWith('/report'))body={...body,report:{date:url.searchParams.get('date'),activity:{AGENCY_SALES_INBOUND_SAVED:1,AGENCY_SALES_CALENDAR_BOOKING_VERIFIED:1,AGENCY_SALES_CALENDAR_EXTERNAL_RESCHEDULE:1,AGENCY_SALES_APPOINTMENT_REMINDER_API_ACCEPTED:1},backlog:{newLeads:1,pendingCalendarCreations:1,pendingCalendarChanges:0,pendingAppointmentReminders:2,appointmentRemindersAwaitingCalendar:1},attribution:{currencies:{INR:100},roi:null,definition:'Manual value, not verified revenue'}}};
  else body={...body,canManage:true,canWrite:true,workspace:{version:company==='A'?String(policyVersion):'0',policy:company==='A'?policy:DEFAULT_SALES_POLICY,leads:company==='A'?[{id:'leadA',name:'Alice',phone:'+919999999999',email:'a@example.com',stage,opportunityVersion:String(opVersion),qualificationVersion:String(qualVersion),permissions:{WHATSAPP:{version:String(permissionVersion),state:permissionState}}}]:[]}};
  await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});});
  const page=await context.newPage();page.on('pageerror',error=>console.error('Sales fixture page error',error.message));await page.goto(origin);await page.getByRole('option',{name:'Alice (new)'}).waitFor({state:'attached'});await page.getByText(/API acceptance reconciled from an exact signed provider receipt/).waitFor();assert.equal(writes.length,0);await page.getByLabel('Use prospecting profile').check();await page.getByLabel('Target services',{exact:true}).fill('Consulting');await page.getByLabel('Buyer roles',{exact:true}).fill('Owner');await page.getByLabel('Target regions',{exact:true}).fill('Pune');await page.getByLabel('Minimum employees',{exact:true}).fill('10');await page.getByLabel('Maximum employees',{exact:true}).fill('50');await page.getByLabel('Require prospect website').check();await page.getByRole('button',{name:'Save sales policy',exact:true}).click();await page.getByText(/Read-only comparison against saved profile version 1/).waitFor();assert.equal((policy as any).prospecting.employeesMin,10);await page.getByLabel('Prospect service',{exact:true}).fill('Consulting');await page.getByLabel('Prospect buyer role',{exact:true}).fill('Owner');await page.getByLabel('Prospect region',{exact:true}).fill('Pune');await page.getByLabel('Prospect employees',{exact:true}).fill('20');await page.getByLabel('Prospect website',{exact:true}).selectOption('yes');await page.getByLabel('Prospect evidence source',{exact:true}).fill('Owner supplied evidence');await page.getByRole('button',{name:'Assess declared prospect',exact:true}).click();await page.getByRole('heading',{name:'Assessment: DECLARED_FIT',exact:true}).waitFor();const fitDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).click();assert.equal((await fitDownload).suggestedFilename(),'declared-prospect-fit.csv');await page.evaluate(()=>localStorage.setItem('abga_auth_token','changed-icp-session'));await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).click();await page.getByText('Session changed. Run the assessment again.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).count(),0);
@@ -109,6 +116,9 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  await appointment.getByRole('button',{name:'Verify calendar request'}).click();
  await appointment.getByText(/Verified on Google Calendar.*VerifiedFixture/).waitFor();
  assert.equal(calendarCreates,1);
+ await appointment.getByRole('button',{name:'Refresh from Google Calendar'}).click();
+ await appointment.getByText('Updated the appointment from Google Calendar.',{exact:true}).waitFor();
+ await appointment.getByText(/Verified on Google Calendar.*10:15/).waitFor();
  await appointment.getByLabel('Appointment start (IST)').fill('2027-01-01T12:00');
  await appointment.getByLabel('Appointment end (IST)').fill('2027-01-01T12:30');
  await appointment.getByLabel('Google Calendar popup reminder').selectOption('0');
@@ -124,9 +134,11 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  assert.deepEqual(calendarChanges.map(change=>change.operation),['RESCHEDULE','CANCEL']);
  await page.getByRole('button',{name:'Load sales report'}).click();
  await page.getByText(/Calendar appointments verified/).waitFor();
+ await page.getByText(/External Google Calendar reschedules verified/).waitFor();
  await page.getByText(/Calendar creations awaiting verification/).waitFor();
  await page.getByText(/Calendar changes awaiting verification/).waitFor();
  await page.getByText('Open appointment reminders: 2',{exact:true}).waitFor();
+ await page.getByText('Reminders waiting for Calendar verification: 1',{exact:true}).waitFor();
  await page.getByText('Appointment reminders accepted by provider API: 1',{exact:true}).waitFor();
  await page.getByLabel('Permission evidence').fill('Explicit consent form record');await page.getByLabel('Permission state').selectOption('ALLOWED');await page.getByRole('button',{name:'Save contact permission'}).click();await page.getByText(/Saved ALLOWED/).waitFor();
  await page.getByLabel('Opportunity stage').selectOption('won');await page.getByLabel('Outcome reason').fill('Manually confirmed contract');await page.getByRole('button',{name:'Save opportunity'}).click();await page.getByRole('option',{name:'Alice (won)'}).waitFor({state:'attached'});

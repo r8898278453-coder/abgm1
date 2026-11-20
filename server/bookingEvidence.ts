@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
-import { readBookingCalendarBinding } from './bookingCalendar';
+import { calendarHash, readBookingCalendarBinding, readCreatedCalendarEvent } from './bookingCalendar';
 import { agencyAudit } from './agencyRoutes';
 import { agencyClientAccess } from './agencyPolicy';
 import { exitSalesWorkflows } from './salesWorkflowLifecycle';
@@ -61,7 +61,7 @@ export async function readBookingEvidence(pool: Pool, user: any, company: string
 
 export async function saveBookingEvidence(
   pool: Pool, user: any, company: string, lead: string, input: unknown,
-  calendar?: { intentId: string; bindingFingerprint: string },
+  calendar?: { intentId: string; bindingFingerprint: string; observedOriginId?: string },
 ) {
   const parsed = bookingEvidenceCommand.safeParse(input);
   if (!parsed.success || !crmId.safeParse(lead).success) throw new SalesError(400, 'BOOKING_INPUT_INVALID');
@@ -87,7 +87,18 @@ export async function saveBookingEvidence(
       "SELECT id,external_event_id,CAST(expected_revision AS CHAR) version,start_at_ms,end_at_ms,operation FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW' AND COALESCE(hold_until_ms,end_at_ms)>?",
       [canonicalCompany, lead, now],
     );
-    if (calendar) {
+    let observedCalendarHash: string | undefined;
+    if (calendar?.observedOriginId) {
+      if (pending.length) throw new SalesError(409, 'CALENDAR_RECONCILIATION_REQUIRED');
+      if (command.operation === 'CONFIRM' || !previous) throw new SalesError(409, 'BOOKING_CHANGED');
+      const current = await readBookingCalendarBinding(sql, user.id, canonicalCompany, lead);
+      const origin = await readCreatedCalendarEvent(sql, canonicalCompany, lead, previous.external_event_id);
+      if (current.fingerprint !== calendar.bindingFingerprint || origin?.id !== calendar.observedOriginId ||
+          origin.calendarHash !== calendarHash(current.binding.calendarId)) {
+        throw new SalesError(409, 'CALENDAR_CONNECTION_CHANGED');
+      }
+      observedCalendarHash = origin.calendarHash;
+    } else if (calendar) {
       const intent = pending.find(row => row.id === calendar.intentId);
       const current = await readBookingCalendarBinding(sql, user.id, canonicalCompany, lead);
       const operation = command.operation === 'CONFIRM' ? 'CREATE' : command.operation;
@@ -102,13 +113,13 @@ export async function saveBookingEvidence(
       throw new SalesError(409, 'CALENDAR_RECONCILIATION_REQUIRED');
     }
     if ((previous?.version || '0') !== command.expectedVersion) throw new SalesError(409, 'BOOKING_CHANGED');
-    const active = previous?.state === 'CONFIRMED' && Number(previous.end_at_ms) > now;
+    const active = previous?.state === 'CONFIRMED' && (Boolean(calendar?.observedOriginId) || Number(previous.end_at_ms) > now);
     if (command.operation === 'CONFIRM' ? active : !active) throw new SalesError(409, 'BOOKING_STATE_CHANGED');
 
     const start = command.operation === 'CANCEL' ? Number(previous.start_at_ms) : Date.parse(command.startAt);
     const end = command.operation === 'CANCEL' ? Number(previous.end_at_ms) : Date.parse(command.endAt);
     if (command.operation !== 'CANCEL' && (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) ||
-      (calendar ? end <= now : start <= now) || end <= start || end - start > 86400000 || start - now > 365 * 86400000)) {
+      (calendar?.observedOriginId ? start <= 0 : calendar ? end <= now : start <= now) || end <= start || end - start > 86400000 || start - now > 365 * 86400000)) {
       throw new SalesError(400, 'BOOKING_TIME_INVALID');
     }
     const eventId = command.operation === 'CANCEL' ? previous.external_event_id : command.externalEventId;
@@ -125,14 +136,21 @@ export async function saveBookingEvidence(
     if (command.operation !== 'CONFIRM') {
       await exitSalesWorkflows(sql, canonicalCompany, 'APPOINTMENT_CHANGED', user.id, { leadId: lead, appointmentReminderOnly: true });
     }
-    if (state === 'CONFIRMED') {
+    if (state === 'CONFIRMED' && end > now) {
       await exitSalesWorkflows(sql, canonicalCompany, 'BOOKING_RECORDED', user.id, { leadId: lead, inquiryOnly: true });
     }
-    if (calendar) {
+    if (calendar && observedCalendarHash) {
+      // The exact Google read-back and its new CRM version commit together.
+      await sql.query(`INSERT INTO sales_calendar_intents
+        (id,company_id,lead_id,actor_id,request_key,input_hash,calendar_hash,external_event_id,expected_revision,state,start_at_ms,end_at_ms,operation)
+        VALUES (?,?,?,?,?,?,?,?,?,'CONFIRMED',?,?,?)`,
+        [calendar.intentId, canonicalCompany, lead, user.id, command.requestKey, hash, observedCalendarHash,
+          eventId, command.expectedVersion, start, end, command.operation]);
+    } else if (calendar) {
       await sql.query("UPDATE sales_calendar_intents SET state='CONFIRMED' WHERE company_id=? AND id=?",
         [canonicalCompany, calendar.intentId]);
     }
-    await agencyAudit(sql, canonicalCompany, user.id, calendar ? (command.operation === 'CONFIRM' ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_CALENDAR_' + command.operation + '_VERIFIED') : 'SALES_BOOKING_EVIDENCE_' + command.operation,
+    await agencyAudit(sql, canonicalCompany, user.id, calendar?.observedOriginId ? 'SALES_CALENDAR_EXTERNAL_' + command.operation : calendar ? (command.operation === 'CONFIRM' ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_CALENDAR_' + command.operation + '_VERIFIED') : 'SALES_BOOKING_EVIDENCE_' + command.operation,
       { leadId: lead, version, state, ...(calendar ? { calendarIntentId: calendar.intentId } : {}) });
     return {
       booking: publicBooking({version,state,external_event_id:eventId,start_at_ms:start,end_at_ms:end,confirmed_at_ms:now,calendar_verified:Boolean(calendar)}),

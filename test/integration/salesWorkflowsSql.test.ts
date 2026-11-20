@@ -1,3 +1,4 @@
+import {checkReminderCalendarBeforeSend} from '../../server/calendarObservation';
 import {saveBookingEvidence} from '../../server/bookingEvidence';
 import {saveFulfillment} from '../../server/retention';
 import assert from 'node:assert/strict';import crypto from 'node:crypto';import express from 'express';
@@ -221,6 +222,58 @@ try{
  assert.equal(calendarChangesReport.backlog.pendingCalendarChanges,0);
  console.log('Calendar reschedule and cancellation SQL/HTTP: current ETag, one accepted conditional mutation, lost responses, absent versus cancelled evidence, popup reminders and IST audit passed.');
  console.log('Calendar create SQL/HTTP: default off, role denial, busy rejection, eight concurrent requests with one provider POST, exact recovery, booking race fence and follow-up exit passed.');
+
+ stage='external calendar observation';
+ const refreshPath=calendarLeadBase+'calendar-refresh';
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ const newBooking={...command,expectedVersion:'6',requestKey:key()};
+ assert.equal((await http('staff',createPath,200,newBooking)).calendarIntent.state,'CONFIRMED');
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ const readOnlyMutationCount=eventPosts+eventPatches+eventDeletes;
+ const refreshCommand={expectedVersion:'7'};
+ await http('foreign',refreshPath,403,refreshCommand);
+ await http('viewer',refreshPath,403,refreshCommand);
+ await http('staff',refreshPath,400,{...refreshCommand,eventId:'arbitrary-event'});
+ const reminderDraft=await saveSalesWorkflow(pool,users.staff,company,null,{expectedVersion:'0',definition:{
+  name:'Appointment change fixture',trigger:'APPOINTMENT_REMINDER',steps:[
+   {kind:'REVIEW_MESSAGE',delayMinutes:0,instructions:'Review the saved appointment and permission.'},
+  ]}},key());
+ await decideSalesWorkflow(pool,users.approver,company,reminderDraft.id!,{expectedVersion:'1',decision:'APPROVE',note:'Approved exact reminder review workflow'});
+ const reminder=await enrollSalesWorkflow(pool,users.staff,company,{...enrollmentBody(),
+  workflowId:reminderDraft.id!,appointmentReminder:{bookingVersion:'7',minutesBefore:5}});
+ exposeEvent=false;
+ assert.equal((await http('staff',refreshPath,503,refreshCommand)).error,'CALENDAR_EVENT_OBSERVATION_UNAVAILABLE');
+ assert.equal((await http('viewer',bookingPath,200)).booking.version,'7');
+ assert.equal((await snapshot()).enrollments.find(item=>item.id===reminder.id)?.state,'ACTIVE');
+ exposeEvent=true;
+ assert.equal((await http('staff',refreshPath,200,refreshCommand)).calendarRefresh.state,'UNCHANGED');
+ const originalMarker=capturedEvent.extendedProperties;
+ capturedEvent.extendedProperties={private:{abgmBookingIntent:key()}};
+ await http('staff',refreshPath,503,refreshCommand);
+ capturedEvent.extendedProperties=originalMarker;
+ capturedEvent.start={dateTime:new Date(Date.parse(newBooking.startAt)+600000).toISOString()};
+ capturedEvent.end={dateTime:new Date(Date.parse(newBooking.endAt)+600000).toISOString()};
+ assert.equal(await checkReminderCalendarBeforeSend(pool,users.owner.id,company,leadId,'7',calendarTransport),
+  'APPOINTMENT_PROVIDER_CHANGED');
+ assert.deepEqual((await http('staff',refreshPath,200,refreshCommand)).calendarRefresh,{state:'RESCHEDULED',version:'8'});
+ assert.equal((await snapshot()).enrollments.find(item=>item.id===reminder.id)?.exit_reason,'APPOINTMENT_CHANGED');
+ await http('staff',refreshPath,409,refreshCommand);
+ assert.equal((await http('viewer',bookingPath,200)).booking.source,'GOOGLE_CALENDAR_VERIFIED');
+ capturedEvent={id:capturedEvent.id,status:'cancelled'};
+ assert.deepEqual((await http('staff',refreshPath,200,{expectedVersion:'8'})).calendarRefresh,{state:'CANCELLED',version:'9'});
+ assert.equal((await http('viewer',bookingPath,200)).booking.state,'CANCELLED');
+ assert.equal(eventPosts+eventPatches+eventDeletes,readOnlyMutationCount);
+ const importedCalendarReport=(await http('viewer',salesReportPath,200)).report;
+ assert.equal(importedCalendarReport.activity.AGENCY_SALES_CALENDAR_EXTERNAL_RESCHEDULE,1);
+ assert.equal(importedCalendarReport.activity.AGENCY_SALES_CALENDAR_EXTERNAL_CANCEL,1);
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ assert.equal((await http('staff',createPath,200,{...newBooking,expectedVersion:'9',requestKey:key()})).calendarIntent.state,'CONFIRMED');
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ capturedEvent.start={dateTime:new Date(Date.now()-3600000).toISOString()};
+ capturedEvent.end={dateTime:new Date(Date.now()-1800000).toISOString()};
+ assert.deepEqual((await http('staff',refreshPath,200,{expectedVersion:'10'})).calendarRefresh,{state:'RESCHEDULED',version:'11'});
+ assert.ok((await http('viewer',bookingPath,200)).booking.endAtMs<Date.now());
+ console.log('External Calendar SQL/HTTP: scoped roles, missing and mismatched event evidence, unchanged and moved event, exact cancellation, stale revision, reminder exit, past move and GET-only provider traffic passed.');
 
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});

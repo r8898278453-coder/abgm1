@@ -23,6 +23,8 @@ The client Sales work report displays verified Calendar appointment activity for
 
 Load the appointment record for the same client and lead. If it reports a pending creation, select **Verify calendar request**. The corresponding endpoint is `POST /api/companies/:companyId/sales/leads/:leadId/calendar-intents/:intentId/reconcile`. It reads the deterministic Google event and can confirm it in CRM. Verification sends no Google mutation. Verification remains available after switching off creation. If the event remains pending, check the configured calendar and its access before taking further action. Pending events cannot be attached through the automated path after their scheduled end.
 
+External changes to tracked events can be verified from the appointment record. See [external Calendar observations](CALENDAR_EXTERNAL_OBSERVATIONS.md).
+
 ## Rollout and remaining acceptance
 
 Calendar creation defaults off with `ENABLE_CALENDAR_CREATE=false`. Roll out schema 058 before serving these routes. Live OAuth with an event-write credential, a dedicated test calendar and scoped canary evidence remain pending. Live customer reminder delivery and live popup behavior remain open. Existing CRM reschedule and cancellation continue to record changes an operator made externally. P07-08 requires a real approved inquiry-to-booking pilot including failure and no-reply cases.

@@ -1,0 +1,24 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P07-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "sql_http_coverage": [
+    "client scope and viewed booking revision checks",
+    "unavailable event and mismatched origin leave CRM unchanged",
+    "unchanged, rescheduled and explicitly cancelled tracked events",
+    "atomic booking evidence and reminder exit",
+    "past event observation does not block a new inquiry workflow",
+    "provider change suppresses stale reminder and missing evidence defers send",
+    "successful send retry after an exact unchanged Calendar read",
+    "IST report counts verified changes and reminders awaiting Calendar verification"
+  ],
+  "browser_fixtures": ["salesWorkspace", "salesWorkflows", "approvedSalesMessages"],
+  "default_regression_programs": 158,
+  "schema_migrations": 58,
+  "canonical_tables": 103,
+  "new_migrations": 0,
+  "provider_transport": "intercepted",
+  "live_provider_requests": 0,
+  "live_provider_acceptance": "pending",
+  "automatic_calendar_subscriptions": "pending"
+}

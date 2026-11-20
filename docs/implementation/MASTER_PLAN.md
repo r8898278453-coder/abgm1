@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+20 November 2026 IST. P07-05 advances with operator-triggered Google Calendar refresh for exact tracked events and a pre-send reminder check. Verified external reschedules and cancellations append a CRM revision, stop old reminders and enter the IST Sales report. Unconfirmed event reads defer tracked reminder sends. Live Google access, automatic Calendar change subscriptions and P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_EXTERNAL_OBSERVATIONS.md.
+
 20 November 2026 IST. P07-05 advances with booking-bound customer WhatsApp reminder reviews, IST scheduling, revision and consent checks, and separate review and provider acceptance reporting. The existing exact-message approval and sender controls are reused. Live provider acceptance and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_REMINDER_WORKFLOW.md.
 
 20 November 2026 IST. P07-05 advances with scoped Google Calendar reschedule and cancellation, conditional event writes, exact recovery, optional Calendar popup reminders, and separate IST Sales activity for verified changes. Migration 058 extends the existing intent ledger. Calendar writes default off. Live Google acceptance, customer reminder delivery and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.
@@ -147,7 +149,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.77 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.78 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

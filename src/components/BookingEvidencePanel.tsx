@@ -37,6 +37,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
   const [pending, setPending] = useState<Command | null>(null);
   const [calendar, setCalendar] = useState<ReturnType<typeof calendarCheckResult.parse> | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarNotice, setCalendarNotice] = useState('');
   const [calendarError, setCalendarError] = useState('');
   const [createEnabled, setCreateEnabled] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState('');
@@ -66,7 +67,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     setLoaded(true);
   }
 
-  async function call(command?: Command) {
+  async function call(command?: Command, notice = '') {
     const session = getStoredToken();
     if (command && (!canWrite || acceptedSession.current !== session)) {
       setLoaded(false);
@@ -78,6 +79,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     const controller = new AbortController();
     request.current = controller;
     setError('');
+    setCalendarNotice('');
     setBusy(true);
     if (command) setPending(command);
     else setLoaded(false);
@@ -90,6 +92,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
       if (!current()) return;
       if (!response.success || response.companyId !== companyId || response.booking === undefined) throw Error();
       show(response.booking, session);
+      setCalendarNotice(notice);
       if (!command) {
         setCreateEnabled(response.calendarCreateEnabled === true);
         setCalendarIntent(response.pendingCalendarRequestId ?? null);
@@ -143,6 +146,40 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
         : 'Calendar evidence unavailable for this request.');
     } finally {
       if (current()) setCalendarBusy(false);
+    }
+  }
+
+  async function refreshGoogleBooking() {
+    const session = getStoredToken();
+    if (!booking || !canWrite || busy || session !== acceptedSession.current) return;
+    const controller = new AbortController();
+    request.current?.abort();
+    request.current = controller;
+    setBusy(true);
+    setError('');
+    setCalendarNotice('');
+    try {
+      const response = await apiRequest<{success: boolean; companyId: string; calendarRefresh: {state: string}}>(
+        base.replace(/booking-evidence$/, 'calendar-refresh'),
+        {method:'POST', body:JSON.stringify({expectedVersion:booking.version}), signal:controller.signal},
+      );
+      if (controller.signal.aborted || session !== getStoredToken()) return;
+      if (!response.success || response.companyId !== companyId) throw Error();
+      const state = response.calendarRefresh?.state;
+      if (state === 'UNCHANGED') {
+        setCalendarNotice('Google Calendar matches this appointment.');
+      } else if (state === 'RESCHEDULED' || state === 'CANCELLED') {
+        await call(undefined, state === 'CANCELLED' ? 'Recorded the Google Calendar cancellation.' : 'Updated the appointment from Google Calendar.');
+      } else {
+        throw Error();
+      }
+    } catch {
+      if (!controller.signal.aborted && session === getStoredToken()) {
+        setError('Google Calendar status could not be verified. Load the appointment record before retrying.');
+        setLoaded(false);
+      }
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
 
@@ -211,10 +248,13 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     <p>Confirmed appointments stop active inquiry follow-ups for this lead.</p>
     <button disabled={busy} onClick={() => void call()}>Load appointment record</button>
     {error && <p role="alert">{error}</p>}
+    {calendarNotice && <p role="status">{calendarNotice}</p>}
     {visible && <>
       {booking
         ? <p>{active ? (booking.source === 'GOOGLE_CALENDAR_VERIFIED' ? 'Verified on Google Calendar' : 'Confirmed externally') : booking.state === 'CANCELLED' ? 'Cancelled' : 'Past'} · {booking.externalEventId} · {formatPlatformDateTime(booking.startAtMs)} to {formatPlatformDateTime(booking.endAtMs)} IST</p>
         : <p>No appointment recorded.</p>}
+      {canWrite && booking?.source === 'GOOGLE_CALENDAR_VERIFIED' && booking.state === 'CONFIRMED' && !calendarIntent &&
+        <button disabled={busy || Boolean(pending)} onClick={() => void refreshGoogleBooking()}>Refresh from Google Calendar</button>}
       {calendarIntent && <div role="status">
         <p>Google Calendar request is awaiting verification.</p>
         {canWrite && <button disabled={busy} onClick={() => void writeCalendar('VERIFY')}>Verify calendar request</button>}

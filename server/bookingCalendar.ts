@@ -6,7 +6,7 @@ import { canonicalJson } from '../shared/canonicalJson';
 import { agencyClientAccess } from './agencyPolicy';
 import { decryptCredential } from './db';
 import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
-import { SalesError } from './salesWorkspace';
+import { SalesError, salesHash } from './salesWorkspace';
 
 export const CALENDAR_PROVIDER = 'google_calendar';
 export const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
@@ -22,6 +22,30 @@ export function calendarBinding(credentials: Record<string, unknown>, now = Date
   const expiry = z.iso.datetime({ offset: true }).safeParse(expiresAt);
   if (!expiry.success || Date.parse(expiry.data) <= now) return null;
   return { calendarId, token, expiresAt: expiry.data };
+}
+
+export type GoogleCalendarBinding = NonNullable<ReturnType<typeof calendarBinding>>;
+export const calendarHash = (id: string) => salesHash('google-calendar:' + id);
+
+export function googleCalendarEventUrl(binding: GoogleCalendarBinding, eventId?: string) {
+  return new URL(CALENDAR_API + '/calendars/' + encodeURIComponent(binding.calendarId) +
+    '/events' + (eventId ? '/' + encodeURIComponent(eventId) : ''));
+}
+export function googleCalendarRequest(binding: GoogleCalendarBinding): RequestInit {
+  return { headers: { Authorization: 'Bearer ' + binding.token },
+    signal: AbortSignal.timeout(6000), redirect: 'error' };
+}
+export async function readGoogleCalendarEvent(binding: GoogleCalendarBinding, eventId: string, transport: typeof fetch) {
+  const url = googleCalendarEventUrl(binding, eventId);
+  url.searchParams.set('fields','id,etag,status,start(dateTime),end(dateTime),extendedProperties(private),reminders,attendees(self),recurringEventId,recurrence');
+  return calendarProviderJson(await transport(url, googleCalendarRequest(binding)));
+}
+export async function readCreatedCalendarEvent(sql: ReadOnlySql, company: string, lead: string, eventId: string) {
+  const [rows] = await sql.query(
+    "SELECT id,calendar_hash FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND external_event_id=? AND operation='CREATE' AND state='CONFIRMED' LIMIT 2",
+    [company, lead, eventId],
+  );
+  return rows.length === 1 ? { id: String(rows[0].id), calendarHash: String(rows[0].calendar_hash) } : null;
 }
 
 export async function calendarProviderJson(response: Response) {
@@ -47,7 +71,7 @@ export async function calendarProviderJson(response: Response) {
   }
 }
 
-function providerDate(value: unknown) {
+export function calendarProviderDate(value: unknown) {
   const parsed = z.iso.datetime({ offset: true }).safeParse(value);
   return parsed.success ? Date.parse(parsed.data) : NaN;
 }
@@ -77,7 +101,7 @@ export async function observeCalendar(
         }),
       });
       const body = await calendarProviderJson(response);
-      if (providerDate(body?.timeMin) !== start || providerDate(body?.timeMax) !== end ||
+      if (calendarProviderDate(body?.timeMin) !== start || calendarProviderDate(body?.timeMax) !== end ||
           !body?.calendars || !Object.hasOwn(body.calendars, binding.calendarId)) {
         throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
       }
@@ -88,8 +112,8 @@ export async function observeCalendar(
       }
       let busy = false;
       for (const interval of result.busy) {
-        const from = providerDate(interval?.start);
-        const to = providerDate(interval?.end);
+        const from = calendarProviderDate(interval?.start);
+        const to = calendarProviderDate(interval?.end);
         if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) {
           throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
         }
@@ -101,14 +125,14 @@ export async function observeCalendar(
       });
     }
 
-    const url = new URL(CALENDAR_API + '/calendars/' + encodeURIComponent(binding.calendarId) + '/events/' + encodeURIComponent(command.eventId));
+    const url = googleCalendarEventUrl(binding, command.eventId);
     url.searchParams.set('fields', 'id,status,start(dateTime),end(dateTime)');
     const response = await transport(url, request);
     if (response.status === 404 || response.status === 410) throw new SalesError(404, 'CALENDAR_EVENT_NOT_FOUND');
     const body = await calendarProviderJson(response);
     if (body?.id !== command.eventId) throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
-    const startAtMs = providerDate(body?.start?.dateTime);
-    const endAtMs = providerDate(body?.end?.dateTime);
+    const startAtMs = calendarProviderDate(body?.start?.dateTime);
+    const endAtMs = calendarProviderDate(body?.end?.dateTime);
     if (body.status !== 'confirmed' || !Number.isFinite(startAtMs) || !Number.isFinite(endAtMs) || endAtMs <= startAtMs) {
       throw new SalesError(409, 'CALENDAR_EVENT_UNCONFIRMED');
     }

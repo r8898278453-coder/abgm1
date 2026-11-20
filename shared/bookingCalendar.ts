@@ -23,3 +23,5 @@ export const calendarChangeCommand = z.discriminatedUnion('operation', [
   z.object({ ...intent, ...window, operation: z.literal('RESCHEDULE') }).strict(),
   z.object({ ...intent, operation: z.literal('CANCEL') }).strict(),
 ]);
+
+export const calendarRefreshCommand = z.object({ expectedVersion: crmRevision }).strict();

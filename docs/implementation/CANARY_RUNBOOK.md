@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. For the external Calendar refresh canary, move and cancel a single tracked event in an isolated Google test calendar. Verify CRM revision, stopped reminder, missing-event behavior and IST Sales report before enabling live sends. See CALENDAR_EXTERNAL_OBSERVATIONS.md.
+
 20 November 2026 IST. On a dedicated test workspace, exercise approved reminder review and cancellation after a change. Verify the existing WhatsApp sender and explicit permission, customer service window, review expiration and exact receipt states. See APPOINTMENT_REMINDER_WORKFLOW.md.
 
 20 November 2026 IST. Roll forward to schema 058 with ENABLE_CALENDAR_CREATE=false. On one dedicated test calendar, verify event-write credentials, conditional update/delete, configured popup read-back and ambiguous response recovery before enabling the flag. See CALENDAR_CREATE_AND_RECOVERY.md.
