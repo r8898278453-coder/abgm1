@@ -1,5 +1,7 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+20 November 2026 IST. P07-05 advances with operator-initiated Calendar creation, tenant-scoped conflict checks, durable duplicate protection, and provider verification that stops CRM inquiry follow-ups. The IST Sales report includes verified bookings and pending confirmations. Migration 057 brings the canonical schema to 103 tables. Calendar creation defaults off. Provider reschedule, cancellation and reminders, live OAuth and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.
+
 20 November 2026 IST. P07-05 advances with per-client Google Calendar credentials, FreeBusy observations, exact confirmed event verification, IST form integration and role/credential change checks. Provider calendar writes, reminders, live OAuth and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_READ_VERIFICATION.md.
 
 20 November 2026 IST. P07-04 met local acceptance for the inquiry exit and send-race criteria. Versioned CRM appointment evidence cancels pending follow-up and prevents old workflows from resuming. P07-05 advances with operator-recorded confirmation, reschedule and cancellation. Live calendar availability, provider-created appointments, reminders and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. Schema 056 and 102 canonical tables. See BOOKING_EVIDENCE_AND_FOLLOWUPS.md.

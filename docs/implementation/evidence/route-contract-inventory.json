@@ -716,6 +716,16 @@
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/calendar-create",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/calendar-intents/:intentId/reconcile",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
       "method": "GET",
       "path": "/api/companies/:companyId/sales/leads/:leadId/deals",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"

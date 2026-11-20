@@ -1,5 +1,6 @@
 import {DEVELOPER_TABLES} from '../server/migrations/055_developer_access';
 import {BOOKING_TABLES} from '../server/migrations/056_booking_evidence';
+import {CALENDAR_WRITE_TABLES} from '../server/migrations/057_calendar_write_intents';
 import {CRM_IDENTITY_TABLES} from '../server/migrations/054_crm_identity';
 import {CALENDAR_PLAN_TABLES} from '../server/migrations/053_calendar_plans';
 import {CLIENT_REPORT_TABLES} from '../server/migrations/052_client_reports';
@@ -128,14 +129,17 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME IN ('agencies','agency_memberships'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...Object.entries(AGENCY_TABLE_COLUMNS).flatMap(([TABLE_NAME,names])=>names.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME})))],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(DEVELOPER_TABLES,String(params?.[0])))return [Object.keys((DEVELOPER_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(BOOKING_TABLES,String(params?.[0])))return [Object.keys((BOOKING_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_WRITE_TABLES,String(params?.[0])))return [Object.keys((CALENDAR_WRITE_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CRM_IDENTITY_TABLES,String(params?.[0])))return [Object.keys((CRM_IDENTITY_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_PLAN_TABLES,String(params?.[0])))return [Object.keys((CALENDAR_PLAN_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(DEVELOPER_TABLES,String(params?.[0])))return [Object.entries((DEVELOPER_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(BOOKING_TABLES,String(params?.[0])))return [Object.entries((BOOKING_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];
+    if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(CALENDAR_WRITE_TABLES,String(params?.[0])))return [Object.entries((CALENDAR_WRITE_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(CRM_IDENTITY_TABLES,String(params?.[0])))return [Object.entries((CRM_IDENTITY_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(CALENDAR_PLAN_TABLES,String(params?.[0])))return [Object.entries((CALENDAR_PLAN_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];
     if(Object.keys(DEVELOPER_TABLES).some(table=>cleanSql.includes("TABLE_NAME='"+table+"'")))return [[],[]];
     if(Object.keys(BOOKING_TABLES).some(table=>cleanSql.includes("TABLE_NAME='"+table+"'")))return [[],[]];
+    if(Object.keys(CALENDAR_WRITE_TABLES).some(table=>cleanSql.includes("TABLE_NAME='"+table+"'")))return [[],[]];
     if(['crm_identity_links','crm_identity_commands','crm_identity_reviews','crm_inbox_attachments'].some(table=>cleanSql.includes("TABLE_NAME='"+table+"'")))return [[],[]];
     if(cleanSql.includes("TABLE_NAME='calendar_plans'")||cleanSql.includes("TABLE_NAME='calendar_plan_items'"))return [[],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CLIENT_REPORT_TABLES,String(params?.[0])))return [Object.keys((CLIENT_REPORT_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];

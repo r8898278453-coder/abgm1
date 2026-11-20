@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. Keep ENABLE_CALENDAR_CREATE=false through the schema 057 roll-forward and readiness checks. Verify Calendar event permission and exact-event read-back on one dedicated test calendar before enabling creation. Test the lost-response runbook and check prior-binary compatibility with the newer ledger. See CALENDAR_CREATE_AND_RECOVERY.md.
+
 20 November 2026 IST. The booking evidence branch requires schema 056. Verify forward migration and the previous binary compatibility before deploying. Use the isolated restore evidence in BOOKING_EVIDENCE_AND_FOLLOWUPS.md.
 
 20 November2026 IST: Developer rollout requires a new reviewed055/101 staging/canary package, backup/key-recovery proof and explicit DEVELOPER_WEBHOOKS_ENABLED configuration if delivery is desired. This flag remains unchanged/off. Verify receiver raw-body HMAC, clock tolerance and durable (company,event) dedupe before activation. Old binaries may reject055 ledger; additive schema is not a rollback guarantee. No production rollout executed.

@@ -5,11 +5,11 @@ import { crmId } from '../shared/crmIdentity';
 import { canonicalJson } from '../shared/canonicalJson';
 import { agencyClientAccess } from './agencyPolicy';
 import { decryptCredential } from './db';
-import { withReadOnlySqlDeadline } from './readOnlySqlDeadline';
+import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
 import { SalesError } from './salesWorkspace';
 
 export const CALENDAR_PROVIDER = 'google_calendar';
-const API = 'https://www.googleapis.com/calendar/v3';
+export const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 const MAX_BYTES = 256 * 1024;
 const DAY_MS = 86400000;
 
@@ -24,7 +24,7 @@ export function calendarBinding(credentials: Record<string, unknown>, now = Date
   return { calendarId, token, expiresAt: expiry.data };
 }
 
-async function providerJson(response: Response) {
+export async function calendarProviderJson(response: Response) {
   if (!response.ok || !response.body) throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -68,7 +68,7 @@ export async function observeCalendar(
         end <= start || end - start > DAY_MS || end > now + 60 * DAY_MS) {
         throw new SalesError(400, 'CALENDAR_WINDOW_INVALID');
       }
-      const response = await transport(new URL(API + '/freeBusy'), {
+      const response = await transport(new URL(CALENDAR_API + '/freeBusy'), {
         ...request, method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,7 +76,7 @@ export async function observeCalendar(
           timeZone: 'UTC', items: [{ id: binding.calendarId }],
         }),
       });
-      const body = await providerJson(response);
+      const body = await calendarProviderJson(response);
       if (providerDate(body?.timeMin) !== start || providerDate(body?.timeMax) !== end ||
           !body?.calendars || !Object.hasOwn(body.calendars, binding.calendarId)) {
         throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
@@ -101,11 +101,11 @@ export async function observeCalendar(
       });
     }
 
-    const url = new URL(API + '/calendars/' + encodeURIComponent(binding.calendarId) + '/events/' + encodeURIComponent(command.eventId));
+    const url = new URL(CALENDAR_API + '/calendars/' + encodeURIComponent(binding.calendarId) + '/events/' + encodeURIComponent(command.eventId));
     url.searchParams.set('fields', 'id,status,start(dateTime),end(dateTime)');
     const response = await transport(url, request);
     if (response.status === 404 || response.status === 410) throw new SalesError(404, 'CALENDAR_EVENT_NOT_FOUND');
-    const body = await providerJson(response);
+    const body = await calendarProviderJson(response);
     if (body?.id !== command.eventId) throw new SalesError(503, 'CALENDAR_PROVIDER_UNAVAILABLE');
     const startAtMs = providerDate(body?.start?.dateTime);
     const endAtMs = providerDate(body?.end?.dateTime);
@@ -122,6 +122,31 @@ export async function observeCalendar(
   }
 }
 
+export async function readBookingCalendarBinding(sql: ReadOnlySql, actorId: string, company: string, lead: string) {
+  const [actors] = await sql.query('SELECT id,is_platform_admin FROM users WHERE id=?', [actorId]);
+  const actor = actors[0];
+  if (!actor || actor.id !== actorId || !(await agencyClientAccess(sql, {id: actor.id, is_platform_admin: Number(actor.is_platform_admin) === 1}, company, 'write')).authorized) {
+    throw new SalesError(403, 'SALES_ACCESS_DENIED');
+  }
+  const [leads] = await sql.query('SELECT id FROM leads WHERE company_id=? AND id=?', [company, lead]);
+  if (leads[0]?.id !== lead) throw new SalesError(404, 'LEAD_NOT_FOUND');
+  const [rows] = await sql.query(
+    'SELECT id,status,credentials FROM company_integrations WHERE company_id=? AND provider=?',
+    [company, CALENDAR_PROVIDER],
+  );
+  if (rows.length !== 1 || !['saved','connected','verified'].includes(rows[0].status)) {
+    throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
+  }
+  const credentials = typeof rows[0].credentials === 'string' ? JSON.parse(rows[0].credentials) : rows[0].credentials;
+  const sealed = credentials?.accessToken;
+  if (typeof sealed !== 'string' || !sealed.startsWith('enc:v1:')) {
+    throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
+  }
+  const binding = calendarBinding({ ...credentials, accessToken: decryptCredential(sealed) });
+  if (!binding) throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
+  return { binding, fingerprint: canonicalJson({ id: rows[0].id, status: rows[0].status, credentials }) };
+}
+
 export async function checkBookingCalendar(
   pool: Pool, actorId: string, company: string, lead: string, input: unknown,
   transport: typeof fetch = fetch,
@@ -131,30 +156,7 @@ export async function checkBookingCalendar(
     throw new SalesError(400, 'CALENDAR_CHECK_INVALID');
   }
   async function readBinding() {
-    return withReadOnlySqlDeadline(pool, async sql => {
-      const [actors] = await sql.query('SELECT id,is_platform_admin FROM users WHERE id=?', [actorId]);
-      const actor = actors[0];
-      if (!actor || actor.id !== actorId || !(await agencyClientAccess(sql, {id: actor.id, is_platform_admin: Number(actor.is_platform_admin) === 1}, company, 'write')).authorized) {
-        throw new SalesError(403, 'SALES_ACCESS_DENIED');
-      }
-      const [leads] = await sql.query('SELECT id FROM leads WHERE company_id=? AND id=?', [company, lead]);
-      if (leads[0]?.id !== lead) throw new SalesError(404, 'LEAD_NOT_FOUND');
-      const [rows] = await sql.query(
-        'SELECT id,status,credentials FROM company_integrations WHERE company_id=? AND provider=?',
-        [company, CALENDAR_PROVIDER],
-      );
-      if (rows.length !== 1 || !['saved','connected','verified'].includes(rows[0].status)) {
-        throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
-      }
-      const credentials = typeof rows[0].credentials === 'string' ? JSON.parse(rows[0].credentials) : rows[0].credentials;
-      const sealed = credentials?.accessToken;
-      if (typeof sealed !== 'string' || !sealed.startsWith('enc:v1:')) {
-        throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
-      }
-      const binding = calendarBinding({ ...credentials, accessToken: decryptCredential(sealed) });
-      if (!binding) throw new SalesError(409, 'CALENDAR_CONNECTION_REQUIRED');
-      return { binding, fingerprint: canonicalJson({ id: rows[0].id, status: rows[0].status, credentials }) };
-    });
+    return withReadOnlySqlDeadline(pool, sql => readBookingCalendarBinding(sql, actorId, company, lead));
   }
 
   const { binding, fingerprint } = await readBinding();

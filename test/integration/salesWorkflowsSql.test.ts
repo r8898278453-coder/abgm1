@@ -11,13 +11,32 @@ let calendarCalls=0;
 let rotateCalendar=false;
 const calendarId='clinic@group.calendar.google.com';
 const calendarCredentials={calendarId,accessToken:'calendar-token-fixture',expiresAt:new Date(Date.now()+86400000).toISOString()};
+let capturedEvent:any;
+let exposeEvent=false;
+let eventPosts=0;
+let providerBusy=false;
 const calendarTransport:typeof fetch=async(url,options)=>{
  calendarCalls++;
- assert.equal(String(url),'https://www.googleapis.com/calendar/v3/freeBusy');
+ const target=new URL(String(url));
+ assert.equal(target.origin,'https://www.googleapis.com');
  assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer calendar-token-fixture');
+ const eventsPath='/calendar/v3/calendars/'+encodeURIComponent(calendarId)+'/events';
+ if(target.pathname===eventsPath){
+  assert.equal(options?.method,'POST');
+  assert.equal(target.searchParams.get('sendUpdates'),'none');
+  capturedEvent={...JSON.parse(String(options?.body)),status:'confirmed'};
+  assert.equal(capturedEvent.attendees,undefined);
+  eventPosts++;
+  throw new Error('fixture lost Google acknowledgement');
+ }
+ if(capturedEvent && target.pathname===eventsPath+'/'+capturedEvent.id){
+  assert.ok(!options?.method || options.method==='GET');
+  return exposeEvent ? Response.json(capturedEvent) : new Response(null,{status:404});
+ }
+ assert.equal(String(url),'https://www.googleapis.com/calendar/v3/freeBusy');
  const input=JSON.parse(String(options?.body));
  if(rotateCalendar)await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:{...calendarCredentials,accessToken:'changed-token'}});
- return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:[]}}});
+ return Response.json({timeMin:input.timeMin,timeMax:input.timeMax,calendars:{[calendarId]:{busy:providerBusy?[{start:input.timeMin,end:input.timeMax}]:[]}}});
 };
 const app=express();app.use(express.json());registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool,calendarTransport});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const origin=`http://127.0.0.1:${(server.address() as any).port}`;
 const http=async(user:string,url:string,status:number,body?:any)=>{const r=await fetch(origin+url,{method:body?'POST':'GET',headers:{Authorization:user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});assert.equal(r.status,status);assert.equal(r.headers.get('cache-control'),'no-store');return r.json();};
@@ -86,6 +105,52 @@ try{
  assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===activeOnBooking.id)?.state,'EXITED');
  console.log('Booking evidence SQL/HTTP: eight identical confirmations, rollback, stale worker fencing, reschedule/cancel CAS and no workflow revival passed.');
 
+ stage='calendar create and recovery';
+ rotateCalendar=false;
+ await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:calendarCredentials});
+ const calendarLeadBase=calendarPath.replace(/calendar-check$/,'');
+ const createPath=calendarLeadBase+'calendar-create';
+ const command={requestKey:key(),expectedVersion:'3',startAt:window.startAt,endAt:window.endAt};
+ assert.equal((await http('owner',bookingPath,200)).calendarCreateEnabled,false);
+ assert.equal((await http('owner',createPath,409,command)).error,'CALENDAR_CREATE_DISABLED');
+ const calendarEnrollment=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ await http('viewer',createPath,403,command);
+ await http('foreign',createPath,403,command);
+ providerBusy=true;
+ assert.equal((await http('staff',createPath,409,{...command,requestKey:key()})).error,'CALENDAR_SLOT_BUSY');
+ assert.equal(eventPosts,0);
+ providerBusy=false;
+ const pendingWrites=await Promise.all(Array.from({length:8},()=>http('staff',createPath,200,command)));
+ const pendingId=pendingWrites[0].calendarIntent.requestId;
+ assert.ok(pendingWrites.every(result=>result.calendarIntent.requestId===pendingId && result.calendarIntent.state==='PENDING_REVIEW'));
+ assert.equal(eventPosts,1);
+ assert.equal((await http('owner',bookingPath,200)).pendingCalendarRequestId,pendingId);
+ const salesReportPath=`/api/companies/${company}/sales/report`;
+ assert.equal((await http('viewer',salesReportPath,200)).report.backlog.pendingCalendarCreations,1);
+ assert.equal((await http('staff',createPath,409,{...command,requestKey:key()})).error,'CALENDAR_LOCAL_CONFLICT');
+ assert.equal((await http('staff',bookingPath,409,{...confirm,expectedVersion:'3',requestKey:key()})).error,'CALENDAR_RECONCILIATION_REQUIRED');
+ const verifyPath=calendarLeadBase+'calendar-intents/'+pendingId+'/reconcile';
+ await http('viewer',verifyPath,403,{});
+ await http('foreign',verifyPath,403,{});
+ assert.equal((await http('owner',verifyPath,200,{})).calendarIntent.state,'PENDING_REVIEW');
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ exposeEvent=true;
+ assert.equal((await http('owner',verifyPath,200,{})).calendarIntent.state,'CONFIRMED');
+ assert.equal((await http('staff',createPath,200,command)).calendarIntent.state,'CONFIRMED');
+ assert.equal(eventPosts,1);
+ const calendarBooking=await http('viewer',bookingPath,200);
+ assert.equal(calendarBooking.pendingCalendarRequestId,null);
+ assert.equal(calendarBooking.booking.version,'4');
+ assert.equal(calendarBooking.booking.source,'GOOGLE_CALENDAR_VERIFIED');
+ const calendarReport=(await http('viewer',salesReportPath,200)).report;
+ assert.equal(calendarReport.backlog.pendingCalendarCreations,0);
+ assert.equal(calendarReport.activity.AGENCY_SALES_CALENDAR_BOOKING_VERIFIED,1);
+ assert.equal(calendarBooking.booking.externalEventId,capturedEvent.id);
+ assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===calendarEnrollment.id)?.exit_reason,'BOOKING_RECORDED');
+ assert.equal((await http('owner',bookingPath,200,{operation:'CANCEL',expectedVersion:'4',requestKey:key()})).booking.version,'5');
+ console.log('Calendar create SQL/HTTP: default off, role denial, busy rejection, eight concurrent requests with one provider POST, exact recovery, booking race fence and follow-up exit passed.');
+
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});
  stage='orphan-recovery';const orphan=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE job_queue SET status='FAILED' WHERE id=?",[orphan.jobId]);await recoverSalesWorkflows(pool);assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===orphan.id)?.exit_reason,'REVIEW_JOB_UNAVAILABLE');
@@ -112,4 +177,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['company_integrations','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

@@ -14,3 +14,10 @@ export const calendarCheckResult = z.discriminatedUnion('kind', [
     startAtMs: z.number().int().positive(), endAtMs: z.number().int().positive(),
   }).strict(),
 ]);
+
+export const calendarCreateCommand = z.object({
+  requestKey: z.string().regex(/^[a-f0-9]{64}$/),
+  expectedVersion: z.string().regex(/^(0|[1-9]\d{0,19})$/),
+  startAt: zonedTime,
+  endAt: zonedTime,
+}).strict();
