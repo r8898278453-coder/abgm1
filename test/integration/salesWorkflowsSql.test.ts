@@ -14,6 +14,8 @@ const calendarCredentials={calendarId,accessToken:'calendar-token-fixture',expir
 let capturedEvent:any;
 let exposeEvent=false;
 let eventPosts=0;
+let eventPatches=0,eventDeletes=0,rejectEtag=false,hideChanges=false;
+let oldEvent:any;
 let providerBusy=false;
 const calendarTransport:typeof fetch=async(url,options)=>{
  calendarCalls++;
@@ -24,14 +26,32 @@ const calendarTransport:typeof fetch=async(url,options)=>{
  if(target.pathname===eventsPath){
   assert.equal(options?.method,'POST');
   assert.equal(target.searchParams.get('sendUpdates'),'none');
-  capturedEvent={...JSON.parse(String(options?.body)),status:'confirmed'};
+  capturedEvent={...JSON.parse(String(options?.body)),status:'confirmed',etag:'"event-etag-1"'};
   assert.equal(capturedEvent.attendees,undefined);
   eventPosts++;
   throw new Error('fixture lost Google acknowledgement');
  }
  if(capturedEvent && target.pathname===eventsPath+'/'+capturedEvent.id){
+  const headers=options?.headers as Record<string,string>;
+  if(options?.method==='PATCH'){
+   eventPatches++;
+   assert.equal(headers['If-Match'],capturedEvent.etag);
+   assert.equal(target.searchParams.get('sendUpdates'),'none');
+   if(rejectEtag)return new Response(null,{status:412});
+   oldEvent=capturedEvent;
+   capturedEvent={...capturedEvent,...JSON.parse(String(options.body)),etag:'"event-etag-2"'};
+   throw new Error('fixture lost PATCH acknowledgement');
+  }
+  if(options?.method==='DELETE'){
+   eventDeletes++;
+   assert.equal(headers['If-Match'],capturedEvent.etag);
+   assert.equal(target.searchParams.get('sendUpdates'),'none');
+   capturedEvent={id:capturedEvent.id,status:'cancelled'};
+   exposeEvent=false;
+   throw new Error('fixture lost DELETE acknowledgement');
+  }
   assert.ok(!options?.method || options.method==='GET');
-  return exposeEvent ? Response.json(capturedEvent) : new Response(null,{status:404});
+  return exposeEvent ? Response.json(hideChanges && oldEvent ? oldEvent : capturedEvent) : new Response(null,{status:404});
  }
  assert.equal(String(url),'https://www.googleapis.com/calendar/v3/freeBusy');
  const input=JSON.parse(String(options?.body));
@@ -110,7 +130,7 @@ try{
  await db.saveCompanyIntegration(company,'google_calendar',{status:'saved',credentials:calendarCredentials});
  const calendarLeadBase=calendarPath.replace(/calendar-check$/,'');
  const createPath=calendarLeadBase+'calendar-create';
- const command={requestKey:key(),expectedVersion:'3',startAt:window.startAt,endAt:window.endAt};
+ const command={requestKey:key(),expectedVersion:'3',startAt:window.startAt,endAt:window.endAt,reminderMinutes:15};
  assert.equal((await http('owner',bookingPath,200)).calendarCreateEnabled,false);
  assert.equal((await http('owner',createPath,409,command)).error,'CALENDAR_CREATE_DISABLED');
  const calendarEnrollment=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());
@@ -147,8 +167,59 @@ try{
  assert.equal(calendarReport.backlog.pendingCalendarCreations,0);
  assert.equal(calendarReport.activity.AGENCY_SALES_CALENDAR_BOOKING_VERIFIED,1);
  assert.equal(calendarBooking.booking.externalEventId,capturedEvent.id);
+ assert.deepEqual(capturedEvent.reminders,{useDefault:false,overrides:[{method:'popup',minutes:15}]});
  assert.equal((await snapshot()).enrollments.find((item:any)=>item.id===calendarEnrollment.id)?.exit_reason,'BOOKING_RECORDED');
- assert.equal((await http('owner',bookingPath,200,{operation:'CANCEL',expectedVersion:'4',requestKey:key()})).booking.version,'5');
+ stage='calendar reschedule and cancellation';
+ const changePath=calendarLeadBase+'calendar-change';
+ const move={operation:'RESCHEDULE',requestKey:key(),expectedVersion:'4',
+  startAt:new Date(Date.parse(window.endAt)+3600000).toISOString(),
+  endAt:new Date(Date.parse(window.endAt)+7200000).toISOString(),reminderMinutes:0};
+ await http('owner',changePath,409,move);
+ process.env.ENABLE_CALENDAR_CREATE='true';
+ await http('viewer',changePath,403,move);
+ await http('foreign',changePath,403,move);
+ assert.equal((await http('staff',changePath,409,{...move,startAt:window.startAt})).error,'CALENDAR_RESCHEDULE_OVERLAPS_CURRENT');
+ rejectEtag=true;
+ assert.equal((await http('staff',changePath,409,{...move,requestKey:key()})).error,'CALENDAR_EVENT_CHANGED');
+ rejectEtag=false;
+ hideChanges=true;
+ const moves=await Promise.all(Array.from({length:8},()=>http('staff',changePath,200,move)));
+ assert.ok(moves.every(result=>result.calendarIntent.state==='PENDING_REVIEW'));
+ assert.equal(eventPatches,2);
+ const pendingCalendarReport=(await http('viewer',salesReportPath,200)).report;
+ assert.equal(pendingCalendarReport.backlog.pendingCalendarCreations,0);
+ assert.equal(pendingCalendarReport.backlog.pendingCalendarChanges,1);
+ assert.deepEqual(capturedEvent.reminders,{useDefault:false,overrides:[]});
+ const restoreMovePath=calendarLeadBase+'calendar-intents/'+moves[0].calendarIntent.requestId+'/reconcile';
+ assert.equal((await http('owner',restoreMovePath,200,{})).calendarIntent.state,'PENDING_REVIEW');
+ hideChanges=false;
+ assert.equal((await http('owner',restoreMovePath,200,{})).calendarIntent.state,'CONFIRMED');
+ assert.equal((await http('staff',changePath,200,move)).calendarIntent.state,'CONFIRMED');
+ assert.equal(eventPatches,2);
+ const moved=(await http('viewer',bookingPath,200)).booking;
+ assert.equal(moved.version,'5');
+ assert.equal(moved.source,'GOOGLE_CALENDAR_VERIFIED');
+ assert.equal(moved.startAtMs,Date.parse(move.startAt));
+ const cancelGoogle={operation:'CANCEL',requestKey:key(),expectedVersion:'5'};
+ const pendingCancellation=(await http('owner',changePath,200,cancelGoogle)).calendarIntent;
+ assert.equal(pendingCancellation.state,'PENDING_REVIEW');
+ assert.equal(eventDeletes,1);
+ const restoreCancelPath=calendarLeadBase+'calendar-intents/'+pendingCancellation.requestId+'/reconcile';
+ assert.equal((await http('owner',restoreCancelPath,200,{})).calendarIntent.state,'PENDING_REVIEW');
+ assert.equal((await http('viewer',bookingPath,200)).booking.state,'CONFIRMED');
+ delete process.env.ENABLE_CALENDAR_CREATE;
+ exposeEvent=true;
+ assert.equal((await http('staff',restoreCancelPath,200,{})).calendarIntent.state,'CONFIRMED');
+ assert.equal((await http('owner',changePath,200,cancelGoogle)).calendarIntent.state,'CONFIRMED');
+ assert.equal(eventDeletes,1);
+ const cancelled=(await http('viewer',bookingPath,200)).booking;
+ assert.equal(cancelled.version,'6');
+ assert.equal(cancelled.state,'CANCELLED');
+ const calendarChangesReport=(await http('viewer',salesReportPath,200)).report;
+ assert.equal(calendarChangesReport.activity.AGENCY_SALES_CALENDAR_RESCHEDULE_VERIFIED,1);
+ assert.equal(calendarChangesReport.activity.AGENCY_SALES_CALENDAR_CANCEL_VERIFIED,1);
+ assert.equal(calendarChangesReport.backlog.pendingCalendarChanges,0);
+ console.log('Calendar reschedule and cancellation SQL/HTTP: current ETag, one accepted conditional mutation, lost responses, absent versus cancelled evidence, popup reminders and IST audit passed.');
  console.log('Calendar create SQL/HTTP: default off, role denial, busy rejection, eight concurrent requests with one provider POST, exact recovery, booking race fence and follow-up exit passed.');
 
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');

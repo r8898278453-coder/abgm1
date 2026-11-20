@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. Roll forward to schema 058 with ENABLE_CALENDAR_CREATE=false. On one dedicated test calendar, verify event-write credentials, conditional update/delete, configured popup read-back and ambiguous response recovery before enabling the flag. See CALENDAR_CREATE_AND_RECOVERY.md.
+
 20 November 2026 IST. Keep ENABLE_CALENDAR_CREATE=false through the schema 057 roll-forward and readiness checks. Verify Calendar event permission and exact-event read-back on one dedicated test calendar before enabling creation. Test the lost-response runbook and check prior-binary compatibility with the newer ledger. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. The booking evidence branch requires schema 056. Verify forward migration and the previous binary compatibility before deploying. Use the isolated restore evidence in BOOKING_EVIDENCE_AND_FOLLOWUPS.md.

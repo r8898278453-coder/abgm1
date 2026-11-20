@@ -1,3 +1,4 @@
+import {calendarChangeColumns} from '../server/migrations/058_calendar_appointment_changes';
 import {DEVELOPER_TABLES} from '../server/migrations/055_developer_access';
 import {BOOKING_TABLES} from '../server/migrations/056_booking_evidence';
 import {CALENDAR_WRITE_TABLES} from '../server/migrations/057_calendar_write_intents';
@@ -129,7 +130,7 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME IN ('agencies','agency_memberships'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...Object.entries(AGENCY_TABLE_COLUMNS).flatMap(([TABLE_NAME,names])=>names.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME})))],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(DEVELOPER_TABLES,String(params?.[0])))return [Object.keys((DEVELOPER_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(BOOKING_TABLES,String(params?.[0])))return [Object.keys((BOOKING_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
-    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_WRITE_TABLES,String(params?.[0])))return [Object.keys((CALENDAR_WRITE_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_WRITE_TABLES,String(params?.[0])))return [Object.keys({...CALENDAR_WRITE_TABLES.sales_calendar_intents.columns,...calendarChangeColumns}).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CRM_IDENTITY_TABLES,String(params?.[0])))return [Object.keys((CRM_IDENTITY_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_PLAN_TABLES,String(params?.[0])))return [Object.keys((CALENDAR_PLAN_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT INDEX_NAME,COLUMN_NAME,SUB_PART,NON_UNIQUE')&&Object.hasOwn(DEVELOPER_TABLES,String(params?.[0])))return [Object.entries((DEVELOPER_TABLES as any)[String(params[0])].indexes).flatMap(([INDEX_NAME,cols]:any)=>cols.map((COLUMN_NAME:string)=>({INDEX_NAME,COLUMN_NAME,SUB_PART:null,NON_UNIQUE:INDEX_NAME.startsWith('uq_')?0:1}))),[]];

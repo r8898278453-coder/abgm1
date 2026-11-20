@@ -1,5 +1,7 @@
 # AI Agent State
 
+20 November 2026 IST. P07-05 advances with scoped Google Calendar reschedule and cancellation, conditional event writes, exact recovery, optional Calendar popup reminders, and separate IST Sales activity for verified changes. Migration 058 extends the existing intent ledger. Calendar writes default off. Live Google acceptance, customer reminder delivery and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.
+
 20 November 2026 IST. P07-05 advances with operator-initiated Calendar creation, tenant-scoped conflict checks, durable duplicate protection, and provider verification that stops CRM inquiry follow-ups. The IST Sales report includes verified bookings and pending confirmations. Migration 057 brings the canonical schema to 103 tables. Calendar creation defaults off. Provider reschedule, cancellation and reminders, live OAuth and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. P07-05 advances with per-client Google Calendar credentials, FreeBusy observations, exact confirmed event verification, IST form integration and role/credential change checks. Provider calendar writes, reminders, live OAuth and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_READ_VERIFICATION.md.

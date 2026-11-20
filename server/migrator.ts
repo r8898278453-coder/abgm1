@@ -1,3 +1,4 @@
+import {calendarAppointmentChanges,calendarChangeColumns,calendarChangeCheck} from './migrations/058_calendar_appointment_changes';
 import {calendarWriteMigration,CALENDAR_WRITE_TABLES,CALENDAR_WRITE_CHECKS} from './migrations/057_calendar_write_intents';
 import {bookingEvidenceMigration,BOOKING_TABLES,BOOKING_CHECKS} from './migrations/056_booking_evidence';
 import {developerAccessMigration,DEVELOPER_TABLES,DEVELOPER_CHECKS} from './migrations/055_developer_access';
@@ -888,6 +889,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   developerAccessMigration,
   bookingEvidenceMigration,
   calendarWriteMigration,
+  calendarAppointmentChanges,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1271,6 +1273,10 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
        for(const [name,columns]of Object.entries(definition.indexes)){const rows=idx.filter((r:any)=>r.INDEX_NAME===name);if(rows.map((r:any)=>r.COLUMN_NAME).join(',')!==columns.join(',')||rows.some((r:any)=>r.SUB_PART!==null||Number(r.NON_UNIQUE)!==(name.startsWith('uq_')?0:1)))missingConstraints.push(table+'.'+name);}
       }
       for(const check of CALENDAR_WRITE_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('calendar_write.shape');}
+      const [calendarColumns]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',['sales_calendar_intents']);
+      for(const name of Object.keys(calendarChangeColumns))if(!calendarColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push('sales_calendar_intents.'+name);
+      const [badCalendarChangeCols]:any=await conn.query(calendarChangeCheck.sql);
+      if(badCalendarChangeCols.length)missingConstraints.push('calendar_change.shape');
       for(const [table,definition]of Object.entries(CRM_IDENTITY_TABLES)){
        const [cols]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[table]);
        for(const name of Object.keys(definition.columns))if(!cols.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push(table+'.'+name);

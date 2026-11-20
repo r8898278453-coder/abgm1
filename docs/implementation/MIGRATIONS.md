@@ -1,5 +1,7 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+20 November 2026 IST. Forward migration 058 extends sales_calendar_intents with an operation, optional popup reminder minutes and a hold deadline. Existing intents are CREATE with their original timing. The canonical target remains 103 tables.
+
 20 November 2026 IST. Additive migration 057 registers sales_calendar_intents with a tenant/request uniqueness constraint and tenant lead/state and calendar/window indexes. Canonical schema has 103 tables.
 
 20 November 2026 IST. Forward migration 056 adds sales_booking_evidence with tenant-scoped request and revision uniqueness. The target is 102 canonical tables. Disposable restore preserved business rows and the original ledger. Repeating migration applied zero changes.

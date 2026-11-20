@@ -1,4 +1,4 @@
-import {calendarCreateEnabled,createCalendarAppointment,reconcileCalendarAppointment} from './calendarCreate';
+import {calendarCreateEnabled,changeCalendarAppointment,createCalendarAppointment,reconcileCalendarAppointment} from './calendarCreate';
 import {checkBookingCalendar} from './bookingCalendar';
 import {readBookingEvidence,saveBookingEvidence} from './bookingEvidence';
 import {readFulfillment,saveFulfillment} from './retention';
@@ -31,6 +31,10 @@ export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promis
  route('post',base+'/leads/:leadId/calendar-create','write',async(req,pool,user)=>{
   if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
   return {calendarIntent:await createCalendarAppointment(pool,user,String(req.params.companyId),String(req.params.leadId),req.body,deps.calendarTransport)};
+ });
+ route('post',base+'/leads/:leadId/calendar-change','write',async(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
+  return {calendarIntent:await changeCalendarAppointment(pool,user,String(req.params.companyId),String(req.params.leadId),req.body,deps.calendarTransport)};
  });
  route('post',base+'/leads/:leadId/calendar-intents/:intentId/reconcile','write',async(req,pool,user)=>{
   if(Object.keys(req.query).length || (req.body !== undefined && Object.keys(req.body ?? {}).length))throw new SalesError(400,'CALENDAR_RECONCILE_INVALID');

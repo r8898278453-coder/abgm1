@@ -10,7 +10,7 @@ import { canonicalJson } from '../shared/canonicalJson';
 import { crmId } from '../shared/crmIdentity';
 import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
 
-async function latest(sql: ReadOnlySql, company: string, lead: string) {
+export async function latestBookingEvidence(sql: ReadOnlySql, company: string, lead: string) {
   const [rows] = await sql.query(
     `SELECT b.*,CAST(b.revision AS CHAR) version,EXISTS (
       SELECT 1 FROM sales_calendar_intents i
@@ -52,10 +52,10 @@ export async function readBookingEvidence(pool: Pool, user: any, company: string
     const [leads] = await sql.query('SELECT id FROM leads WHERE id=? AND company_id=?', [lead, company]);
     if (leads[0]?.id !== lead) throw new SalesError(404, 'LEAD_NOT_FOUND');
     const [pending] = await sql.query(
-      "SELECT id FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW' AND end_at_ms>UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 ORDER BY end_at_ms DESC,id LIMIT 1",
+      "SELECT id FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW' AND COALESCE(hold_until_ms,end_at_ms)>UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 ORDER BY end_at_ms DESC,id LIMIT 1",
       [company, lead],
     );
-    return { booking: publicBooking(await latest(sql, company, lead)), pendingCalendarRequestId: pending[0]?.id ?? null };
+    return { booking: publicBooking(await latestBookingEvidence(sql, company, lead)), pendingCalendarRequestId: pending[0]?.id ?? null };
   });
 }
 
@@ -80,19 +80,22 @@ export async function saveBookingEvidence(
       if (receipts[0].input_hash !== hash) throw new SalesError(409, 'BOOKING_REQUEST_CONFLICT');
       return { booking: publicBooking({...receipts[0],calendar_verified:Boolean(calendar)}), reused: true };
     }
-    const previous = await latest(sql, canonicalCompany, lead);
+    const previous = await latestBookingEvidence(sql, canonicalCompany, lead);
     const [{ nowMs }]: any = (await sql.query('SELECT UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000 nowMs'))[0];
     const now = Number(nowMs);
     const [pending] = await sql.query<RowDataPacket[]>(
-      "SELECT id,external_event_id,CAST(expected_revision AS CHAR) version,start_at_ms,end_at_ms FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW' AND end_at_ms>?",
+      "SELECT id,external_event_id,CAST(expected_revision AS CHAR) version,start_at_ms,end_at_ms,operation FROM sales_calendar_intents WHERE company_id=? AND lead_id=? AND state='PENDING_REVIEW' AND COALESCE(hold_until_ms,end_at_ms)>?",
       [canonicalCompany, lead, now],
     );
     if (calendar) {
       const intent = pending.find(row => row.id === calendar.intentId);
       const current = await readBookingCalendarBinding(sql, user.id, canonicalCompany, lead);
-      if (!intent || current.fingerprint !== calendar.bindingFingerprint || command.operation !== 'CONFIRM' ||
-          intent.external_event_id !== command.externalEventId || intent.version !== command.expectedVersion ||
-          Number(intent.start_at_ms) !== Date.parse(command.startAt) || Number(intent.end_at_ms) !== Date.parse(command.endAt)) {
+      const operation = command.operation === 'CONFIRM' ? 'CREATE' : command.operation;
+      const sameEvent = command.operation === 'CANCEL' ? intent?.external_event_id === previous?.external_event_id :
+        intent?.external_event_id === command.externalEventId &&
+        Number(intent.start_at_ms) === Date.parse(command.startAt) && Number(intent.end_at_ms) === Date.parse(command.endAt);
+      if (!intent || current.fingerprint !== calendar.bindingFingerprint || intent.operation !== operation ||
+          intent.version !== command.expectedVersion || !sameEvent) {
         throw new SalesError(409, 'CALENDAR_RECONCILIATION_REQUIRED');
       }
     } else if (pending.length) {
@@ -126,7 +129,7 @@ export async function saveBookingEvidence(
       await sql.query("UPDATE sales_calendar_intents SET state='CONFIRMED' WHERE company_id=? AND id=?",
         [canonicalCompany, calendar.intentId]);
     }
-    await agencyAudit(sql, canonicalCompany, user.id, calendar ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_BOOKING_EVIDENCE_' + command.operation,
+    await agencyAudit(sql, canonicalCompany, user.id, calendar ? (command.operation === 'CONFIRM' ? 'SALES_CALENDAR_BOOKING_VERIFIED' : 'SALES_CALENDAR_' + command.operation + '_VERIFIED') : 'SALES_BOOKING_EVIDENCE_' + command.operation,
       { leadId: lead, version, state, ...(calendar ? { calendarIntentId: calendar.intentId } : {}) });
     return {
       booking: publicBooking({version,state,external_event_id:eventId,start_at_ms:start,end_at_ms:end,confirmed_at_ms:now,calendar_verified:Boolean(calendar)}),

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { crmHash, crmRevision } from './crmIdentity';
 
 const zonedTime = z.iso.datetime({ offset: true });
 export const calendarCheck = z.discriminatedUnion('kind', [
@@ -15,9 +16,10 @@ export const calendarCheckResult = z.discriminatedUnion('kind', [
   }).strict(),
 ]);
 
-export const calendarCreateCommand = z.object({
-  requestKey: z.string().regex(/^[a-f0-9]{64}$/),
-  expectedVersion: z.string().regex(/^(0|[1-9]\d{0,19})$/),
-  startAt: zonedTime,
-  endAt: zonedTime,
-}).strict();
+const intent = { requestKey: crmHash, expectedVersion: crmRevision };
+const window = { startAt: zonedTime, endAt: zonedTime, reminderMinutes: z.number().int().min(0).max(120).optional() };
+export const calendarCreateCommand = z.object({ ...intent, ...window }).strict();
+export const calendarChangeCommand = z.discriminatedUnion('operation', [
+  z.object({ ...intent, ...window, operation: z.literal('RESCHEDULE') }).strict(),
+  z.object({ ...intent, operation: z.literal('CANCEL') }).strict(),
+]);

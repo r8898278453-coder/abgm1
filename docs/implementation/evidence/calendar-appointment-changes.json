@@ -1,0 +1,28 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P07-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "sql_http_coverage": [
+    "prior Calendar creates, draft replay and manual evidence compatibility",
+    "conditional provider writes with current event ETag",
+    "eight exact reschedule requests for one accepted provider mutation",
+    "read-back recovery from lost responses and cancelled event tombstone",
+    "404 remains unconfirmed and duplicate cancellation sends are fenced",
+    "popup setting enabled on create and removed on reschedule",
+    "scoped IST activity and separate creation/change backlog counts"
+  ],
+  "browser_fixtures": ["salesWorkspace", "salesWorkflows", "approvedSalesMessages"],
+  "restore": {
+    "migrations": 58,
+    "canonical_tables": 103,
+    "business_rows_preserved": true,
+    "original_ledger_preserved": true,
+    "repeat_applied": 0,
+    "result": "passed"
+  },
+  "default_regression_programs": 158,
+  "provider_transport": "intercepted",
+  "live_provider_writes": 0,
+  "live_acceptance": "pending",
+  "customer_reminder_delivery": "pending"
+}

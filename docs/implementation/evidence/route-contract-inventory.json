@@ -712,6 +712,11 @@
     },
     {
       "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/calendar-change",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
       "path": "/api/companies/:companyId/sales/leads/:leadId/calendar-check",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },

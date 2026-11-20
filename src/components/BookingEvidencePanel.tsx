@@ -39,6 +39,8 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarError, setCalendarError] = useState('');
   const [createEnabled, setCreateEnabled] = useState(false);
+  const [reminderMinutes, setReminderMinutes] = useState('');
+  const [confirmCalendarCancel, setConfirmCalendarCancel] = useState(false);
   const [calendarIntent, setCalendarIntent] = useState<string | null>(null);
   const calendarRequest = useRef<AbortController | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -59,6 +61,8 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     setStart('');
     setEnd('');
     setPending(null);
+    setReminderMinutes('');
+    setConfirmCalendarCancel(false);
     setLoaded(true);
   }
 
@@ -142,7 +146,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     }
   }
 
-  async function writeCalendar(intentId?: string) {
+  async function writeCalendar(operation: 'CREATE' | 'RESCHEDULE' | 'CANCEL' | 'VERIFY') {
     const session = getStoredToken();
     if (busy || session !== acceptedSession.current || !canWrite) return;
     const controller = new AbortController();
@@ -152,11 +156,16 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     setError('');
     setCalendar(null);
     const current = () => !controller.signal.aborted && session === getStoredToken();
-    const action = intentId ? 'calendar-intents/' + encodeURIComponent(intentId) + '/reconcile' : 'calendar-create';
+    const action = operation === 'VERIFY'
+      ? 'calendar-intents/' + encodeURIComponent(calendarIntent || '') + '/reconcile'
+      : operation === 'CREATE' ? 'calendar-create' : 'calendar-change';
+    setConfirmCalendarCancel(false);
     try {
-      const body = intentId ? undefined : JSON.stringify({
+      const body = operation === 'VERIFY' ? undefined : JSON.stringify({
         requestKey: newRequestKey(), expectedVersion: booking?.version || '0',
-        startAt: istToIso(start), endAt: istToIso(end),
+        ...(operation !== 'CREATE' ? { operation } : {}),
+        ...(operation !== 'CANCEL' ? { startAt: istToIso(start), endAt: istToIso(end),
+          ...(reminderMinutes !== '' ? { reminderMinutes: Number(reminderMinutes) } : {}) } : {}),
       });
       const result = await apiRequest<{
         success: boolean; companyId: string; calendarIntent: { requestId: string; state: string };
@@ -167,13 +176,15 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
         setCalendarIntent(result.calendarIntent.requestId);
       } else {
         await call();
-        if (result.calendarIntent.state === 'REJECTED') setError('Calendar creation was rejected.');
+        if (result.calendarIntent.state === 'REJECTED') setError('Google Calendar did not accept the request.');
       }
     } catch (cause) {
       if (!current()) return;
       setLoaded(false);
-      setError(cause instanceof ApiRequestError && cause.message === 'CALENDAR_SLOT_BUSY'
-        ? 'Calendar reported a conflict. Load the appointment record to choose another window.'
+      const code = cause instanceof ApiRequestError ? cause.message : '';
+      setError(code === 'CALENDAR_SLOT_BUSY' ? 'Calendar reported a conflict. Load the appointment record to choose another window.'
+        : code === 'CALENDAR_RESCHEDULE_OVERLAPS_CURRENT' ? 'Choose a time outside the current appointment window.'
+        : code === 'CALENDAR_EVENT_CHANGED' ? 'The event changed in Google Calendar. Load the appointment record and verify it.'
         : 'Calendar result unavailable. Load the appointment record to check the saved status.');
     } finally {
       if (current()) setBusy(false);
@@ -194,6 +205,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
 
   const visible = loaded && acceptedSession.current === getStoredToken();
   const active = booking?.state === 'CONFIRMED' && booking.endAtMs > Date.now();
+  const providerChangeEnabled = createEnabled && active && booking?.source === 'GOOGLE_CALENDAR_VERIFIED';
   return <section aria-label="Appointment evidence" className="min-w-0 space-y-2 rounded-xl border p-3 break-words">
     <h3>Appointment evidence</h3>
     <p>Confirmed appointments stop active inquiry follow-ups for this lead.</p>
@@ -204,8 +216,8 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
         ? <p>{active ? (booking.source === 'GOOGLE_CALENDAR_VERIFIED' ? 'Verified on Google Calendar' : 'Confirmed externally') : booking.state === 'CANCELLED' ? 'Cancelled' : 'Past'} · {booking.externalEventId} · {formatPlatformDateTime(booking.startAtMs)} to {formatPlatformDateTime(booking.endAtMs)} IST</p>
         : <p>No appointment recorded.</p>}
       {calendarIntent && <div role="status">
-        <p>Calendar creation is awaiting verification.</p>
-        {canWrite && <button disabled={busy} onClick={() => void writeCalendar(calendarIntent)}>Verify calendar creation</button>}
+        <p>Google Calendar request is awaiting verification.</p>
+        {canWrite && <button disabled={busy} onClick={() => void writeCalendar('VERIFY')}>Verify calendar request</button>}
       </div>}
       {canWrite && <fieldset disabled={busy || Boolean(pending) || Boolean(calendarIntent)} className="min-w-0 space-y-2">
         <legend>{active ? 'Record an external appointment change' : 'Record external confirmation'}</legend>
@@ -231,8 +243,23 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
             <button onClick={() => {setStart(toIstInput(calendar.startAtMs));setEnd(toIstInput(calendar.endAtMs));}}>Use calendar event times</button>
           </>}
         </div>}
-        {!active && createEnabled && calendar?.kind === 'AVAILABILITY' && calendar.status === 'FREE' && start && end &&
-          <button onClick={() => void writeCalendar()}>Create appointment on Google Calendar</button>}
+        {createEnabled && (!active || providerChangeEnabled) && <label className="block">
+          Google Calendar popup reminder
+          <select className="block" value={reminderMinutes} onChange={e => setReminderMinutes(e.target.value)}>
+            <option value="">{active ? 'Keep current setting' : 'No reminder'}</option>
+            {active && <option value="0">Turn off reminder</option>}
+            {[5, 15, 30, 60, 120].map(minutes => <option key={minutes} value={minutes}>{minutes} minutes before</option>)}
+          </select>
+        </label>}
+        {createEnabled && (!active || providerChangeEnabled) && calendar?.kind === 'AVAILABILITY' && calendar.status === 'FREE' && start && end &&
+          <button onClick={() => void writeCalendar(active ? 'RESCHEDULE' : 'CREATE')}>
+            {active ? 'Reschedule on Google Calendar' : 'Create appointment on Google Calendar'}
+          </button>}
+        {providerChangeEnabled && (confirmCalendarCancel ? <div>
+          <p>Remove this appointment from Google Calendar and update the CRM record?</p>
+          <button onClick={() => void writeCalendar('CANCEL')}>Confirm Google Calendar cancellation</button>
+          <button onClick={() => setConfirmCalendarCancel(false)}>Keep appointment</button>
+        </div> : <button onClick={() => setConfirmCalendarCancel(true)}>Cancel on Google Calendar</button>)}
         <button disabled={!start || !end || (!active && !eventId.trim())} onClick={() => save(active ? 'RESCHEDULE' : 'CONFIRM')}>
           {active ? 'Record external reschedule' : 'Record confirmed appointment'}
         </button>

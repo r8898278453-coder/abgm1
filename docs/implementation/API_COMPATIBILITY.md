@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. POST calendar-change adds provider reschedule and cancellation for a verified appointment. Calendar create and reschedule accept optional reminderMinutes. Both use existing intent reconciliation. The Sales report adds pendingCalendarChanges while keeping pendingCalendarCreations scoped to creation requests. See CALENDAR_CREATE_AND_RECOVERY.md.
+
 20 November 2026 IST. Scoped appointment creation and exact-intent reconciliation add two Sales POST routes. Booking evidence GET includes calendarCreateEnabled and pendingCalendarRequestId. Provider-verifiable confirmations expose GOOGLE_CALENDAR_VERIFIED in the existing source field. The live Sales report adds the pendingCalendarCreations backlog count and verified Calendar activity. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. POST /api/companies/:companyId/sales/leads/:leadId/calendar-check accepts AVAILABILITY with a zoned window or EVENT with an exact provider event ID. The write role gates the check against the saved client calendar. Only availability or confirmed timed event fields leave the server.
