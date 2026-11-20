@@ -1,3 +1,4 @@
+import {TenantEmailDomainCheck} from './TenantEmailDomainCheck';
 import {CalendarOAuthPanel} from './CalendarOAuthPanel';
 import {adSyncSummary} from '../../shared/integrationOutcomes';
 import {ExtensionDecisionsPanel} from './ExtensionDecisionsPanel';
@@ -72,6 +73,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 }) => {
   const actionScope=useRef(0);
   const mounted=useRef(true),modalSequence=useRef(0),loadSequence=useRef(0);
+  const [integrationRevision,setIntegrationRevision]=useState(0);
   const [loadError,setLoadError]=useState(false);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;actionScope.current++;modalSequence.current++;loadSequence.current++;};},[]);
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
@@ -134,6 +136,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
       if (data.success && data.companyId===companyId && Array.isArray(data.integrations)) {
         setLoadError(false);
         setIntegrations(data.integrations);
+        setIntegrationRevision(sequence);
         setSystemTelegramActive(Boolean(data.systemTelegramConfigured));
       }else throw new Error('Invalid integrations response');
     } catch {
@@ -639,8 +642,8 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                     </button>
                   )}
 
-                  {item.id === 'transactional_email' && (
-                    <p className="text-xs text-slate-600">Client email sending and reply tracking are unavailable.</p>
+                  {item.id === 'transactional_email' && companyId && (
+                    <div key={companyId+':'+integrationRevision}><TenantEmailDomainCheck companyId={companyId}/></div>
                   )}
 
                   {item.id === 'meta_ads' && (
@@ -774,7 +777,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
-              <button
+              {activeModalItem.id==='transactional_email'?<p className="text-xs text-slate-600">Save these settings before verifying the domain.</p>:<button
                 type="button"
                 onClick={() => handleTestLive(activeModalItem, formCredentials)}
                 disabled={testingConnection}
@@ -786,7 +789,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   <RefreshCw className="w-3.5 h-3.5" />
                 )}
                 {testingConnection ? 'Verifying with API...' : 'Test Live Connection'}
-              </button>
+              </button>}
 
               <div className="flex items-center gap-2">
                 <button

@@ -11,6 +11,7 @@ import {commitRankRadar,readRankCompany} from './server/rankRadarSql';
 import {ObservationError} from './server/observationStore';
 import {publicLeadPath,publicLeadCors,publicLeadOriginAllowed} from './server/storefrontOrigin';
 import {registerTenantEmailRoutes} from './server/tenantEmailRoutes';
+import {verifyTenantEmailDomain} from './server/tenantEmailDomain';
 import {registerCalendarPlanRoutes} from './server/calendarPlanRoutes';
 import {recordKnowledgeDraft} from './server/knowledgeDrafts';
 import {registerClientCalendarRoutes} from './server/clientCalendarRoutes';
@@ -273,7 +274,6 @@ import {
   sendPasswordResetEmail,
   isEmailServiceConfigured,
   getEmailProviderConfig,
-  testEmailConnection,
   sendTransactionalEmail,
 } from './server/emailService';
 import { startScheduler, stopScheduler } from './server/scheduler';
@@ -1572,20 +1572,8 @@ app.post('/api/integrations/test', async (req, res) => {
       }
     }
 
-    if (provider === 'transactional_email') {
-      const emailTestResult = await testEmailConnection(credentials);
-      if (emailTestResult.success) {
-        res.json(publicIntegrationCheck({
-          success: true,
-          message: emailTestResult.message,
-          details: emailTestResult.details,
-        }));
-      } else {
-        res.status(400).json(publicIntegrationCheck({
-          success: false,
-          error: emailTestResult.message,
-        }));
-      }
+    if(provider==='transactional_email'||provider==='smtp'){
+      res.status(409).json(publicIntegrationCheck({success:false,error:'Save the client Resend settings, then verify the saved domain from Integrations.'}));
       return;
     }
 
@@ -1597,8 +1585,12 @@ app.post('/api/integrations/test', async (req, res) => {
   }
 });
 
-// Live Test Email Dispatch Endpoint
-registerTenantEmailRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess});
+// Client email domain check and legacy test-send response
+registerTenantEmailRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyWorkspaceAccess,verifyDomain:async(user,company)=>{
+ const pool=await getDbPool();
+ if(!pool)throw new Error('Tenant email storage unavailable');
+ return verifyTenantEmailDomain(pool,user,company);
+}});
 
 // Save credentials and update integration state for a company
 app.post('/api/integrations/save',async(req,res)=>{

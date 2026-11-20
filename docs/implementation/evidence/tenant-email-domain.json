@@ -1,0 +1,22 @@
+{
+  "date_ist": "2026-11-21",
+  "tasks_advanced": ["P06-04", "P01-05"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "schema": {"migrations": 62, "canonical_tables": 106, "new_migration": false},
+  "implementation": [
+    "Client integration settings include the exact Resend domain ID and saved From address",
+    "A manager can inspect the saved domain with a bounded, fixed-origin provider GET",
+    "Provider result must match the configured ID and From domain",
+    "Current workspace, role and credential checks gate admission and settlement",
+    "Durable per-workspace cooldown, redacted audit and per-client browser result",
+    "Legacy connection and test-send paths cannot establish tenant email delivery"
+  ],
+  "verification": {
+    "default_regression_programs": 158,
+    "browser_fixtures": ["workspaceIsolation", "integrationIsolation"],
+    "sql_fixture": "integrationPersistenceSql",
+    "route_declarations": 318,
+    "live_resend_requests": 0
+  },
+  "pending": ["Tenant email dispatch", "Signed reply and bounce intake", "Threading", "Live Resend acceptance"]
+}

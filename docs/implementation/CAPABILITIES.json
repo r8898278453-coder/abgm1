@@ -3,8 +3,8 @@
   "timeZone": "Asia/Kolkata",
   "counts": {
     "validated": 62,
-    "in_progress": 15,
-    "planned": 15,
+    "in_progress": 16,
+    "planned": 14,
     "blocked": 1
   },
   "total": 93,
@@ -710,7 +710,7 @@
       "id": "P06-04",
       "phase": "P06",
       "title": "Add tenant email sender and reply/bounce integration",
-      "state": "planned",
+      "state": "in_progress",
       "acceptance": "Verified sender isolated from platform mail; threading and incoming reply/bounce evidence; credentials masked"
     },
     {

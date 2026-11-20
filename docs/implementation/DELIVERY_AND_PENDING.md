@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P06-04 moves into progress with a saved Resend domain check, exact tenant and sender binding, provider read-only access, durable cooldown and redacted audit. P01-05 advances because the generic client connection check now directs email users to the saved-domain check. Tenant dispatch and signed reply/bounce intake remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
+
 21 November 2026 IST. P09-01 advances with booking, cancellation and outcome revision activity, plus the current ended-appointment backlog. The dashboard, private CSV and daily digest use the same IST report. New manual and scheduled captures use V5, and existing V1–V4 snapshots remain readable. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_OUTCOMES.md.
 
 20 November 2026 IST. P07-05 advances with exact-row recovery of abandoned Calendar stop claims under concurrent workers. P08-05 advances with a workspace appointment cohort in the source report. The existing booking and outcome ledgers now support current declared source and first or last recorded source before booking, including corrections, cancellations, missing evidence and aggregate CSV. Live pilot, cross-channel cost allocation, verified receipts/spend and ROI remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See SOURCE_OUTCOME_TRUTH.md.
@@ -193,7 +195,7 @@ The [generated status](STATUS.md) follows the [task tracker](TASKS.csv) and cont
 | P03 | Canonical tenant role enforcement on remaining legacy paths. |
 | P04 | Shared reviewed knowledge across remaining draft and chat consumers. |
 | P05 | Google account/location and review acceptance, GBP post/media dispatch, Meta reconciliation, and completion of client creative and approved assets. |
-| P06 | Tenant email sender and verified reply and bounce handling. |
+| P06 | Verified tenant send, mailbox reply handling and provider bounce events. The saved Resend domain check is locally verified. |
 | P07 | Live calendar and reminders validation, followed by the marketing-to-appointment pilot. |
 | P08 | Authorized buying signals, discovery, enrichment, outbound sequences and their pilot. Source evidence now reaches attendance. Cross-channel cost allocation and verified financial evidence are open. |
 | P09 | Daily client report reconciliation across the remaining modules. |
