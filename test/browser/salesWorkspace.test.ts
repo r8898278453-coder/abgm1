@@ -5,8 +5,16 @@ import assert from 'node:assert/strict';import {chromium} from 'playwright-core'
 const fixture='/__sales_fixture.tsx';const vite=await createServer({plugins:[{name:'sales-fixture',resolveId(id){if(id===fixture)return id;},load(id){if(id!==fixture)return;return `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{SalesWorkspacePanel,AgencySalesExceptions}from'/src/components/SalesWorkspacePanel.tsx';function App(){const[company,setCompany]=useState('A');window.changeClient=()=>setCompany('B');return <><SalesWorkspacePanel key={company} companyId={company}/><AgencySalesExceptions agencyId="agency"/></>;}createRoot(document.getElementById('root')).render(<App/>);`;}}],server:{host:'127.0.0.1',port:0},logLevel:'error'});await vite.listen();let browser:any;
 try{const origin=`http://127.0.0.1:${(vite.httpServer!.address() as any).port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const context=await browser.newContext({serviceWorkers:'block'});let channelState="NOT_CONFIGURED";let outcomeRecord:any=null;
 const outcomeWrites:any[]=[];let policyVersion=0,permissionVersion=0,opVersion=0,qualVersion=0,conflict=false;let stage='new',permissionState='UNKNOWN',booking:any=null;let calendarEnabled=false, calendarPending=false, calendarCreates=0;const calendarChanges:any[]=[];const bookingWrites:any[]=[];const writes:any[]=[],keys:string[]=[];let policy={paused:false,quietStart:21,quietEnd:8,dailyMessageCap:20,industries:[],excludedDomains:[],questions:['Need?','Timeline?','Handoff?']};
+const emailRequests:any[]=[],emailProofAt=Date.now();
 await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin!==origin){await route.abort();return;}if(url.pathname==='/'){await route.fulfill({contentType:'text/html',body:await vite.transformIndexHtml('/',`<div id="root"></div><script type="module" src="${fixture}"></script>`)});return;}if(!url.pathname.startsWith('/api/')){await route.continue();return;}const company=url.pathname.split('/')[3];let body:any={success:true,companyId:company},status=200;const method=route.request().method();
- if(url.pathname.includes('/agencies/'))body={success:true,overview:{agencyId:'agency',modelVersion:4,scope:'CURRENT_AUTHORIZED_CLIENTS',timeZone:'Asia/Kolkata',checkedAtMs:Date.now(),definition:'Current operational backlog priority',clients:[{companyId:'A',operationStatus:'ACTIVE',...exceptionProjection(Object.fromEntries(EXCEPTION_KEYS.map(k=>[k,k==='newLeads'?1:0])))}]}};
+ if(url.pathname.endsWith('/email-readiness')){
+  body={...body,email:{enabled:true,recipient:'alice@example.invalid',sender:{state:'VERIFIED_DOMAIN',provider:'resend',domain:'example.invalid',checkedAtMs:emailProofAt},blocked:null}};
+ }else if(url.pathname.endsWith('/send-email')){
+  const input=route.request().postDataJSON();
+  emailRequests.push(input);
+  if(emailRequests.length===1){await route.abort();return;}
+  body={...body,dispatch:{requestKey:input.requestKey,status:'API_ACCEPTED',reused:true}};
+ }else if(url.pathname.includes('/agencies/'))body={success:true,overview:{agencyId:'agency',modelVersion:4,scope:'CURRENT_AUTHORIZED_CLIENTS',timeZone:'Asia/Kolkata',checkedAtMs:Date.now(),definition:'Current operational backlog priority',clients:[{companyId:'A',operationStatus:'ACTIVE',...exceptionProjection(Object.fromEntries(EXCEPTION_KEYS.map(k=>[k,k==='newLeads'?1:0])))}]}};
  else if(url.pathname.endsWith('/calendar-check')){
   assert.equal(company,'A');
   const command=route.request().postDataJSON();
@@ -107,6 +115,21 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});});
  const page=await context.newPage();page.on('pageerror',error=>console.error('Sales fixture page error',error.message));await page.goto(origin);await page.getByRole('option',{name:'Alice (new)'}).waitFor({state:'attached'});await page.getByText(/API acceptance reconciled from an exact signed provider receipt/).waitFor();assert.equal(writes.length,0);await page.getByLabel('Use prospecting profile').check();await page.getByLabel('Target services',{exact:true}).fill('Consulting');await page.getByLabel('Buyer roles',{exact:true}).fill('Owner');await page.getByLabel('Target regions',{exact:true}).fill('Pune');await page.getByLabel('Minimum employees',{exact:true}).fill('10');await page.getByLabel('Maximum employees',{exact:true}).fill('50');await page.getByLabel('Require prospect website').check();await page.getByLabel('Minimum appointment duration (minutes)').fill('20');await page.getByLabel('Maximum appointment duration (minutes)').fill('45');await page.getByLabel('Buffer before appointment (minutes)').fill('10');await page.getByLabel('Buffer after appointment (minutes)').fill('15');await page.getByRole('button',{name:'Save sales policy',exact:true}).click();await page.getByText(/Read-only comparison against saved profile version 1/).waitFor();assert.equal((policy as any).prospecting.employeesMin,10);assert.equal((policy as any).booking.bufferAfterMinutes,15);await page.getByLabel('Prospect service',{exact:true}).fill('Consulting');await page.getByLabel('Prospect buyer role',{exact:true}).fill('Owner');await page.getByLabel('Prospect region',{exact:true}).fill('Pune');await page.getByLabel('Prospect employees',{exact:true}).fill('20');await page.getByLabel('Prospect website',{exact:true}).selectOption('yes');await page.getByLabel('Prospect evidence source',{exact:true}).fill('Owner supplied evidence');await page.getByRole('button',{name:'Assess declared prospect',exact:true}).click();await page.getByRole('heading',{name:'Assessment: DECLARED_FIT',exact:true}).waitFor();const fitDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).click();assert.equal((await fitDownload).suggestedFilename(),'declared-prospect-fit.csv');await page.evaluate(()=>localStorage.setItem('abga_auth_token','changed-icp-session'));await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).click();await page.getByText('Session changed. Run the assessment again.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Export declared fit CSV',exact:true}).count(),0);
  await page.getByLabel('Sales lead').selectOption('leadA');
+ const emailPanel=page.getByRole('region',{name:'Client sales email'});
+ await emailPanel.getByRole('button',{name:'Check email readiness'}).click();
+ await emailPanel.getByLabel('Subject').fill('Reviewed client email');
+ await emailPanel.getByLabel('Plain-text email').fill('Plain-text review fixture.');
+ await emailPanel.getByRole('button',{name:'Review exact email'}).click();
+ assert.equal(emailRequests.length,0);
+ await emailPanel.getByText('Plain-text review fixture.',{exact:true}).waitFor();
+ await emailPanel.getByRole('button',{name:'Approve and send email'}).click();
+ await emailPanel.getByText(/Result unavailable/).waitFor();
+ await emailPanel.getByRole('button',{name:'Retry same email approval'}).click();
+ await emailPanel.getByText('Resend accepted this email. Delivery is unconfirmed.',{exact:true}).waitFor();
+ assert.equal(emailRequests.length,2);
+ assert.deepEqual(emailRequests[0],emailRequests[1]);
+ assert.equal(emailRequests[0].recipient,'alice@example.invalid');
+
  const appointment = page.getByRole('region',{name:'Appointment evidence'});
  await appointment.getByRole('button',{name:'Load appointment record'}).click();
  await appointment.getByText('No appointment recorded.',{exact:true}).waitFor();

@@ -12,7 +12,7 @@ import {canonicalJson} from '../shared/canonicalJson';
 const exactDomainId=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const CHECK_WINDOW_MS=30000;
 const apiKeyPattern=/^re_[A-Za-z0-9_-]{8,253}$/;
-type Sender={fingerprint:string;domainId:string;domain:string;apiKey:string};
+type Sender={fingerprint:string;domainId:string;domain:string;apiKey:string;fromEmail:string};
 type Actor={id:string;is_platform_admin?:boolean};
 
 async function currentAccess(sql:ReadOnlySql,actorId:string,company:string,operation:'read'|'manage'){
@@ -41,7 +41,7 @@ async function savedSender(sql:ReadOnlySql,company:string,lock=false):Promise<Se
  const domain=rawDomain.toLowerCase();
  if(mailbox.length>64||!tenantEmailDomainName.safeParse(domain).success)throw new SalesError(409,'TENANT_EMAIL_CONFIGURATION_REQUIRED');
  const fingerprint=createHash('sha256').update(canonicalJson([company,row.id,row.provider,row.status,stored])).digest('hex');
- return {fingerprint,domainId:resendDomainId,apiKey,domain};
+ return {fingerprint,domainId:resendDomainId,apiKey,fromEmail,domain};
 }
 
 async function inspect(binding:Sender,fetcher:typeof fetch){
@@ -109,6 +109,22 @@ export async function readTenantEmailDomainStatus(pool:Pool,actor:Actor,company:
    if(error instanceof SalesError&&error.status===409)return tenantEmailDomainStatus.parse({state:'NOT_CONFIGURED'});
    throw error;
   }
+  return readDomainObservation(sql,company,sender);
+ });
+}
+
+export async function readVerifiedTenantEmailSender(sql:ReadOnlySql,company:string){
+ try{
+  const sender=await savedSender(sql,company);
+  const observation=await readDomainObservation(sql,company,sender);
+  return observation.state==='VERIFIED_DOMAIN'?{sender,proof:observation.proof}:null;
+ }catch(error){
+  if(error instanceof SalesError&&error.status===409)return null;
+  throw error;
+ }
+}
+
+async function readDomainObservation(sql:ReadOnlySql,company:string,sender:Sender){
   const [starts]:[RowDataPacket[]]=await sql.query(`SELECT actor,details,UNIX_TIMESTAMP(timestamp)*1000 startedAtMs
    FROM autonomous_audit_logs WHERE company_id=? AND BINARY event_type='AGENCY_TENANT_EMAIL_DOMAIN_CHECK_STARTED'
    ORDER BY timestamp DESC,id DESC LIMIT 1`,[company]);
@@ -138,5 +154,4 @@ export async function readTenantEmailDomainStatus(pool:Pool,actor:Actor,company:
   if(expiresAtMs<=now)return tenantEmailDomainStatus.parse({state:'RECHECK_REQUIRED'});
   if(settled.state==='UNVERIFIED'||settled.state==='UNCONFIRMED')return tenantEmailDomainStatus.parse({state:settled.state});
   return tenantEmailDomainStatus.parse({state:settled.state,expiresAtMs,proof:{provider:'resend',domain:sender.domain,state:settled.state,checkedAtMs:settled.checkedAtMs}});
- });
 }

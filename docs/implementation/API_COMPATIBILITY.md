@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. The saved CRM lead gains `GET /api/companies/:companyId/sales/leads/:leadId/email-readiness` and `POST /api/companies/:companyId/sales/leads/:leadId/send-email`. The POST binds one explicit approval to the reviewed recipient, sender observation, subject and plain text. Dispatch uses the existing intent ledger and is disabled by default. This adds email rows to the existing Sales inbox. [Client sales email](TENANT_SALES_EMAIL.md)
+
 21 November 2026 IST. `GET /api/companies/:companyId/tenant-email/domain-status` adds a private, read-only projection of the latest saved sender check. Verified snapshots include the observation time and expiry. Current non-verified states carry a state label only. The check command still returns its existing response shape. [Tenant email domain](TENANT_EMAIL_DOMAIN.md)
 
 21 November 2026 IST. The client integration card calls `POST /api/companies/:companyId/tenant-email/verify-domain` with an empty JSON object to inspect the saved Resend domain. The legacy tenant test-send remains unavailable. Generic email requests to `/api/integrations/test` now return guidance to save the configuration and verify the domain. Platform account email keeps its separate transport. [Tenant email domain](TENANT_EMAIL_DOMAIN.md)

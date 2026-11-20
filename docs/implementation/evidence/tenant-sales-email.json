@@ -1,0 +1,21 @@
+{
+  "date_ist": "2026-11-21",
+  "advanced": ["P06-04"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "schema": {"migrations": 62, "canonical_tables": 106, "new_migration": false},
+  "default_enabled": false,
+  "sql_fixture": "integrationPersistenceSql",
+  "verified_behaviors": [
+    "Explicit email consent and subsequent opt-out gate the exact CRM recipient",
+    "A current saved sender observation is required and treated as part of the approval",
+    "Eight concurrent approvals produce one fixture Resend call",
+    "The IST cap protects additional admission and accepted receipt replay remains readable",
+    "Transport uncertainty remains UNKNOWN and replay does not send again",
+    "The exact outbound email and its dispatch intent are linked in the Sales inbox",
+    "Exact browser review and loss-of-response retry retain the approval"
+  ],
+  "browser_fixtures": ["salesWorkspace", "approvedSalesMessages"],
+  "default_regression_programs": 158,
+  "live_provider_sends": 0,
+  "pending": ["Live Resend acceptance", "Reply threading", "Signed bounce and delivery evidence", "Approved email sequences"]
+}

@@ -787,6 +787,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/email-readiness",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/leads/:leadId/fulfillment",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
@@ -818,6 +823,11 @@
     {
       "method": "PUT",
       "path": "/api/companies/:companyId/sales/leads/:leadId/qualification-handoffs/:handoffId",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies/:companyId/sales/leads/:leadId/send-email",
       "owner": "server/salesRoutes.ts#registerSalesRoutes"
     },
     {

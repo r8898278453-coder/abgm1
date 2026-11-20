@@ -1,5 +1,7 @@
 # AI Agent State
 
+21 November 2026 IST. P06-04 advances with default-off Resend email for one saved CRM lead after exact operator review. The existing client consent, IST policy, dispatch ledger and Sales inbox are reused. Tenant reply threading, signed bounce/delivery evidence, workflow sequences and live acceptance remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_SALES_EMAIL.md.
+
 21 November 2026 IST. P06-04 advances with a reloadable clock-bounded Resend domain observation, saved-sender binding, current verifier authority and pending/inconclusive states. Only the latest check for the current settings can be displayed as verified. Tenant dispatch, signed reply and bounce intake, and live Resend validation remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
 
 21 November 2026 IST. P06-04 moves into progress with a saved Resend domain check, exact tenant and sender binding, provider read-only access, durable cooldown and redacted audit. P01-05 advances because the generic client connection check now directs email users to the saved-domain check. Tenant dispatch and signed reply/bounce intake remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.

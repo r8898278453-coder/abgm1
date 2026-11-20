@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P06-04 advances with default-off Resend email for one saved CRM lead after exact operator review. The existing client consent, IST policy, dispatch ledger and Sales inbox are reused. Tenant reply threading, signed bounce/delivery evidence, workflow sequences and live acceptance remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_SALES_EMAIL.md.
+
 21 November 2026 IST. P06-04 advances with a reloadable clock-bounded Resend domain observation, saved-sender binding, current verifier authority and pending/inconclusive states. Only the latest check for the current settings can be displayed as verified. Tenant dispatch, signed reply and bounce intake, and live Resend validation remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
 
 21 November 2026 IST. P06-04 moves into progress with a saved Resend domain check, exact tenant and sender binding, provider read-only access, durable cooldown and redacted audit. P01-05 advances because the generic client connection check now directs email users to the saved-domain check. Tenant dispatch and signed reply/bounce intake remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
@@ -197,7 +199,7 @@ The [generated status](STATUS.md) follows the [task tracker](TASKS.csv) and cont
 | P03 | Canonical tenant role enforcement on remaining legacy paths. |
 | P04 | Shared reviewed knowledge across remaining draft and chat consumers. |
 | P05 | Google account/location and review acceptance, GBP post/media dispatch, Meta reconciliation, and completion of client creative and approved assets. |
-| P06 | Verified tenant send, mailbox reply handling and provider bounce events. The saved Resend domain check is locally verified. |
+| P06 | Live tenant dispatch acceptance, mailbox reply threading, signed bounce and delivery events, and approved sequence integration. Single-lead CRM sending defaults off and is covered by local fixtures. |
 | P07 | Live calendar and reminders validation, followed by the marketing-to-appointment pilot. |
 | P08 | Authorized buying signals, discovery, enrichment, outbound sequences and their pilot. Source evidence now reaches attendance. Cross-channel cost allocation and verified financial evidence are open. |
 | P09 | Daily client report reconciliation across the remaining modules. |

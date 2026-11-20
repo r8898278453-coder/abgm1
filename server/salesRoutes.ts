@@ -1,3 +1,4 @@
+import {readSalesEmailReadiness,sendApprovedSalesEmail} from './tenantSalesEmail';
 import {readAppointmentOutcomes,saveAppointmentOutcome} from './appointmentOutcomes';
 import {disableCalendarPushChannel,readCalendarPushStatus,registerCalendarPushChannel} from './calendarPush';
 import {refreshCalendarBooking} from './calendarObservation';
@@ -24,9 +25,18 @@ import type {Pool} from 'mysql2/promise';
 import {agencyClientAccess} from './agencyPolicy';
 import type {AgencyOperation} from '../shared/agency';
 import {readSalesWorkspace,readSalesInbox,readSalesReport,readAgencySalesOverview,saveSalesPolicy,saveContactPermission,saveOpportunity,saveQualification,importProspects,linkInboxLead,SalesError} from './salesWorkspace';
-export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>;calendarTransport?:typeof fetch}){
+export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promise<any>;pool:()=>Promise<Pool|null>;calendarTransport?:typeof fetch;salesEmailTransport?:typeof fetch}){
  const route=(method:'get'|'post'|'put',path:string,operation:AgencyOperation,work:(req:Request,pool:Pool,user:any)=>Promise<any>)=>app[method](path,async(req,res)=>{res.set('Cache-Control','no-store');try{const user=await deps.auth(req);if(!user){res.status(401).json({success:false,error:'AUTH_REQUIRED'});return;}if(Object.values(req.params).some(v=>typeof v!=='string'||!v||v.length>64)||Object.keys(req.query).some(k=>!['before','date'].includes(k))||Object.values(req.query).some(v=>typeof v!=='string'))throw new SalesError(400,'SALES_SCOPE_INVALID');const pool=await deps.pool();if(!pool)throw new SalesError(503,'SALES_STORAGE_UNAVAILABLE');if(req.params.companyId){const access=await agencyClientAccess(pool,user,String(req.params.companyId),operation);if(!access.authorized)throw new SalesError(access.status,'SALES_ACCESS_DENIED');}res.json({success:true,companyId:req.params.companyId||undefined,...await work(req,pool,user)});}catch(error){res.status(error instanceof SalesError?error.status:503).json({success:false,error:error instanceof SalesError?error.code:'SALES_OPERATION_UNCONFIRMED'});}});
  const base='/api/companies/:companyId/sales';
+ route('get',base+'/leads/:leadId/email-readiness','read',async(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'SALES_EMAIL_QUERY_INVALID');
+  return {email:await readSalesEmailReadiness(pool,user,String(req.params.companyId),String(req.params.leadId))};
+ });
+ route('post',base+'/leads/:leadId/send-email','execute',async(req,pool,user)=>{
+  if(Object.keys(req.query).length)throw new SalesError(400,'SALES_EMAIL_QUERY_INVALID');
+  return {dispatch:await sendApprovedSalesEmail(pool,user,String(req.params.companyId),String(req.params.leadId),req.body,deps.salesEmailTransport)};
+ });
+
  route('get',base+'/calendar-push','manage',async(req,pool)=>{
   if(Object.keys(req.query).length)throw new SalesError(400,'CALENDAR_QUERY_INVALID');
   return {channel:await readCalendarPushStatus(pool,String(req.params.companyId))};

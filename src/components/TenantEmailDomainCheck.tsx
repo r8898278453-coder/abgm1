@@ -77,7 +77,7 @@ export function TenantEmailDomainCheck({companyId,saved}:{companyId:string;saved
     {pending==='read'?'Loading saved check…':'Refresh saved check'}
    </button>}
   </div>
-  <p>Email sending and reply tracking are pending.</p>
+  <p>Review individual emails in the Sales workspace. Delivery and reply tracking are pending.</p>
   {result&&result.token===getStoredToken()&&<p role={result.okay?'status':'alert'}>{result.text}</p>}
  </div>;
 }
