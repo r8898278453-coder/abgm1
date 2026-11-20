@@ -232,7 +232,7 @@ export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,trans
     ORDER BY requested_at_ms,channel_id LIMIT 1`);
   if(staleStops.length&&allowed()){
     // Update the exact row so maintenance does not lock the range used by concurrent stop claims.
-    const [stale]:any=await pool.query(`UPDATE calendar_push_jobs SET state='UNKNOWN'
+    const [stale]:any=await pool.query(`UPDATE calendar_push_jobs FORCE INDEX (PRIMARY) SET state='UNKNOWN'
       WHERE channel_id=? AND kind='STOP' AND state='IN_PROGRESS' AND requested_at_ms<=${currentTimeSql}-120000`,[staleStops[0].channel_id]);
     result.calendarPushUnconfirmed+=stale.affectedRows;
   }
@@ -240,7 +240,7 @@ export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,trans
     ORDER BY requested_at_ms,channel_id LIMIT 1`);
   const stop=stops[0];
   if(stop&&allowed()){
-    const [claim]:any=await pool.query(`UPDATE calendar_push_jobs SET state='IN_PROGRESS',requested_at_ms=${currentTimeSql}
+    const [claim]:any=await pool.query(`UPDATE calendar_push_jobs FORCE INDEX (PRIMARY) SET state='IN_PROGRESS',requested_at_ms=${currentTimeSql}
       WHERE channel_id=? AND kind='STOP' AND state='READY' AND expires_at_ms>${currentTimeSql}`,[stop.channel_id]);
     if(claim.affectedRows===1){
       let outcome='UNAVAILABLE';
@@ -261,7 +261,7 @@ export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,trans
       const sql=await pool.getConnection();
       try{
         await sql.beginTransaction();
-        const [settled]:any=await sql.query("UPDATE calendar_push_jobs SET state=? WHERE channel_id=? AND kind='STOP' AND state='IN_PROGRESS'",[outcome,stop.channel_id]);
+        const [settled]:any=await sql.query("UPDATE calendar_push_jobs FORCE INDEX (PRIMARY) SET state=? WHERE channel_id=? AND kind='STOP' AND state='IN_PROGRESS'",[outcome,stop.channel_id]);
         if(settled.affectedRows===1)await agencyAudit(sql,stop.company_id,stop.manager_id,'SALES_CALENDAR_PUSH_STOP_'+outcome,{});
         await sql.commit();
         if(settled.affectedRows===1){

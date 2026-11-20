@@ -1,6 +1,6 @@
 {
   "date_ist": "2026-11-21",
-  "advanced": ["P09-01"],
+  "advanced": ["P07-05", "P09-01"],
   "tracker": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
   "schema": {"migration": "062_appointment_outcomes", "canonical_tables": 106},
   "snapshot_coverage": {"current": 5, "legacy_read_and_replay": [1, 2, 3, 4]},
@@ -13,10 +13,12 @@
   ],
   "verification": {
     "default_regression_programs": 158,
+    "consecutive_calendar_workflow_sql_runs": 8,
     "native_sql": [
       "Half-open IST boundary checks, superseded and future booking exclusion, tenant isolation and private aggregate projection",
       "Late-evidence V5 amendments and exact existing V1–V4 replay with original hashes",
-      "Scheduled V5 capture and existing client report approval and publication flows"
+      "Scheduled V5 capture and existing client report approval and publication flows",
+      "Concurrent Calendar stop claims, stale recovery and settlement using exact primary-key writes"
     ],
     "browser_fixtures": ["salesActivityReport", "reportSnapshots", "reportCaptureSchedule", "clientReportPublic", "clientReportPortal"]
   },
