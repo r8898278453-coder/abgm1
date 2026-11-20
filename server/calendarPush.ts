@@ -227,9 +227,15 @@ export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,trans
   const result={calendarPushRenewed:0,calendarPushStopped:0,calendarPushUnconfirmed:0};
   const allowed=()=>pushEnabled()&&!isGlobalEmergencyStopActive()&&canStart();
   if(!allowed())return result;
-  const [stale]:any=await pool.query(`UPDATE calendar_push_jobs SET state='UNKNOWN'
-    WHERE kind='STOP' AND state='IN_PROGRESS' AND requested_at_ms<=${currentTimeSql}-120000 LIMIT 1`);
-  result.calendarPushUnconfirmed+=stale.affectedRows;
+  const [staleStops]:any=await pool.query(`SELECT channel_id FROM calendar_push_jobs
+    WHERE kind='STOP' AND state='IN_PROGRESS' AND requested_at_ms<=${currentTimeSql}-120000
+    ORDER BY requested_at_ms,channel_id LIMIT 1`);
+  if(staleStops.length&&allowed()){
+    // Update the exact row so maintenance does not lock the range used by concurrent stop claims.
+    const [stale]:any=await pool.query(`UPDATE calendar_push_jobs SET state='UNKNOWN'
+      WHERE channel_id=? AND kind='STOP' AND state='IN_PROGRESS' AND requested_at_ms<=${currentTimeSql}-120000`,[staleStops[0].channel_id]);
+    result.calendarPushUnconfirmed+=stale.affectedRows;
+  }
   const [stops]:any=await pool.query(`SELECT * FROM calendar_push_jobs WHERE kind='STOP' AND state='READY' AND expires_at_ms>${currentTimeSql}
     ORDER BY requested_at_ms,channel_id LIMIT 1`);
   const stop=stops[0];

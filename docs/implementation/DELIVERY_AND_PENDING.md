@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+20 November 2026 IST. P07-05 advances with exact-row recovery of abandoned Calendar stop claims under concurrent workers. P08-05 advances with a workspace appointment cohort in the source report. The existing booking and outcome ledgers now support current declared source and first or last recorded source before booking, including corrections, cancellations, missing evidence and aggregate CSV. Live pilot, cross-channel cost allocation, verified receipts/spend and ROI remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See SOURCE_OUTCOME_TRUTH.md.
+
 20 November 2026 IST. P07-05 and P08-05 advance with operator-declared appointment outcomes, append-only corrections, revision fencing, frozen declared source and daily IST outcome totals. Migration 062 adds outcome evidence and a booking-time index. Live provider validation, pilot acceptance and complete cross-channel attribution remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_OUTCOMES.md.
 
 20 November 2026 IST. P07-05 advances with client-specific booking duration, padding, minimum notice and booking horizon. Availability and Calendar admission share the policy, exact event times are retained, and a changed policy fences the pending provider write. Existing policy records and older saves remain compatible. Live Calendar acceptance and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See BOOKING_SLOT_POLICY.md.
@@ -169,7 +171,7 @@ Canonical tracker: 93 parent work packages. 21 locally validated; 33 in progress
 
 STATUS.md and TASKS.csv contain every task ID, prerequisite and acceptance condition. No phase is currently accepted. A tested child workflow does not close its whole parent package. Local evidence does not establish the deployed Hostinger revision or real provider permissions. Billing remains excluded.
 
-## Delivered and accepted in this continuation
+## Earlier security and policy delivery
 
 Worked ten packages together: P02-02/03/05/06/07, P03-02/03/05 and P04-05/06. Original local criteria for P02-05 (opt-in cookie/CSRF/session policy), P02-06 (canonical registry/aliases) and P04-05 (scoped extractive grounding) are accepted; seven other targets remain partial. SECURITY_POLICY_GROUP.md maps exact delivered scope and remaining acceptance. Provider authorization/callbacks, full legacy role/archive coverage and all AI consumers are not claimed complete.
 
@@ -177,26 +179,24 @@ New code includes schema035/63 user security epochs/PKCE states/refresh leases; 
 
 The prior ten-parent local acceptance remains documented in ACCEPTANCE_TEN.md: contracts, owner backfill, agency navigation/PWA privacy, private sources/website/extraction/fact review, resumable onboarding and preserved legacy intake. New proof for this group includes101 isolated regressions, native SQL/restore and seven browser suites. No complete phase or fully automated marketing-to-sale/hosted-provider guarantee is asserted.
 
-## Remaining by engineering phase
+## Remaining by phase
 
-| Phase | Area | Validated | In progress | Planned | Blocked | Remaining scope |
-| --- | --- | ---: | ---: | ---: | ---: | --- |
-| P00 | Baseline and hosting | 3 | 2 | 0 | 1 | Actual hosted runtime/cron/backup/DB/staging evidence; full baseline gate. |
-| P01 | Reliability | 4 | 5 | 1 | 0 | Remaining persistence/isolation/dispatch acceptance and complete reliability gate. |
-| P02 | Architecture and security | 4 | 3 | 1 | 0 | Full route/database/workspace extraction (P02-02/03); provider OAuth adapters/refresh/revoked-token work gates/rotation operations (P02-07); architecture gate P02-08. Cookie/CSRF and registry original criteria accepted locally; actual activation canary remains separate. |
-| P03 | Agency and client control | 3 | 3 | 1 | 0 | Every legacy endpoint/worker role/archive path (P03-02/03); complete pack navigation and all-family goals/usage policy (P03-05); agency isolation gate. New opt-in cap covers drafts/messages/posts only. |
-| P04 | Business memory and onboarding | 7 | 1 | 1 | 0 | Remaining autonomous/sales/render/creative consumers and reviewed extraction (P04-06), then business-memory gate P04-09. Accepted extractive retrieval does not claim semantic/vector answers or automatic source approval. |
-| P05 | Marketing | 0 | 0 | 11 | 0 | GBP audit/reviews/posts; local SEO acceptance; Meta channel reconciliation; creative/asset library; client calendar; durable reels; ads/storefront and live permission gates. |
-| P06 | CRM and channels | 0 | 0 | 8 | 0 | Canonical contact/opportunity identity; webhook/reply/bounce reconciliation; email; consent/suppression; unified inbox; outcomes and channel acceptance. |
-| P07 | Automated sales | 0 | 0 | 8 | 0 | Grounded qualification; bounded versioned follow-ups; reply/opt-out exits; calendar availability/booking; aftercare and real pilot. |
-| P08 | Outbound and optimization | 0 | 0 | 10 | 0 | ICP/prospect sourcing; authorized buying signals/enrichment; compliant sequences; evidence-based attribution/ROI/experiments; scoped API/webhooks/connectors. |
-| P09 | Daily agency accountability | 0 | 1 | 7 | 0 | All-module reconciled daily reports; agency exceptions; retry-safe digests/alerts; real Telegram operations; client portal; full branding and responsive acceptance. |
-| P10 | Production readiness | 0 | 0 | 8 | 0 | Privacy/retention/key recovery; measured hosting capacity/performance; full restore/provider matrix; release/canary/handover; separately authorized production actions. |
+The [generated status](STATUS.md) follows the [task tracker](TASKS.csv) and contains the current counts and task IDs. The following items summarize the remaining implementation and acceptance work.
 
-## Explicit blocker and next groups
+| Phase | Remaining scope |
+| --- | --- |
+| P00 | Hostinger runtime, cron, database, backup and staging evidence, followed by baseline acceptance. |
+| P01 | Provider and persistence truth, replayable outbox and intake coverage, scoped execution controls, and reliability acceptance. |
+| P02 | Remaining route, database and workspace extraction, shared OAuth and network controls, and architecture acceptance. |
+| P03 | Canonical tenant role enforcement on remaining legacy paths. |
+| P04 | Shared reviewed knowledge across remaining draft and chat consumers. |
+| P05 | Google account/location and review acceptance, GBP post/media dispatch, Meta reconciliation, and completion of client creative and approved assets. |
+| P06 | Tenant email sender and verified reply and bounce handling. |
+| P07 | Live calendar and reminders validation, followed by the marketing-to-appointment pilot. |
+| P08 | Authorized buying signals, discovery, enrichment, outbound sequences and their pilot. Source evidence now reaches attendance. Cross-channel cost allocation and verified financial evidence are open. |
+| P09 | Daily client report reconciliation across the remaining modules. |
+| P10 | Security, privacy and recovery review, measured capacity, full acceptance and restore matrix, canary, and final handover. |
 
-P00-02: actual Hostinger/runtime/database/cron/process/backup/staging acceptance remains blocked according to the tracker. Local disposable SQL is verified; no fresh claim of live hosting/DB readiness is made here. Actual deployment and provider test actions remain separate from code preparation.
+P00-02 is the explicit blocker for Hostinger acceptance. It requires authorized hosting read access or safe configuration evidence covering the target runtime, database, cron, backups and staging. The code changes in the latest batch are verified with local fixtures. The live Calendar/provider pilot and release gates require their own evidence.
 
-Next closure group: remaining P02-02/03/07, P03-02/03/05 and P04-06, with P02-08/P03-07/P04-09 gates accepted only when their prerequisites and required evidence actually pass. Independent safe local work can continue while external hosting/provider prerequisites remain open. No package is validated solely to reduce the planned count.
-
-Current validation: the14-step security/policy matrix passes101 isolated programs, real disposable SQL transactions/concurrency/rollback/fresh/upgrade/replay, uploaded-export035/63 row/owner/five-ledger preservation and source/bundle replay0, seven browser suites and TypeScript/build/source/route/doc guards. Commit/push is review-branch delivery, not a deployment.
+See [appointment source attribution verification](evidence/appointment-source-attribution.json) for the current batch.

@@ -2,6 +2,16 @@
 
 18 November 2026 IST. Source schema remains052_client_reports /90 tables; next migration053. This continues P08-05 and repairs specific P01-05/P01-09 truth defects. No billing/payment flow, provider send, subscription, production database or deployment was changed. Parent/phase acceptance remains open.
 
+## Appointment outcomes by source
+
+20 November 2026 IST. The workspace source report adds a separate, all-recorded appointment cohort from the existing booking and outcome ledgers. An appointment enters the cohort after its first recorded confirmation. The latest revision for the same workspace, lead and exact case-sensitive external event supplies the current status. Each booked event falls into one status: cancelled, scheduled or in progress, held, no-show, undetermined, or ended without an outcome. An ended event uses the latest saved outcome for its current booking revision. This deliberately counts appointments independently of CRM lead and deal totals.
+
+Each event appears once in each of three alternative views. The current declared view uses the CRM lead's current declared source. The other two views use the first and last eligible linked inquiry or inbound interaction from before the event's initial confirmation. A reschedule preserves that original cutoff. Because older interaction storage rounds to seconds, records from the same confirmation second are excluded. Tied different sources, untimed linked evidence, missing interactions and truncated history yield Unknown for the affected model. The daily attendance report still provides its own recorded declared-source snapshot.
+
+The authenticated `appointments` projection and the separate CSV contain source counts only. The API withholds the whole appointment cohort at 1,001 tracked events and retains the existing lead report. The browser validates bucket totals before rendering or export. The appointment CSV exports all three model partitions, an observation timestamp and the IST timezone. Add totals within each model to reconcile the cohort. See [appointment attribution acceptance](evidence/appointment-source-attribution.json).
+
+Scope remains stored web and inbound evidence and operator-declared attendance. Live pilot validation, cross-channel cost allocation, verified customer receipts, verified spend and ROI remain pending. Schema 062 and 106 canonical tables.
+
 ## Concrete defects corrected
 
 The previous scoped revenue endpoint summed campaign budgets and passed them as marketing spend. The legacy calculator accepted a Paid invoice with a plausible payment ID/method as provider verified, inferred source from a plan/payment-method label or contact lookup, admitted records without a tenant, and treated contacted leads as opportunities. None establishes verified customer revenue or source attribution. Tests had accepted these plausible-looking fixture IDs as proof; those assertions now explicitly require unavailable financial evidence.

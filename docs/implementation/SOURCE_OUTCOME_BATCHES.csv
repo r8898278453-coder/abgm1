@@ -23,3 +23,7 @@ A21,Exact currency-separated manual won amounts,P08-05;P01-05;P01-09,local_verif
 A22,Canonical declared cost hash/void validation,P08-05;P01-05;P01-09,local_verified
 A23,Unallocated cost and unavailable verified ROI,P08-05;P01-05;P01-09,local_verified
 A24,Demand-loaded mobile/session/client-safe validated report and CSV,P08-05;P01-05;P01-09,local_verified
+A25,Exact appointment event revision and first confirmation cutoff,P08-05,local_verified
+A26,Current appointment outcome and cancellation reconciliation,P08-05,local_verified
+A27,Declared and recorded source partitions with Unknown withholding,P08-05,local_verified
+A28,Workspace appointment dashboard and aggregate CSV,P08-05,local_verified

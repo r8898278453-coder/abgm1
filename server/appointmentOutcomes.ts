@@ -14,7 +14,7 @@ const endedAppointment=`b.state='CONFIRMED' AND b.end_at_ms<=${nowSql}`;
 const unsuperseded=`NOT EXISTS(SELECT 1 FROM sales_booking_evidence newer
   WHERE newer.company_id=b.company_id AND newer.lead_id=b.lead_id AND BINARY newer.external_event_id=BINARY b.external_event_id
     AND newer.revision>b.revision)`;
-const latestOutcomeJoin=`LEFT JOIN sales_appointment_outcomes o ON o.company_id=b.company_id AND o.booking_id=b.id
+export const latestAppointmentOutcomeJoin=`LEFT JOIN sales_appointment_outcomes o ON o.company_id=b.company_id AND o.booking_id=b.id
   AND o.revision=(SELECT MAX(history.revision) FROM sales_appointment_outcomes history
     WHERE history.company_id=b.company_id AND history.booking_id=b.id)`;
 const eligible=`(${unsuperseded} OR o.id IS NOT NULL)`;
@@ -28,7 +28,7 @@ export async function readAppointmentOutcomes(pool:Pool,user:any,company:string,
     if(leads[0]?.id!==lead)throw new SalesError(404,'LEAD_NOT_FOUND');
     const [rows]=await sql.query(`SELECT CAST(b.revision AS CHAR) bookingVersion,b.start_at_ms,b.end_at_ms,
       CAST(o.revision AS CHAR) version,o.outcome,o.evidence,o.declared_source,o.recorded_at_ms,
-      ${unsuperseded} unsuperseded FROM sales_booking_evidence b ${latestOutcomeJoin}
+      ${unsuperseded} unsuperseded FROM sales_booking_evidence b ${latestAppointmentOutcomeJoin}
       WHERE b.company_id=? AND b.lead_id=? AND ${endedAppointment} AND ${eligible}
       ORDER BY b.end_at_ms DESC,b.revision DESC LIMIT 21`,[company,lead]);
     return {appointments:rows.slice(0,20).map((row:any)=>({
@@ -57,7 +57,7 @@ export async function saveAppointmentOutcome(pool:Pool,user:any,company:string,l
     }
     const [bookings]=await sql.query<RowDataPacket[]>(`SELECT b.id,CAST(o.revision AS CHAR) outcomeVersion,
       o.declared_source,${unsuperseded} unsuperseded,b.end_at_ms,${nowSql} nowMs
-      FROM sales_booking_evidence b ${latestOutcomeJoin}
+      FROM sales_booking_evidence b ${latestAppointmentOutcomeJoin}
       WHERE b.company_id=? AND b.lead_id=? AND CAST(b.revision AS CHAR)=? AND b.state='CONFIRMED'`,
       [canonical,lead,command.bookingVersion]);
     const booking=bookings[0];
@@ -89,7 +89,7 @@ const blankTotals=():OutcomeTotals=>({held:0,noShow:0,undetermined:0});
 const stateKey={HELD:'held',NO_SHOW:'noShow',UNDETERMINED:'undetermined'} as const;
 export async function appointmentOutcomeReport(sql:ReadOnlySql,company:string,start:number,end:number) {
   const [rows]=await sql.query(`SELECT CASE WHEN ${unsuperseded} THEN o.outcome ELSE 'SUPERSEDED' END effectiveOutcome,o.declared_source,COUNT(*) total
-    FROM sales_booking_evidence b ${latestOutcomeJoin}
+    FROM sales_booking_evidence b ${latestAppointmentOutcomeJoin}
     WHERE b.company_id=? AND b.end_at_ms>=? AND b.end_at_ms<? AND ${endedAppointment} AND ${eligible}
     GROUP BY effectiveOutcome,o.declared_source`,[company,start,end]);
   const totals={...blankTotals(),unrecorded:0,superseded:0};

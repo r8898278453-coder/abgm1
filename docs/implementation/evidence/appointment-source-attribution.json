@@ -1,0 +1,20 @@
+{
+  "date_ist": "2026-11-20",
+  "advanced": ["P07-05", "P08-05"],
+  "counts": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "schema": {"migrations": 62, "canonical_tables": 106, "new_migration": false},
+  "verified_behaviors": [
+    "Case-sensitive event grouping in MariaDB with one appointment per lead and exact event",
+    "Initial confirmation cutoff survives reschedule and excludes booking-second and later touches",
+    "Current booking and outcome revisions reconcile against cancellation, attendance and missing outcomes",
+    "Unknown retains tied, untimed, missing and truncated touch history",
+    "The 1001-event cap withholds appointment totals while preserving the model V2 lead report",
+    "Scoped HTTP response and aggregate CSV omit appointment IDs, provider references and private notes",
+    "Mobile browser validates aggregate counts, rejects malformed partitions and protects client switching",
+    "Eight stop workers settle one ready Calendar stop and recover one abandoned claim without re-dispatch"
+  ],
+  "default_regression_programs": 158,
+  "browser_fixtures": ["sourceOutcomes", "salesWorkflows", "salesWorkspace"],
+  "live_acceptance": "pending",
+  "remaining": ["live appointment pilot", "cross-channel cost allocation", "verified receipts and spend", "ROI"]
+}

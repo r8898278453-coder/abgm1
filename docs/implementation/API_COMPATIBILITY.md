@@ -26,6 +26,8 @@
 
 20 November2026 IST: agency sales-overview explicitly advances to model4/16 metrics. New private GET /api/companies/:companyId/agency-operations-detail exposes canonical capacity, provider/status metadata and declared currency-separated costs with current role checks. Overview validator/UI/CSV updated together. Frozen report V1–V4 unchanged.
 
+20 November 2026 IST. The source-outcomes response adds the sibling `appointments` projection while continuing to return the same model V2 `report`. The projection has `READY` status with reconciled aggregate counts under three source models, or `CAPACITY_EXCEEDED` without counts. The browser accepts older responses with the sibling omitted. The lead CSV remains V2 and the appointment cohort has its own aggregate export. See [source and outcome evidence](SOURCE_OUTCOME_TRUTH.md).
+
 20 November2026 IST: live source-outcomes response explicitly advances to model2 with boundaryVersion, hasUntimedEvidence and sorted boundary evidenceIds. First/last source is withheld for linked untimed history. Canonical consumer/export updated together; frozen report V1–V4 unchanged. See ATTRIBUTION_BOUNDARY_V2.md.
 
 20 November2026 IST: Developer v1 adds three explicit Bearer scoped read facades and ten current-manager application controls. Contacts reuse readIdentityContacts; sales reuses readSalesReport; no existing mutation/send authority gained. Exact route/contracts, once-only secrets and webhook receiver raw-body/timestamp/event-dedupe requirements: DEVELOPER_ACCESS.md. All control/facade responses are no-store.

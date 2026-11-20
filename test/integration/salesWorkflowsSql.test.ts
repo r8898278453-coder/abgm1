@@ -461,7 +461,15 @@ try{
  assert.equal(watchCalls,2);
  assert.equal(stoppedChannels.length,0);
  assert.equal((await sendCalendarSignal('10','exists',{'X-Goog-Channel-Id':originalChannel.id,'X-Goog-Channel-Token':originalChannel.token})).status,404);
+ const abandonedStop=crypto.randomBytes(16).toString('hex');
+ await pool!.query(`INSERT INTO calendar_push_jobs
+   (channel_id,kind,company_id,manager_id,calendar_hash,resource_id,state,requested_at_ms,expires_at_ms)
+   SELECT ?,'STOP',company_id,manager_id,calendar_hash,resource_id,'IN_PROGRESS',(UNIX_TIMESTAMP()-300)*1000,expires_at_ms
+   FROM calendar_push_jobs WHERE channel_id=? AND kind='STOP'`,[abandonedStop,originalChannel.id]);
  const stopResults=await Promise.all(Array.from({length:8},lifecycle));
+ assert.equal(stopResults.reduce((n,r)=>n+r.calendarPushUnconfirmed,0),1);
+ const [abandonedRows]:any=await pool!.query("SELECT state FROM calendar_push_jobs WHERE channel_id=? AND kind='STOP'",[abandonedStop]);
+ assert.equal(abandonedRows[0]?.state,'UNKNOWN');
  assert.equal(stopResults.reduce((n,r)=>n+r.calendarPushStopped,0),1);
  assert.deepEqual(stoppedChannels,[originalChannel.id]);
  assert.equal((await http('owner',watchPath,200)).channel.stopState,'STOPPED');
@@ -492,7 +500,7 @@ try{
  delete process.env.ENABLE_CALENDAR_PUSH;
  delete process.env.ENABLE_CALENDAR_RECONCILIATION;
  delete process.env.PUBLIC_APP_URL;
- console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, automatic renewal, exact stop CAS, old-channel continuity and ambiguous-ack fencing passed.');
+ console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, automatic renewal, exact stop CAS and concurrent stale recovery, old-channel continuity and ambiguous-ack fencing passed.');
 
  stage='calendar OAuth authorization and refresh';
  process.env.PUBLIC_APP_URL='https://calendar-fixture.example.invalid';

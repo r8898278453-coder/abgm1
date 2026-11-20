@@ -7,7 +7,7 @@ import {readBookingEvidence,saveBookingEvidence} from './bookingEvidence';
 import {readFulfillment,saveFulfillment} from './retention';
 import {readQualificationHandoffs,changeQualificationHandoff} from './qualificationHandoffs';
 import {writeAdditionalDeal,readDealPortfolio} from './extraDeals';
-import {readSourceOutcomeReport} from './sourceOutcomeReport';
+import {readSourceOutcomeEvidence} from './sourceOutcomeReport';
 import {assessCompanyProspect} from './prospectAssessment';
 import {previewProspects} from './salesWorkspace';
 import {platformDayBounds} from '../shared/dailyWorkReport';
@@ -81,7 +81,7 @@ export function registerSalesRoutes(app:Express,deps:{auth:(req:Request)=>Promis
  route('get',base+'/leads/:leadId/qualification-handoffs','read',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'QUALIFICATION_QUERY_INVALID');return readQualificationHandoffs(p,u,String(r.params.companyId),String(r.params.leadId));});
  route('post',base+'/leads/:leadId/qualification-handoffs','write',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'QUALIFICATION_QUERY_INVALID');return changeQualificationHandoff(p,u,String(r.params.companyId),String(r.params.leadId),r.body);});
  route('put',base+'/leads/:leadId/qualification-handoffs/:handoffId','write',(r,p,u)=>{if(Object.keys(r.query).length)throw new SalesError(400,'QUALIFICATION_QUERY_INVALID');return changeQualificationHandoff(p,u,String(r.params.companyId),String(r.params.leadId),r.body,String(r.params.handoffId));});
- route('get',base+'/source-outcomes','read',async(req,pool,user)=>{if(Object.keys(req.query).length)throw new SalesError(400,'SOURCE_OUTCOME_QUERY_INVALID');return{report:await readSourceOutcomeReport(pool,user,String(req.params.companyId))};});
+ route('get',base+'/source-outcomes','read',async(req,pool,user)=>{if(Object.keys(req.query).length)throw new SalesError(400,'SOURCE_OUTCOME_QUERY_INVALID');return readSourceOutcomeEvidence(pool,user,String(req.params.companyId));});
  route('get',base+'/delivery-report','read',async(req,pool)=>{if(req.query.before!==undefined)throw new SalesError(400,'DELIVERY_REPORT_QUERY_INVALID');return{report:await readMessageDeliveryReport(pool,String(req.params.companyId),typeof req.query.date==='string'?req.query.date:new Date(Date.now()+19800000).toISOString().slice(0,10))};});
  route('get',base+'/intakes','read',async(req,pool,user)=>({...await readWhatsAppIntakes(pool,String(req.params.companyId)),canManageRecovery:await mayReviewWhatsAppConflict(pool,String(req.params.companyId),user.id)}));
  route('post',base+'/intakes/:intakeId/replay','manage',(req,pool,user)=>queueWhatsAppIntakeReplay(pool,user,String(req.params.companyId),String(req.params.intakeId),req.body));

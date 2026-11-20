@@ -11,6 +11,28 @@ const time=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=8
 const identity=(v:unknown)=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(v);
 const currency=(v:unknown)=>typeof v==='string'&&/^[A-Z]{3}$/.test(v);
 const sum=(map:Record<string,string>,cur:string,value:number)=>{map[cur]=(BigInt(map[cur]||'0')+BigInt(value)).toString();};
+/** Select a boundary over timestamp-sorted evidence. Equal timestamps are kept together. */
+export function recordedSourceBoundary(touches:readonly OutcomeTouch[],last:boolean,complete:boolean,atOrBefore=Infinity) {
+ let count=touches.length;
+ if(count&&touches[count-1].atMs!>atOrBefore){
+  let low=0,high=count;
+  while(low<high){
+   const mid=Math.floor((low+high)/2);
+   if(touches[mid].atMs!<=atOrBefore)low=mid+1;else high=mid;
+  }
+  count=low;
+ }
+ if(!complete||!count)return{source:'Unknown' as AttributionSource,atMs:null,ambiguous:false,evidenceCount:0,evidenceIds:[] as string[]};
+ const boundary=last?count-1:0,atMs=touches[boundary].atMs!;
+ const evidenceIds:string[]=[];
+ const source=touches[boundary].source;
+ let ambiguous=false;
+ for(let i=boundary;i>=0&&i<count&&touches[i].atMs===atMs;i+=last?-1:1){
+  evidenceIds.push(touches[i].id);
+  ambiguous||=touches[i].source!==source;
+ }
+ return{source:ambiguous?'Unknown' as AttributionSource:source,atMs,ambiguous,evidenceCount:evidenceIds.length,evidenceIds:evidenceIds.sort()};
+}
 export function analyzeSourceOutcomes(input:SourceOutcomeInput){
  if(!input||!Array.isArray(input.leads)||!Array.isArray(input.touches)||!Array.isArray(input.costs)||!identity(input.companyId)||!time(input.checkedAtMs)||typeof input.historyComplete!=='boolean'||input.leads.length>1000||input.touches.length>10000||input.costs.length>1000)throw new Error('SOURCE_OUTCOME_SCOPE_INVALID');
  const seen=new Set<string>(),byLead=new Map<string,OutcomeTouch[]>(),touchIds=new Set<string>();const untimedLeads=new Set<string>();let unlinkedInteractions=0,untimedInteractions=0;
@@ -20,8 +42,8 @@ export function analyzeSourceOutcomes(input:SourceOutcomeInput){
  const rows=input.leads.map(lead=>{
   if(!identity(lead.id)||seen.has(lead.id)||typeof lead.opportunityVersion!=='string'||!/^(0|[1-9]\d{0,19})$/.test(lead.opportunityVersion)||BigInt(lead.opportunityVersion)>18446744073709551615n||typeof lead.stage!=='string'||lead.manualValueMinor!==null&&(!money(lead.manualValueMinor)||!currency(lead.currency)))throw new Error('SOURCE_OUTCOME_LEAD_INVALID');seen.add(lead.id);
   const stage=LEAD_STAGES.includes(lead.stage as any)?lead.stage:'UNKNOWN',touches=(byLead.get(lead.id)||[]).sort((a,b)=>a.atMs!-b.atMs!||a.id.localeCompare(b.id));if(stage==='won')totals.won++;else if(stage==='lost')totals.lost++;else if(stage==='UNKNOWN')totals.unknownStage++;else totals.open++;
-  const pick=(last:boolean)=>{if(!input.historyComplete||untimedLeads.has(lead.id)||!touches.length)return{source:'Unknown' as AttributionSource,atMs:null,ambiguous:false,evidenceCount:0,evidenceIds:[] as string[]};const atMs=touches[last?touches.length-1:0].atMs!,tied=touches.filter(t=>t.atMs===atMs),sources=new Set(tied.map(t=>t.source));return{source:sources.size===1?tied[0].source:'Unknown' as AttributionSource,atMs,ambiguous:sources.size>1,evidenceCount:tied.length,evidenceIds:tied.map(t=>t.id).sort()};};
-  const first=pick(false),last=pick(true);if(first.atMs!==null)totals.withKnownRecordedTouch++;else totals.withoutKnownRecordedTouch++;if(first.ambiguous)totals.ambiguousFirst++;if(last.ambiguous)totals.ambiguousLast++;
+  const complete=input.historyComplete&&!untimedLeads.has(lead.id);
+  const first=recordedSourceBoundary(touches,false,complete),last=recordedSourceBoundary(touches,true,complete);if(first.atMs!==null)totals.withKnownRecordedTouch++;else totals.withoutKnownRecordedTouch++;if(first.ambiguous)totals.ambiguousFirst++;if(last.ambiguous)totals.ambiguousLast++;
   if(stage==='won'&&lead.manualValueMinor!==null)sum(manualWonMinor,lead.currency!,lead.manualValueMinor);
   for(const [touch,list]of [[first,firstBuckets],[last,lastBuckets]] as const){const b=list.find(v=>v.source===touch.source)!;b.leads++;if(stage==='won'){b.won++;if(lead.manualValueMinor!==null)sum(b.manualWonMinor,lead.currency!,lead.manualValueMinor);}if(stage==='lost')b.lost++;}
   return{leadId:lead.id,hasUntimedEvidence:untimedLeads.has(lead.id),boundaryVersion:canonicalJson({model:2,companyId:input.companyId,leadId:lead.id,historyComplete:input.historyComplete,untimed:untimedLeads.has(lead.id),first,last}),currentDeclaredSource:declaredAttributionSource(lead.source),stage,opportunityVersion:lead.opportunityVersion,manualWonMinor:stage==='won'&&lead.manualValueMinor!==null?String(lead.manualValueMinor):null,currency:stage==='won'&&lead.manualValueMinor!==null?lead.currency:null,firstKnown:first,lastKnown:last,attributionState:!input.historyComplete?'INCOMPLETE_HISTORY':untimedLeads.has(lead.id)?'UNTIMED_HISTORY':!touches.length?'NO_TIMED_EVIDENCE':first.ambiguous||last.ambiguous?'AMBIGUOUS':'RECORDED_ONLY'};
