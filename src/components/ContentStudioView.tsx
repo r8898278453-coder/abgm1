@@ -1,3 +1,4 @@
+import { GOOGLE_POST_UNAVAILABLE } from '../../shared/publicationAvailability';
 import {AssetLibraryPanel} from './AssetLibraryPanel';
 import {RenderOperationsPanel} from './RenderOperationsPanel';
 import {formatPlatformDateTime} from '../../shared/platformTime';
@@ -68,6 +69,24 @@ interface ContentStudioViewProps {
   onUpdateBusiness?: (updated: BusinessProfile) => void;
 }
 
+function makeServiceIntroDraft(business: BusinessProfile): Partial<ContentPost> {
+  const name = business.name?.trim();
+  const service = business.services?.[0]?.trim() || business.category?.trim();
+  const headline = [name, service].filter(Boolean).join(' · ') || 'Service introduction';
+  return {
+    title: headline,
+    headline,
+    caption: 'Contact us to learn more about our services and availability.',
+    cta: 'Contact us',
+    hashtags: [],
+    reelScript: [
+      { scene: 'Introduction', visual: 'Show the business name', audio: name || 'Welcome' },
+      { scene: 'Services', visual: 'Show a client-approved service photo', audio: service || 'Explore our services' },
+      { scene: 'Next step', visual: 'Show the saved contact details', audio: 'Contact us to learn more.' },
+    ],
+  };
+}
+
 export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   business,
   posts,
@@ -117,12 +136,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       if (business.brandKit.brandTone) setBrandTone(business.brandKit.brandTone);
     }
   }, [business.brandKit]);
-  const [customPrompt, setCustomPrompt] = useState(() => {
-    if (business?.services && business.services.length > 0) {
-      return `Special 20% Off on ${business.services[0]} - Limited Period`;
-    }
-    return `Special Promotion & Exclusive Offer for ${business.name || 'Our Valued Customers'}`;
-  });
+  const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'copywriter' | 'creative' | 'reel' | 'posts' | 'assets'>('copywriter');
   const [scheduleSuccessToast, setScheduleSuccessToast] = useState<string | null>(null);
@@ -296,32 +310,10 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
     setLocalPosts(posts);
   }, [posts]);
 
-  // Sync with business changes to ensure per-tenant personalization
   useEffect(() => {
-    if (business?.name) {
-      const bizName = business.name || 'Our Store';
-      const bizCategory = business.category || 'Services';
-      const bizLocation = business.city || 'your area';
-      const firstService = business.services?.[0] || bizCategory;
-      const tag = bizName.replace(/[^a-zA-Z0-9]/g, '');
-      const catTag = bizCategory.replace(/[^a-zA-Z0-9]/g, '');
-
-      setCustomPrompt(`Special 20% Off on ${firstService} - Limited Period`);
-      setGeneratedPost({
-        title: `${firstService} Special`,
-        headline: `⚡ Exclusive Offer on ${firstService} at ${bizName}!`,
-        caption: `Looking for reliable, top-quality ${bizCategory.toLowerCase()} in ${bizLocation}? 🌟 Visit ${bizName} for premier service, trusted expertise, and dedicated support. Reach out today to claim our limited-time special offer!`,
-        cta: 'Book Consultation on WhatsApp',
-        hashtags: [`#${tag}`, `#${catTag}`, '#SpecialOffer', '#LocalBusiness', '#TrustedQuality'],
-        imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-        reelScript: [
-          { scene: 'Scene 1 (0-4s)', visual: `Customer looking for trusted ${bizCategory}`, audio: `Need dependable ${bizCategory} in ${bizLocation}?` },
-          { scene: 'Scene 2 (4-10s)', visual: `Professional team at ${bizName} providing high-quality service`, audio: `Here is why clients across ${bizLocation} trust ${bizName}.` },
-          { scene: 'Scene 3 (10-15s)', visual: 'Delighted customer with contact options on screen', audio: 'Tap the link or message us on WhatsApp today!' },
-        ],
-      });
-    }
-  }, [business.id]);
+    setCustomPrompt('');
+    setGeneratedPost(makeServiceIntroDraft(business));
+  }, [effectiveCompanyId, business.id]);
 
   // Scheduling State
   const [scheduleDate, setScheduleDate] = useState(() => {
@@ -331,28 +323,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   const [scheduleTimeSlot, setScheduleTimeSlot] = useState('11:00 AM');
 
   // Generated state
-  const [generatedPost, setGeneratedPost] = useState<Partial<ContentPost>>(() => {
-    const bizName = business.name || 'Our Store';
-    const bizCategory = business.category || 'Services';
-    const bizLocation = business.city || 'your area';
-    const firstService = business.services?.[0] || bizCategory;
-    const tag = bizName.replace(/[^a-zA-Z0-9]/g, '');
-    const catTag = bizCategory.replace(/[^a-zA-Z0-9]/g, '');
-
-    return {
-      title: `${firstService} Special`,
-      headline: `⚡ Exclusive Offer on ${firstService} at ${bizName}!`,
-      caption: `Looking for reliable, top-quality ${bizCategory.toLowerCase()} in ${bizLocation}? 🌟 Visit ${bizName} for premier service, trusted expertise, and dedicated support. Reach out today to claim our limited-time special offer!`,
-      cta: 'Book Consultation on WhatsApp',
-      hashtags: [`#${tag}`, `#${catTag}`, '#SpecialOffer', '#LocalBusiness', '#TrustedQuality'],
-      imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-      reelScript: [
-        { scene: 'Scene 1 (0-4s)', visual: `Customer looking for trusted ${bizCategory}`, audio: `Need dependable ${bizCategory} in ${bizLocation}?` },
-        { scene: 'Scene 2 (4-10s)', visual: `Professional team at ${bizName} providing high-quality service`, audio: `Here is why clients across ${bizLocation} trust ${bizName}.` },
-        { scene: 'Scene 3 (10-15s)', visual: 'Delighted customer with contact options on screen', audio: 'Tap the link or message us on WhatsApp today!' },
-      ],
-    };
-  });
+  const [generatedPost, setGeneratedPost] = useState<Partial<ContentPost>>(
+    () => makeServiceIntroDraft(business),
+  );
 
   const handleRenderCreative = async (templateIdToUse?: string, explicitPhotoUrl?: string, paletteIdToUse?: string) => {
     // When 'auto' or undefined is passed, the server-side combinatorial rotation engine picks an unused combo
@@ -1386,7 +1359,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
               <label className="text-slate-600 font-bold">Publishing Platform</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'google', label: 'Google Post' },
+                  { id: 'google', label: 'Google draft' },
                   { id: 'instagram', label: 'Instagram' },
                   { id: 'whatsapp', label: 'WhatsApp' },
                 ].map((plat) => (
@@ -1405,6 +1378,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
               </div>
             </div>
 
+            {targetPlatform === 'google' && <p role="status" className="text-xs text-slate-600">{GOOGLE_POST_UNAVAILABLE}</p>}
+
             {/* Campaign Prompt or Offer */}
             <div className="space-y-1.5 text-xs">
               <label className="text-slate-600 font-bold">Offer or Campaign Hook</label>
@@ -1412,7 +1387,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 rows={3}
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="e.g. 20% discount on laptop screen replacement this Saturday..."
+                placeholder="Enter a topic or the details of an approved offer"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-indigo-500 shadow-2xs"
               />
             </div>

@@ -81,6 +81,26 @@ try {
   const unverifiable=await post();
   await db.createPublishingRecord({post_id:unverifiable.id,company_id:unverifiable.company_id,platform:'facebook',status:'PUBLISHED',attempt_count:1,max_attempts:3,idempotency_key:'no-confirmed-id'});
   calls=[];assert.equal((await executePublishingJob(unverifiable)).overallStatus,'UNKNOWN');assert.equal(calls.length,0);
+  await db.saveCompanyIntegration('outcome-fixture','google_business',{
+    status:'connected',credentials:{placeId:'fixture-place',accessToken:'fixture-places-token'},
+  });
+  await db.saveCompanyIntegration('outcome-fixture','google_gmb_oauth',{
+    status:'connected',credentials:{accountId:'accounts/111',locationId:'locations/222',oauthToken:'fixture-owner-token'},
+  });
+  calls=[];
+  const googleDraft=await post(['google']);
+  const googleBlocked=await executePublishingJob(googleDraft);
+  assert.equal(googleBlocked.overallStatus,'FAILED');
+  assert.equal(googleBlocked.platformResults[0].attemptsMade,0);
+  assert.match(googleBlocked.platformResults[0].errorMessage!,/publishing is unavailable/);
+  assert.equal(await db.getLatestPublishingRecord(googleDraft.id,'google'),null);
+  assert.equal(calls.length,0);
+
+  mode='success';calls=[];
+  const googleMetaMix=await executePublishingJob(await post(['google','facebook']));
+  assert.equal(googleMetaMix.platformResults.find(result=>result.platform==='google')?.attemptsMade,0);
+  assert.equal(googleMetaMix.platformResults.find(result=>result.platform==='facebook')?.providerPostId,'confirmed-facebook');
+  assert.equal(calls.length,1);
   mode='rate';calls=[];const limited=await post();assert.equal((await executePublishingJob(limited)).overallStatus,'PUBLISHED');assert.equal(calls.length,2);
   console.log('Publishing uncertainty: timeout/5xx/malformed acknowledgment sends once, force/replay blocked, queue not retried, mixed outcomes truthful and definite429 retry succeeds.');
 } finally {globalThis.fetch=originalFetch;}

@@ -1,3 +1,4 @@
+import { GOOGLE_POST_UNAVAILABLE } from '../shared/publicationAvailability';
 import {prepareCalendarPhotoDelivery} from './calendarPhotoDelivery';
 import {calendarAttachmentPublishingAllowed} from './calendarAttachmentProof';
 import {admitClientAction} from './clientPolicy';
@@ -193,6 +194,17 @@ async function dispatchPlatformWithRetry(
     };
   }
 
+  if (platform === 'google') {
+    return {
+      platform,
+      success: false,
+      status: 'FAILED',
+      errorType: 'PERMANENT',
+      errorMessage: GOOGLE_POST_UNAVAILABLE,
+      attemptsMade: 0,
+    };
+  }
+
   if(!await canStart())return {platform,success:false,status:'FAILED',errorType:'PERMANENT',errorMessage:'Publishing paused before provider attempt',attemptsMade:0};
 
   // Create attempt record only after unresolved-evidence guards.
@@ -324,25 +336,6 @@ async function dispatchPlatformWithRetry(
           lastErrorType = classified.errorType;
           lastErrorMessage = classified.message;
           if (!classified.isRetryable) break;
-        }
-      } else if (platform === 'google') {
-        // Google Business Profile Updates / Local Post
-        // Check if real Google Business integration is connected
-        let googleIntegration = null;
-        try {
-          googleIntegration = await getCompanyIntegration(companyId, 'google_business');
-        } catch {}
-
-        if (googleIntegration && googleIntegration.status === 'connected' && googleIntegration.credentials?.accessToken) {
-          // If token exists, we could post to Google My Business API
-          // For now, if mock or absent, return NOT_CONFIGURED (never fake success)
-          lastErrorType = 'PERMANENT';
-          lastErrorMessage = 'Google Business Profile publishing endpoint requires OAuth token refresh in Integrations.';
-          break;
-        } else {
-          lastErrorType = 'PERMANENT';
-          lastErrorMessage = 'Google Business Profile integration is not connected. Configure in Integrations tab.';
-          break;
         }
       } else {
         lastErrorType = 'PERMANENT';

@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-20 IST. Do not edit counts manually; run np
 
 Schema target: 055_developer_access; 101 canonical tables. Registered default regression programs: 157 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 59 / 14 / 1 / 19.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 61 / 13 / 1 / 18.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -17,8 +17,8 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 6 | 1 | 0 | 0 |
 | P04 | 8 | 1 | 0 | 0 |
-| P05 | 5 | 1 | 0 | 5 |
-| P06 | 6 | 1 | 0 | 1 |
+| P05 | 6 | 1 | 0 | 4 |
+| P06 | 7 | 0 | 0 | 1 |
 | P07 | 5 | 1 | 0 | 2 |
 | P08 | 5 | 1 | 0 | 4 |
 | P09 | 7 | 1 | 0 | 0 |
@@ -38,8 +38,8 @@ A gate is accepted only when its own tracker status is validated and its require
 - P03-07: validated — Agency and client isolation gate.
 - P04-03: validated — Implement PDF TXT Markdown DOCX extraction and OCR gate.
 - P04-09: validated — Business memory and onboarding gate.
-- P05-11: planned — Marketing parity and publication gate.
-- P06-08: in_progress — CRM and channel truth gate.
+- P05-11: validated — Marketing parity and publication gate.
+- P06-08: validated — CRM and channel truth gate.
 - P07-08: planned — Marketing-to-appointment pilot gate.
 - P08-09: validated — Record gates for visitor identity MCP and advanced outbound extensions.
 - P08-10: planned — Outbound outcomes and optimization gate.
@@ -102,23 +102,23 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P05-07 |
 | P05-09 | validated | Move reel state into durable jobs with resource limits | — |
 | P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | — |
-| P05-11 | planned | Marketing parity and publication gate | — |
-| P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
-| P06-02 | validated | Implement durable batched webhook intake and event replay | P05-11 |
-| P06-03 | validated | Implement message dispatch and real delivery states | P05-11 |
-| P06-04 | planned | Add tenant email sender and reply/bounce integration | P05-11 |
-| P06-05 | validated | Implement contact permission suppression and sending eligibility | P05-11, P06-04 |
-| P06-06 | validated | Replace per-message lead creation and build unified client inbox | P05-11 |
-| P06-07 | validated | Add opportunity stage outcome and next-action management | P05-11 |
-| P06-08 | in_progress | CRM and channel truth gate | P05-11 |
-| P07-01 | validated | Implement grounded qualification and sales handoff | P06-08 |
-| P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | P06-08 |
-| P07-03 | validated | Execute workflow steps through existing queue and policy | P06-08 |
-| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | P06-08 |
-| P07-05 | planned | Integrate actual calendar availability booking and reminders | P06-08, P07-04 |
-| P07-06 | validated | Add retention aftercare review-request and repeat-business templates | P06-08, P07-05 |
-| P07-07 | validated | Expose review and bounded autopilot controls | P06-08 |
-| P07-08 | planned | Marketing-to-appointment pilot gate | P06-08 |
+| P05-11 | validated | Marketing parity and publication gate | — |
+| P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints | — |
+| P06-02 | validated | Implement durable batched webhook intake and event replay | — |
+| P06-03 | validated | Implement message dispatch and real delivery states | — |
+| P06-04 | planned | Add tenant email sender and reply/bounce integration | — |
+| P06-05 | validated | Implement contact permission suppression and sending eligibility | P06-04 |
+| P06-06 | validated | Replace per-message lead creation and build unified client inbox | — |
+| P06-07 | validated | Add opportunity stage outcome and next-action management | — |
+| P06-08 | validated | CRM and channel truth gate | — |
+| P07-01 | validated | Implement grounded qualification and sales handoff | — |
+| P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | — |
+| P07-03 | validated | Execute workflow steps through existing queue and policy | — |
+| P07-04 | in_progress | Handle reply opt-out booking and outcome exit races | — |
+| P07-05 | planned | Integrate actual calendar availability booking and reminders | P07-04 |
+| P07-06 | validated | Add retention aftercare review-request and repeat-business templates | P07-05 |
+| P07-07 | validated | Expose review and bounded autopilot controls | — |
+| P07-08 | planned | Marketing-to-appointment pilot gate | — |
 | P08-01 | validated | Build client ICP exclusions prospect imports and source contracts | P07-08 |
 | P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08 |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes | P07-08, P08-02 |

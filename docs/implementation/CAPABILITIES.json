@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 59,
-    "in_progress": 14,
-    "planned": 19,
+    "validated": 61,
+    "in_progress": 13,
+    "planned": 18,
     "blocked": 1
   },
   "total": 93,
@@ -159,7 +159,7 @@
         "P05-10",
         "P05-11"
       ],
-      "localAcceptance": "partial_or_pending",
+      "localAcceptance": "validated_local",
       "sourcePresent": true,
       "activation": "reviewed",
       "activationEvidence": "source_default_or_review_policy_only; runtime not inspected",
@@ -682,7 +682,7 @@
       "id": "P05-11",
       "phase": "P05",
       "title": "Marketing parity and publication gate",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Fixtures/contracts pass; authorized GBP/Meta channel evidence recorded or activation blocked; no hardcoded client campaign content"
     },
     {
@@ -738,7 +738,7 @@
       "id": "P06-08",
       "phase": "P06",
       "title": "CRM and channel truth gate",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Replay/batch/receipt/consent/dedupe/browser tests pass; safe authorized channel send/reply evidence or disabled capability"
     },
     {

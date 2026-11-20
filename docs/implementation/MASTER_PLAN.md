@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+20 November 2026 IST. P05-11 and P06-08 met local acceptance. Google post dispatch reports unavailable before a provider attempt, Content Studio opens without an invented offer, and Integrations shows unavailable tenant email. Publishing, signed intake, receipts, consent, dedupe and approved WhatsApp reply contracts were verified in fixtures. Live provider evidence remains open. Tracker 61 validated, 13 in progress, 18 planned and one blocked. See MARKETING_CHANNEL_ACCEPTANCE.md.
+
 20 November 2026 IST. P09-07 and P09-08 met local acceptance. The workspace navigation collapses at mobile widths and the report and reply review use the available space. The three-client SQL and HTTP fixture verified separate dental clinic and manufacturing counts, an empty client and assigned-viewer access. Tracker 59 validated, 14 in progress, 19 planned and one blocked. See MOBILE_ACCOUNTABILITY_ACCEPTANCE.md.
 
 20 November 2026 IST. Local agency and knowledge acceptance completed for P03-07 and P04-09. The tracker records 57 validated, 15 in progress, 20 planned and one blocked. Explicit role and empty-client checks, persisted locations, image-only and mixed PDF classification, source lifecycle and approved workflow context were verified. See AGENCY_KNOWLEDGE_ACCEPTANCE.md.
@@ -133,7 +135,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.70 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.71 • updated 20 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 
