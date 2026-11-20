@@ -1,3 +1,4 @@
+import {calendarPushLifecycleColumns,calendarPushJobColumns} from '../server/migrations/061_calendar_push_lifecycle';
 import {calendarPushColumns} from '../server/migrations/060_calendar_push_channels';
 import {calendarReconciliationColumns,calendarReconciliationIndex} from '../server/migrations/059_calendar_reconciliation';
 import {calendarChangeColumns} from '../server/migrations/058_calendar_appointment_changes';
@@ -132,7 +133,8 @@ class MockMySqlConnection {
     if(cleanSql.includes("TABLE_NAME IN ('agencies','agency_memberships'")&&cleanSql.includes('INFORMATION_SCHEMA.COLUMNS'))return [[...Object.entries(AGENCY_TABLE_COLUMNS).flatMap(([TABLE_NAME,names])=>names.map(COLUMN_NAME=>({TABLE_NAME,COLUMN_NAME})))],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(DEVELOPER_TABLES,String(params?.[0])))return [Object.keys((DEVELOPER_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(BOOKING_TABLES,String(params?.[0])))return [Object.keys((BOOKING_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
-    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='calendar_push_channels')return [Object.keys(calendarPushColumns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='calendar_push_channels')return [[...Object.keys(calendarPushColumns),...calendarPushLifecycleColumns].map(COLUMN_NAME=>({COLUMN_NAME})),[]];
+    if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&params?.[0]==='calendar_push_jobs')return [calendarPushJobColumns.map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.includes("TABLE_NAME='calendar_push_channels'"))return [[],[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CALENDAR_WRITE_TABLES,String(params?.[0])))return [Object.keys({...CALENDAR_WRITE_TABLES.sales_calendar_intents.columns,...calendarChangeColumns,...calendarReconciliationColumns}).map(COLUMN_NAME=>({COLUMN_NAME})),[]];
     if(cleanSql.startsWith('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS')&&Object.hasOwn(CRM_IDENTITY_TABLES,String(params?.[0])))return [Object.keys((CRM_IDENTITY_TABLES as any)[String(params[0])].columns).map(COLUMN_NAME=>({COLUMN_NAME})),[]];

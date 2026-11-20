@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import type { Pool } from 'mysql2/promise';
 import type { Express, Request } from 'express';
-import { calendarHash, calendarProviderJson, calendarReconciliationEnabled, googleCalendarEventUrl, googleCalendarRequest, readBookingCalendarBinding } from './bookingCalendar';
-import { withReadOnlySqlDeadline } from './readOnlySqlDeadline';
+import { CALENDAR_API, calendarHash, calendarProviderJson, calendarReconciliationEnabled, googleCalendarEventUrl, googleCalendarRequest, readBookingCalendarBinding } from './bookingCalendar';
+import { withReadOnlySqlDeadline, type ReadOnlySql } from './readOnlySqlDeadline';
 import { agencyAudit } from './agencyRoutes';
 import { isGlobalEmergencyStopActive } from './executionStop';
 import { SalesError, salesHash, withSalesLock } from './salesWorkspace';
@@ -27,91 +27,123 @@ const currentTimeSql = 'UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000';
 const matchesToken = (saved: string, token: string) =>
   tokenPattern.test(saved) && crypto.timingSafeEqual(Buffer.from(saved,'hex'), Buffer.from(salesHash(token),'hex'));
 
+function liveRenewalEnabled() {
+  return pushEnabled() && process.env.ENABLE_CALENDAR_PUSH_RENEWAL==='true';
+}
+
 export async function readCalendarPushStatus(pool: Pool, company: string) {
   return withReadOnlySqlDeadline(pool, async sql => {
-    const [rows] = await sql.query(
-      `SELECT state,expires_at_ms,requested_at_ms,${currentTimeSql} nowMs FROM calendar_push_channels WHERE company_id=?`, [company]);
-    const current = rows[0];
-    const now = Number(current?.nowMs);
-    const expiresAtMs = current ? Number(current.expires_at_ms) : null;
-    const state = current?.state === 'DISABLED' ? 'DISABLED' : !current ? 'NOT_CONFIGURED' :
-      expiresAtMs <= now ? 'EXPIRED' : current.state;
-    return { state, expiresAtMs, enabled: pushEnabled(), originReady: Boolean(publicAddress()),
-      canRegister: !current || now-Number(current.requested_at_ms)>=cooldownMs &&
-        (state==='EXPIRED'||state==='DISABLED'||state==='ACTIVE'&&expiresAtMs-now<=3600000) };
+    const [[clock]] = await sql.query(`SELECT ${currentTimeSql} nowMs`);
+    const now=Number(clock.nowMs);
+    const [channels]=await sql.query('SELECT state,expires_at_ms,requested_at_ms FROM calendar_push_channels WHERE company_id=?',[company]);
+    const [watches]=await sql.query("SELECT state,expires_at_ms,requested_at_ms FROM calendar_push_jobs WHERE company_id=? AND kind='WATCH' ORDER BY requested_at_ms DESC LIMIT 1",[company]);
+    const [stops]=await sql.query("SELECT state,expires_at_ms FROM calendar_push_jobs WHERE company_id=? AND kind='STOP' ORDER BY requested_at_ms DESC LIMIT 1",[company]);
+    const channel=channels[0], watch=watches[0], stop=stops[0];
+    const pendingWatch=watch?.state==='PENDING'&&Number(watch.expires_at_ms)>now;
+    const pending=pendingWatch||channel?.state==='PENDING'&&Number(channel.expires_at_ms)>now;
+    const active=channel?.state==='ACTIVE'&&Number(channel.expires_at_ms)>now;
+    const state=active?'ACTIVE':pending?'PENDING':channel?.state==='DISABLED'||watch?.state==='CANCELLED'?'DISABLED':
+      channel||watch?'EXPIRED':'NOT_CONFIGURED';
+    const expiresAtMs=active?Number(channel.expires_at_ms):pendingWatch?Number(watch.expires_at_ms):pending?Number(channel.expires_at_ms):null;
+    return {state,expiresAtMs,enabled:pushEnabled(),originReady:Boolean(publicAddress()),
+      automaticRenewal:liveRenewalEnabled(),renewalPending:active&&pending,
+      stopState:stop&&(stop.state==='STOPPED'||Number(stop.expires_at_ms)>now)?stop.state:null,
+      canRegister:!pending&&now-Math.max(Number(channel?.requested_at_ms||0),Number(watch?.requested_at_ms||0))>=cooldownMs&&
+        (!active||Number(channel.expires_at_ms)-now<=3600000)};
   });
 }
 
+async function queueCalendarStop(sql: ReadOnlySql, company: string, actor: string, channel: any) {
+  if (!channel?.resource_id || channel.state!=='ACTIVE') return;
+  await sql.query(`INSERT IGNORE INTO calendar_push_jobs
+    (channel_id,kind,company_id,manager_id,calendar_hash,resource_id,state,requested_at_ms,expires_at_ms)
+    SELECT ?,'STOP',?,?,?,?,'READY',${currentTimeSql},? WHERE ?>${currentTimeSql}`,
+    [channel.channel_id,company,actor,channel.calendar_hash,channel.resource_id,channel.expires_at_ms,channel.expires_at_ms]);
+}
+
 export async function registerCalendarPushChannel(
-  pool: Pool, user: {id:string}, company: string, transport: typeof fetch = fetch,
+  pool: Pool, user: {id:string}, company: string, transport: typeof fetch = fetch, renewingChannel?: string,
 ) {
   const address = publicAddress();
-  if (!pushEnabled() || !address || isGlobalEmergencyStopActive()) throw new SalesError(409, 'CALENDAR_PUSH_UNAVAILABLE');
-  const id = crypto.randomBytes(16).toString('hex');
-  const token = crypto.randomBytes(32).toString('hex');
-  const reservation = await withSalesLock(pool,user,company,'manage',async (sql, canonical) => {
+  const allowed = () => pushEnabled() && (!renewingChannel || liveRenewalEnabled()) && !isGlobalEmergencyStopActive();
+  if (!allowed() || !address) throw new SalesError(409, 'CALENDAR_PUSH_UNAVAILABLE');
+  const id=crypto.randomBytes(16).toString('hex');
+  const token=crypto.randomBytes(32).toString('hex');
+  const reservation=await withSalesLock(pool,user,company,'manage',async(sql,canonical)=>{
     if(canonical!==company)throw new SalesError(404,'CLIENT_NOT_FOUND');
-    const connection = await readBookingCalendarBinding(sql,user.id,company);
-    const [[clock]] = await sql.query(`SELECT ${currentTimeSql} nowMs`) as any;
-    const now = Number(clock.nowMs);
-    const [rows] = await sql.query('SELECT state,expires_at_ms,requested_at_ms FROM calendar_push_channels WHERE company_id=?',[company]) as any;
-    const current = rows[0];
-    if (current && (now-Number(current.requested_at_ms)<cooldownMs || current.state==='PENDING'&&Number(current.expires_at_ms)>now ||
-        current.state==='ACTIVE'&&Number(current.expires_at_ms)>now+3600000)) {
-      throw new SalesError(409, 'CALENDAR_PUSH_ALREADY_REGISTERED');
+    const connection=await readBookingCalendarBinding(sql,user.id,company);
+    const [[clock]]=await sql.query(`SELECT ${currentTimeSql} nowMs`) as any;
+    const now=Number(clock.nowMs);
+    const [rows]=await sql.query('SELECT * FROM calendar_push_channels WHERE company_id=?',[company]) as any;
+    const [requests]=await sql.query("SELECT state,requested_at_ms,expires_at_ms FROM calendar_push_jobs WHERE company_id=? AND kind='WATCH' ORDER BY requested_at_ms DESC LIMIT 1",[company]) as any;
+    const current=rows[0], last=requests[0];
+    const scope=calendarHash(connection.binding.calendarId);
+    if(renewingChannel&&(current?.channel_id!==renewingChannel||current.state!=='ACTIVE'||current.manager_id!==user.id||
+        current.calendar_hash!==scope))throw new SalesError(409,'CALENDAR_PUSH_BINDING_CHANGED');
+    if(now-Math.max(Number(current?.requested_at_ms||0),Number(last?.requested_at_ms||0))<cooldownMs||
+       last?.state==='PENDING'&&Number(last.expires_at_ms)>now||
+       current?.state==='PENDING'&&Number(current.expires_at_ms)>now||
+       current?.state==='ACTIVE'&&Number(current.expires_at_ms)>now+3600000) {
+      throw new SalesError(409,'CALENDAR_PUSH_ALREADY_REGISTERED');
     }
-    const hash = salesHash(token);
-    const scope = calendarHash(connection.binding.calendarId);
-    const expires = now+lifetimeMs+cooldownMs;
-    if (current) {
-      await sql.query(`UPDATE calendar_push_channels SET channel_id=?,token_hash=?,calendar_hash=?,state='PENDING',
-        resource_id=NULL,expires_at_ms=?,requested_at_ms=?,last_message=0,last_wake_ms=0 WHERE company_id=?`,
-        [id,hash,scope,expires,now,company]);
-    } else {
-      await sql.query(`INSERT INTO calendar_push_channels
-        (company_id,channel_id,token_hash,calendar_hash,state,expires_at_ms,requested_at_ms)
-        VALUES (?,?,?,?,'PENDING',?,?)`, [company,id,hash,scope,expires,now]);
-    }
-    await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_REQUESTED',{});
-    return { connection, now };
+    await sql.query(`INSERT INTO calendar_push_jobs
+      (channel_id,kind,company_id,manager_id,calendar_hash,token_hash,state,requested_at_ms,expires_at_ms)
+      VALUES (?,'WATCH',?,?,?,?,'PENDING',?,?)`,[id,company,user.id,scope,salesHash(token),now,now+lifetimeMs+cooldownMs]);
+    await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_REQUESTED',{automatic:Boolean(renewingChannel)});
+    return {connection,now,scope};
   });
 
-  // The reservation is durable before the one provider registration attempt.
-  if (!pushEnabled() || isGlobalEmergencyStopActive()) throw new SalesError(409,'CALENDAR_PUSH_UNAVAILABLE');
-  const url = new URL(googleCalendarEventUrl(reservation.connection.binding).href+'/watch');
+  if(!allowed())throw new SalesError(409,'CALENDAR_PUSH_UNAVAILABLE');
+  const url=new URL(googleCalendarEventUrl(reservation.connection.binding).href+'/watch');
   let watched;
-  try {
-    const request = googleCalendarRequest(reservation.connection.binding);
-    watched = await calendarProviderJson(await transport(url, {
-      ...request, method:'POST',headers:{...request.headers,'Content-Type':'application/json'},
+  try{
+    const request=googleCalendarRequest(reservation.connection.binding);
+    watched=await calendarProviderJson(await transport(url,{
+      ...request,method:'POST',headers:{...request.headers,'Content-Type':'application/json'},
       body:JSON.stringify({id,type:'web_hook',token,address,params:{ttl:String(lifetimeMs/1000)}}),
     }));
-  } catch {
+  }catch{
     throw new SalesError(503,'CALENDAR_PUSH_REGISTRATION_UNCONFIRMED');
   }
-  const expiresAtMs = typeof watched?.expiration==='string' && /^\d{1,15}$/.test(watched.expiration) ? Number(watched.expiration) : 0;
-  if (watched?.id!==id || !resourcePattern.test(typeof watched.resourceId==='string'?watched.resourceId:'') ||
-      expiresAtMs<=reservation.now || expiresAtMs>reservation.now+lifetimeMs+cooldownMs) {
+  const expiresAtMs=typeof watched?.expiration==='string'&&/^\d{1,15}$/.test(watched.expiration)?Number(watched.expiration):0;
+  if(watched?.id!==id||!resourcePattern.test(typeof watched.resourceId==='string'?watched.resourceId:'')||
+     expiresAtMs<=reservation.now||expiresAtMs>reservation.now+lifetimeMs+cooldownMs) {
     throw new SalesError(503,'CALENDAR_PUSH_REGISTRATION_UNCONFIRMED');
   }
+
   return withSalesLock(pool,user,company,'manage',async sql=>{
-    const current=await readBookingCalendarBinding(sql,user.id,company);
-    if (current.fingerprint!==reservation.connection.fingerprint || !pushEnabled() || isGlobalEmergencyStopActive()) {
+    const currentConnection=await readBookingCalendarBinding(sql,user.id,company);
+    if(currentConnection.fingerprint!==reservation.connection.fingerprint||!allowed()) {
       throw new SalesError(409,'CALENDAR_PUSH_BINDING_CHANGED');
     }
-    const [written]:any = await sql.query(`UPDATE calendar_push_channels SET state='ACTIVE',resource_id=?,expires_at_ms=?
-      WHERE company_id=? AND channel_id=? AND state='PENDING' AND ?>${currentTimeSql}`,
-      [watched.resourceId,expiresAtMs,company,id,expiresAtMs]);
-    if(written.affectedRows!==1)throw new SalesError(409,'CALENDAR_PUSH_BINDING_CHANGED');
-    await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_ACTIVE',{expiresAtMs});
-    return { state:'ACTIVE', expiresAtMs };
+    const [confirmed]:any=await sql.query(`UPDATE calendar_push_jobs SET state='CONFIRMED',token_hash=NULL
+      WHERE company_id=? AND channel_id=? AND kind='WATCH' AND state='PENDING' AND ?>${currentTimeSql}`,
+      [company,id,expiresAtMs]);
+    if(confirmed.affectedRows!==1)throw new SalesError(409,'CALENDAR_PUSH_BINDING_CHANGED');
+    const [rows]:any=await sql.query('SELECT * FROM calendar_push_channels WHERE company_id=?',[company]);
+    const previous=rows[0];
+    if(previous){
+      await queueCalendarStop(sql,company,user.id,previous);
+      await sql.query(`UPDATE calendar_push_channels SET channel_id=?,token_hash=?,calendar_hash=?,state='ACTIVE',
+        resource_id=?,expires_at_ms=?,requested_at_ms=?,manager_id=?,last_message=0,last_wake_ms=0,renew_after_ms=0 WHERE company_id=?`,
+        [id,salesHash(token),reservation.scope,watched.resourceId,expiresAtMs,reservation.now,user.id,company]);
+    }else{
+      await sql.query(`INSERT INTO calendar_push_channels
+        (company_id,channel_id,token_hash,calendar_hash,state,resource_id,expires_at_ms,requested_at_ms,manager_id)
+        VALUES (?,?,?,?,'ACTIVE',?,?,?,?)`,[company,id,salesHash(token),reservation.scope,watched.resourceId,expiresAtMs,reservation.now,user.id]);
+    }
+    await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_ACTIVE',{expiresAtMs,automatic:Boolean(renewingChannel)});
+    return {state:'ACTIVE',expiresAtMs};
   });
 }
 
 export async function disableCalendarPushChannel(pool:Pool,user:{id:string},company:string) {
   return withSalesLock(pool,user,company,'manage',async sql=>{
+    const [rows]:any=await sql.query('SELECT * FROM calendar_push_channels WHERE company_id=?',[company]);
+    await queueCalendarStop(sql,company,user.id,rows[0]);
+    const [cancelled]:any=await sql.query("UPDATE calendar_push_jobs SET state='CANCELLED',token_hash=NULL WHERE company_id=? AND kind='WATCH' AND state='PENDING'",[company]);
     const [written]:any=await sql.query("UPDATE calendar_push_channels SET state='DISABLED' WHERE company_id=? AND state<>'DISABLED'",[company]);
-    if(written.affectedRows)await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_DISABLED',{});
+    if(written.affectedRows||cancelled.affectedRows)await agencyAudit(sql,company,user.id,'SALES_CALENDAR_PUSH_DISABLED',{});
     return {state:'DISABLED'};
   });
 }
@@ -133,6 +165,12 @@ async function admitSignal(pool:Pool, signal:NonNullable<ReturnType<typeof parse
       CAST(last_message AS CHAR) lastMessage,last_wake_ms,${currentTimeSql} nowMs
       FROM calendar_push_channels WHERE channel_id=? FOR UPDATE`,[signal.id]);
     const row=rows[0];
+    if(!row&&signal.state==='sync'){
+      const [pending]:any=await sql.query(`SELECT token_hash FROM calendar_push_jobs WHERE channel_id=?
+        AND kind='WATCH' AND state='PENDING' AND expires_at_ms>${currentTimeSql}`,[signal.id]);
+      await sql.commit();
+      return Boolean(pending[0]&&matchesToken(pending[0].token_hash,signal.token));
+    }
     if(!row||!matchesToken(row.token_hash,signal.token)||Number(row.expires_at_ms)<=Number(row.nowMs)||
        (row.state==='ACTIVE'?row.resource_id!==signal.resource:row.state!=='PENDING'||signal.state!=='sync')) {
       await sql.rollback();
@@ -180,4 +218,69 @@ export function registerCalendarPushCallback(app:Express,poolForRequest:()=>Prom
       res.sendStatus(503);
     }
   });
+}
+
+/** One stop and one renewal per dispatcher pass. Stop claims are never retransmitted after an ambiguous attempt. */
+export async function runCalendarPushLifecycle(pool:Pool,canStart=()=>true,transport:typeof fetch=fetch) {
+  const result={calendarPushRenewed:0,calendarPushStopped:0,calendarPushUnconfirmed:0};
+  const allowed=()=>pushEnabled()&&!isGlobalEmergencyStopActive()&&canStart();
+  if(!allowed())return result;
+  const [stale]:any=await pool.query(`UPDATE calendar_push_jobs SET state='UNKNOWN'
+    WHERE kind='STOP' AND state='IN_PROGRESS' AND requested_at_ms<=${currentTimeSql}-120000 LIMIT 1`);
+  result.calendarPushUnconfirmed+=stale.affectedRows;
+  const [stops]:any=await pool.query(`SELECT * FROM calendar_push_jobs WHERE kind='STOP' AND state='READY' AND expires_at_ms>${currentTimeSql}
+    ORDER BY requested_at_ms,channel_id LIMIT 1`);
+  const stop=stops[0];
+  if(stop&&allowed()){
+    const [claim]:any=await pool.query(`UPDATE calendar_push_jobs SET state='IN_PROGRESS',requested_at_ms=${currentTimeSql}
+      WHERE channel_id=? AND kind='STOP' AND state='READY' AND expires_at_ms>${currentTimeSql}`,[stop.channel_id]);
+    if(claim.affectedRows===1){
+      let outcome='UNAVAILABLE';
+      try{
+        const connection=await withReadOnlySqlDeadline(pool,sql=>readBookingCalendarBinding(sql,stop.manager_id,stop.company_id));
+        if(allowed()&&calendarHash(connection.binding.calendarId)===stop.calendar_hash){
+          outcome='UNKNOWN';
+          const options=googleCalendarRequest(connection.binding);
+          const response=await transport(CALENDAR_API+'/channels/stop',{
+            ...options,method:'POST',headers:{...options.headers,'Content-Type':'application/json'},
+            body:JSON.stringify({id:stop.channel_id,resourceId:stop.resource_id}),
+          });
+          if(response.status===204)outcome='STOPPED';
+          await response.body?.cancel();
+        }
+      }catch{ /* No second stop is dispatched when provider acceptance is uncertain. */ }
+      const sql=await pool.getConnection();
+      try{
+        await sql.beginTransaction();
+        const [settled]:any=await sql.query("UPDATE calendar_push_jobs SET state=? WHERE channel_id=? AND kind='STOP' AND state='IN_PROGRESS'",[outcome,stop.channel_id]);
+        if(settled.affectedRows===1)await agencyAudit(sql,stop.company_id,stop.manager_id,'SALES_CALENDAR_PUSH_STOP_'+outcome,{});
+        await sql.commit();
+        if(settled.affectedRows===1){
+          if(outcome==='STOPPED')result.calendarPushStopped++;
+          else result.calendarPushUnconfirmed++;
+        }
+      }catch(error){await sql.rollback();throw error;}finally{sql.release();}
+    }
+  }
+  if(!allowed()||!liveRenewalEnabled())return result;
+  const [channels]:any=await pool.query(`SELECT c.company_id,c.channel_id,c.manager_id FROM calendar_push_channels c
+    JOIN client_operations o ON o.company_id=c.company_id AND o.status='ACTIVE'
+    WHERE c.state='ACTIVE' AND c.manager_id IS NOT NULL AND c.renew_after_ms<=${currentTimeSql}
+      AND c.expires_at_ms<=${currentTimeSql}+3600000 AND c.expires_at_ms>${currentTimeSql}-86400000
+      AND NOT EXISTS(SELECT 1 FROM calendar_push_jobs j WHERE j.company_id=c.company_id AND j.kind='WATCH'
+           AND j.state='PENDING' AND j.expires_at_ms>${currentTimeSql})
+    ORDER BY c.renew_after_ms,c.company_id LIMIT 1`);
+  const channel=channels[0];
+  if(!channel||!allowed())return result;
+  const [lease]:any=await pool.query(`UPDATE calendar_push_channels SET renew_after_ms=${currentTimeSql}+${cooldownMs}
+    WHERE company_id=? AND channel_id=? AND state='ACTIVE' AND renew_after_ms<=${currentTimeSql}`,[channel.company_id,channel.channel_id]);
+  if(lease.affectedRows===1&&allowed()){
+    try{
+      await registerCalendarPushChannel(pool,{id:channel.manager_id},channel.company_id,transport,channel.channel_id);
+      result.calendarPushRenewed++;
+    }catch{
+      result.calendarPushUnconfirmed++;
+    }
+  }
+  return result;
 }

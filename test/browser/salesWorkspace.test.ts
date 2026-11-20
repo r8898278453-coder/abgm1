@@ -82,7 +82,7 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
    channelState=action==='REGISTER'?'ACTIVE':'DISABLED';
   }
   body={...body,channel:{state:channelState,enabled:true,originReady:true,
-   expiresAtMs:Date.now()+86400000,canRegister:channelState==='NOT_CONFIGURED'}};
+   expiresAtMs:Date.now()+86400000,canRegister:channelState==='NOT_CONFIGURED',automaticRenewal:true,stopState:channelState==='DISABLED'?'READY':null}};
  }
  else if(method!=='GET'){const input=route.request().postDataJSON();writes.push({path:url.pathname,input});if(conflict){status=409;body={success:false,error:'SALES_POLICY_CHANGED'};}else if(url.pathname.endsWith('/policy')){assert.equal(input.expectedVersion,String(policyVersion));policyVersion++;policy=input.policy;body={...body,version:String(policyVersion)};}else if(url.pathname.endsWith('/prospects/assess')){body={...body,assessment:assessDeclaredProspect((policy as any).prospecting||DEFAULT_PROSPECTING_PROFILE,policy.industries,input,company,String(policyVersion),Date.now())};}else if(url.pathname.endsWith('/permissions')){permissionVersion++;permissionState=input.state;body={...body,version:String(permissionVersion)};}else if(url.pathname.endsWith('/opportunity')){opVersion++;stage=input.stage;body={...body,version:String(opVersion)};}else if(url.pathname.endsWith('/qualification')){qualVersion++;body={...body,version:String(qualVersion)};}else if(url.pathname.endsWith('/prospects/preview')){body={...body,readOnly:true,consentGranted:false,policyVersion:String(policyVersion),checkedAtMs:Date.now(),results:[{row:1,status:'WOULD_IMPORT'}]};}else if(url.pathname.endsWith('/prospects/import')){keys.push(input.requestKey);body={...body,results:[{row:1,status:'IMPORTED'}],consentGranted:false,reused:false};}}
  else if(url.pathname.endsWith('/inbox'))body={...body,messages:company==='A'?[{id:'a'.repeat(64),lead_id:'leadA',version:'0',direction:'INBOUND',body:'Actual saved inquiry',createdAtMs:1},{id:'b'.repeat(64),lead_id:'leadA',version:'0',direction:'OUTBOUND',body:'Reviewed reply',metadata:{receiptReconciled:true},createdAtMs:2}]:[],nextBefore:null};
@@ -149,6 +149,8 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
  await calendarPush.getByText(/^Active.*IST$/).waitFor();
  await calendarPush.getByRole('button',{name:'Disable Calendar subscription locally'}).click();
  await calendarPush.getByText('Disabled locally',{exact:true}).waitFor();
+ await calendarPush.getByText('Automatic renewal is enabled.',{exact:true}).waitFor();
+ await calendarPush.getByText('Google-side stop queued.',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Load sales report'}).click();
  await page.getByText(/Calendar appointments verified/).waitFor();
  await page.getByText(/External Google Calendar reschedules verified/).waitFor();

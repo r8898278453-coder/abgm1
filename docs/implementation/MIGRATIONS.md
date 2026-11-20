@@ -1,5 +1,7 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+20 November 2026 IST. Migration 061 adds Calendar lifecycle jobs, manager attribution and a renewal deadline to channel state. Existing channels remain usable. A manager must renew a legacy channel manually before it can be renewed automatically. The canonical target is 105 tables.
+
 20 November 2026 IST. Migration 060 adds the calendar_push_channels table with one row per client, unique channel identity, token hash, expiry and notification watermark. The canonical target is 104 tables.
 
 20 November 2026 IST. Forward migration 059 adds reconciliation due time, failure count, claim, outcome and a due index to sales_calendar_intents. Existing origins become eligible when the worker is enabled. The canonical target remains 103 tables.

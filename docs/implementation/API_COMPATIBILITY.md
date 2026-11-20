@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. Calendar push status adds automaticRenewal, renewalPending and stopState. Manual disable still takes effect locally immediately and also queues an exact provider stop for an unexpired confirmed channel.
+
 20 November 2026 IST. Scope-bound GET and POST calendar-push expose channel status, registration and local disable to managers. The Google notification endpoint verifies channel metadata and only wakes bounded exact-read reconciliation. See CALENDAR_PUSH.md.
 
 20 November 2026 IST. Live Sales reporting adds the calendarReconciliationUnavailable backlog count and automatic Google change activity. Dispatcher outbox summaries expose only batch counts and enabled status. See CALENDAR_RECONCILIATION.md.

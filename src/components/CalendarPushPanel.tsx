@@ -8,6 +8,9 @@ type Channel = {
   enabled: boolean;
   originReady: boolean;
   canRegister: boolean;
+  automaticRenewal?: boolean;
+  renewalPending?: boolean;
+  stopState?: 'READY'|'IN_PROGRESS'|'STOPPED'|'UNKNOWN'|'UNAVAILABLE'|null;
 };
 
 const labels: Record<Channel['state'],string> = {
@@ -56,6 +59,12 @@ export const CalendarPushPanel: React.FC<{companyId:string}> = ({companyId}) => 
       <p>{labels[channel.state]}{channel.expiresAtMs&&['PENDING','ACTIVE'].includes(channel.state)
         ? ' · Until '+formatPlatformDateTime(channel.expiresAtMs) : ''}</p>
       {!channel.enabled&&<p>Calendar push is disabled in server settings.</p>}
+      {channel.automaticRenewal&&<p>Automatic renewal is enabled.</p>}
+      {channel.renewalPending&&<p>Renewal unconfirmed. The current channel stays active until it expires.</p>}
+      {channel.stopState&&<p>{({
+        READY:'Google-side stop queued.',IN_PROGRESS:'Google-side stop in progress.',STOPPED:'Google-side stop confirmed.',
+        UNKNOWN:'Google-side stop unconfirmed.',UNAVAILABLE:'Google-side stop unavailable.',
+      })[channel.stopState]}</p>}
       {channel.enabled&&!channel.originReady&&<p>Calendar push requires the configured HTTPS site origin.</p>}
       <div className="flex flex-wrap gap-2">
         {channel.enabled&&channel.originReady&&channel.canRegister&&

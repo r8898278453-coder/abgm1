@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. Roll forward to schema 061 with automatic renewal disabled. Verify confirmed replacement, old and new callback scope, exact channels.stop outcome, and fallback polling after both an ambiguous registration and an ambiguous stop on a dedicated test calendar.
+
 20 November 2026 IST. Roll forward to schema 060 with Calendar push disabled. Verify the configured HTTPS origin, channel registration, exact pull, duplicate/reordered hints and fallback polling in a dedicated Google test workspace. See CALENDAR_PUSH.md.
 
 20 November 2026 IST. Roll forward to schema 059 with ENABLE_CALENDAR_RECONCILIATION=false. In an isolated workspace, verify dispatcher cadence, actor scope, latest booking revision and lease recovery before enabling background checks. See CALENDAR_RECONCILIATION.md.

@@ -1,4 +1,4 @@
-import {registerCalendarPushCallback} from '../../server/calendarPush';
+import {registerCalendarPushCallback,runCalendarPushLifecycle} from '../../server/calendarPush';
 import {runCalendarReconciliation} from '../../server/calendarReconciliation';
 import {checkReminderCalendarBeforeSend} from '../../server/calendarObservation';
 import {saveBookingEvidence} from '../../server/bookingEvidence';
@@ -22,12 +22,21 @@ let oldEvent:any;
 let providerBusy=false;
 let watchedChannel:any,watchCalls=0,loseWatchAck=false;
 const watchResource='fixture-resource-1';
+const stoppedChannels:string[]=[];let loseStopAck=false;
 const calendarTransport:typeof fetch=async(url,options)=>{
  calendarCalls++;
  const target=new URL(String(url));
  assert.equal(target.origin,'https://www.googleapis.com');
  assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer calendar-token-fixture');
  const eventsPath='/calendar/v3/calendars/'+encodeURIComponent(calendarId)+'/events';
+ if(target.pathname==='/calendar/v3/channels/stop'){
+  assert.equal(options?.method,'POST');
+  const command=JSON.parse(String(options?.body));
+  assert.equal(command.resourceId,watchResource);
+  stoppedChannels.push(command.id);
+  if(loseStopAck)throw Error('fixture lost Calendar stop acknowledgement');
+  return new Response(null,{status:204});
+ }
  if(target.pathname===eventsPath+'/watch'){
   watchCalls++;
   assert.equal(options?.method,'POST');
@@ -410,21 +419,51 @@ try{
  assert.equal(polledAfterHint.calendarSyncChanged,0);
  assert.equal((await http('viewer',bookingPath,200)).booking.version,'15');
  await saveBookingEvidence(pool,users.owner,company,leadId,{operation:'CANCEL',expectedVersion:'15',requestKey:key()});
- await pool.query('UPDATE calendar_push_channels SET expires_at_ms=0,requested_at_ms=0 WHERE company_id=?',[company]);
- assert.equal((await sendCalendarSignal('5')).status,404);
- loseWatchAck=true;
- assert.equal((await http('owner',watchPath,503,{action:'REGISTER'})).error,'CALENDAR_PUSH_REGISTRATION_UNCONFIRMED');
- assert.equal((await http('owner',watchPath,200)).channel.state,'PENDING');
- await http('owner',watchPath,409,{action:'REGISTER'});
+ const ageChannel=async()=>{
+  await pool!.query('UPDATE calendar_push_channels SET expires_at_ms=(UNIX_TIMESTAMP()+1800)*1000,requested_at_ms=0,renew_after_ms=0 WHERE company_id=?',[company]);
+  await pool!.query("UPDATE calendar_push_jobs SET requested_at_ms=0 WHERE company_id=? AND kind='WATCH'",[company]);
+ };
+ await ageChannel();
+ const originalChannel=watchedChannel;
+ const lifecycle=()=>runCalendarPushLifecycle(pool!,()=>true,calendarTransport);
+ assert.equal((await lifecycle()).calendarPushRenewed,0);
+ process.env.ENABLE_CALENDAR_PUSH_RENEWAL='true';
+ assert.equal((await lifecycle()).calendarPushRenewed,1);
  assert.equal(watchCalls,2);
+ assert.equal(stoppedChannels.length,0);
+ assert.equal((await sendCalendarSignal('10','exists',{'X-Goog-Channel-Id':originalChannel.id,'X-Goog-Channel-Token':originalChannel.token})).status,404);
+ const stopResults=await Promise.all(Array.from({length:8},lifecycle));
+ assert.equal(stopResults.reduce((n,r)=>n+r.calendarPushStopped,0),1);
+ assert.deepEqual(stoppedChannels,[originalChannel.id]);
+ assert.equal((await http('owner',watchPath,200)).channel.stopState,'STOPPED');
+
+ const usableChannel=watchedChannel;
+ await ageChannel();
+ loseWatchAck=true;
+ assert.equal((await lifecycle()).calendarPushUnconfirmed,1);
+ assert.equal(watchCalls,3);
+ const pendingRenewal=(await http('owner',watchPath,200)).channel;
+ assert.equal(pendingRenewal.state,'ACTIVE');
+ assert.equal(pendingRenewal.renewalPending,true);
  assert.equal((await sendCalendarSignal('2')).status,404);
+ const oldHeaders={'X-Goog-Channel-Id':usableChannel.id,'X-Goog-Channel-Token':usableChannel.token};
+ assert.equal((await sendCalendarSignal('2','exists',oldHeaders)).status,204);
+ await http('owner',watchPath,409,{action:'REGISTER'});
+ assert.equal(watchCalls,3);
  await http('owner',watchPath,200,{action:'DISABLE'});
  assert.equal((await http('owner',watchPath,200)).channel.state,'DISABLED');
+ assert.equal((await sendCalendarSignal('3','exists',oldHeaders)).status,404);
  assert.equal((await sendCalendarSignal('1','sync')).status,404);
+ loseStopAck=true;
+ assert.equal((await lifecycle()).calendarPushUnconfirmed,1);
+ assert.equal((await http('owner',watchPath,200)).channel.stopState,'UNKNOWN');
+ assert.equal((await lifecycle()).calendarPushUnconfirmed,0);
+ assert.deepEqual(stoppedChannels,[originalChannel.id,usableChannel.id]);
+ delete process.env.ENABLE_CALENDAR_PUSH_RENEWAL;
  delete process.env.ENABLE_CALENDAR_PUSH;
  delete process.env.ENABLE_CALENDAR_RECONCILIATION;
  delete process.env.PUBLIC_APP_URL;
- console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, expiry and ambiguous-ack protection passed.');
+ console.log('Calendar push SQL/HTTP: manager scope, one provider registration, early sync, hidden secrets, atomic duplicate/order fencing, pull-only wake, automatic renewal, exact stop CAS, old-channel continuity and ambiguous-ack fencing passed.');
 
  stage='knowledge';const grounded=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());const fact=await createKnowledgeFact(pool,company,{key:'service',value:'Consulting'},users.owner.id);await changeKnowledgeFact(pool,company,fact.id,'approve',{expectedVersion:'0'},users.owner.id);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'KNOWLEDGE_CHANGED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===grounded.id)?.state,'EXITED');
  stage='paused-deferral';const paused=await enrollSalesWorkflow(pool,users.staff,company,enrollmentBody());await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',true) WHERE company_id=?",[company]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).status,'SKIPPED');const [deferred]:any=await pool.query('SELECT attempts,deferrals,status FROM job_queue WHERE id=?',[job.id]);assert.equal(deferred[0].attempts,deferred[0].deferrals);await pool.query("UPDATE sales_client_policies SET policy_json=JSON_SET(policy_json,'$.paused',false) WHERE company_id=?",[company]);await stopSalesWorkflow(pool,users.staff,company,paused.id,{expectedVersion:'0',reason:'Operator stopped paused workflow'});
@@ -452,4 +491,4 @@ try{
  stage='approver-revoked';const approverExit=await enrollSalesWorkflow(pool,users.owner,company,{...enrollmentBody(),workflowVersion:'4'});await pool.query('DELETE FROM client_assignments WHERE company_id=? AND user_id=?',[company,users.approver.id]);job=await claim();assert.equal((await executeSalesWorkflowJob(pool,job)).error,'APPROVER_REVOKED');assert.equal((await snapshot()).enrollments.find((e:any)=>e.id===approverExit.id)?.state,'EXITED');
  console.log('Sales workflows SQL:8-way draft replay/approval/enrollment/task CAS, immutable review snapshots, one successor, no provider intents, reply/STOP/outcome/edit exits, source/role invalidation, pause deferral, expiry/orphan recovery, outbox rollback, lost commit acknowledgement and scoped HTTP roles passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'sales-workflows',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,200),line:e.stack?.match(/salesWorkflowsSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}
+finally{await new Promise<void>(r=>server.close(()=>r()));for(const client of [company,other]){for(const table of ['calendar_push_jobs','calendar_push_channels','company_integrations','sales_calendar_intents','sales_booking_evidence','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','knowledge_facts','autonomous_audit_logs','leads','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[client]);await pool.query('DELETE FROM companies WHERE id=?',[client]);}for(const user of Object.values(users) as any[])await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[user.id]);for(const user of Object.values(users) as any[]){await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[user.id]);await pool.query('DELETE FROM users WHERE id=?',[user.id]);}await pool.end();}

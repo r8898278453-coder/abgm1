@@ -1,5 +1,7 @@
 # Implementation State
 
+20 November 2026 IST. P07-05 advances with default-off automatic Calendar channel renewal, atomic replacement, durable Google-side stops, and ambiguous-response recovery that preserves established channels and exact polling. Migration 061 adds lifecycle jobs. Live Google OAuth, callback and pilot acceptance remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_PUSH.md.
+
 20 November 2026 IST. P07-05 advances with scoped Google Calendar push registration, renewal eligibility, local disable, expiry, durable duplicate and order protection, and a bounded wake-up for exact event polling. Migration 060 adds the Calendar channel table. Live Google OAuth, public callback acceptance, and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_PUSH.md.
 
 20 November 2026 IST. P07-05 advances with default-off Calendar reconciliation through the existing dispatcher, with durable leases, capped backoff, actor scope rechecks, exact CRM revisions and IST change and availability reporting. Migration 059 extends the existing Calendar intent table. Live Google OAuth, Google push subscriptions and the P07-08 pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_RECONCILIATION.md.
