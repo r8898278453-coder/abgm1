@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. The private daily-work response and CSV add the four appointment activity counts and one backlog count. New manual and scheduled captures write frozen coverage V5. Archived V1–V4 keep their original read and replay contracts. Client publication accepts coverage V5 while the public metric allowlist stays the same. The storage schema remains 062. [Appointment reporting](APPOINTMENT_OUTCOMES.md)
+
 20 November 2026 IST. Scoped appointment-outcomes read and write routes expose ended bookings and idempotent operator declarations. Sales reports add appointmentOutcomes with effective totals, superseded evidence and declared-source aggregation.
 
 20 November 2026 IST. Sales policy accepts optional booking limits. Omission preserves stored limits and missing legacy data uses defaults. Availability can return WORKSPACE_BOOKINGS as the source of a busy result. Verify duration, notice, horizon and policy-change errors before accepting a slot.

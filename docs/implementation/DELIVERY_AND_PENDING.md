@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P09-01 advances with booking, cancellation and outcome revision activity, plus the current ended-appointment backlog. The dashboard, private CSV and daily digest use the same IST report. New manual and scheduled captures use V5, and existing V1–V4 snapshots remain readable. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_OUTCOMES.md.
+
 20 November 2026 IST. P07-05 advances with exact-row recovery of abandoned Calendar stop claims under concurrent workers. P08-05 advances with a workspace appointment cohort in the source report. The existing booking and outcome ledgers now support current declared source and first or last recorded source before booking, including corrections, cancellations, missing evidence and aggregate CSV. Live pilot, cross-channel cost allocation, verified receipts/spend and ROI remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See SOURCE_OUTCOME_TRUTH.md.
 
 20 November 2026 IST. P07-05 and P08-05 advance with operator-declared appointment outcomes, append-only corrections, revision fencing, frozen declared source and daily IST outcome totals. Migration 062 adds outcome evidence and a booking-time index. Live provider validation, pilot acceptance and complete cross-channel attribution remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_OUTCOMES.md.
@@ -199,4 +201,4 @@ The [generated status](STATUS.md) follows the [task tracker](TASKS.csv) and cont
 
 P00-02 is the explicit blocker for Hostinger acceptance. It requires authorized hosting read access or safe configuration evidence covering the target runtime, database, cron, backups and staging. The code changes in the latest batch are verified with local fixtures. The live Calendar/provider pilot and release gates require their own evidence.
 
-See [appointment source attribution verification](evidence/appointment-source-attribution.json) for the current batch.
+See [daily appointment reporting verification](evidence/appointment-daily-report.json) and [appointment source attribution verification](evidence/appointment-source-attribution.json).

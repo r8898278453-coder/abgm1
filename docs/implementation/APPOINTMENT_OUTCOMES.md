@@ -1,5 +1,11 @@
 # Appointment outcomes and declared sources
 
+## Daily accountability
+
+21 November 2026 IST. The private dashboard, work CSV and daily digest count booking confirmations and reschedules as saved booking revisions. Cancellations, first outcome records and outcome corrections have separate counters. The selected day includes writes at IST midnight and before the next IST midnight, using the original ledger timestamps. Attendance itself remains in the Sales report by appointment end date.
+
+The current backlog counts ended, still-effective confirmed appointments that have no saved outcome. A later cancellation or reschedule supersedes the earlier appointment revision. An explicitly undetermined attendance closes this backlog item because the uncertainty has been recorded. New frozen captures preserve the backlog observed at capture. Later captures create amendments with the affected counts. Provider references, lead details and outcome notes stay outside the report. See [verification evidence](evidence/appointment-daily-report.json).
+
 20 November 2026 IST · P07-05 and P08-05
 
 Select a lead in the Sales workspace and load **Appointment outcomes**. The latest 20 ended appointments are available for review. An authorized operator chooses Held, No-show or Undetermined and records supporting evidence. Each declaration is attached to the exact confirmed booking revision. A future or cancelled booking cannot receive an outcome. A pending Calendar mutation for the viewed revision must be reconciled before declaring attendance.

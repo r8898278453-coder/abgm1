@@ -106,3 +106,31 @@ export async function appointmentOutcomeReport(sql:ReadOnlySql,company:string,st
   }
   return {totals,byDeclaredSource};
 }
+
+/** Activity uses ledger write time. Backlog uses current effective booking and outcome state. */
+export async function readAppointmentReporting(sql:ReadOnlySql,company:string,start:number,end:number) {
+  const [[bookings]]=await sql.query(`SELECT
+    COUNT(CASE WHEN state='CONFIRMED' THEN 1 END) appointmentBookingRevisions,
+    COUNT(CASE WHEN state='CANCELLED' THEN 1 END) appointmentCancellations
+    FROM sales_booking_evidence
+    WHERE company_id=? AND confirmed_at_ms>=? AND confirmed_at_ms<?`,[company,start,end]);
+  const [[outcomes]]=await sql.query(`SELECT
+    COUNT(CASE WHEN revision=1 THEN 1 END) appointmentOutcomesRecorded,
+    COUNT(CASE WHEN revision>1 THEN 1 END) appointmentOutcomesCorrected
+    FROM sales_appointment_outcomes
+    WHERE company_id=? AND recorded_at_ms>=? AND recorded_at_ms<?`,[company,start,end]);
+  const [[backlog]]=await sql.query(`SELECT COUNT(*) appointmentOutcomesAwaiting
+    FROM sales_booking_evidence b
+    JOIN leads l ON l.company_id=b.company_id AND l.id=b.lead_id
+    WHERE b.company_id=? AND ${endedAppointment} AND ${unsuperseded}
+      AND NOT EXISTS(SELECT 1 FROM sales_appointment_outcomes o WHERE o.company_id=b.company_id AND o.booking_id=b.id)`,[company]);
+  return {
+    activity:{
+      appointmentBookingRevisions:bookings.appointmentBookingRevisions,
+      appointmentCancellations:bookings.appointmentCancellations,
+      appointmentOutcomesRecorded:outcomes.appointmentOutcomesRecorded,
+      appointmentOutcomesCorrected:outcomes.appointmentOutcomesCorrected,
+    },
+    backlog:{appointmentOutcomesAwaiting:backlog.appointmentOutcomesAwaiting},
+  };
+}

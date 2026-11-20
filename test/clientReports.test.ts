@@ -8,3 +8,7 @@ for(const input of [{...p,sourceHash:'c'.repeat(64)},{...p,sourceRevision:2},{..
 for(const invalid of [{...r,privateNotes:'private'},{...r,activity:r.activity.filter(m=>m.key!=='failedJobs')},{...r,activity:r.activity.map(m=>({...m,label:'Claimed success'}))},{...r,backlog:r.backlog.slice(1)},{...r,date:'2026-02-31'},{...r,notice:'Guaranteed business growth'}])assert.equal(clientReportPublic.safeParse(invalid).success,false);
 assert.equal(createClientReport.safeParse({...p,requestKey:'e'.repeat(64)}).success,true);assert.equal(clientReportInput.safeParse({...p,requestKey:'e'.repeat(64)}).success,false);for(const input of [{action:'APPROVE',expectedVersion:1,expectedPublicHash:'f'.repeat(64),privateNotes:'x'},{action:'APPROVE',expectedVersion:1},{action:'EDIT',expectedVersion:0,input:p},{action:'REVOKE',expectedVersion:1,force:true}])assert.equal(clientReportTransition.safeParse(input).success,false);for(const expiryDays of [0,31,1.5])assert.equal(issueClientLink.safeParse({expectedVersion:2,requestKey:'e'.repeat(64),expiryDays}).success,false);
 console.log('Client reports: fixed mandatory failures/backlog, strict frozen source binding, old-coverage missing refusal, private-data exclusion, strict transitions, bounded expiry and spreadsheet-safe public CSV passed.');
+
+const fromV5=projectClientReport({...s,schemaVersion:5},'A','=Business',p);
+assert.deepEqual(fromV5,{...r,coverageVersion:5});
+assert.throws(()=>projectClientReport({...s,schemaVersion:5},'A','Business',{...p,optionalMetrics:['appointmentOutcomesRecorded']}));

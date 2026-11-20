@@ -1,3 +1,4 @@
+import {CURRENT_REPORT_COVERAGE} from './reportSnapshotCoverage';
 import {z} from 'zod';
 import {validateReportSnapshot} from './reportSnapshots';
 export const clientReportId=z.string().regex(/^crp_[a-f0-9]{32}$/);
@@ -19,7 +20,7 @@ export const clientReportTransition=z.discriminatedUnion('action',[
 ]);
 export const issueClientLink=z.object({expectedVersion:reportVersion,requestKey:reportHash,expiryDays:z.number().int().min(1).max(30)}).strict();
 const metric=z.object({key:z.string(),label:z.string(),value:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)}).strict();
-export const clientReportPublic=z.object({model:z.literal(1),businessName:text(160).refine(v=>v.length>0),title:text(120).refine(v=>v.length>=3),clientSummary:text(2000),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),timeZone:z.literal('Asia/Kolkata'),coverageVersion:z.number().int().min(1).max(4),capturedAtMs:z.number().int().nonnegative().max(8640000000000000),sourceGeneratedAtMs:z.number().int().nonnegative().max(8640000000000000),activity:z.array(metric).max(14),backlog:z.array(metric).length(6),notice:z.literal(CLIENT_REPORT_NOTICE)}).strict().superRefine((r,ctx)=>{
+export const clientReportPublic=z.object({model:z.literal(1),businessName:text(160).refine(v=>v.length>0),title:text(120).refine(v=>v.length>=3),clientSummary:text(2000),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),timeZone:z.literal('Asia/Kolkata'),coverageVersion:z.number().int().min(1).max(CURRENT_REPORT_COVERAGE),capturedAtMs:z.number().int().nonnegative().max(8640000000000000),sourceGeneratedAtMs:z.number().int().nonnegative().max(8640000000000000),activity:z.array(metric).max(14),backlog:z.array(metric).length(6),notice:z.literal(CLIENT_REPORT_NOTICE)}).strict().superRefine((r,ctx)=>{
  const required=[...REQUIRED_CLIENT_ACTIVITY];if(r.activity.length<3||required.some((k,i)=>r.activity[i]?.key!==k)||r.activity.some(m=>CLIENT_ACTIVITY[m.key as keyof typeof CLIENT_ACTIVITY]!==m.label)||new Set(r.activity.map(m=>m.key)).size!==r.activity.length||r.backlog.some((m,i)=>Object.keys(CLIENT_BACKLOG)[i]!==m.key||CLIENT_BACKLOG[m.key as keyof typeof CLIENT_BACKLOG]!==m.label)||!Number.isFinite(Date.parse(r.date+'T00:00:00Z'))||new Date(r.date+'T00:00:00Z').toISOString().slice(0,10)!==r.date)ctx.addIssue({code:'custom',message:'Client report shape invalid'});
 });
 export type ClientReportPublic=z.infer<typeof clientReportPublic>;

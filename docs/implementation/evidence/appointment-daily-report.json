@@ -1,0 +1,24 @@
+{
+  "date_ist": "2026-11-21",
+  "advanced": ["P09-01"],
+  "tracker": {"validated": 62, "in_progress": 15, "planned": 15, "blocked": 1},
+  "schema": {"migration": "062_appointment_outcomes", "canonical_tables": 106},
+  "snapshot_coverage": {"current": 5, "legacy_read_and_replay": [1, 2, 3, 4]},
+  "implemented": [
+    "Private selected-day booking writes, cancellations, first outcome records and correction counts",
+    "Current ended confirmed appointments awaiting an outcome",
+    "Shared counts across the dashboard, CSV and daily digest",
+    "Frozen V5 manual and scheduled capture, amendment comparison and private CSV",
+    "V5 source support in the client portal with the existing public metric allowlist"
+  ],
+  "verification": {
+    "default_regression_programs": 158,
+    "native_sql": [
+      "Half-open IST boundary checks, superseded and future booking exclusion, tenant isolation and private aggregate projection",
+      "Late-evidence V5 amendments and exact existing V1–V4 replay with original hashes",
+      "Scheduled V5 capture and existing client report approval and publication flows"
+    ],
+    "browser_fixtures": ["salesActivityReport", "reportSnapshots", "reportCaptureSchedule", "clientReportPublic", "clientReportPortal"]
+  },
+  "pending": ["Remaining cross-module daily report reconciliation", "Live hosted/provider acceptance", "Production rollout"]
+}

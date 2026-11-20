@@ -1,6 +1,6 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-20 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-21 IST. Do not edit counts manually; run npm run docs:status.
 
 Schema target: 062_appointment_outcomes; 106 canonical tables. Registered default regression programs: 158 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
