@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+20 November 2026 IST. P07-05 advances with booking-bound customer WhatsApp reminder reviews, IST scheduling, revision and consent checks, and separate review and provider acceptance reporting. The existing exact-message approval and sender controls are reused. Live provider acceptance and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_REMINDER_WORKFLOW.md.
+
 20 November 2026 IST. P07-05 advances with scoped Google Calendar reschedule and cancellation, conditional event writes, exact recovery, optional Calendar popup reminders, and separate IST Sales activity for verified changes. Migration 058 extends the existing intent ledger. Calendar writes default off. Live Google acceptance, customer reminder delivery and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. P07-05 advances with operator-initiated Calendar creation, tenant-scoped conflict checks, durable duplicate protection, and provider verification that stops CRM inquiry follow-ups. The IST Sales report includes verified bookings and pending confirmations. Migration 057 brings the canonical schema to 103 tables. Calendar creation defaults off. Provider reschedule, cancellation and reminders, live OAuth and the appointment pilot remain open. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See CALENDAR_CREATE_AND_RECOVERY.md.

@@ -122,6 +122,9 @@ export async function saveBookingEvidence(
       'INSERT INTO sales_booking_evidence (id,company_id,lead_id,actor_id,request_key,input_hash,revision,state,external_event_id,start_at_ms,end_at_ms,confirmed_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
       [crypto.randomUUID(), canonicalCompany, lead, user.id, command.requestKey, hash, version, state, eventId, start, end, now],
     );
+    if (command.operation !== 'CONFIRM') {
+      await exitSalesWorkflows(sql, canonicalCompany, 'APPOINTMENT_CHANGED', user.id, { leadId: lead, appointmentReminderOnly: true });
+    }
     if (state === 'CONFIRMED') {
       await exitSalesWorkflows(sql, canonicalCompany, 'BOOKING_RECORDED', user.id, { leadId: lead, inquiryOnly: true });
     }

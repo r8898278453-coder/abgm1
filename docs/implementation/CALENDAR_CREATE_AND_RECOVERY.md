@@ -15,7 +15,7 @@ The client Sales work report displays verified Calendar appointment activity for
 
 - `POST /api/companies/:companyId/sales/leads/:leadId/calendar-change` accepts `RESCHEDULE` with a new offset-qualified window, or `CANCEL`. Both require the viewed booking revision and a fresh 64-character hex request key. The server derives the event ID from the verified CRM appointment.
 - The current event must retain the original private marker and recorded times. Conditional writes use the Google event ETag. Provider changes are supported for single events created by the platform with no attendees. Choose a reschedule window outside the original appointment so FreeBusy can check the complete new window. A confirmed reschedule releases the old local slot hold.
-- Creation or reschedule accepts optional `reminderMinutes` from 0 to 120. Zero turns the popup off. Omission creates an appointment without a reminder or preserves the setting on reschedule. A selected setting must match provider read-back. The popup belongs to the authenticated Google Calendar user. Customer email, WhatsApp and SMS reminders require a separate delivery flow.
+- Creation or reschedule accepts optional `reminderMinutes` from 0 to 120. Zero turns the popup off. Omission creates an appointment without a reminder or preserves the setting on reschedule. A selected setting must match provider read-back. The popup belongs to the authenticated Google Calendar user. Customer WhatsApp uses a separate [approved appointment reminder workflow](APPOINTMENT_REMINDER_WORKFLOW.md). Email and SMS remain open.
 - A conditional delete confirms from a Google 204 response or a subsequent exact cancelled event record. A missing event or connectivity error leaves the request unconfirmed. Cancellation updates the CRM record without reactivating exited follow-ups.
 - The IST Sales work report shows verified creates, reschedules and cancellations separately. Current pending creations and pending changes have separate counts.
 
@@ -25,6 +25,6 @@ Load the appointment record for the same client and lead. If it reports a pendin
 
 ## Rollout and remaining acceptance
 
-Calendar creation defaults off with `ENABLE_CALENDAR_CREATE=false`. Roll out schema 058 before serving these routes. Live OAuth with an event-write credential, a dedicated test calendar and scoped canary evidence remain pending. Customer reminder delivery and live popup behavior remain open. Existing CRM reschedule and cancellation continue to record changes an operator made externally. P07-08 requires a real approved inquiry-to-booking pilot including failure and no-reply cases.
+Calendar creation defaults off with `ENABLE_CALENDAR_CREATE=false`. Roll out schema 058 before serving these routes. Live OAuth with an event-write credential, a dedicated test calendar and scoped canary evidence remain pending. Live customer reminder delivery and live popup behavior remain open. Existing CRM reschedule and cancellation continue to record changes an operator made externally. P07-08 requires a real approved inquiry-to-booking pilot including failure and no-reply cases.
 
 See the [creation acceptance record](evidence/calendar-create-and-recovery.json) and [appointment changes acceptance record](evidence/calendar-appointment-changes.json) for SQL, browser and restore evidence.

@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+20 November 2026 IST. Existing workflow routes add the APPOINTMENT_REMINDER trigger with a bookingVersion and minutesBefore enrollment binding. Workflow reads expose due time, approval tasks expose appointment time and live Sales reporting adds a scoped open reminder count. See APPOINTMENT_REMINDER_WORKFLOW.md.
+
 20 November 2026 IST. POST calendar-change adds provider reschedule and cancellation for a verified appointment. Calendar create and reschedule accept optional reminderMinutes. Both use existing intent reconciliation. The Sales report adds pendingCalendarChanges while keeping pendingCalendarCreations scoped to creation requests. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. Scoped appointment creation and exact-intent reconciliation add two Sales POST routes. Booking evidence GET includes calendarCreateEnabled and pendingCalendarRequestId. Provider-verifiable confirmations expose GOOGLE_CALENDAR_VERIFIED in the existing source field. The live Sales report adds the pendingCalendarCreations backlog count and verified Calendar activity. See CALENDAR_CREATE_AND_RECOVERY.md.

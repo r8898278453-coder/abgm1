@@ -1,5 +1,7 @@
 # Review-only canary release runbook
 
+20 November 2026 IST. On a dedicated test workspace, exercise approved reminder review and cancellation after a change. Verify the existing WhatsApp sender and explicit permission, customer service window, review expiration and exact receipt states. See APPOINTMENT_REMINDER_WORKFLOW.md.
+
 20 November 2026 IST. Roll forward to schema 058 with ENABLE_CALENDAR_CREATE=false. On one dedicated test calendar, verify event-write credentials, conditional update/delete, configured popup read-back and ambiguous response recovery before enabling the flag. See CALENDAR_CREATE_AND_RECOVERY.md.
 
 20 November 2026 IST. Keep ENABLE_CALENDAR_CREATE=false through the schema 057 roll-forward and readiness checks. Verify Calendar event permission and exact-event read-back on one dedicated test calendar before enabling creation. Test the lost-response runbook and check prior-binary compatibility with the newer ledger. See CALENDAR_CREATE_AND_RECOVERY.md.

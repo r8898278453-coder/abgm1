@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {saveSalesWorkflow,decideSalesWorkflow,enrollSalesWorkflow,executeSalesWorkflowJob,readSalesWorkflows,stopSalesWorkflow} from '../../server/salesWorkflows';
 import {approveSalesWorkflowMessage,executeApprovedSalesMessage,readApprovedSalesMessages,recoverApprovedSalesMessages} from '../../server/approvedSalesMessages';
-import {saveSalesPolicy,saveContactPermission} from '../../server/salesWorkspace';
+import {readSalesReport,saveSalesPolicy,saveContactPermission} from '../../server/salesWorkspace';
 import {recordWhatsAppInboundLead} from '../../server/whatsAppInbound';
 import {claimSqlJob} from '../../server/queueSql';
 import {DEFAULT_SALES_POLICY} from '../../shared/salesWorkspace';
@@ -80,9 +80,74 @@ try{
  await saveBookingEvidence(pool,user,company,leadId,{operation:'CANCEL',requestKey:key(),expectedVersion:'3'});
  console.log('Booking send races: an unstarted send is fenced and one in-flight acceptance is retained without a successor.');
 
+ stage='appointment reminder scheduling';
+ const reminderWorkflow=await saveSalesWorkflow(pool,user,company,null,{expectedVersion:'0',definition:{
+   name:'Customer appointment reminder',trigger:'APPOINTMENT_REMINDER',steps:[
+     {kind:'REVIEW_MESSAGE',delayMinutes:0,instructions:'Review the exact appointment and current permission.'},
+   ]}},key());
+ await decideSalesWorkflow(pool,user,company,reminderWorkflow.id!,{expectedVersion:'1',decision:'APPROVE',note:'Approved appointment reminder review for customer service'});
+ const reminderInput=(bookingVersion:string,requestKey=key())=>({
+   workflowId:reminderWorkflow.id!,workflowVersion:'2',leadId,requestKey,
+   appointmentReminder:{bookingVersion,minutesBefore:5},evidence:'Customer requested an appointment reminder'});
+ await assert.rejects(enrollSalesWorkflow(pool,user,company,reminderInput('4')),{code:'APPOINTMENT_CHANGED'});
+ const appointment=(operation:string,expectedVersion:string,startAtMs:number)=>({
+   operation,expectedVersion,requestKey:key(),externalEventId:'reminder-event',
+   startAt:new Date(startAtMs).toISOString(),endAt:new Date(startAtMs+3600000).toISOString(),
+ });
+ const initialStart=Date.now()+3600000;
+ await saveBookingEvidence(pool,user,company,leadId,appointment('CONFIRM','4',initialStart));
+ const firstReminder=reminderInput('5');
+ const reminderReplays=await Promise.all(Array.from({length:8},()=>enrollSalesWorkflow(pool,user,company,firstReminder)));
+ assert.ok(reminderReplays.every(record=>record.id===reminderReplays[0].id));
+ assert.equal(reminderReplays.filter(record=>record.reused).length,7);
+ const obsolete=reminderReplays.find(record=>!record.reused)!;
+ const [queued]=await rows('SELECT UNIX_TIMESTAMP(scheduled_for)*1000 dueAtMs FROM job_queue WHERE id=?',[obsolete.jobId]);
+ assert.ok(Math.abs(Number(queued.dueAtMs)-(initialStart-300000))<1000);
+ assert.equal(await claimSqlJob(pool,'early-reminder',['sales_workflow_review']),null);
+ const reportDate=new Date(Date.now()+19800000).toISOString().slice(0,10);
+ assert.equal((await readSalesReport(pool,company,reportDate)).backlog.pendingAppointmentReminders,1);
+ const nextStart=Math.ceil((Date.now()+306000)/1000)*1000;
+ await saveBookingEvidence(pool,user,company,leadId,appointment('RESCHEDULE','5',nextStart));
+ assert.equal((await rows('SELECT exit_reason FROM sales_workflow_enrollments WHERE id=?',[obsolete.id]))[0].exit_reason,'APPOINTMENT_CHANGED');
+ assert.equal((await rows('SELECT status FROM job_queue WHERE id=?',[obsolete.jobId]))[0].status,'CANCELLED');
+ assert.equal((await readSalesReport(pool,company,reportDate)).activity.AGENCY_SALES_APPOINTMENT_REMINDER_EXITED,1);
+ await assert.rejects(enrollSalesWorkflow(pool,user,company,reminderInput('5')),{code:'APPOINTMENT_CHANGED'});
+ const freshReminder=await enrollSalesWorkflow(pool,user,company,reminderInput('6'));
+ const dueDelay=nextStart-300000-Date.now();
+ if(dueDelay>0)await new Promise(resolve=>setTimeout(resolve,dueDelay+100));
+ const dueJob=await claimSqlJob(pool,'appointment-review-worker',['sales_workflow_review']);
+ assert.ok(dueJob);
+ assert.equal(dueJob.id,freshReminder.jobId);
+ assert.equal((await executeSalesWorkflowJob(pool,dueJob)).status,'SUCCEEDED');
+ const dueTask=(await readSalesWorkflows(pool,company)).tasks.find(task=>task.enrollment_id===freshReminder.id);
+ assert.equal(dueTask?.details.appointmentReminder.startsAtMs,nextStart);
+ assert.equal((await readApprovedSalesMessages(pool,company)).pendingTasks.find(task=>task.taskId===dueTask.id)?.appointmentStartAtMs,nextStart);
+ const pendingChange=key();
+ await pool.query(`INSERT INTO sales_calendar_intents
+  (id,company_id,lead_id,actor_id,request_key,input_hash,calendar_hash,external_event_id,expected_revision,state,start_at_ms,end_at_ms,operation)
+  VALUES (?,?,?,?,?,?,?,?,6,'PENDING_REVIEW',?,?,'CANCEL')`,
+  [pendingChange,company,leadId,user.id,key(),key(),key(),key(),nextStart,nextStart+3600000]);
+ await assert.rejects(approve(dueTask),{code:'APPOINTMENT_CHANGE_PENDING'});
+ await pool.query('DELETE FROM sales_calendar_intents WHERE id=?',[pendingChange]);
+ await approve(dueTask);
+ const sendJob=await claim();
+ let reminderCalls=0;
+ const reminderResult=await executeApprovedSalesMessage(pool,sendJob,{send:async(_credentials,options,policy)=>{
+   assert.ok(policy);
+   assert.equal(await policy.eligibility(company,options.to,false,true),null);
+   reminderCalls++;
+   return {success:true,messageId:'fixture-reminder-provider',status:'API_ACCEPTED'};
+ }});
+ assert.equal(reminderResult.status,'SUCCEEDED');
+ assert.equal(reminderCalls,1);
+ await assert.rejects(enrollSalesWorkflow(pool,user,company,reminderInput('6')),{code:'APPOINTMENT_REMINDER_ALREADY_SCHEDULED'});
+ assert.equal((await readSalesReport(pool,company,reportDate)).activity.AGENCY_SALES_APPOINTMENT_REMINDER_API_ACCEPTED,1);
+ await saveBookingEvidence(pool,user,company,leadId,{operation:'CANCEL',requestKey:key(),expectedVersion:'6'});
+ console.log('Appointment reminder SQL: binding, exact replay, scheduled due time, reschedule invalidation, reminder review, guarded approved send, one send per revision and IST reporting passed.');
+
  stage='expiry';current=await nextReview();const expired=await approve(current.t);await pool.query('UPDATE sales_message_approvals SET expires_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE id=?',[expired.id]);await recoverApprovedSalesMessages(pool);assert.equal((await rows('SELECT state FROM sales_message_approvals WHERE id=?',[expired.id]))[0].state,'CANCELLED');assert.equal(calls,6);
  stage='stale-claim';current=await nextReview();const stale=await approve(current.t);job=await claim();await pool.query("UPDATE sales_message_approvals SET state='DISPATCHING',claim_token=?,claim_worker=?,claim_attempt=? WHERE id=?",[crypto.randomBytes(16).toString('hex'),job.locked_by,job.attempts,stale.id]);await pool.query('UPDATE job_queue SET locked_at=DATE_SUB(NOW(),INTERVAL 6 MINUTE) WHERE id=?',[job.id]);await recoverApprovedSalesMessages(pool);assert.equal((await rows('SELECT state FROM sales_message_approvals WHERE id=?',[stale.id]))[0].state,'UNKNOWN');assert.equal(calls,6);
  stage='history-privacy';const history=JSON.stringify(await readApprovedSalesMessages(pool,company));assert.ok(!history.includes('fixture-token'));assert.ok(!history.includes('claim_token'));assert.ok(!history.includes('senderFingerprint'));
  console.log('Approved sales SQL: transactional rollback,8-way approval/execution, default-off zero effects, one successor, sender rotation, reply cancellation, unknown quarantine, accepted reconciliation without successor, expiry, canonical Meta adapter with intercepted fetch, late reply acceptance without successor, stale claim quarantine and private history passed.');
 }catch(e:any){console.log(JSON.stringify({fixture:'approved-sales',stage,code:e.code||'ASSERTION',message:String(e.message||'').slice(0,300),line:e.stack?.match(/approvedSalesMessagesSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
-finally{if(savedFlag===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=savedFlag;for(const table of ['sales_booking_evidence','message_delivery_receipts','sales_message_approvals','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','autonomous_audit_logs','leads','company_integrations','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[owner]);await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[owner]);await pool.query('DELETE FROM users WHERE id=?',[owner]);await pool.end();}
+finally{if(savedFlag===undefined)delete process.env.ENABLE_APPROVED_SALES_SEND;else process.env.ENABLE_APPROVED_SALES_SEND=savedFlag;for(const table of ['sales_calendar_intents','sales_booking_evidence','message_delivery_receipts','sales_message_approvals','sales_workflow_tasks','sales_workflow_enrollments','sales_workflow_definitions','job_action_outbox','job_action_events','job_action_runs','job_queue','sales_inbox_messages','sales_contact_permissions','sales_opportunities','sales_qualifications','sales_client_policies','sales_prospect_imports','processed_webhook_events','message_dispatch_intents','autonomous_audit_logs','leads','company_integrations','client_assignments','company_profiles_data','client_operations','agency_clients'])await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[company]);await pool.query('DELETE FROM companies WHERE id=?',[company]);await pool.query('DELETE FROM agency_memberships WHERE user_id=?',[owner]);await pool.query('DELETE FROM agencies WHERE owner_user_id=?',[owner]);await pool.query('DELETE FROM users WHERE id=?',[owner]);await pool.end();}
