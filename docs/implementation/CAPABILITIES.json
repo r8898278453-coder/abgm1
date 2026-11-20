@@ -2,9 +2,9 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 55,
+    "validated": 57,
     "in_progress": 15,
-    "planned": 22,
+    "planned": 20,
     "blocked": 1
   },
   "total": 93,
@@ -542,7 +542,7 @@
       "id": "P03-07",
       "phase": "P03",
       "title": "Agency and client isolation gate",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Owner staff approver viewer and foreign-agency scenarios pass including A/B/empty-C switching and persisted locations"
     },
     {
@@ -605,7 +605,7 @@
       "id": "P04-09",
       "phase": "P04",
       "title": "Business memory and onboarding gate",
-      "state": "planned",
+      "state": "validated",
       "acceptance": "Text and scanned PDF paths honestly classified; source citation/conflict/tenant/deletion tests pass; no unapproved facts used for sends"
     },
     {

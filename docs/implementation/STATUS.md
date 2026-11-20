@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-20 IST. Do not edit counts manually; run np
 
 Schema target: 055_developer_access; 101 canonical tables. Registered default regression programs: 157 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 55 / 15 / 1 / 22.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 57 / 15 / 1 / 20.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -15,8 +15,8 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P00 | 4 | 1 | 1 | 0 |
 | P01 | 6 | 3 | 0 | 1 |
 | P02 | 4 | 3 | 0 | 1 |
-| P03 | 5 | 1 | 0 | 1 |
-| P04 | 7 | 1 | 0 | 1 |
+| P03 | 6 | 1 | 0 | 0 |
+| P04 | 8 | 1 | 0 | 0 |
 | P05 | 5 | 1 | 0 | 5 |
 | P06 | 6 | 1 | 0 | 1 |
 | P07 | 5 | 1 | 0 | 2 |
@@ -35,9 +35,9 @@ A gate is accepted only when its own tracker status is validated and its require
 - P00-06: in_progress — Baseline and contract-decision gate.
 - P01-10: planned — Reliability and isolation gate.
 - P02-08: planned — Canonical architecture compatibility gate.
-- P03-07: planned — Agency and client isolation gate.
+- P03-07: validated — Agency and client isolation gate.
 - P04-03: validated — Implement PDF TXT Markdown DOCX extraction and OCR gate.
-- P04-09: planned — Business memory and onboarding gate.
+- P04-09: validated — Business memory and onboarding gate.
 - P05-11: planned — Marketing parity and publication gate.
 - P06-08: in_progress — CRM and channel truth gate.
 - P07-08: planned — Marketing-to-appointment pilot gate.
@@ -82,27 +82,27 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P03-04 | validated | Replace local agency branch UI and establish scoped app shell | P02-08 |
 | P03-05 | validated | Define capability packs goals and operational limits | P02-08 |
 | P03-06 | validated | Secure PWA and client browser storage boundaries | P02-08 |
-| P03-07 | planned | Agency and client isolation gate | P02-08 |
-| P04-01 | validated | Implement private source storage and truthful ingestion runs | P03-07 |
-| P04-02 | validated | Implement bounded website importer and extracted fact provenance | P03-07 |
-| P04-03 | validated | Implement PDF TXT Markdown DOCX extraction and OCR gate | P03-07 |
-| P04-04 | validated | Build approved facts FAQs revisions and conflict review | P03-07 |
-| P04-05 | validated | Implement tenant-scoped retrieval and AI grounding contracts | P03-07 |
-| P04-06 | in_progress | Connect review content chat and sales draft consumers to shared knowledge | P03-07 |
-| P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow | P03-07, P04-06 |
-| P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content | P03-07 |
-| P04-09 | planned | Business memory and onboarding gate | P03-07 |
-| P05-01 | planned | Complete authorized Google account and location connection | P04-09 |
-| P05-02 | validated | Make local profile audit and growth scoring evidence-based | P04-09, P05-01 |
-| P05-03 | validated | Harden keyword research rank grids and competitor refresh | P04-09 |
-| P05-04 | planned | Unify Google review save publish verify and reminders | P04-09 |
-| P05-05 | planned | Complete canonical GBP post and media dispatch | P04-09, P05-04 |
-| P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P04-09, P05-05 |
-| P05-07 | in_progress | Build client-specific creative and approved asset library | P04-09, P05-06 |
-| P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P04-09, P05-07 |
-| P05-09 | validated | Move reel state into durable jobs with resource limits | P04-09 |
-| P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | P04-09 |
-| P05-11 | planned | Marketing parity and publication gate | P04-09 |
+| P03-07 | validated | Agency and client isolation gate | P02-08 |
+| P04-01 | validated | Implement private source storage and truthful ingestion runs | — |
+| P04-02 | validated | Implement bounded website importer and extracted fact provenance | — |
+| P04-03 | validated | Implement PDF TXT Markdown DOCX extraction and OCR gate | — |
+| P04-04 | validated | Build approved facts FAQs revisions and conflict review | — |
+| P04-05 | validated | Implement tenant-scoped retrieval and AI grounding contracts | — |
+| P04-06 | in_progress | Connect review content chat and sales draft consumers to shared knowledge | — |
+| P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow | P04-06 |
+| P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content | — |
+| P04-09 | validated | Business memory and onboarding gate | — |
+| P05-01 | planned | Complete authorized Google account and location connection | — |
+| P05-02 | validated | Make local profile audit and growth scoring evidence-based | P05-01 |
+| P05-03 | validated | Harden keyword research rank grids and competitor refresh | — |
+| P05-04 | planned | Unify Google review save publish verify and reminders | — |
+| P05-05 | planned | Complete canonical GBP post and media dispatch | P05-04 |
+| P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P05-05 |
+| P05-07 | in_progress | Build client-specific creative and approved asset library | P05-06 |
+| P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P05-07 |
+| P05-09 | validated | Move reel state into durable jobs with resource limits | — |
+| P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | — |
+| P05-11 | planned | Marketing parity and publication gate | — |
 | P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints | P05-11 |
 | P06-02 | validated | Implement durable batched webhook intake and event replay | P05-11 |
 | P06-03 | validated | Implement message dispatch and real delivery states | P05-11 |

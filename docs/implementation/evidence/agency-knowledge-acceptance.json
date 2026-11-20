@@ -1,0 +1,27 @@
+{
+  "date_ist": "2026-11-20",
+  "validated_tasks": [
+    "P03-07",
+    "P04-09"
+  ],
+  "default_regressions": 157,
+  "native_sql": "passed",
+  "browser": [
+    "agencyWorkspace",
+    "workspaceIsolation",
+    "knowledgeWorkflow",
+    "knowledgeFacts",
+    "approvedSalesMessages",
+    "privatePwa"
+  ],
+  "restore": {
+    "migrations": 55,
+    "tables": 101,
+    "repeat_applied": 0,
+    "business_rows_preserved": true,
+    "original_ledger_preserved": true
+  },
+  "build": "passed",
+  "typescript": "passed",
+  "production_changed": false
+}

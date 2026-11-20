@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 55, in progress 15, planned 22, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 57, in progress 15, planned 20, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -58,7 +58,7 @@ Original tasks: 93; validated 55, in progress 15, planned 22, blocked 1. Billing
 | P03-04 | validated | Replace local agency branch UI and establish scoped app shell |
 | P03-05 | validated | Define capability packs goals and operational limits |
 | P03-06 | validated | Secure PWA and client browser storage boundaries |
-| P03-07 | planned | Agency and client isolation gate |
+| P03-07 | validated | Agency and client isolation gate |
 | P04-01 | validated | Implement private source storage and truthful ingestion runs |
 | P04-02 | validated | Implement bounded website importer and extracted fact provenance |
 | P04-03 | validated | Implement PDF TXT Markdown DOCX extraction and OCR gate |
@@ -67,7 +67,7 @@ Original tasks: 93; validated 55, in progress 15, planned 22, blocked 1. Billing
 | P04-06 | in_progress | Connect review content chat and sales draft consumers to shared knowledge |
 | P04-07 | validated | Replace onboarding and knowledge picker with resumable real workflow |
 | P04-08 | validated | Migrate legacy knowledge JSON and preserve user-entered content |
-| P04-09 | planned | Business memory and onboarding gate |
+| P04-09 | validated | Business memory and onboarding gate |
 | P05-01 | planned | Complete authorized Google account and location connection |
 | P05-02 | validated | Make local profile audit and growth scoring evidence-based |
 | P05-03 | validated | Harden keyword research rank grids and competitor refresh |

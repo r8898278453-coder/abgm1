@@ -61,7 +61,15 @@ export async function extractKnowledge(filename:string,bytes:Buffer,website?:{ur
    const env=parserEnvironment(process.env,directory);const info=await exec('pdfinfo',[input],{timeout:2500,maxBuffer:32768,env});const count=Number(/^Pages:\s+(\d+)/m.exec(info.stdout)?.[1]);
    if(!count||count>40)return result('FAILED','PDF_PAGE_LIMIT');
    const output=await exec('pdftotext',['-layout','-enc','UTF-8',input,'-'],{timeout:5000,maxBuffer:KNOWLEDGE_TEXT_MAX_BYTES,env});
-   const pages=output.stdout.split('\f');if(!pages.at(-1)?.trim())pages.pop();const extracted=chunks(pages,true);if(extracted.state==='EXTRACTED')extracted.chunks.forEach(chunk=>{if(count===1)chunk.page=1;});return extracted;
+   const pages=output.stdout.split('\f');
+   if(pages.length===count+1&&!pages.at(-1)?.trim())pages.pop();
+   if(pages.length!==count)return result('FAILED','PDF_PAGE_COUNT_MISMATCH');
+   const extracted=chunks(pages,true);
+   if(extracted.state==='EXTRACTED'){
+    if(count===1)extracted.chunks.forEach(chunk=>{chunk.page=1;});
+    if(pages.some(page=>!page.replace(/\0/g,'').trim()))extracted.code='PDF_PARTIAL_TEXT';
+   }
+   return extracted;
   }catch(error:any){return result(error?.code==='ENOENT'?'UNSUPPORTED':'FAILED',error?.code==='ENOENT'?'PDF_PARSER_UNAVAILABLE':'PDF_UNREADABLE');}
   finally{await rm(directory,{recursive:true,force:true});}
  }catch{return result('FAILED','SOURCE_UNREADABLE');}finally{active--;}
