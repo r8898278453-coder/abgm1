@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. `GET /api/companies/:companyId/tenant-email/domain-status` adds a private, read-only projection of the latest saved sender check. Verified snapshots include the observation time and expiry. Current non-verified states carry a state label only. The check command still returns its existing response shape. [Tenant email domain](TENANT_EMAIL_DOMAIN.md)
+
 21 November 2026 IST. The client integration card calls `POST /api/companies/:companyId/tenant-email/verify-domain` with an empty JSON object to inspect the saved Resend domain. The legacy tenant test-send remains unavailable. Generic email requests to `/api/integrations/test` now return guidance to save the configuration and verify the domain. Platform account email keeps its separate transport. [Tenant email domain](TENANT_EMAIL_DOMAIN.md)
 
 21 November 2026 IST. The private daily-work response and CSV add the four appointment activity counts and one backlog count. New manual and scheduled captures write frozen coverage V5. Archived V1–V4 keep their original read and replay contracts. Client publication accepts coverage V5 while the public metric allowlist stays the same. The storage schema remains 062. [Appointment reporting](APPOINTMENT_OUTCOMES.md)

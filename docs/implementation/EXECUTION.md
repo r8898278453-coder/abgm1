@@ -1,5 +1,7 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+21 November 2026 IST. P06-04 advances with a reloadable clock-bounded Resend domain observation, saved-sender binding, current verifier authority and pending/inconclusive states. Only the latest check for the current settings can be displayed as verified. Tenant dispatch, signed reply and bounce intake, and live Resend validation remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
+
 21 November 2026 IST. P06-04 moves into progress with a saved Resend domain check, exact tenant and sender binding, provider read-only access, durable cooldown and redacted audit. P01-05 advances because the generic client connection check now directs email users to the saved-domain check. Tenant dispatch and signed reply/bounce intake remain open. Tracker 62 validated, 16 in progress, 14 planned and one blocked. See TENANT_EMAIL_DOMAIN.md.
 
 21 November 2026 IST. P07-05 hardens Calendar stop claim and settlement locking by using the primary index for exact-channel updates. P09-01 advances with booking, cancellation and outcome revision activity, plus the current ended-appointment backlog. The dashboard, private CSV and daily digest use the same IST report. New manual and scheduled captures use V5, and existing V1–V4 snapshots remain readable. Tracker 62 validated, 15 in progress, 15 planned and one blocked. See APPOINTMENT_OUTCOMES.md.

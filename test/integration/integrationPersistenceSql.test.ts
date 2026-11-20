@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {verifyTenantEmailDomain} from '../../server/tenantEmailDomain';
+import {readTenantEmailDomainStatus,verifyTenantEmailDomain} from '../../server/tenantEmailDomain';
 if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL identity required');
 const db=await import('../../server/db'),pool=await db.getDbPool();assert.ok(pool);const prefix='integration_'+crypto.randomBytes(8).toString('hex'),a=prefix+'_a',b=prefix+'_b',owner={id:prefix+'_owner'},foreign={id:prefix+'_foreign'};let stage='identity';
 try{
@@ -15,6 +15,7 @@ try{
  const second=await db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{smtpPass:'replacement-fixture'}});assert.equal(second.id,first.id);assert.equal((await db.getCompanyIntegrations(a)).length,1);assert.equal((await db.getCompanyIntegration(a,'transactional_email'))?.credentials.smtpPass,'replacement-fixture');assert.deepEqual(await db.getCompanyIntegrations(b),[]);
  stage='missing';await assert.rejects(db.saveCompanyIntegration(prefix+'_missing','transactional_email',{status:'saved',credentials:{apiKey:'fixture'}}));assert.equal(await db.deleteCompanyIntegration(b,'transactional_email'),false);assert.equal(await db.deleteCompanyIntegration(a,'transactional_email'),true);assert.equal(await db.deleteCompanyIntegration(a,'transactional_email'),false);
  stage='tenant-email-domain';
+ const readStatus=(actor=owner)=>readTenantEmailDomainStatus(pool,actor,a);
  const domainId=crypto.randomUUID(),privateKey='re_PRIVATE_fixture_key',fromEmail='operator@example.invalid';
  const credentials={provider:'resend',resendDomainId:domainId,apiKey:privateKey,fromEmail};
  const save=(patch:Record<string,string>={})=>db.saveCompanyIntegration(a,'transactional_email',{status:'saved',credentials:{...credentials,...patch}});
@@ -34,7 +35,10 @@ try{
  await assert.rejects(verifyTenantEmailDomain(pool,owner,a,provider),{code:'TENANT_EMAIL_PROVIDER_UNSUPPORTED'});
  await save({resendDomainId:'https://private.example.invalid'});
  await assert.rejects(verifyTenantEmailDomain(pool,owner,a,provider),{code:'TENANT_EMAIL_CONFIGURATION_REQUIRED'});
+ assert.deepEqual(await readStatus(),{state:'NOT_CONFIGURED'});
  await save();
+ assert.deepEqual(await readStatus(),{state:'UNCHECKED'});
+ await assert.rejects(readStatus(foreign),{status:403});
  await assert.rejects(verifyTenantEmailDomain(pool,foreign,a,provider),{status:403});
  assert.equal(calls,0);
  const checks=await Promise.allSettled(Array.from({length:8},()=>verifyTenantEmailDomain(pool,owner,a,provider)));
@@ -47,6 +51,39 @@ try{
  assert.deepEqual(Object.keys(proof).sort(),['checkedAtMs','domain','provider','state']);
  assert.equal(proof.domain,'example.invalid');
  assert.equal(proof.state,'VERIFIED_DOMAIN');
+ const status=await readStatus();
+ assert.deepEqual(status,{state:'VERIFIED_DOMAIN',proof,expiresAtMs:proof.checkedAtMs+900000});
+ assert.equal(calls,1);
+ await pool.query("UPDATE autonomous_audit_logs SET timestamp=DATE_SUB(NOW(),INTERVAL 16 MINUTE) WHERE company_id=? AND event_type='AGENCY_TENANT_EMAIL_DOMAIN_CHECK_STARTED'",[a]);
+ assert.deepEqual(await readStatus(),{state:'RECHECK_REQUIRED'});
+
+ stage='tenant-email-durable-status';
+ const [members]:any=await pool.query("SELECT agency_id FROM agency_clients WHERE company_id=?",[a]);
+ const agencyId=members[0].agency_id;
+ await pool.query("INSERT INTO agency_memberships(agency_id,user_id,role) VALUES (?,?,'ADMIN')",[agencyId,foreign.id]);
+ await verifyTenantEmailDomain(pool,foreign,a,provider);
+ assert.equal((await readStatus()).state,'VERIFIED_DOMAIN');
+ await pool.query('DELETE FROM agency_memberships WHERE agency_id=? AND user_id=?',[agencyId,foreign.id]);
+ assert.deepEqual(await readStatus(),{state:'RECHECK_REQUIRED'});
+ await save();
+ assert.deepEqual(await readStatus(),{state:'RECHECK_REQUIRED'});
+ await resetCooldown();
+ let signal!:()=>void,finish!:()=>void;
+ const started=new Promise<void>(resolve=>{signal=resolve;});
+ const release=new Promise<void>(resolve=>{finish=resolve;});
+ const active=verifyTenantEmailDomain(pool,owner,a,async(url,options)=>{
+  signal();
+  await release;
+  return provider(url,options);
+ });
+ try{
+  await started;
+  assert.deepEqual(await readStatus(),{state:'CHECKING'});
+  await pool.query("UPDATE autonomous_audit_logs SET timestamp=DATE_SUB(NOW(),INTERVAL 31 SECOND) WHERE company_id=? AND event_type='AGENCY_TENANT_EMAIL_DOMAIN_CHECK_STARTED'",[a]);
+  assert.deepEqual(await readStatus(),{state:'UNCONFIRMED'});
+ }finally{finish();await active;}
+ assert.equal((await readStatus()).state,'VERIFIED_DOMAIN');
+
  assert.equal((await db.getCompanyIntegration(a,'transactional_email'))?.status,'saved');
  for(const [response,code] of [
   [()=>json({id:domainId,name:'example.invalid',status:'pending'}),'TENANT_EMAIL_DOMAIN_UNVERIFIED'],
@@ -57,6 +94,7 @@ try{
  ] as const){
   await resetCooldown();
   await assert.rejects(verifyTenantEmailDomain(pool,owner,a,async()=>response()),{code});
+  assert.deepEqual(await readStatus(),{state:code==='TENANT_EMAIL_DOMAIN_UNVERIFIED'?'UNVERIFIED':'UNCONFIRMED'});
  }
  await resetCooldown();
  await assert.rejects(verifyTenantEmailDomain(pool,owner,a,async(url,options)=>{
@@ -71,9 +109,10 @@ try{
   await pool.query("UPDATE client_operations SET status='ARCHIVED' WHERE company_id=?",[a]);
   return response;
  }),{status:409});
+ assert.deepEqual(await readStatus(),{state:'RECHECK_REQUIRED'});
  const [audit]:any=await pool.query("SELECT details FROM autonomous_audit_logs WHERE company_id=? AND event_type LIKE 'AGENCY_TENANT_EMAIL_%'",[a]);
  for(const secret of [privateKey,fromEmail,domainId,'PRIVATE_PROVIDER_RECORD'])assert.equal(JSON.stringify(audit).includes(secret),false);
- console.log('Tenant email SQL: saved Resend binding, wrong workspace and provider refusal, eight-way cooldown, exact domain and ID, redirect/size rejection, stale credentials and archive fencing, private journal and no sends passed.');
+ console.log('Tenant email SQL: saved Resend binding, wrong workspace and provider refusal, eight-way cooldown, exact domain and ID, redirect/size rejection, stale credentials and archive fencing, private journal, fresh/expired/role-revoked and abandoned-state reads and no sends passed.');
  console.log('Integration SQL: confirmed transactional save returns actual stable ID, genuine empty/missing reads, encrypted SMTP/login/API fields, null untested timestamp, tenant isolation, missing workspace refusal and affected-row deletion passed.');
 }catch(error:any){console.log(JSON.stringify({fixture:'integration-persistence',stage,code:error?.code||'ASSERTION',line:error?.stack?.match(/integrationPersistenceSql.test.ts:(\d+)/)?.[1]}));process.exitCode=1;}
 finally{

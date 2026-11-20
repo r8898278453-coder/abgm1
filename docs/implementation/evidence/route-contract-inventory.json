@@ -936,6 +936,11 @@
       "owner": "server/telegramOperations.ts#registerTelegramOperations"
     },
     {
+      "method": "GET",
+      "path": "/api/companies/:companyId/tenant-email/domain-status",
+      "owner": "server/tenantEmailRoutes.ts#registerTenantEmailRoutes"
+    },
+    {
       "method": "POST",
       "path": "/api/companies/:companyId/tenant-email/verify-domain",
       "owner": "server/tenantEmailRoutes.ts#registerTenantEmailRoutes"

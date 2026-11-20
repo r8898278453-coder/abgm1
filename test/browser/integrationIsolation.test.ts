@@ -8,7 +8,7 @@ function App(){const[company,setCompany]=useState('A');window.changeClient=()=>s
 `;}}],server:{host:'127.0.0.1',port:0},logLevel:'error'});
 await vite.listen();let browser:Awaited<ReturnType<typeof chromium.launch>>|undefined,release:(()=>void)|undefined,releaseEmail:(()=>void)|undefined;
 try{
- const address=vite.httpServer!.address() as any,origin=`http://127.0.0.1:${address.port}`;let calendarConnected=false;const oauthState='a'.repeat(43);let emailStatus=200,emailStarted:(()=>void)|undefined;let mode='test',signal:(()=>void)|undefined;const writes:any[]=[];
+ const address=vite.httpServer!.address() as any,origin=`http://127.0.0.1:${address.port}`;let calendarConnected=false;const oauthState='a'.repeat(43);let emailStatus=200,emailStarted:(()=>void)|undefined;let mode='test',signal:(()=>void)|undefined;const writes:any[]=[],savedEmailChecks=new Map<string,object>();
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const context=await browser.newContext({serviceWorkers:'block'});
  await context.route('**/*',async route=>{
   const url=new URL(route.request().url());
@@ -39,6 +39,11 @@ try{
     body={success:true,companyId:'A',oauth:{available:true,calendarId:calendarConnected?'fixture@group.calendar.google.com':null,
      mode:calendarConnected?'OAUTH':'NOT_CONNECTED',expiresAtMs:calendarConnected?Date.now()+3600000:null}};
    }
+  }else if(url.pathname.endsWith('/tenant-email/domain-status')){
+   const company=url.pathname.split('/')[3];
+   assert.equal(route.request().method(),'GET');
+   const state=savedEmailChecks.get(company);
+   body={success:true,companyId:company,domain:state||{state:'UNCHECKED'}};
   }else if(url.pathname.endsWith('/tenant-email/verify-domain')){
    const company=url.pathname.split('/')[3];
    assert.equal(route.request().method(),'POST');
@@ -48,8 +53,14 @@ try{
     await new Promise<void>(resolve=>{releaseEmail=resolve;});
    }
    status=emailStatus;
-   body=status===200?{success:true,companyId:company,domain:{state:'VERIFIED_DOMAIN',provider:'resend',domain:company.toLowerCase()+'.example.invalid',checkedAtMs:Date.now()}}:
-    {success:false,error:'TENANT_EMAIL_DOMAIN_UNVERIFIED'};
+   const proof={state:'VERIFIED_DOMAIN',provider:'resend',domain:company.toLowerCase()+'.example.invalid',checkedAtMs:Date.now()};
+   if(status===200){
+    savedEmailChecks.set(company,{state:'VERIFIED_DOMAIN',proof,expiresAtMs:proof.checkedAtMs+900000});
+    body={success:true,companyId:company,domain:proof};
+   }else{
+    savedEmailChecks.set(company,{state:'UNVERIFIED'});
+    body={success:false,error:'TENANT_EMAIL_DOMAIN_UNVERIFIED'};
+   }
   }else if(url.pathname==='/api/integrations'){
    const company=url.searchParams.get('companyId');if(mode==='unavailable'){status=503;body={success:false};}
    else body={success:true,companyId:company,integrations:['one','two','transactional_email'].map(id=>({id,name:company+' provider '+id,description:'Saved client fixture',category:'Platform',icon:'X',requiredFields:[{key:'apiKey',label:'API Key',placeholder:'fixture-key',secret:true,required:true}],connected:id==='one',status:'saved',statusText:'Credentials saved; permissions unverified',maskedCredentials:{apiKey:'••••••••'}}))};
@@ -66,6 +77,13 @@ try{
  assert.equal(calendarConnected,true);
  await page.getByRole('button',{name:'Verify saved Resend domain'}).click();
  await page.getByText(/^Resend verified a.example.invalid .*IST\.$/).waitFor();
+ await page.reload();
+ await page.getByText(/^Resend verified a.example.invalid .*IST\.$/).waitFor();
+ savedEmailChecks.set('A',{state:'RECHECK_REQUIRED'});
+ await page.getByRole('button',{name:'Refresh saved check',exact:true}).click();
+ await page.getByText('Run a new domain check to refresh the saved verification.',{exact:true}).waitFor();
+ assert.equal(await page.getByText(/^Resend verified a.example.invalid/).count(),0);
+
  emailStatus=409;
  await page.getByRole('button',{name:'Verify saved Resend domain'}).click();
  await page.getByText('Resend reports that the configured domain is unverified.',{exact:true}).waitFor();
@@ -83,5 +101,5 @@ try{
  await page.getByText(/^Resend verified b.example.invalid .*IST\.$/).waitFor();
  assert.equal(await page.getByText(/^Resend verified a.example.invalid/).count(),0);
  mode='unavailable';await page.reload();await page.getByText('Integration metadata unavailable. Reload to retry.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Manage Keys',exact:true}).count(),0);
- console.log('Integration browser: explicit company on masked-key test/save, old-modal check ignored, old-client save cannot reload/close current client, unavailable metadata excludes stale cards and verifies saved Resend domains for the selected client; external requests blocked.');
+ console.log('Integration browser: explicit company on masked-key test/save, old-modal check ignored, old-client save cannot reload/close current client, unavailable metadata excludes stale cards and reloads only current saved Resend proof for the selected client; external requests blocked.');
 }finally{releaseEmail?.();release?.();await browser?.close();await vite.close();}

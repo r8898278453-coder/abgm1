@@ -11,7 +11,7 @@ import {commitRankRadar,readRankCompany} from './server/rankRadarSql';
 import {ObservationError} from './server/observationStore';
 import {publicLeadPath,publicLeadCors,publicLeadOriginAllowed} from './server/storefrontOrigin';
 import {registerTenantEmailRoutes} from './server/tenantEmailRoutes';
-import {verifyTenantEmailDomain} from './server/tenantEmailDomain';
+import {readTenantEmailDomainStatus,verifyTenantEmailDomain} from './server/tenantEmailDomain';
 import {registerCalendarPlanRoutes} from './server/calendarPlanRoutes';
 import {recordKnowledgeDraft} from './server/knowledgeDrafts';
 import {registerClientCalendarRoutes} from './server/clientCalendarRoutes';
@@ -1590,6 +1590,10 @@ registerTenantEmailRoutes(app,{auth:getAuthUserFromRequest,access:verifyCompanyW
  const pool=await getDbPool();
  if(!pool)throw new Error('Tenant email storage unavailable');
  return verifyTenantEmailDomain(pool,user,company);
+},readDomain:async(user,company)=>{
+ const pool=await getDbPool();
+ if(!pool)throw new Error('Tenant email storage unavailable');
+ return readTenantEmailDomainStatus(pool,user,company);
 }});
 
 // Save credentials and update integration state for a company

@@ -643,7 +643,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   )}
 
                   {item.id === 'transactional_email' && companyId && (
-                    <div key={companyId+':'+integrationRevision}><TenantEmailDomainCheck companyId={companyId}/></div>
+                    <div key={companyId+':'+integrationRevision}><TenantEmailDomainCheck companyId={companyId} saved={item.status==='saved'||item.status==='error'||item.connected}/></div>
                   )}
 
                   {item.id === 'meta_ads' && (
