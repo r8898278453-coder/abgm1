@@ -1,0 +1,23 @@
+item,work,parent,verification
+NP01,Daily digest preparation failed before claim,P09-01,Native SQL and Chromium
+NP02,Daily digest message rejected before claim,P09-01,Native SQL and Chromium
+NP03,Review reminder preparation failed before claim,P09-01,Native SQL and Chromium
+NP04,Review reminder message rejected before claim,P09-01,Native SQL and Chromium
+NP05,Critical alert preparation failed before claim,P09-01,Native SQL and Chromium
+NP06,Critical alert message rejected before claim,P09-01,Native SQL and Chromium
+NP07,Daily digest used a compact summary,P09-01,Native SQL and Chromium
+NP08,Review reminder found no eligible reviews,P09-01,Native SQL and Chromium
+NP09,Critical alert found no eligible candidates,P09-01,Native SQL and Chromium
+NP10,Critical alert context unavailable before claim,P09-01,Native SQL and Chromium
+NP11,Oversized digest falls back to safe summary,P09-01,Regression
+NP12,Exact 4096-character message boundary,P09-01,Regression
+NP13,Compact output retains IST date and safe counts,P09-01,Regression
+NP14,Real wrapper rejection leaves occurrence unclaimed,P09-01,Native SQL
+NP15,Daily evidence remains deduplicated,P09-01,Native SQL
+NP16,Private aggregate output and tenant isolation,P09-01,Native SQL
+NP17,Dashboard labels and values,P09-01,Chromium
+NP18,Private live CSV,P09-01,Regression
+NP19,V16 manual snapshots and same-version comparison,P09-01,Native SQL and Chromium
+NP20,V16 scheduled snapshots,P09-01,Native SQL
+NP21,V1–V15 replay and equal-version comparison,P09-01,Native SQL and regression
+NP22,Public report approved metric compatibility,P09-01,Regression and Chromium

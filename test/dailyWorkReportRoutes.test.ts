@@ -11,7 +11,7 @@ import {EMAIL_WORK_ACTIVITY,EMAIL_WORK_BACKLOG} from '../shared/emailWorkReporti
 import {APPOINTMENT_ACTIVITY,APPOINTMENT_BACKLOG} from '../shared/appointmentReporting';
 import {GROWTH_ACTIVITY,GROWTH_BACKLOG} from '../shared/growthReporting';
 import {SALES_ACTIVITY} from '../shared/salesActivityReporting';
-import {loadDailyWorkDigest,formatDailyWorkDigest} from '../server/dailyWorkDigest';
+import {loadDailyWorkDigest,formatDailyWorkDigest,boundDailyDigestMessage} from '../server/dailyWorkDigest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import {registerDailyWorkReport} from '../server/dailyWorkReportRoutes';
@@ -36,7 +36,7 @@ const emailBacklog=Object.fromEntries(Object.keys(EMAIL_WORK_BACKLOG).map(k=>[k,
 const digestReport={date:'2026-11-02',timeZone:'Asia/Kolkata' as const,generatedAt:'2026-11-03T02:30:00Z',activity:{...notificationDecisions,reviewContextUnavailable:1,...notificationActivity,dailyDigestAccepted:2,...calendarPlans,calendarPlanCreated:2,...history,scheduleRevisions:2,...reconciliation,providerCheckMatched:2,...platforms,facebookPublished:2,...admissions,...queueActivity,queueAdmitted:4,...workflowActivity,SALES_WORKFLOW_MESSAGE_ACCEPTED:4,...emailActivity,emailDelivered:2,emailRepliesLinked:1,...Object.fromEntries(Object.keys(APPOINTMENT_ACTIVITY).map(k=>[k,0])) as Record<keyof typeof APPOINTMENT_ACTIVITY,number>,...Object.fromEntries(Object.keys(GROWTH_ACTIVITY).map(k=>[k,0])) as Record<keyof typeof GROWTH_ACTIVITY,number>,...Object.fromEntries(Object.keys(SALES_ACTIVITY).map(k=>[k,0])) as Record<keyof typeof SALES_ACTIVITY,number>,completedJobs:3,failedJobs:1,pausedJobs:2,approvedPosts:1,rescheduledPosts:0,admittedPosts:0,controlChanges:0,messageRequests:0,apiAcceptedMessages:0,websiteInquiries:0,inquiryAlertsAccepted:0,knowledgeStored:0,knowledgeExtractionsSettled:0,knowledgeExtractionsBlocked:0,knowledgeApprovals:0,knowledgeWithdrawals:0,knowledgeDeleted:0,websiteImportsQueued:0,websiteImportsCommitted:0,websiteImportsWithFailures:0,websiteImportsPaused:0,websiteImportsCancelled:0,telegramManualRecorded:0,telegramManualStarted:0,telegramManualAccepted:0,telegramManualUnknown:0,telegramManualPaused:0,telegramManualCancelled:0,reportSnapshotsStored:0,reportSnapshotAmendments:0,reportCapturesAdmitted:0,reportCapturesCompleted:0,reportCapturesSkipped:0,reportCapturesCancelled:0,reportCapturesRecoveryFailed:0,reportCapturePolicyChanges:0},backlog:{...notificationBacklog,notificationsUnconfirmed:3,...queueBacklog,queueRetryDue:2,...workflowBacklog,workflowWaitingReview:3,...emailBacklog,emailIntakesPending:3,appointmentOutcomesAwaiting:2,...Object.fromEntries(Object.keys(GROWTH_BACKLOG).map(k=>[k,0])) as Record<keyof typeof GROWTH_BACKLOG,number>,waitingJobs:4,runningJobs:0,failedJobs:1,pendingApprovals:2,uncertainPublications:1,unconfirmedMessages:0,inquiryAlertsNotAttempted:0,inquiryAlertsUnconfirmed:0,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:0,websiteImportsRunning:0,websiteImportsFailed:0,telegramManualPrepared:0,telegramManualSending:0,telegramManualUnknown:0,reportCapturesPending:0,reportCapturesRunning:0,reportCapturesFailed:0,reportCapturesRecoveryNeeded:0}};
 const csv=dailyWorkReportCsv(digestReport);
 assert.ok(!dailyWorkReportCsv({...digestReport,activity:{...digestReport.activity,evil:'=HYPERLINK("bad")'} as any}).includes('HYPERLINK'));
-assert.match(csv,/"activity","websiteInquiries","0"/);assert.match(csv,/"current_backlog","inquiryAlertsNotAttempted","0"/);assert.match(csv,/"activity","admittedPosts","0"/);assert.match(csv,/"current_backlog","waitingJobs","4"/);assert.equal(csv.split('\r\n').length,235);
+assert.match(csv,/"activity","websiteInquiries","0"/);assert.match(csv,/"current_backlog","inquiryAlertsNotAttempted","0"/);assert.match(csv,/"activity","admittedPosts","0"/);assert.match(csv,/"current_backlog","waitingJobs","4"/);assert.equal(csv.split('\r\n').length,245);
 assert.match(csv,/"activity","emailDelivered","2"/);
 assert.match(csv,/"current_backlog","emailIntakesPending","3"/);
 assert.match(formatDailyWorkDigest(digestReport),/Email .*0\/0\/2\/0\/0\/0\/0.*Linked replies: 1.*pending\/running: 3\/0/);
@@ -103,3 +103,13 @@ assert.match(csv,/"activity","dailyDigestAccepted","2"/);
 assert.match(csv,/"current_backlog","notificationsUnconfirmed","3"/);
 
 assert.match(csv,/"activity","reviewContextUnavailable","1"/);
+
+const dueAt=Date.parse('2026-11-03T02:30:00Z');
+assert.deepEqual(boundDailyDigestMessage('x'.repeat(4096),dueAt,2,3),{message:'x'.repeat(4096),compact:false});
+const compactDigest=boundDailyDigestMessage('PRIVATE_BODY'+'x'.repeat(4096),dueAt,2,3);
+assert.equal(compactDigest.compact,true);
+assert.ok(compactDigest.message.length<4096);
+assert.match(compactDigest.message,/2026-11-03 IST/);
+assert.match(compactDigest.message,/New inbound leads 2/);
+assert.match(compactDigest.message,/Newly recorded reviews 3/);
+assert.ok(!compactDigest.message.includes('PRIVATE_BODY'));

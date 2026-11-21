@@ -11,3 +11,11 @@ export async function loadDailyWorkDigest(company:string,dueAt:number,read:(comp
  try{const report=await read(company,date);return {available:true,deferred:false,readTimedOut:false,text:formatDailyWorkDigest(report)};}
  catch(error){return {available:false,deferred:false,readTimedOut:(error as any)?.code==='READ_ONLY_SQL_TIMEOUT',text:unavailable};}
 }
+
+export function boundDailyDigestMessage(message:string,dueAt:number,leads:number,reviews:number) {
+ if(message.length<=4096)return {message,compact:false};
+ return {
+  message:`Daily business digest for ${platformDateKey(dueAt)} IST\nNew inbound leads ${leads}\nNewly recorded reviews ${reviews}\nOpen the dashboard for the full work report.\nhttps://bga.aaditechs.in`,
+  compact:true,
+ };
+}

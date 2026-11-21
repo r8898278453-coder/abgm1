@@ -1,3 +1,4 @@
+import {boundDailyDigestMessage} from './dailyWorkDigest';
 import {runCalendarPushLifecycle} from './calendarPush';
 import {runCalendarReconciliation} from './calendarReconciliation';
 import {runDeveloperWebhookBatch} from './developerDelivery';
@@ -9,7 +10,7 @@ import { getDigestSummary, getReviewReminderSummary, getDailyWorkDigest } from '
 import { getScheduledPostBatch } from './scheduledPostBatchService';
 import { getNotificationCompanyBatch } from './notificationBatchService';
 import { PLATFORM_TIME_ZONE } from '../shared/platformTime';
-import { sendScheduledNotification } from './scheduledNotifications';
+import { sendScheduledNotification,recordScheduledNotificationDecision } from './scheduledNotifications';
 import { latestNotificationDue } from './notificationOccurrences';
 import { admitScheduledPosts } from './scheduledPublishing';
 import { processInternalActionFeed } from './actionFeedService';
@@ -99,6 +100,7 @@ export async function runDailyDigestJob(tickTime = Date.now(), canStart: WorkGat
   for (const comp of companies) {
     if (!canStart()) break;
     companiesProcessed++;
+    let sendStarted=false;
     try {
       const summary = await getDigestSummary(comp.id, now);
       const workReport=await getDailyWorkDigest(comp.id,now,canStart);
@@ -137,7 +139,10 @@ ${workReport.text}
 
 📱 *Live Dashboard:* https://bga.aaditechs.in`;
 
-      const sent = await sendScheduledNotification(comp.id, 'daily_digest', now, digestMessage, canStart);
+      const bounded=boundDailyDigestMessage(digestMessage,now,summary.recentLeads,summary.recentReviews);
+      if(bounded.compact)await recordScheduledNotificationDecision(comp.id,'daily_digest','CompactSummary',canStart);
+      sendStarted=true;
+      const sent = await sendScheduledNotification(comp.id, 'daily_digest', now, bounded.message, canStart);
       if (sent) {
         digestsSent += 1;
         schedulerStatus.stats.totalDailyDigestsSent += 1;
@@ -146,6 +151,7 @@ ${workReport.text}
     } catch (err: any) {
       failedCompanies++;
       if (err?.code === 'READ_ONLY_SQL_TIMEOUT') readTimeouts++;
+      if(!sendStarted)await recordScheduledNotificationDecision(comp.id,'daily_digest','PreparationFailed',canStart);
       console.error(`[Scheduler:DailyDigest] Error generating digest for company "${comp.id}":`, err?.message);
     }
   }
@@ -188,6 +194,7 @@ export async function runHourlyReviewReminderJob(tickTime = Date.now(), canStart
   for (const comp of companies) {
     if (!canStart()) break;
     companiesChecked++;
+    let sendStarted=false;
     try {
       const summary = await getReviewReminderSummary(comp.id, now);
       if (summary.pendingReviews > 0 && summary.sample) {
@@ -207,6 +214,7 @@ ${summary.missingReviewTime ? `⚠️ ${summary.missingReviewTime} additional un
 ⚡ Review and respond to recorded customer feedback.
 👉 Open https://bga.aaditechs.in/ to generate 1-click AI replies.`;
 
+        sendStarted=true;
         const sent = await sendScheduledNotification(comp.id, 'review_reminder', now, reminderMsg, canStart);
         if (sent) {
           remindersSent += 1;
@@ -215,10 +223,13 @@ ${summary.missingReviewTime ? `⚠️ ${summary.missingReviewTime} additional un
         console.log(
           `[Scheduler:HourlyReviewReminder] Alerted ${comp.name} for ${count} pending review(s) (sent: ${sent}).`
         );
+      }else{
+        await recordScheduledNotificationDecision(comp.id,'review_reminder','NoEligibleReviews',canStart);
       }
     } catch (err: any) {
       failedCompanies++;
       if (err?.code === 'READ_ONLY_SQL_TIMEOUT') readTimeouts++;
+      if(!sendStarted)await recordScheduledNotificationDecision(comp.id,'review_reminder','PreparationFailed',canStart);
       console.error(`[Scheduler:HourlyReviewReminder] Error for company "${comp.id}":`, err?.message);
     }
   }
