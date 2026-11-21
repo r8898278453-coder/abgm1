@@ -1,3 +1,4 @@
+import {WORKFLOW_REPORT_ACTIVITY} from '../../shared/salesWorkflowReporting';
 import {platformDayBounds} from '../../shared/dailyWorkReport';
 import {DEFAULT_BOOKING_POLICY} from '../../shared/bookingPolicy';
 import {registerCalendarOAuthRoutes} from '../../server/calendarOAuthRoutes';
@@ -642,6 +643,32 @@ try{
  await insertAppointment(6,'unrecorded-event','CONFIRMED',outcomeDay.start+14400000);
  const outcomePath=`/api/companies/${other}/sales/leads/${outcomeLead}/appointment-outcomes`;
  const reportPath=`/api/companies/${other}/sales/report?date=${yesterday}`;
+ const initialWorkflowReport=(await http('foreign',reportPath,200)).report.workflows;
+ const audit=async(companyId:string,type:string,at:number)=>pool!.query(
+  'INSERT INTO autonomous_audit_logs(id,company_id,action_id,actor,event_type,details,timestamp) VALUES (?,?,?,?,?,?,FROM_UNIXTIME(?))',
+  [crypto.randomUUID(),companyId,'fixture','fixture',type,JSON.stringify({note:'PRIVATE_WORKFLOW_NOTE'}),at/1000]);
+ for(const type of Object.keys(WORKFLOW_REPORT_ACTIVITY))await audit(other,'AGENCY_'+type,outcomeDay.start);
+ await audit(other,'AGENCY_SALES_WORKFLOW_SAVED',outcomeDay.end);
+ await audit(other,'agency_sales_workflow_saved',outcomeDay.start);
+ await audit(company,'AGENCY_SALES_WORKFLOW_SAVED',outcomeDay.start);
+ const workflowReport=(await http('foreign',reportPath,200)).report.workflows;
+ for(const type of Object.keys(WORKFLOW_REPORT_ACTIVITY))assert.equal(workflowReport.activity[type],initialWorkflowReport.activity[type]+1,type);
+ assert.deepEqual(workflowReport.backlog,initialWorkflowReport.backlog);
+ const inventoryId=prefix+'_inventory';
+ for(const state of ['DRAFT','APPROVED','RETIRED'])await pool.query(
+  'INSERT INTO sales_workflow_definitions(id,company_id,revision,state,definition_json,content_hash,created_by) VALUES (?,?,1,?,?,?,?)',
+  [inventoryId+'_'+state,other,state,'{}',key(),users.foreign.id]);
+ for(const [state,expiry] of [['ACTIVE',3600],['WAITING_REVIEW',3600],['WAITING_SEND',3600],['ACTIVE',-3600],['EXITED',3600]])await pool.query(
+  `INSERT INTO sales_workflow_enrollments(id,company_id,workflow_id,lead_id,state,step_index,snapshot_json,snapshot_hash,request_key,intent_hash,actor_id,contact_hash,expires_at)
+   VALUES (?,?,?,?,?,0,'{}',?,?,?,?,?,TIMESTAMPADD(SECOND,?,NOW()))`,
+  [crypto.randomUUID(),other,inventoryId+'_APPROVED',outcomeLead,state,key(),key(),key(),users.foreign.id,key(),expiry]);
+ const inventory=(await http('foreign',reportPath,200)).report.workflows.backlog;
+ for(const metric of ['drafts','approved','retired','active','waitingReview','waitingSend','expiredOpen'])assert.equal(inventory[metric],initialWorkflowReport.backlog[metric]+1,metric);
+ await pool.query('DELETE FROM sales_workflow_enrollments WHERE company_id=? AND workflow_id=?',[other,inventoryId+'_APPROVED']);
+ await pool.query('DELETE FROM sales_workflow_definitions WHERE company_id=? AND id IN (?,?,?)',[other,...['DRAFT','APPROVED','RETIRED'].map(state=>inventoryId+'_'+state)]);
+
+ assert.ok(!JSON.stringify(workflowReport).includes('PRIVATE_WORKFLOW_NOTE'));
+ await http('owner',reportPath,403);
  const observedOutcome={bookingVersion:'1',expectedVersion:'0',requestKey:key(),outcome:'HELD',evidence:'Operator observed the consultation.'};
  await http('owner',outcomePath,403);
  await http('owner',outcomePath,403,observedOutcome);

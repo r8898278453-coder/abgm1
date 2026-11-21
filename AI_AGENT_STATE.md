@@ -1,5 +1,7 @@
 # AI Agent State
 
+21 November 2026 IST. P09-01 advances through 27 Sales workflow reporting items. The private Sales report adds 13 recorded workflow event counts and seven current inventory counts. Workflow reconciliation across the daily work report, frozen captures and other modules remains in progress. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Workflow reporting](docs/implementation/SALES_WORKFLOW_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 26 daily email accountability items. The private dashboard, CSV and Telegram digest include 14 IST email activity counters and two current intake backlog counters. Manual and scheduled snapshots write V6 and preserve existing V1–V5 captures. The client portal keeps its approved metric list. Tracker remains 62 validated, 16 in progress, 14 planned and one blocked. Full cross-module reconciliation and production acceptance remain open. [Daily email accountability](docs/implementation/EMAIL_DAILY_ACCOUNTABILITY.md)
 
 21 November 2026 IST. P06-04, P01-06 and P09-01 advance through 28 email reply recovery and accountability items. Signed replies can be durably queued, retried with bounded leases, and monitored through private intake history and the IST Sales report. Migration 064 adds the encrypted intake journal and brings the target to 108 tables. Live provider acceptance, attachments and sequences remained open at that stage. See SALES_EMAIL_REPLY_RECOVERY.md.

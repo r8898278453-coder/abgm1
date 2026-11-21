@@ -1,0 +1,28 @@
+item,work,parent,verification
+WR01,Workflow drafts saved,P09-01,Native SQL and Chromium
+WR02,Workflow revisions approved,P09-01,Native SQL and Chromium
+WR03,Workflows retired,P09-01,Native SQL and Chromium
+WR04,Sales enrollments recorded,P09-01,Native SQL and Chromium
+WR05,Appointment reminders scheduled,P09-01,Native SQL and Chromium
+WR06,Sales reviews created,P09-01,Native SQL and Chromium
+WR07,Appointment reminder reviews ready,P09-01,Native SQL and Chromium
+WR08,Manual reviews completed,P09-01,Native SQL and Chromium
+WR09,Workflow messages accepted by provider API,P09-01,Native SQL and Chromium
+WR10,Enrollments exited,P09-01,Native SQL and Chromium
+WR11,Operator exit decisions recorded,P09-01,Native SQL and Chromium
+WR12,Reviewer exit decisions recorded,P09-01,Native SQL and Chromium
+WR13,Appointment reminder enrollments exited,P09-01,Native SQL and Chromium
+WR14,Draft definitions,P09-01,Native SQL and Chromium
+WR15,Approved definitions,P09-01,Native SQL and Chromium
+WR16,Retired definitions,P09-01,Native SQL and Chromium
+WR17,Active enrollments,P09-01,Native SQL and Chromium
+WR18,Enrollments waiting for review,P09-01,Native SQL and Chromium
+WR19,Enrollments waiting for send settlement,P09-01,Native SQL and Chromium
+WR20,Expired enrollments awaiting cleanup,P09-01,Native SQL and Chromium
+WR21,Exact IST day boundaries,P09-01,Native SQL
+WR22,Tenant and operator access,P09-01,Native SQL
+WR23,Exact event code matching,P09-01,Native SQL
+WR24,Count-only projection,P09-01,Native SQL
+WR25,Expired and terminal states separated from current workload,P09-01,Native SQL
+WR26,Dedicated view with twenty labeled counters,P09-01,Chromium
+WR27,Existing Sales report response fields preserved,P09-01,Native SQL and Chromium
