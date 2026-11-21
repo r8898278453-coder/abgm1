@@ -1,3 +1,4 @@
+import {canonicalSnapshotReportV11,SNAPSHOT_ACTIVITY_V11,SNAPSHOT_BACKLOG_V11,SNAPSHOT_METRICS_V11} from './reportSnapshotSchemaV11';
 import {canonicalSnapshotReportV10,SNAPSHOT_ACTIVITY_V10,SNAPSHOT_BACKLOG_V10,SNAPSHOT_METRICS_V10} from './reportSnapshotSchemaV10';
 import {canonicalSnapshotReportV9,SNAPSHOT_ACTIVITY_V9,SNAPSHOT_BACKLOG_V9,SNAPSHOT_METRICS_V9} from './reportSnapshotSchemaV9';
 import {canonicalSnapshotReportV8,SNAPSHOT_ACTIVITY_V8,SNAPSHOT_BACKLOG_V8,SNAPSHOT_METRICS_V8} from './reportSnapshotSchemaV8';
@@ -8,7 +9,7 @@ import {canonicalSnapshotReportV4,SNAPSHOT_ACTIVITY_V4,SNAPSHOT_BACKLOG_V4,SNAPS
 import {canonicalSnapshotReportV3,SNAPSHOT_ACTIVITY_V3,SNAPSHOT_BACKLOG_V3,SNAPSHOT_METRICS_V3} from './reportSnapshotSchemaV3';
 import {canonicalSnapshotReportV1,SNAPSHOT_ACTIVITY_V1,SNAPSHOT_BACKLOG_V1,SNAPSHOT_METRICS_V1} from './reportSnapshotSchemaV1';
 import {canonicalSnapshotReportV2,SNAPSHOT_ACTIVITY_V2,SNAPSHOT_BACKLOG_V2,SNAPSHOT_METRICS_V2} from './reportSnapshotSchemaV2';
-export const CURRENT_REPORT_COVERAGE=10;
+export const CURRENT_REPORT_COVERAGE=11;
 export function reportSnapshotCoverage(version:number){
  if(version===1)return{canonical:canonicalSnapshotReportV1,activity:SNAPSHOT_ACTIVITY_V1,backlog:SNAPSHOT_BACKLOG_V1,metrics:SNAPSHOT_METRICS_V1};
  if(version===2)return{canonical:canonicalSnapshotReportV2,activity:SNAPSHOT_ACTIVITY_V2,backlog:SNAPSHOT_BACKLOG_V2,metrics:SNAPSHOT_METRICS_V2};
@@ -20,5 +21,6 @@ export function reportSnapshotCoverage(version:number){
  if(version===8)return{canonical:canonicalSnapshotReportV8,activity:SNAPSHOT_ACTIVITY_V8,backlog:SNAPSHOT_BACKLOG_V8,metrics:SNAPSHOT_METRICS_V8};
  if(version===9)return{canonical:canonicalSnapshotReportV9,activity:SNAPSHOT_ACTIVITY_V9,backlog:SNAPSHOT_BACKLOG_V9,metrics:SNAPSHOT_METRICS_V9};
  if(version===10)return{canonical:canonicalSnapshotReportV10,activity:SNAPSHOT_ACTIVITY_V10,backlog:SNAPSHOT_BACKLOG_V10,metrics:SNAPSHOT_METRICS_V10};
+ if(version===11)return{canonical:canonicalSnapshotReportV11,activity:SNAPSHOT_ACTIVITY_V11,backlog:SNAPSHOT_BACKLOG_V11,metrics:SNAPSHOT_METRICS_V11};
  throw new Error('REPORT_SNAPSHOT_COVERAGE_UNSUPPORTED');
 }

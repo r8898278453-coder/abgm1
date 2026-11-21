@@ -1,0 +1,26 @@
+item,work,parent,verification
+PR01,Provider read-back checks matched,P09-01,Native SQL and Chromium
+PR02,Provider read-back checks mismatched,P09-01,Native SQL and Chromium
+PR03,Provider read-back checks unavailable,P09-01,Native SQL and Chromium
+PR04,Provider read-back checks stale,P09-01,Native SQL and Chromium
+PR05,Operator reviews reporting a publication,P09-01,Native SQL and Chromium
+PR06,Operator reviews reporting no publication found,P09-01,Native SQL and Chromium
+PR07,Operator reviews with unresolved publication,P09-01,Native SQL and Chromium
+PR08,Posts with a saved date for the selected day,P09-01,Native SQL and Chromium
+PR09,Dated posts with same-day admission,P09-01,Native SQL and Chromium
+PR10,Dated posts admitted only on another day,P09-01,Native SQL and Chromium
+PR11,Dated posts with no retained admission,P09-01,Native SQL and Chromium
+PR12,Scheduled posts with no retained admission,P09-01,Native SQL and Chromium
+PR13,Posts awaiting approval with no retained admission,P09-01,Native SQL and Chromium
+PR14,Exact IST audit window,P09-01,Native SQL
+PR15,Exact audit status codes,P09-01,Native SQL
+PR16,Tenant isolation,P09-01,Native SQL
+PR17,Private count-only output,P09-01,Native SQL
+PR18,Same-day and other-day admission matching,P09-01,Native SQL
+PR19,Daily dashboard values and labels,P09-01,Chromium
+PR20,Private CSV metric keys,P09-01,Regression
+PR21,V11 manual capture and comparison,P09-01,Native SQL and Chromium
+PR22,V11 scheduled capture,P09-01,Native SQL
+PR23,V1–V10 replay and equal-version comparison,P09-01,Native SQL and regression
+PR24,V11 invalid metric rejection,P09-01,Regression
+PR25,Client portal allowlist compatibility,P09-01,Regression and Chromium

@@ -10,6 +10,6 @@ The claim, post status and reporting events commit together. The writer records 
 
 Manual and scheduled snapshots write V10. V1–V9 retain their existing payloads and hashes. Comparisons require equal coverage. Update readers and workers together before new V10 captures. The public portal keeps its existing approved metric list. SQL schema remains 064.
 
-Provider read-back evidence and planned work that never reached admission remain open for P09-01.
+[Publishing reconciliation](PUBLISHING_RECONCILIATION_REPORT.md) covers provider read-back evidence and current date-only plans without a retained admission. Historical plan revisions and cross-module reconciliation remain open.
 
 [27-item checklist](PLATFORM_OUTCOME_REPORT_BATCH.csv) · [Verification](evidence/platform-outcome-report.json) · [Main tracker](STATUS.md)

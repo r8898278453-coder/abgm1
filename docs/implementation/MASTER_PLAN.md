@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+21 November 2026 IST. P09-01 advances through 25 publishing reconciliation items. Private daily reports add seven provider and operator review counters and six saved-date planning and admission counters. Manual and scheduled captures write V11. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing reconciliation](PUBLISHING_RECONCILIATION_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 27 platform outcome items. The publishing worker records claim-bound outcome events atomically with settlement. Private daily reports, CSV and new V10 snapshots include fifteen platform outcome counts and two partial-claim counts. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Platform outcome reporting](PLATFORM_OUTCOME_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 22 publishing admission reporting items. Private daily reports reconcile each IST admission with its matching current publishing claim. New manual and scheduled snapshots write V9. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing admission reporting](PUBLICATION_ADMISSION_REPORT.md)
@@ -189,7 +191,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.98 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.99 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

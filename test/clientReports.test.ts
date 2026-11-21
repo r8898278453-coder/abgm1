@@ -28,3 +28,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:9},'A','Business',{...
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:10},'A','=Business',p),{...fromV6,coverageVersion:10});
 assert.throws(()=>projectClientReport({...s,schemaVersion:10},'A','Business',{...p,optionalMetrics:['facebookPublished']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:11},'A','=Business',p),{...fromV6,coverageVersion:11});
+assert.throws(()=>projectClientReport({...s,schemaVersion:11},'A','Business',{...p,optionalMetrics:['providerCheckMatched']}));

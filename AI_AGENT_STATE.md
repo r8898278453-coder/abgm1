@@ -1,5 +1,7 @@
 # AI Agent State
 
+21 November 2026 IST. P09-01 advances through 25 publishing reconciliation items. Private daily reports add seven provider and operator review counters and six saved-date planning and admission counters. Manual and scheduled captures write V11. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing reconciliation](docs/implementation/PUBLISHING_RECONCILIATION_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 27 platform outcome items. The publishing worker records claim-bound outcome events atomically with settlement. Private daily reports, CSV and new V10 snapshots include fifteen platform outcome counts and two partial-claim counts. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Platform outcome reporting](docs/implementation/PLATFORM_OUTCOME_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 22 publishing admission reporting items. Private daily reports reconcile each IST admission with its matching current publishing claim. New manual and scheduled snapshots write V9. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing admission reporting](docs/implementation/PUBLICATION_ADMISSION_REPORT.md)

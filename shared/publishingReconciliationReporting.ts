@@ -1,0 +1,15 @@
+export const PUBLISHING_RECONCILIATION_ACTIVITY={
+ providerCheckMatched:'Provider read-back checks matched',
+ providerCheckMismatch:'Provider read-back checks mismatched',
+ providerCheckUnavailable:'Provider read-back checks unavailable',
+ providerCheckStale:'Provider read-back checks stale',
+ operatorObservedPublished:'Operator reviews reporting a publication',
+ operatorPublicationNotFound:'Operator reviews reporting no publication found',
+ operatorPublicationUnresolved:'Operator reviews with unresolved publication',
+ plannedPosts:'Posts with a saved date for the selected day',
+ plannedWithSameDayAdmission:'Dated posts with same-day admission',
+ plannedWithOtherDayAdmission:'Dated posts admitted only on another day',
+ plannedWithoutAdmission:'Dated posts with no retained admission',
+ plannedScheduledWithoutAdmission:'Scheduled posts with no retained admission',
+ plannedApprovalWithoutAdmission:'Posts awaiting approval with no retained admission',
+} as const;
