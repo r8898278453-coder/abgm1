@@ -1,3 +1,4 @@
+import {recordNotificationDecision,type NotificationDecision} from './notificationDecisionReporting';
 import {OPERATIONAL_LIMITS} from '../shared/operationalCapacity';
 import {createHash,randomUUID} from 'node:crypto';
 import type {Pool} from 'mysql2/promise';
@@ -25,9 +26,19 @@ export async function runBoundNotificationOccurrence(pool:Pool,company:string,ki
   // Stale pre-I/O claims remain unknown; no slot is deleted or reopened.
   const [stale]:any=await c.query("UPDATE notification_occurrences SET status='UNKNOWN',reason_code='STALE_BOUNDARY' WHERE company_id=? AND notification_kind=? AND status='RUNNING' AND created_at<DATE_SUB(NOW(),INTERVAL 5 MINUTE) LIMIT 100",[company,kind]);if(stale.affectedRows)await agencyAudit(c,company,'scheduled-notification-recovery','NOTIFICATION_STALE_RECOVERED',{kind,count:stale.affectedRows});
   const [old]:any=await c.query('SELECT status FROM notification_occurrences WHERE company_id=? AND notification_kind=? AND due_at=?',[company,kind,due]);if(old.length){await c.commit();return'EXISTING';}
-  const current=await resolveNotificationDispatchContext(c,company,kind,dueAt,await clock(c));if(!current||!canStart()||isGlobalEmergencyStopActive()){await c.commit();return'DEFERRED';}
-  const [limits]:any=await c.query("SELECT COUNT(*) retained,COUNT(CASE WHEN status='RUNNING' THEN 1 END) running FROM notification_occurrences WHERE company_id=? AND notification_kind=?",[company,kind]);if(Number(limits[0].retained)>=OPERATIONAL_LIMITS.retainedRows||Number(limits[0].running)>0){await c.commit();return'DEFERRED';}plan=current;
-  if(deps.admit){await c.query('SAVEPOINT notification_admission');if(!await deps.admit(c,{policyVersion:current.policy.version,claimToken:token})){await c.query('ROLLBACK TO SAVEPOINT notification_admission');await c.commit();return'DEFERRED';}}
+  const observedAt=await clock(c);
+  const defer=async(reason:NotificationDecision)=>{
+   await recordNotificationDecision(c,company,kind,reason,observedAt);
+   await c.commit();
+   return 'DEFERRED' as const;
+  };
+  const current=await resolveNotificationDispatchContext(c,company,kind,dueAt,observedAt);
+  if(!current)return await defer('ContextUnavailable');
+  if(!canStart()||isGlobalEmergencyStopActive())return await defer('ControlChanged');
+  const [limits]:any=await c.query("SELECT COUNT(*) retained,COUNT(CASE WHEN status='RUNNING' THEN 1 END) running FROM notification_occurrences WHERE company_id=? AND notification_kind=?",[company,kind]);if(Number(limits[0].retained)>=OPERATIONAL_LIMITS.retainedRows)return await defer('RetainedLimit');
+  if(Number(limits[0].running)>0)return await defer('RunningLimit');
+  plan=current;
+  if(deps.admit){await c.query('SAVEPOINT notification_admission');if(!await deps.admit(c,{policyVersion:current.policy.version,claimToken:token})){await c.query('ROLLBACK TO SAVEPOINT notification_admission');return await defer('ReservationDeclined');}}
   await c.query("INSERT INTO notification_occurrences(company_id,notification_kind,due_at,status,claim_token,actor_id,policy_revision,binding_hash,content_hash) VALUES (?,?,?,'RUNNING',?,?,?,?,?)",[company,kind,due,token,current.actor.id,current.policy.version,current.binding.hash,contentHash]);await agencyAudit(c,company,current.actor.id,'NOTIFICATION_BOUNDARY_RECORDED',{kind,dueAt:due,policyVersion:current.policy.version,contentHash});await c.commit();
  }catch(e){await c.rollback();throw e;}finally{c.release();}
  try{await(deps.budget||(()=>admitClientAction(pool,company,'MESSAGE','scheduled-notification:'+kind+':'+dueAt)))(plan!.actor);}catch{try{await settle(pool,company,kind,due,token,'UNKNOWN',null,'CLIENT_BUDGET_OR_POLICY');}catch{}return'UNKNOWN';}

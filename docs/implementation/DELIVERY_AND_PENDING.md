@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P09-01 advances through 25 notification pre-claim reporting items. The private daily report adds fifteen indicators for recorded scheduler deferral reasons, with at most one entry per client, kind, reason and IST day. Manual and scheduled captures write V15. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification pre-claim reporting](NOTIFICATION_DECISION_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 25 notification accountability items. The private daily report adds twelve due-day outcome counts and three current unresolved counts. Manual and scheduled captures write V14. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily notification accountability](NOTIFICATION_DAILY_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 26 calendar accountability items. The private daily report includes nine calendar revision metrics and eight selected-day slot counts, including linked publishing admission and recorded claim publication. Manual and scheduled captures write V13. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Calendar plan daily reporting](CALENDAR_PLAN_DAILY_REPORT.md)

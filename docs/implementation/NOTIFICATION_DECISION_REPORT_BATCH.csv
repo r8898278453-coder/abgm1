@@ -1,0 +1,26 @@
+item,work,parent,verification
+ND01,Daily digest pre-claim decision recorded · context unavailable,P09-01,Native SQL and Chromium
+ND02,Daily digest pre-claim decision recorded · controls changed before claim,P09-01,Native SQL and Chromium
+ND03,Daily digest pre-claim decision recorded · retained occurrence limit reached,P09-01,Native SQL and Chromium
+ND04,Daily digest pre-claim decision recorded · another occurrence still running,P09-01,Native SQL and Chromium
+ND05,Daily digest pre-claim decision recorded · reservation declined,P09-01,Native SQL and Chromium
+ND06,Review reminder pre-claim decision recorded · context unavailable,P09-01,Native SQL and Chromium
+ND07,Review reminder pre-claim decision recorded · controls changed before claim,P09-01,Native SQL and Chromium
+ND08,Review reminder pre-claim decision recorded · retained occurrence limit reached,P09-01,Native SQL and Chromium
+ND09,Review reminder pre-claim decision recorded · another occurrence still running,P09-01,Native SQL and Chromium
+ND10,Review reminder pre-claim decision recorded · reservation declined,P09-01,Native SQL and Chromium
+ND11,Critical alert pre-claim decision recorded · context unavailable,P09-01,Native SQL and Chromium
+ND12,Critical alert pre-claim decision recorded · controls changed before claim,P09-01,Native SQL and Chromium
+ND13,Critical alert pre-claim decision recorded · retained occurrence limit reached,P09-01,Native SQL and Chromium
+ND14,Critical alert pre-claim decision recorded · another occurrence still running,P09-01,Native SQL and Chromium
+ND15,Critical alert pre-claim decision recorded · reservation declined,P09-01,Native SQL and Chromium
+ND16,Actual scheduler context refusal records evidence,P09-01,Native SQL
+ND17,Repeated ticks deduplicate within the IST day,P09-01,Native SQL
+ND18,Day rollover creates separate evidence,P09-01,Native SQL
+ND19,Tenant scope and private payload boundaries,P09-01,Native SQL
+ND20,Dashboard labels and values,P09-01,Chromium
+ND21,Private live CSV,P09-01,Regression
+ND22,V15 manual snapshots and comparison,P09-01,Native SQL and Chromium
+ND23,V15 scheduled snapshots,P09-01,Native SQL
+ND24,V1–V14 replay and equal-version comparison,P09-01,Native SQL and regression
+ND25,Public portal approved metric compatibility,P09-01,Regression and Chromium

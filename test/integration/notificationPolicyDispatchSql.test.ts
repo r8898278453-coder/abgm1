@@ -1,3 +1,7 @@
+import {NOTIFICATION_DECISION_ACTIVITY} from '../../shared/notificationDecisionReporting';
+import {recordNotificationDecision} from '../../server/notificationDecisionReporting';
+import {readDailyWorkReport} from '../../server/dailyWorkReport';
+import {platformDateKey,platformDayBounds} from '../../shared/dailyWorkReport';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {latestNotificationDue} from '../../server/notificationOccurrences';
@@ -18,6 +22,28 @@ const fault=(mode:'claim-ack'|'settle-ack'|'settle-audit')=>new Proxy(pool!,{get
 try{
  assert.equal((await rows('SELECT @@hostname hostname'))[0].hostname,process.env.LOCAL_SQL_CONTAINER_ID);for(const role of ['owner','admin']){const id=prefix+'_'+role;await pool.query("INSERT INTO users(id,email,password_hash,salt,full_name) VALUES (?,?,'fixture','fixture','Fixture')",[id,id+'@example.invalid']);users[role]=await db.findUserById(id);}due=latestNotificationDue(kind,Number((await rows('SELECT UNIX_TIMESTAMP()*1000 now_ms'))[0].now_ms));
  stage='default-off';const off=await add('off',users.owner,false);assert.equal(await runBound(pool,off,kind,due,'private report',{send:accepted(off)}),'DEFERRED');assert.equal((await rows('SELECT COUNT(*) n FROM notification_occurrences WHERE company_id=?',[off]))[0].n,0);assert.equal(sends,0);
+ for(let replay=0;replay<8;replay++)assert.equal(await runBound(pool,off,kind,due,'private report',{send:accepted(off)}),'DEFERRED');
+ assert.equal((await readDailyWorkReport(pool,off,platformDateKey())).activity.reviewContextUnavailable,1);
+ const observedDay='2026-11-03',observed=platformDayBounds(observedDay);
+ const evidence=await pool.getConnection();
+ try{
+  for(const decisionKind of ['daily_digest','review_reminder','critical_alert'] as const){
+   for(const decision of ['ContextUnavailable','ControlChanged','RetainedLimit','RunningLimit','ReservationDeclined'] as const){
+    await recordNotificationDecision(evidence,off,decisionKind,decision,observed.start);
+    await recordNotificationDecision(evidence,off,decisionKind,decision,observed.end-1000);
+   }
+  }
+  await recordNotificationDecision(evidence,off,'daily_digest','ContextUnavailable',observed.end);
+ }finally{evidence.release();}
+ const observation=(await readDailyWorkReport(pool,off,observedDay)).activity;
+ for(const metric of Object.keys(NOTIFICATION_DECISION_ACTIVITY))assert.equal(observation[metric as keyof typeof observation],1,metric);
+ assert.equal((await readDailyWorkReport(pool,off,platformDateKey(observed.end))).activity.digestContextUnavailable,1);
+ assert.equal((await readDailyWorkReport(pool,prefix+'_empty',observedDay)).activity.digestContextUnavailable,0);
+ const storedDecisions=await rows("SELECT details FROM autonomous_audit_logs WHERE company_id=? AND event_type LIKE 'NOTIFICATION_PRECLAIM_%'",[off]);
+ assert.ok(storedDecisions.length>=16);
+ assert.ok(storedDecisions.every((row:any)=>row.details==='{}'));
+ console.log('Notification decision SQL: 15 metrics, actual scheduler refusal, daily dedupe, IST bounds, tenant scope and private evidence passed.');
+
  stage='future-start';await saveNotificationPolicy(pool,users.owner,off,{kind,expectedVersion:'0',enabled:true,expectedBindingHash:(await binding(off)).hash});assert.equal(await runBound(pool,off,kind,due,'private report',{send:accepted(off)}),'DEFERRED');assert.equal(sends,0);
  stage='concurrent';const a=await add('race'),message='BOUND_PRIVATE_REPORT_CONTENT';const race=await Promise.all(Array.from({length:8},()=>runBound(pool,a,kind,due,message,{send:accepted(a)})));assert.equal(race.filter(r=>r==='SENT').length,1);assert.equal(sends,1);const journal=(await rows('SELECT * FROM notification_occurrences WHERE company_id=?',[a]))[0];assert.equal(journal.status,'SENT');assert.equal(journal.content_hash,crypto.createHash('sha256').update(message).digest('hex'));assert.equal(JSON.stringify(journal).includes(message),false);assert.equal(JSON.stringify(journal).includes('PRIVATE_TOKEN'),false);assert.equal(JSON.stringify(journal).includes('-123456789'),false);
  assert.equal(await runBound(pool,a,kind,due,'changed content',{send:accepted(a)}),'EXISTING');await db.saveCompanyIntegration(a,'telegram_bot',{status:'connected',credentials:{botToken:'123:ROTATED',chatId:'-987654321'}});assert.equal(await runBound(pool,a,kind,due,'changed destination',{send:accepted(a)}),'EXISTING');assert.equal(sends,1);

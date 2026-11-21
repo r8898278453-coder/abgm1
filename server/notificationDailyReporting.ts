@@ -1,3 +1,4 @@
+import {readNotificationDecisionActivity} from './notificationDecisionReporting';
 import {NOTIFICATION_DAILY_ACTIVITY,NOTIFICATION_DAILY_BACKLOG} from '../shared/notificationDailyReporting';
 import type {ReadOnlySql} from './readOnlySqlDeadline';
 
@@ -27,5 +28,5 @@ export async function readNotificationDailyReporting(sql:ReadOnlySql,company:str
     AND BINARY notification_kind IN ('daily_digest','review_reminder','critical_alert')
   ) occurrences`,[utcDue(start),utcDue(end),company]);
  const project=(keys:Record<string,string>)=>Object.fromEntries(Object.keys(keys).map(key=>[key,counts[key]]));
- return {activity:project(NOTIFICATION_DAILY_ACTIVITY),backlog:project(NOTIFICATION_DAILY_BACKLOG)};
+ return {activity:{...project(NOTIFICATION_DAILY_ACTIVITY),...await readNotificationDecisionActivity(sql,company,start,end)},backlog:project(NOTIFICATION_DAILY_BACKLOG)};
 }

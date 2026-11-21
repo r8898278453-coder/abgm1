@@ -40,3 +40,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:13},'A','Business',{..
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:14},'A','=Business',p),{...fromV6,coverageVersion:14});
 assert.throws(()=>projectClientReport({...s,schemaVersion:14},'A','Business',{...p,optionalMetrics:['notificationsUnconfirmed']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:15},'A','=Business',p),{...fromV6,coverageVersion:15});
+assert.throws(()=>projectClientReport({...s,schemaVersion:15},'A','Business',{...p,optionalMetrics:['reviewContextUnavailable']}));
