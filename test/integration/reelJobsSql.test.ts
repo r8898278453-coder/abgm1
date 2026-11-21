@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {attachOwnerAgency} from '../../server/agencyPolicy';
-import {reviewRenderAsset,approvedRenderAssets} from '../../server/renderAssets';
+import {reviewRenderAsset,approvedRenderAssets,verifyRenderAssetRefs} from '../../server/renderAssets';
 import {enqueueReel,readReels,cancelReel,executeReelJob,renderLockName} from '../../server/reelJobs';
 import {claimSqlJob} from '../../server/queueSql';
 if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL identity required');
@@ -21,10 +21,17 @@ try{
  await fs.mkdir(path.join(root,company));const png=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(20)]);await fs.writeFile(path.join(root,company,'photo.png'),png);
  await pool.query("INSERT INTO company_assets(id,company_id,asset_type,url) VALUES (?,?,'photo',?)",[asset,company,`/uploads/${company}/photo.png`]);
  stage='approvals';await assert.rejects(approvedRenderAssets(pool,root,company,undefined,`/uploads/${company}/photo.png`),{code:'ASSET_APPROVAL_REQUIRED'});
- const review={expectedRevision:'0',decision:'APPROVED' as const,licenseNote:'Owner supplied photo and declares reuse rights'};
+ const review={expectedRevision:'0',decision:'APPROVED' as const,licenseSource:'CLIENT_OWNED' as const,licenseNote:'Owner supplied photo and declares reuse rights'};
  const results=await Promise.allSettled(Array.from({length:8},()=>reviewRenderAsset(pool,root,company,asset,{id:actor},review)));assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
  assert.equal((await approvedRenderAssets(pool,root,company)).refs[0].revision,'1');
 
+ const [storedRights]:any=await pool.query('SELECT license_source FROM render_asset_approvals WHERE asset_id=?',[asset]);assert.equal(storedRights[0].license_source,'CLIENT_OWNED');
+ const refs=(await approvedRenderAssets(pool,root,company)).refs;
+ await assert.rejects(reviewRenderAsset(pool,root,company,asset,{id:actor},{...review,expectedRevision:'1',licenseThrough:'2000-01-01'}),{code:'ASSET_LICENSE_EXPIRED'});
+ await pool.query("UPDATE render_asset_approvals SET license_through='2000-01-01' WHERE asset_id=?",[asset]);
+ assert.deepEqual((await approvedRenderAssets(pool,root,company)).refs,[]);
+ await assert.rejects(verifyRenderAssetRefs(pool,root,company,refs,false),{code:'ASSET_LICENSE_EXPIRED'});
+ await pool.query('UPDATE render_asset_approvals SET license_through=NULL WHERE asset_id=?',[asset]);
  stage='inspected-library';const copy=asset+'_copy';await fs.writeFile(path.join(root,company,'copy.png'),png);await pool.query("INSERT INTO company_assets(id,company_id,asset_type,url,label) VALUES (?,?,'photo',?,'Private copy label')",[copy,company,`/uploads/${company}/copy.png`]);await reviewRenderAsset(pool,root,company,copy,{id:actor},review);let library=await inspectAssetLibrary(pool,root,{id:actor},company);assert.equal(library.assets.length,2);assert.ok(library.assets.every(a=>a.fileState==='MATCHES_REVIEWED_FILE'&&a.duplicateIds.length===1&&a.recordedDuplicateIds.length===1));assert.equal(JSON.stringify(library).includes('data:image'),false);assert.equal((await approvedRenderAssets(pool,root,company)).refs.length,1);
  await fs.appendFile(path.join(root,company,'copy.png'),'changed');library=await inspectAssetLibrary(pool,root,{id:actor},company);assert.equal(library.assets.find(a=>a.id===copy)!.fileState,'BYTES_CHANGED');assert.equal(library.assets.find(a=>a.id===copy)!.duplicateIds.length,0);assert.equal(library.assets.find(a=>a.id===copy)!.recordedDuplicateIds.length,1);await reviewRenderAsset(pool,root,company,copy,{id:actor},{...review,expectedRevision:'1',decision:'REVOKED'});library=await inspectAssetLibrary(pool,root,{id:actor},company);assert.equal(library.assets.find(a=>a.id===copy)!.fileState,'REVOKED');await fs.unlink(path.join(root,company,'copy.png'));assert.equal((await inspectAssetLibrary(pool,root,{id:actor},company)).assets.find(a=>a.id===copy)!.fileState,'FILE_UNAVAILABLE');
  await assert.rejects(inspectAssetLibrary(pool,root,{id:'absent',is_platform_admin:true}as any,company),{code:'ASSET_ACTOR_UNAVAILABLE'});await assert.rejects(reviewRenderAsset(pool,root,company,copy,{id:'absent',is_platform_admin:true},{...review,expectedRevision:'2'}),{code:'ASSET_ACTOR_UNAVAILABLE'});

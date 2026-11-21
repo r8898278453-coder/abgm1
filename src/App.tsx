@@ -5,7 +5,6 @@ import {workspaceDraft} from './services/workspaceDraft';
 import {canonicalJson} from '../shared/canonicalJson';
 import {createWorkspaceSaver} from './services/workspaceSaver';
 import {PublicationControls} from './components/PublicationControls';
-import {DailyWorkReport} from './components/DailyWorkReport';
 import { PublishingReview } from './components/PublishingReview';
 import { NotificationStatus } from './components/NotificationStatus';
 import { ActionHistory } from './components/ActionHistory';
@@ -13,6 +12,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import type { ApprovalRules } from './components/AutonomousEngineView';
+import {lazyFeature} from './components/LazyFeature';
 import { BillingAdminView } from './components/BillingAdminView';
 import type { DocumentItem, FaqItem } from './components/KnowledgeBaseView';
 import { ResetSystemModal } from './components/ResetSystemModal';
@@ -78,6 +78,8 @@ import {
   CompetitorData,
   Campaign,
 } from './types';
+
+const DailyWorkReport = lazyFeature('Daily work report', () => import('./components/DailyWorkReport').then(m => ({default:m.DailyWorkReport})));
 
 export default function App() {
   // Authentication & Multi-Company States

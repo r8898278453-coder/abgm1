@@ -7,7 +7,7 @@ assert.equal(await page.getByRole('img',{name:'Diagnostics Lab',exact:true}).cou
 await page.getByRole('button',{name:'Sync from Places API',exact:true}).click();
 await page.getByText('Review import was not confirmed.',{exact:true}).waitFor();
 assert.equal(await page.getByRole('button',{name:'Save & Push to Google',exact:true}).count(),0);await page.getByRole('button',{name:'Prepare profile-text template',exact:true}).click();await page.getByText(/No AI call, verification or Google update occurred/).waitFor();await page.getByRole('button',{name:'Apply profile edits',exact:true}).click();await page.getByText(/Google was not updated/).waitFor();assert.equal(await page.evaluate(()=>(window as any).applied),1);assert.equal(writes,0);await page.getByRole('button',{name:'Sync Ad Telemetry',exact:true}).click();await page.getByText('Partial sync: 1 campaign observations saved; other results remain unavailable.',{exact:true}).waitFor();sync='MALFORMED';await page.getByRole('button',{name:'Sync Ad Telemetry',exact:true}).click();await page.getByText(/Sync unconfirmed or unavailable/).waitFor();assert.equal(await page.getByText(/99 verified/).count(),0);const readsBeforeEmailCheck=writes;
-await page.getByText('Review individual emails in the Sales workspace. Delivery and reply tracking are pending.',{exact:true}).waitFor();
+await page.getByText('Review individual emails in the Sales workspace. Delivery and reply evidence appears there when configured webhooks receive a matching event.',{exact:true}).waitFor();
 assert.equal(await page.getByRole('button',{name:'Send Test Email',exact:true}).count(),0);
 assert.equal(await page.getByRole('button',{name:'Send Live Test Email',exact:true}).count(),0);
 assert.equal(writes,readsBeforeEmailCheck);

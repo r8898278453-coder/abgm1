@@ -1553,7 +1553,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   {/* Actions & Template Switcher */}
                   <div className="sm:col-span-8 space-y-2 text-xs">
                     <p className="text-slate-300 text-[11px] leading-relaxed">
-                      Generated server-side with real brand logos, palette colors, and local contact badge.
+                      Render a PNG from a branded template, using approved client images when available.
                     </p>
 
                     <div className="flex flex-wrap gap-2 pt-1">
@@ -1705,10 +1705,10 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-indigo-600" />
-                      Combinatorial Creative Engine
+                      Branded template renderer
                     </h3>
                     <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
-                      1080×1080 PNG Ready
+                      1080×1080 PNG format
                     </span>
                     <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" /> Auto Theme Rotation

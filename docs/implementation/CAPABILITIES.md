@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 63, in progress 15, planned 14, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 65, in progress 13, planned 14, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -10,12 +10,12 @@ Original tasks: 93; validated 63, in progress 15, planned 14, blocked 1. Billing
 | Website/PDF onboarding and approved business memory | partial_or_pending | reviewed; production unverified | OCR capability, approved source facts and remaining consumer coverage |
 | Google profile, local SEO and reviews | partial_or_pending | unverified; production unverified | Tenant GBP OAuth scopes/account/location and separately authorized provider acceptance; Places is not OAuth |
 | Facebook/Instagram publishing | partial_or_pending | unverified; production unverified | Tenant account permissions, stable public media and verified external outcomes |
-| Creative and approved asset library | partial_or_pending | reviewed; production unverified | Current approved assets, source/license and brand/locale strategy |
+| Creative and approved asset library | validated_local | reviewed; production unverified | Current approved assets, source/license and brand/locale strategy |
 | Client calendar and approved plans | validated_local | reviewed; production unverified | Approved facts/media and separate publication permission |
 | Durable reel rendering | validated_local | off; production unverified | ENABLE_REEL_RENDERING remains opt-in; measured worker/hosting capacity required |
 | Campaigns, ads telemetry and portable storefront | validated_local | reviewed; production unverified | External API origin/CORS/form token; DNS evidence does not provision TLS |
-| CRM identity, opportunities, inbox and permission | partial_or_pending | reviewed; production unverified | Remaining identity merge, full channel delivery/threading and CRM/channel gate |
-| Tenant email sender and reply/bounce channel | partial_or_pending | off; production unverified | Dedicated tenant sender/verification/threading/receipt implementation; platform account mail is separate |
+| CRM identity, opportunities, inbox and permission | validated_local | reviewed; production unverified | Remaining identity merge, full channel delivery/threading and CRM/channel gate |
+| Tenant email sender and reply/bounce channel | validated_local | off; production unverified | Dedicated tenant sender/verification/threading/receipt implementation; platform account mail is separate |
 | Grounded qualification and assigned human handoff | validated_local | reviewed; production unverified | Current approved facts/policy and authorized assignee; no invented commitments |
 | Versioned workflows and controlled execution | validated_local | reviewed; production unverified | Current approvals/consent/window/stops; exact external sending default off |
 | External calendar availability and bookings | partial_or_pending | off; production unverified | Supported calendar adapter, external event IDs, authorized availability and real pilot |
@@ -74,7 +74,7 @@ Original tasks: 93; validated 63, in progress 15, planned 14, blocked 1. Billing
 | P05-04 | in_progress | Unify Google review save publish verify and reminders |
 | P05-05 | planned | Complete canonical GBP post and media dispatch |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency |
-| P05-07 | in_progress | Build client-specific creative and approved asset library |
+| P05-07 | validated | Build client-specific creative and approved asset library |
 | P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle |
 | P05-09 | validated | Move reel state into durable jobs with resource limits |
 | P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture |
@@ -82,7 +82,7 @@ Original tasks: 93; validated 63, in progress 15, planned 14, blocked 1. Billing
 | P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints |
 | P06-02 | validated | Implement durable batched webhook intake and event replay |
 | P06-03 | validated | Implement message dispatch and real delivery states |
-| P06-04 | in_progress | Add tenant email sender and reply/bounce integration |
+| P06-04 | validated | Add tenant email sender and reply/bounce integration |
 | P06-05 | validated | Implement contact permission suppression and sending eligibility |
 | P06-06 | validated | Replace per-message lead creation and build unified client inbox |
 | P06-07 | validated | Add opportunity stage outcome and next-action management |

@@ -1,3 +1,4 @@
+import {renderLicenseExpiry} from './migrations/065_render_license_expiry';
 import {salesEmailReplyIntakes,EMAIL_REPLY_INTAKE_CHECKS,EMAIL_REPLY_INTAKE_COLUMNS,EMAIL_REPLY_INTAKE_INDEXES,EMAIL_REPLY_INTAKE_TABLE} from './migrations/064_sales_email_reply_intakes';
 import {salesEmailReceipts,EMAIL_RECEIPT_CHECKS,EMAIL_RECEIPT_COLUMNS,EMAIL_RECEIPT_INDEXES,EMAIL_RECEIPT_TABLE} from './migrations/063_sales_email_receipts';
 import {appointmentOutcomes,appointmentOutcomeColumns,appointmentOutcomeChecks} from './migrations/062_appointment_outcomes';
@@ -917,6 +918,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   appointmentOutcomes,
   salesEmailReceipts,
   salesEmailReplyIntakes,
+  renderLicenseExpiry,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1365,7 +1367,7 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       const [badProspectHistory]:any=await conn.query(PROSPECT_HISTORY_INDEX_CHECK.sql);if(badProspectHistory.length)missingConstraints.push('sales_prospect_imports.history_index_shape');
       for(const check of SALES_CHECKS){const [bad]:any=await conn.query(check.sql);if(bad.length)missingConstraints.push('sales_workspace.shape');}
       const [renderColumns]:any=await conn.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='render_asset_approvals'");
-      for(const col of RENDER_APPROVAL_COLUMNS)if(!renderColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('render_asset_approvals.'+col);
+      for(const col of [...RENDER_APPROVAL_COLUMNS,'license_through','license_source'])if(!renderColumns.some((r:any)=>r.COLUMN_NAME===col))missingColumns.push('render_asset_approvals.'+col);
       const [badRender]:any=await conn.query(RENDER_APPROVAL_CHECK.sql);if(badRender.length)missingConstraints.push('render_asset_approvals.shape');
       const [policyColumns]:any=await conn.query("SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('auth_user_security','oauth_states','oauth_refresh_locks')");
       for(const [table,names]of Object.entries(POLICY_COLUMNS))for(const name of names)if(!policyColumns.some((r:any)=>r.TABLE_NAME===table&&r.COLUMN_NAME===name))missingColumns.push(`${table}.${name}`);

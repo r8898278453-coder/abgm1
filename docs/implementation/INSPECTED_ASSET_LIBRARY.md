@@ -60,3 +60,15 @@ Chromium verification at 00:30 IST on 22 November confirmed that the Content Stu
 The studio initializes target language from the supported saved preference and allows per-draft overrides. Cleared saved brand fields reset in the editor. The platform placeholder logo is for preview only. A client without a logo can request an ordinary template using the server’s approved asset selection. Legacy brand kits containing the platform placeholder follow the same behavior.
 
 The Chromium fixture covers the Gujarati default, Hindi override, client color, absent logo and two overlapping template requests. It releases the first response after the second has rendered and checks the retained preview. Local verification uses simulated provider responses. Structured license provenance and expiry policy remain open.
+
+## Time-limited asset rights
+
+Migration 065 adds a nullable DATE to the existing approval. The review form records the last permitted calendar day in Asia/Kolkata. Existing approvals have no recorded end date. An older API client that omits the field preserves the stored value. An authorized reviewer may explicitly clear or extend it with the current revision and a new rights declaration. Revocation remains available after expiry.
+
+Template and reel selection omit expired assets. An explicit request for an ineligible image fails. Queued work and settlement recheck the stored date against the current IST day even when the approval revision and file bytes still match. The inspection panel displays the declared date. This governs new renders. Previously exported files and downstream publication rights require separate review. Older application binaries predate expiry enforcement and must keep rendering disabled if rolled back.
+
+## P05-07 local acceptance
+
+Reviewers choose client-owned work, third-party license, public domain or another declared source and enter the rights declaration. Both fields belong to the same approval revision. A previous approval with only a note has an unknown source category until a reviewer classifies it. The inspection panel shows the recorded category. The database transaction records the category and end date with the approval and audit event.
+
+The original tracker criterion covers client brand, language and offer facts, stored source/license/approval, and accurate creative capability labels. Content Studio uses the saved client preferences and labels the PNG template renderer. The marketing draft route uses the approved-fact context, blocks conflicting facts and returns drafts for review. Generated claims still need human review. The acceptance covers local software behavior, including the browser request and retained preview, independently of hosted rendering and provider output quality.

@@ -2,9 +2,9 @@
 
 Generated from TASKS.csv — 2026-11-21 IST. Do not edit counts manually; run npm run docs:status.
 
-Schema target: 064_sales_email_reply_intakes; 108 canonical tables. Registered default regression programs: 159 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
+Schema target: 065_render_license_expiry; 108 canonical tables. Registered default regression programs: 159 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 63 / 15 / 1 / 14.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 65 / 13 / 1 / 14.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -17,8 +17,8 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P02 | 4 | 3 | 0 | 1 |
 | P03 | 6 | 1 | 0 | 0 |
 | P04 | 8 | 1 | 0 | 0 |
-| P05 | 6 | 3 | 0 | 2 |
-| P06 | 7 | 1 | 0 | 0 |
+| P05 | 7 | 2 | 0 | 2 |
+| P06 | 8 | 0 | 0 | 0 |
 | P07 | 6 | 1 | 0 | 1 |
 | P08 | 6 | 0 | 0 | 4 |
 | P09 | 7 | 1 | 0 | 0 |
@@ -98,16 +98,16 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P05-04 | in_progress | Unify Google review save publish verify and reminders | — |
 | P05-05 | planned | Complete canonical GBP post and media dispatch | P05-04 |
 | P05-06 | planned | Consolidate Meta publishing and per-platform idempotency | P05-05 |
-| P05-07 | in_progress | Build client-specific creative and approved asset library | P05-06 |
-| P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | P05-07 |
+| P05-07 | validated | Build client-specific creative and approved asset library | P05-06 |
+| P05-08 | validated | Replace fixed calendar with current client plan and approval lifecycle | — |
 | P05-09 | validated | Move reel state into durable jobs with resource limits | — |
 | P05-10 | validated | Harden campaign linking ads telemetry and portable storefront capture | — |
 | P05-11 | validated | Marketing parity and publication gate | — |
 | P06-01 | validated | Extend canonical lead identity channels opportunities and touchpoints | — |
 | P06-02 | validated | Implement durable batched webhook intake and event replay | — |
 | P06-03 | validated | Implement message dispatch and real delivery states | — |
-| P06-04 | in_progress | Add tenant email sender and reply/bounce integration | — |
-| P06-05 | validated | Implement contact permission suppression and sending eligibility | P06-04 |
+| P06-04 | validated | Add tenant email sender and reply/bounce integration | — |
+| P06-05 | validated | Implement contact permission suppression and sending eligibility | — |
 | P06-06 | validated | Replace per-message lead creation and build unified client inbox | — |
 | P06-07 | validated | Add opportunity stage outcome and next-action management | — |
 | P06-08 | validated | CRM and channel truth gate | — |

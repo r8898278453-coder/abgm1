@@ -2,8 +2,8 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 63,
-    "in_progress": 15,
+    "validated": 65,
+    "in_progress": 13,
     "planned": 14,
     "blocked": 1
   },
@@ -116,7 +116,7 @@
       "taskIds": [
         "P05-07"
       ],
-      "localAcceptance": "partial_or_pending",
+      "localAcceptance": "validated_local",
       "sourcePresent": true,
       "activation": "reviewed",
       "activationEvidence": "source_default_or_review_policy_only; runtime not inspected",
@@ -180,7 +180,7 @@
         "P06-07",
         "P06-08"
       ],
-      "localAcceptance": "partial_or_pending",
+      "localAcceptance": "validated_local",
       "sourcePresent": true,
       "activation": "reviewed",
       "activationEvidence": "source_default_or_review_policy_only; runtime not inspected",
@@ -194,7 +194,7 @@
       "taskIds": [
         "P06-04"
       ],
-      "localAcceptance": "partial_or_pending",
+      "localAcceptance": "validated_local",
       "sourcePresent": true,
       "activation": "off",
       "activationEvidence": "source_default_or_review_policy_only; runtime not inspected",
@@ -654,7 +654,7 @@
       "id": "P05-07",
       "phase": "P05",
       "title": "Build client-specific creative and approved asset library",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Brand/language/offer facts respected; asset source/license/approval stored; image vs template capabilities labeled"
     },
     {
@@ -710,7 +710,7 @@
       "id": "P06-04",
       "phase": "P06",
       "title": "Add tenant email sender and reply/bounce integration",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "Verified sender isolated from platform mail; threading and incoming reply/bounce evidence; credentials masked"
     },
     {
