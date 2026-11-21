@@ -1,5 +1,7 @@
 # AI Agent State
 
+21 November 2026 IST. P09-01 advances through 25 notification accountability items. The private daily report adds twelve due-day outcome counts and three current unresolved counts. Manual and scheduled captures write V14. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily notification accountability](docs/implementation/NOTIFICATION_DAILY_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 26 calendar accountability items. The private daily report includes nine calendar revision metrics and eight selected-day slot counts, including linked publishing admission and recorded claim publication. Manual and scheduled captures write V13. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Calendar plan daily reporting](docs/implementation/CALENDAR_PLAN_DAILY_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 23 schedule history items. The private daily report adds six timestamp-form admission metrics and five committed schedule revision metrics. Manual and scheduled captures write V12. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Schedule history reporting](docs/implementation/SCHEDULE_HISTORY_REPORT.md)

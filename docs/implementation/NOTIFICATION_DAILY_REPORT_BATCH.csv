@@ -1,0 +1,26 @@
+item,work,parent,verification
+NR01,Daily digest slots API-accepted,P09-01,Native SQL and Chromium
+NR02,Daily digest slots unconfirmed,P09-01,Native SQL and Chromium
+NR03,Daily digest slots running inside the claim window,P09-01,Native SQL and Chromium
+NR04,Daily digest slots running beyond the claim window,P09-01,Native SQL and Chromium
+NR05,Review reminder slots API-accepted,P09-01,Native SQL and Chromium
+NR06,Review reminder slots unconfirmed,P09-01,Native SQL and Chromium
+NR07,Review reminder slots running inside the claim window,P09-01,Native SQL and Chromium
+NR08,Review reminder slots running beyond the claim window,P09-01,Native SQL and Chromium
+NR09,Critical alert slots API-accepted,P09-01,Native SQL and Chromium
+NR10,Critical alert slots unconfirmed,P09-01,Native SQL and Chromium
+NR11,Critical alert slots running inside the claim window,P09-01,Native SQL and Chromium
+NR12,Critical alert slots running beyond the claim window,P09-01,Native SQL and Chromium
+NR13,Current notification claims inside the claim window,P09-01,Native SQL and Chromium
+NR14,Current notification claims beyond the claim window,P09-01,Native SQL and Chromium
+NR15,Retained unconfirmed notification occurrences,P09-01,Native SQL and Chromium
+NR16,Exact half-open IST due window,P09-01,Native SQL
+NR17,SQL session timezone independence,P09-01,Native SQL
+NR18,Exact known kind and status matching,P09-01,Native SQL
+NR19,Tenant scoped count-only projection,P09-01,Native SQL
+NR20,Dashboard counts and labels,P09-01,Chromium
+NR21,Private live CSV,P09-01,Regression
+NR22,V14 manual snapshot and comparison,P09-01,Native SQL and Chromium
+NR23,V14 scheduled snapshot,P09-01,Native SQL
+NR24,V1–V13 replay and equal-version comparison,P09-01,Native SQL and regression
+NR25,Public portal allowlist compatibility,P09-01,Regression and Chromium
