@@ -292,7 +292,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
           const remainingPhotos = uploadedPhotos.filter((p) => p.id !== assetId);
           return {
             ...prev,
-            imageUrl: remainingPhotos.length > 0 ? remainingPhotos[0].url : defaultStockFallback,
+            imageUrl: remainingPhotos.length > 0 ? remainingPhotos[0].url : undefined,
           };
         }
         return prev;
@@ -327,7 +327,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
     () => makeServiceIntroDraft(business),
   );
 
-  const handleRenderCreative = async (templateIdToUse?: string, explicitPhotoUrl?: string, paletteIdToUse?: string) => {
+  const creativeRequest = useRef(0);
+  const handleRenderCreative = async (templateIdToUse?: string, explicitPhotoUrl?: string, paletteIdToUse?: string, draft = generatedPost) => {
+    const request = ++creativeRequest.current;
     // When 'auto' or undefined is passed, the server-side combinatorial rotation engine picks an unused combo
     const isAuto = !templateIdToUse || templateIdToUse === 'auto';
     const tId = isAuto ? undefined : templateIdToUse;
@@ -339,17 +341,17 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       // Determine photo: explicitPhotoUrl > saved uploaded photo
       const photoToUse =
         explicitPhotoUrl ||
-        (generatedPost.imageUrl?.startsWith('/uploads/') && !generatedPost.imageUrl.includes('/generated/')
-          ? generatedPost.imageUrl
+        (draft.imageUrl?.startsWith('/uploads/') && !draft.imageUrl.includes('/generated/')
+          ? draft.imageUrl
           : uploadedPhotos[0]?.url);
 
       const res = await renderCreativeApi({
         templateId: tId,
         paletteId: paletteIdToUse,
         contentType,
-        headline: generatedPost.headline || generatedPost.title || business.name,
-        caption: generatedPost.caption,
-        ctaText: generatedPost.cta || 'Contact Us Today',
+        headline: draft.headline || draft.title || business.name,
+        caption: draft.caption,
+        ctaText: draft.cta || 'Contact Us Today',
         companyId: effectiveCompanyId,
         companyName: business.name,
         photoUrl: photoToUse,
@@ -359,6 +361,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         tag: contentType.toUpperCase(),
       });
 
+      if (!mounted.current || request !== creativeRequest.current) return;
       if (res?.imageUrl) {
         if (res.templateId) setSelectedTemplateId(res.templateId);
         setRenderedTemplateName(res.templateName || activeTemplate?.name || 'Branded Template');
@@ -369,15 +372,15 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
           ...prev,
           imageUrl: res.imageUrl,
         }));
-        setScheduleSuccessToast(`✓ Fresh creative generated: "${res.templateName}" • "${res.paletteName || 'Dynamic Brand Theme'}"!`);
+        setScheduleSuccessToast(`Branded template rendered: "${res.templateName}" • "${res.paletteName || 'Dynamic Brand Theme'}"!`);
         setTimeout(() => setScheduleSuccessToast(null), 4000);
       }
     } catch (err: any) {
-      if(!mounted.current)return;
+      if (!mounted.current || request !== creativeRequest.current) return;
       console.error('Failed to render creative:', err);
       setPostActionError(`Creative rendering error: ${err?.message || 'Server error'}`);
     } finally {
-      setIsRenderingCreative(false);
+      if (mounted.current && request === creativeRequest.current) setIsRenderingCreative(false);
     }
   };
 
@@ -445,17 +448,16 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       const newCaption = result.caption || generatedPost.caption;
       const newCta = result.callToAction || generatedPost.cta;
 
-      setGeneratedPost((prev) => ({
-        ...prev,
+      const draft = {
+        ...generatedPost,
         headline: newHeadline,
         caption: newCaption,
         cta: newCta,
-        hashtags: result.hashtags || prev.hashtags,
-        reelScript: result.reelScript || prev.reelScript,
-      }));
-
-      // Automatically render fresh branded creative with auto-rotated theme and palette
-      handleRenderCreative('auto');
+        hashtags: result.hashtags || generatedPost.hashtags,
+        reelScript: result.reelScript || generatedPost.reelScript,
+      };
+      setGeneratedPost(draft);
+      void handleRenderCreative('auto', undefined, undefined, draft);
       setRenderedReelUrl(null);
       setReelJob(null);
       setReelRenderError(null);
@@ -476,7 +478,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
       caption: generatedPost.caption || '',
       cta: generatedPost.cta || '',
       hashtags: generatedPost.hashtags || [],
-      imageUrl: generatedPost.imageUrl || 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=600&q=80',
+      imageUrl: generatedPost.imageUrl || undefined,
       videoUrl: renderedReelUrl || undefined,
       status: 'pending_approval',
       scheduledDate: scheduleDate,
@@ -642,7 +644,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
             </span>
           </div>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Autonomous multi-lingual copywriter, brand kit creative designer, and 15s video reel director.
+            Draft multilingual copy, render branded templates and review reel jobs.
           </p>
         </div>
 
