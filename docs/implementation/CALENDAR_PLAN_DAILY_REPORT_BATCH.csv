@@ -1,0 +1,27 @@
+item,work,parent,verification
+CD01,Plans created,P09-01,Native SQL and Chromium
+CD02,Plans closed,P09-01,Native SQL and Chromium
+CD03,Plan requests sealed,P09-01,Native SQL and Chromium
+CD04,Plan item generation admissions,P09-01,Native SQL and Chromium
+CD05,Plan item drafts saved,P09-01,Native SQL and Chromium
+CD06,Plan item generation failures,P09-01,Native SQL and Chromium
+CD07,Plan items cancelled,P09-01,Native SQL and Chromium
+CD08,Plan item photos attached,P09-01,Native SQL and Chromium
+CD09,Plan item photos detached,P09-01,Native SQL and Chromium
+CD10,Selected-day slots pending,P09-01,Native SQL and Chromium
+CD11,Selected-day slots generating,P09-01,Native SQL and Chromium
+CD12,Selected-day slots with failed generation,P09-01,Native SQL and Chromium
+CD13,Selected-day slots cancelled,P09-01,Native SQL and Chromium
+CD14,Selected-day slots with a saved draft,P09-01,Native SQL and Chromium
+CD15,Saved selected-day slots missing their linked post,P09-01,Native SQL and Chromium
+CD16,Saved selected-day slots with retained publishing admission,P09-01,Native SQL and Chromium
+CD17,Saved selected-day slots with a recorded published claim,P09-01,Native SQL and Chromium
+CD18,Revision and selected slot day semantics,P09-01,Native SQL
+CD19,Tenant scoped plan post and claim joins,P09-01,Native SQL
+CD20,Count-only evidence projection,P09-01,Native SQL
+CD21,Dashboard labels and counts,P09-01,Chromium
+CD22,Private live CSV,P09-01,Regression
+CD23,V13 manual snapshot and comparison,P09-01,Native SQL and Chromium
+CD24,V13 scheduled snapshot,P09-01,Native SQL
+CD25,V1–V12 replay and equal-version comparison,P09-01,Native SQL and regression
+CD26,Public portal metric allowlist compatibility,P09-01,Regression and Chromium

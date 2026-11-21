@@ -34,3 +34,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:11},'A','Business',{..
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:12},'A','=Business',p),{...fromV6,coverageVersion:12});
 assert.throws(()=>projectClientReport({...s,schemaVersion:12},'A','Business',{...p,optionalMetrics:['legacyPlans']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:13},'A','=Business',p),{...fromV6,coverageVersion:13});
+assert.throws(()=>projectClientReport({...s,schemaVersion:13},'A','Business',{...p,optionalMetrics:['calendarSlotSaved']}));

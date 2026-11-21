@@ -10,6 +10,6 @@ Five history counts use committed reschedule audit rows on the recorded IST day.
 
 Manual and scheduled captures write V12. V1–V11 retain their original coverage, payloads and hashes. Comparisons require equal coverage. Release V12-capable readers and workers together before writing new captures. Public reports retain their approved metric allowlist. The database schema stays at 064.
 
-Remaining P09-01 work includes reconciliation of planned actions and outcomes across the other modules.
+[Calendar plan daily reporting](CALENDAR_PLAN_DAILY_REPORT.md) connects saved slots to drafts, retained admissions and recorded publish claims. Remaining P09-01 work includes the other modules.
 
 [23-item checklist](SCHEDULE_HISTORY_REPORT_BATCH.csv) · [Verification](evidence/schedule-history-report.json) · [Main tracker](STATUS.md)
