@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. P09-01 advances through 23 schedule history items. The private daily report adds six timestamp-form admission metrics and five committed schedule revision metrics. Manual and scheduled captures write V12. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Schedule history reporting](SCHEDULE_HISTORY_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 25 publishing reconciliation items. Private daily reports add seven provider and operator review counters and six saved-date planning and admission counters. Manual and scheduled captures write V11. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing reconciliation](PUBLISHING_RECONCILIATION_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 27 platform outcome items. The publishing worker records claim-bound outcome events atomically with settlement. Private daily reports, CSV and new V10 snapshots include fifteen platform outcome counts and two partial-claim counts. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Platform outcome reporting](PLATFORM_OUTCOME_REPORT.md)

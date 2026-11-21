@@ -1,3 +1,4 @@
+import {readScheduleHistoryReporting} from './scheduleHistoryReporting';
 import type {ReadOnlySql} from './readOnlySqlDeadline';
 
 export async function readPublishingReconciliation(sql:ReadOnlySql,company:string,date:string,start:number,end:number){
@@ -25,5 +26,5 @@ export async function readPublishingReconciliation(sql:ReadOnlySql,company:strin
     EXISTS(SELECT 1 FROM publication_admission_reservations r WHERE r.post_id=p.id AND r.company_id=p.company_id) anyDay
    FROM content_posts p WHERE p.company_id=? AND p.scheduled_date=? AND BINARY p.scheduled_date=?
   ) dated_posts`,[date,company,date,date]);
- return {...checks,...reviews,...plans};
+ return {...checks,...reviews,...plans,...await readScheduleHistoryReporting(sql,company,date,start,end)};
 }

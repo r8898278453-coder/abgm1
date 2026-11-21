@@ -1,0 +1,24 @@
+item,work,parent,verification
+SH01,Timestamp-form posts scheduled for the selected IST day,P09-01,Native SQL and Chromium
+SH02,Timestamp-form posts with same-day admission,P09-01,Native SQL and Chromium
+SH03,Timestamp-form posts admitted only on another day,P09-01,Native SQL and Chromium
+SH04,Timestamp-form posts with no retained admission,P09-01,Native SQL and Chromium
+SH05,Scheduled timestamp-form posts with no retained admission,P09-01,Native SQL and Chromium
+SH06,Timestamp-form posts awaiting approval with no retained admission,P09-01,Native SQL and Chromium
+SH07,Recorded schedule revisions,P09-01,Native SQL and Chromium
+SH08,Distinct posts with recorded schedule revisions,P09-01,Native SQL and Chromium
+SH09,Schedule revisions from scheduled status,P09-01,Native SQL and Chromium
+SH10,Schedule revisions from pending approval,P09-01,Native SQL and Chromium
+SH11,Schedule revisions returning to pending approval,P09-01,Native SQL and Chromium
+SH12,Shared scheduler timestamp parser,P09-01,Native SQL and regression
+SH13,Explicit offsets across two calendar days,P09-01,Native SQL
+SH14,Exact IST midnight boundaries,P09-01,Native SQL
+SH15,Malformed legacy timestamps excluded,P09-01,Native SQL
+SH16,Tenant and schedule privacy,P09-01,Native SQL
+SH17,Dashboard labels and values,P09-01,Chromium
+SH18,Private CSV metric keys,P09-01,Regression
+SH19,V12 manual capture and comparison,P09-01,Native SQL and Chromium
+SH20,V12 scheduled capture,P09-01,Native SQL
+SH21,V1–V11 replay and equal-coverage comparison,P09-01,Native SQL and regression
+SH22,V12 invalid metric rejection,P09-01,Regression
+SH23,Public portal approved metric compatibility,P09-01,Regression and Chromium
