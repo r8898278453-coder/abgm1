@@ -1,4 +1,5 @@
-import {recordNotificationDecision} from './notificationDecisionReporting';
+import {observeNotificationEligibility} from './notificationEligibilityHistory';
+import {recordNotificationDecisions} from './notificationDecisionReporting';
 import {NOTIFICATION_CONNECTED_SQL,NOTIFICATION_ACTIVE_SQL,NOTIFICATION_ENABLED_SQL} from './notificationSelectionSql';
 import type { Pool } from 'mysql2/promise';
 import type { DbCompany } from './db';
@@ -23,12 +24,22 @@ export async function selectNotificationCompanyBatch(pool: Pool, kind: Notificat
     }
     if (companies.length) {
       await connection.query('UPDATE notification_dispatch_cursors SET last_company_id = ? WHERE notification_kind = ?', [companies[0].id, kind]);
-      await connection.query('SAVEPOINT notification_selection_evidence');
+    }
+    await connection.query('SAVEPOINT notification_selection_evidence');
+    let observedAt:number|undefined;
+    try {
+      const [[{nowMs}]]:any=await connection.query('SELECT UNIX_TIMESTAMP()*1000 nowMs');
+      observedAt=Number(nowMs);
+      await recordNotificationDecisions(connection,kind,companies.map(company=>({company:company.id,decision:'Selected'})),observedAt);
+    } catch {
+      await connection.query('ROLLBACK TO SAVEPOINT notification_selection_evidence');
+    }
+    if(observedAt!==undefined){
+      await connection.query('SAVEPOINT notification_eligibility_evidence');
       try {
-        const [[{nowMs}]]:any=await connection.query('SELECT UNIX_TIMESTAMP()*1000 nowMs');
-        for(const company of companies)await recordNotificationDecision(connection,company.id,kind,'Selected',Number(nowMs));
+        await observeNotificationEligibility(connection,kind,limit,observedAt);
       } catch {
-        await connection.query('ROLLBACK TO SAVEPOINT notification_selection_evidence');
+        await connection.query('ROLLBACK TO SAVEPOINT notification_eligibility_evidence');
       }
     }
     await connection.commit();

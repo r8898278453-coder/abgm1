@@ -1,0 +1,46 @@
+item,work,parent,verification
+NE01,Daily digest observed eligible for selection,P09-01,Native SQL and Chromium
+NE02,Daily digest observed an archived workspace,P09-01,Native SQL and Chromium
+NE03,Daily digest observed missing workspace operations,P09-01,Native SQL and Chromium
+NE04,Daily digest observed an inactive workspace status,P09-01,Native SQL and Chromium
+NE05,Daily digest observed missing Telegram connection,P09-01,Native SQL and Chromium
+NE06,Daily digest observed a disconnected Telegram connection,P09-01,Native SQL and Chromium
+NE07,Daily digest observed a missing policy,P09-01,Native SQL and Chromium
+NE08,Daily digest observed a disabled policy,P09-01,Native SQL and Chromium
+NE09,Daily digest observed first due time pending,P09-01,Native SQL and Chromium
+NE10,Daily digest observed first due time reached,P09-01,Native SQL and Chromium
+NE11,Daily digest observed first due time missing,P09-01,Native SQL and Chromium
+NE12,Review reminder observed eligible for selection,P09-01,Native SQL and Chromium
+NE13,Review reminder observed an archived workspace,P09-01,Native SQL and Chromium
+NE14,Review reminder observed missing workspace operations,P09-01,Native SQL and Chromium
+NE15,Review reminder observed an inactive workspace status,P09-01,Native SQL and Chromium
+NE16,Review reminder observed missing Telegram connection,P09-01,Native SQL and Chromium
+NE17,Review reminder observed a disconnected Telegram connection,P09-01,Native SQL and Chromium
+NE18,Review reminder observed a missing policy,P09-01,Native SQL and Chromium
+NE19,Review reminder observed a disabled policy,P09-01,Native SQL and Chromium
+NE20,Review reminder observed first due time pending,P09-01,Native SQL and Chromium
+NE21,Review reminder observed first due time reached,P09-01,Native SQL and Chromium
+NE22,Review reminder observed first due time missing,P09-01,Native SQL and Chromium
+NE23,Critical alert observed eligible for selection,P09-01,Native SQL and Chromium
+NE24,Critical alert observed an archived workspace,P09-01,Native SQL and Chromium
+NE25,Critical alert observed missing workspace operations,P09-01,Native SQL and Chromium
+NE26,Critical alert observed an inactive workspace status,P09-01,Native SQL and Chromium
+NE27,Critical alert observed missing Telegram connection,P09-01,Native SQL and Chromium
+NE28,Critical alert observed a disconnected Telegram connection,P09-01,Native SQL and Chromium
+NE29,Critical alert observed a missing policy,P09-01,Native SQL and Chromium
+NE30,Critical alert observed a disabled policy,P09-01,Native SQL and Chromium
+NE31,Critical alert observed first due time pending,P09-01,Native SQL and Chromium
+NE32,Critical alert observed first due time reached,P09-01,Native SQL and Chromium
+NE33,Critical alert observed first due time missing,P09-01,Native SQL and Chromium
+NE34,Independent observation cursor and bounded client window,P09-01,Native SQL
+NE35,Wrap or continue without changing eligibility filters,P09-01,Native SQL
+NE36,Retain dispatch rotation when observation evidence fails,P09-01,Native SQL
+NE37,Roll back failed observation and its cursor,P09-01,Native SQL
+NE38,Deduplicate repeated observations per IST day,P09-01,Native SQL
+NE39,Keep earlier reasons after current configuration changes,P09-01,Native SQL
+NE40,Private dashboard labels and values,P09-01,Chromium
+NE41,Private live CSV,P09-01,Regression
+NE42,Manual V18 capture and comparison,P09-01,Native SQL and Chromium
+NE43,Scheduled V18 capture,P09-01,Native SQL
+NE44,V1–V17 replay and equal-version comparison,P09-01,Native SQL and regression
+NE45,Public portal approved metric compatibility,P09-01,Regression and Chromium

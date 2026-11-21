@@ -1,5 +1,7 @@
 # Delivered scope and pending work — 12 November2026 IST
 
+21 November 2026 IST. P09-01 advances through 45 notification eligibility history items. The dashboard and CSV add 33 observed eligibility and exclusion indicators. A bounded observation cursor advances independently of selection. Manual and scheduled captures write V18. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification eligibility history](NOTIFICATION_ELIGIBILITY_HISTORY.md)
+
 21 November 2026 IST. P09-01 advances through 45 notification selection work and verification items. The private daily report adds three recorded selection indicators and 31 current workspace, connection, policy, first-due and rotation indicators. Manual and scheduled captures write V17. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification selection reporting](NOTIFICATION_SELECTION_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 22 notification preparation items. The daily report adds ten indicators before the claim stage, including empty work, preparation errors and rejected messages. Oversized daily digests use a compact summary. Manual and scheduled captures write V16. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification preparation reporting](NOTIFICATION_PREPARATION_REPORT.md)

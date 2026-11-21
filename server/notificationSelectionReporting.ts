@@ -1,5 +1,5 @@
 import {NOTIFICATION_SELECTION_BACKLOG} from '../shared/notificationSelectionReporting';
-import {NOTIFICATION_ACTIVE_SQL,NOTIFICATION_CONNECTED_SQL} from './notificationSelectionSql';
+import {NOTIFICATION_ACTIVE_SQL,NOTIFICATION_CONNECTED_SQL,NOTIFICATION_HAS_TELEGRAM_SQL} from './notificationSelectionSql';
 import type {ReadOnlySql} from './readOnlySqlDeadline';
 
 const prefixes={daily_digest:'digest',review_reminder:'review',critical_alert:'critical'} as const;
@@ -7,7 +7,7 @@ const prefixes={daily_digest:'digest',review_reminder:'review',critical_alert:'c
 export async function readNotificationSelectionBacklog(sql:ReadOnlySql,company:string){
  const [[workspace]]=await sql.query(`SELECT o.status operationsStatus,${NOTIFICATION_ACTIVE_SQL} active,
    ${NOTIFICATION_CONNECTED_SQL} connected,
-   EXISTS(SELECT 1 FROM company_integrations i WHERE i.company_id=c.id AND i.provider='telegram_bot') hasTelegram,
+   ${NOTIFICATION_HAS_TELEGRAM_SQL} hasTelegram,
    UNIX_TIMESTAMP()*1000 nowMs
    FROM companies c LEFT JOIN client_operations o ON o.company_id=c.id WHERE c.id=?`,[company]);
  const result=Object.fromEntries(Object.keys(NOTIFICATION_SELECTION_BACKLOG).map(key=>[key,0]));

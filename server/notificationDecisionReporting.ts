@@ -1,3 +1,4 @@
+import {NOTIFICATION_ELIGIBILITY_HISTORY} from '../shared/notificationEligibilityHistory';
 import {NOTIFICATION_SELECTION_ACTIVITY} from '../shared/notificationSelectionReporting';
 import {createHash} from 'node:crypto';
 import type {Pool,PoolConnection} from 'mysql2/promise';
@@ -8,15 +9,29 @@ import type {ReadOnlySql} from './readOnlySqlDeadline';
 
 const kindPrefix={daily_digest:'digest',review_reminder:'review',critical_alert:'critical'} as const;
 const eventPrefix='NOTIFICATION_PRECLAIM_';
-const reportableEvents={...NOTIFICATION_DECISION_ACTIVITY,...NOTIFICATION_SELECTION_ACTIVITY};
+const reportableEvents={...NOTIFICATION_DECISION_ACTIVITY,...NOTIFICATION_SELECTION_ACTIVITY,...NOTIFICATION_ELIGIBILITY_HISTORY};
 export type NotificationDecision='ContextUnavailable'|'ControlChanged'|'RetainedLimit'|'RunningLimit'|'ReservationDeclined'|'PreparationFailed'|'InvalidMessage'|'CompactSummary'|'NoEligibleReviews'|'NoCandidates'|'PrecheckUnavailable'|'Selected';
+export type NotificationEligibilityObservation='ObservedEligible'|'ObservedArchived'|'ObservedOpsMissing'|'ObservedOpsOther'|'ObservedTelegramMissing'|'ObservedTelegramDisconnected'|'ObservedPolicyMissing'|'ObservedPolicyDisabled'|'ObservedFirstDuePending'|'ObservedFirstDueReached'|'ObservedFirstDueMissing';
+
+type DecisionEntry={company:string;decision:NotificationDecision|NotificationEligibilityObservation};
+
+export async function recordNotificationDecisions(sql:Pool|PoolConnection,kind:NotificationKind,entries:readonly DecisionEntry[],observedAt:number){
+ if(!entries.length)return;
+ const day=platformDateKey(observedAt);
+ const values=entries.flatMap(({company,decision})=>{
+  const metric=kindPrefix[kind]+decision;
+  if(!Object.hasOwn(reportableEvents,metric))throw new Error('INVALID_NOTIFICATION_DECISION');
+  const event=eventPrefix+metric;
+  const id=createHash('sha256').update(JSON.stringify([company,day,event])).digest('hex');
+  return [id,company,event,observedAt/1000];
+ });
+ const tuples=entries.map(()=>"(?,?,'scheduled-notification',?,'{}',FROM_UNIXTIME(?))").join(',');
+ await sql.query(`INSERT INTO autonomous_audit_logs(id,company_id,actor,event_type,details,timestamp)
+  VALUES ${tuples} ON DUPLICATE KEY UPDATE id=id`,values);
+}
 
 export async function recordNotificationDecision(sql:Pool|PoolConnection,company:string,kind:NotificationKind,decision:NotificationDecision,observedAt:number){
- const event=eventPrefix+kindPrefix[kind]+decision;
- if(!Object.hasOwn(reportableEvents,kindPrefix[kind]+decision))throw new Error('INVALID_NOTIFICATION_DECISION');
- const id=createHash('sha256').update(JSON.stringify([company,platformDateKey(observedAt),event])).digest('hex');
- await sql.query(`INSERT INTO autonomous_audit_logs(id,company_id,actor,event_type,details,timestamp)
-  VALUES (?,?,'scheduled-notification',?,'{}',FROM_UNIXTIME(?)) ON DUPLICATE KEY UPDATE id=id`,[id,company,event,observedAt/1000]);
+ await recordNotificationDecisions(sql,kind,[{company,decision}],observedAt);
 }
 
 export async function readNotificationDecisionActivity(sql:ReadOnlySql,company:string,start:number,end:number){
