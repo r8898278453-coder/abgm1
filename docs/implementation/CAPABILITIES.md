@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 62, in progress 16, planned 14, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 63, in progress 15, planned 14, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -99,7 +99,7 @@ Original tasks: 93; validated 62, in progress 16, planned 14, blocked 1. Billing
 | P08-02 | planned | Add selected authorized buying-signal and discovery adapter |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes |
 | P08-04 | planned | Connect outbound sequences to approved channel capabilities |
-| P08-05 | in_progress | Implement source-to-outcome attribution cost and ROI definitions |
+| P08-05 | validated | Implement source-to-outcome attribution cost and ROI definitions |
 | P08-06 | validated | Implement bounded experiments and transparent recommendations |
 | P08-07 | validated | Expose scoped developer API and signed event webhooks |
 | P08-08 | validated | Implement first required external CRM connector or record defer decision |

@@ -2,8 +2,8 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 62,
-    "in_progress": 16,
+    "validated": 63,
+    "in_progress": 15,
     "planned": 14,
     "blocked": 1
   },
@@ -829,7 +829,7 @@
       "id": "P08-05",
       "phase": "P08",
       "title": "Implement source-to-outcome attribution cost and ROI definitions",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "First/last known touch versioned; unknown stays unknown; currency/cost/revenue evidence compatible; no billing coupling"
     },
     {

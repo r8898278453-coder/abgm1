@@ -1,0 +1,14 @@
+{
+  "date_ist": "2026-11-21",
+  "validated_task": "P08-05",
+  "tracker": {"validated": 63, "in_progress": 15, "planned": 14, "blocked": 1},
+  "verification": {
+    "default_regression_programs": 159,
+    "native_sql_suite": "passed",
+    "browser_fixtures": ["sourceOutcomes", "salesWorkspace"],
+    "typecheck": "passed",
+    "release_build": "passed",
+    "tracker_and_capability_checks": "passed"
+  },
+  "pending": ["P07-08 pilot acceptance", "P08-04 approved outbound sequences", "Verified external finance and production rollout"]
+}

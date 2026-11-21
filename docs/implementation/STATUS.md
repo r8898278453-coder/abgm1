@@ -4,7 +4,7 @@ Generated from TASKS.csv — 2026-11-21 IST. Do not edit counts manually; run np
 
 Schema target: 064_sales_email_reply_intakes; 108 canonical tables. Registered default regression programs: 159 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 62 / 16 / 1 / 14.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 63 / 15 / 1 / 14.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -20,7 +20,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P05 | 6 | 3 | 0 | 2 |
 | P06 | 7 | 1 | 0 | 0 |
 | P07 | 6 | 1 | 0 | 1 |
-| P08 | 5 | 1 | 0 | 4 |
+| P08 | 6 | 0 | 0 | 4 |
 | P09 | 7 | 1 | 0 | 0 |
 | P10 | 3 | 0 | 0 | 5 |
 
@@ -123,8 +123,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P08-02 | planned | Add selected authorized buying-signal and discovery adapter | P07-08 |
 | P08-03 | planned | Implement bounded enrichment verification and optional lookalikes | P07-08, P08-02 |
 | P08-04 | planned | Connect outbound sequences to approved channel capabilities | P07-08, P08-03 |
-| P08-05 | in_progress | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
-| P08-06 | validated | Implement bounded experiments and transparent recommendations | P07-08, P08-05 |
+| P08-05 | validated | Implement source-to-outcome attribution cost and ROI definitions | P07-08, P08-04 |
+| P08-06 | validated | Implement bounded experiments and transparent recommendations | P07-08 |
 | P08-07 | validated | Expose scoped developer API and signed event webhooks | P07-08 |
 | P08-08 | validated | Implement first required external CRM connector or record defer decision | P07-08 |
 | P08-09 | validated | Record gates for visitor identity MCP and advanced outbound extensions | P07-08 |

@@ -1,3 +1,4 @@
+import {sourceOutcomeCostsCsv,validateSourceOutcomeCosts} from '../shared/sourceOutcomeFinance';
 import assert from 'node:assert/strict';import crypto from 'node:crypto';
 import {analyzeSourceOutcomes,validateSourceOutcomeReport,sourceOutcomeCsv,type SourceOutcomeInput} from '../shared/sourceOutcomeReport';
 import {APPOINTMENT_SOURCE_CAPACITY,appointmentSourceCsv,projectAppointmentSources,validateAppointmentSources} from '../shared/appointmentSourceReport';
@@ -38,3 +39,11 @@ assert.deepEqual(projectAppointmentSources(r,input.touches,Array(APPOINTMENT_SOU
 assert.throws(()=>appointmentSourceCsv({status:'CAPACITY_EXCEEDED'},r));
 assert.throws(()=>projectAppointmentSources(r,input.touches,[{...sameSecond,leadId:'foreign'}]));
 console.log('Appointment attribution: confirmation-second exclusion, untimed and missing evidence, strict partition reconciliation, cohort capacity and aggregate CSV passed.');
+
+const costEvidence=input.costs.map((cost,index)=>({...cost,evidenceId:id('cost '+index),revision:'1'})).sort((a,b)=>a.evidenceId.localeCompare(b.evidenceId));
+assert.deepEqual(validateSourceOutcomeCosts(costEvidence,r),costEvidence);
+assert.match(sourceOutcomeCostsCsv(costEvidence,r),/evidence_id,revision,currency,declared_cost_minor,as_of_utc,timezone/);
+assert.throws(()=>validateSourceOutcomeCosts(costEvidence.slice(1),r),/COST_RECONCILIATION/);
+assert.throws(()=>validateSourceOutcomeCosts([costEvidence[0],...costEvidence],r),/COST_EVIDENCE_INVALID/);
+assert.throws(()=>validateSourceOutcomeCosts([{...costEvidence[0],revision:'01'},...costEvidence.slice(1)],r),/COST_EVIDENCE_INVALID/);
+assert.throws(()=>validateSourceOutcomeCosts([{...costEvidence[0],sourceReference:'PRIVATE'},...costEvidence.slice(1)],r),/COST_EVIDENCE_INVALID/);

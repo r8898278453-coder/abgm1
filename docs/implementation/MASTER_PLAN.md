@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+21 November 2026 IST. P08-05 meets local source-to-outcome acceptance. Verified inbound occurrence time is used for recovered WhatsApp and email evidence. Declared cost totals reconcile to a private revision-bound export. Verified finance and ROI stay unavailable. Tracker totals are 63 validated, 15 in progress, 14 planned and one blocked. P07-08 and P08-04 remain open. [Source attribution acceptance](SOURCE_ATTRIBUTION_ACCEPTANCE.md)
+
 21 November 2026 IST. P09-01 advances through 99 critical alert reporting and verification items. The dashboard and CSV add 72 reservation outcome metrics and 18 current incident metrics across six signals. Manual and scheduled captures write V19. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily critical alert outcomes](CRITICAL_ALERT_DAILY_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 45 notification eligibility history items. The dashboard and CSV add 33 observed eligibility and exclusion indicators. A bounded observation cursor advances independently of selection. Manual and scheduled captures write V18. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification eligibility history](NOTIFICATION_ELIGIBILITY_HISTORY.md)
@@ -207,7 +209,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.107 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.108 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

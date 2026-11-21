@@ -1,3 +1,4 @@
+import {sourceOutcomeCostsCsv} from '../../shared/sourceOutcomeFinance';
 import assert from 'node:assert/strict';import crypto from 'node:crypto';import express from 'express';
 import {readSourceOutcomeEvidence} from '../../server/sourceOutcomeReport';import {readAttributionLeads,calculateRevenueAttribution} from '../../server/revenueAttribution';import {saveOpportunity} from '../../server/salesWorkspace';import {createGrowthRecord,transitionGrowthRecord} from '../../server/growthOperations';import {registerSalesRoutes} from '../../server/salesRoutes';
 if(process.env.ABGM1_LOCAL_SQL_TESTS!=='1'||process.env.DB_HOST!=='127.0.0.1'||!process.env.DB_NAME?.startsWith('abgm1_test_')||!process.env.LOCAL_SQL_CONTAINER_ID)throw new Error('Disposable SQL required');const db=await import('../../server/db'),pool=await db.getDbPool();assert.ok(pool);const prefix='so_'+crypto.randomBytes(5).toString('hex'),company=prefix+'_a',other=prefix+'_b',users:any={},key=()=>crypto.randomBytes(32).toString('hex'),rows=async(sql:string,args:any[]=[])=>{const[r]:any=await pool.query(sql,args);return r;};let stage='setup';
@@ -40,6 +41,29 @@ try{assert.equal((await rows('SELECT @@hostname hostname'))[0].hostname,process.
  assert.equal(JSON.stringify(evidence).includes('PRIVATE_'),false);
  stage='corrupt-evidence';const saved=(await rows('SELECT details_json FROM sales_opportunities WHERE company_id=? AND lead_id=?',[company,lead]))[0].details_json;await pool.query("UPDATE sales_opportunities SET details_json='{}' WHERE company_id=? AND lead_id=?",[company,lead]);await assert.rejects(readSourceOutcomeReport(pool,users.owner,company));await pool.query('UPDATE sales_opportunities SET details_json=? WHERE company_id=? AND lead_id=?',[saved,company,lead]);
  stage='query-privacy-http';const app=express();registerSalesRoutes(app,{auth:async req=>users[String(req.headers.authorization)]||null,pool:async()=>pool});const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));try{const origin=`http://127.0.0.1:${(server.address()as any).port}`,base=`/api/companies/${company}/sales/source-outcomes`;for(const [path,actor,status]of [[base,'',401],[base,'foreign',403],[base,'viewer',200],[base+'?date=2026-11-18','owner',400],[base+'?companyId='+other,'owner',400]]as const){const r=await fetch(origin+path,{headers:{Authorization:actor}});assert.equal(r.status,status);assert.equal(r.headers.get('cache-control'),'no-store');const text=await r.text();assert.equal(text.includes('PRIVATE_'),false);if(status===200){const body=JSON.parse(text);assert.equal(body.report.model,2);assert.equal(body.appointments.totals.booked,4);}}}finally{await new Promise<void>(r=>server.close(()=>r()));}
+ stage='provider-event-time-and-cost-evidence';
+ const saveTimed=async(channel:string,meta:unknown)=>{
+  const id=key();
+  await pool.query(`INSERT INTO sales_inbox_messages(id,company_id,lead_id,channel,direction,contact_hash,provider_ref,body,metadata_json,created_at)
+   VALUES (?,?,?,?,'INBOUND',?,'PRIVATE_PROVIDER','PRIVATE_BODY',?,FROM_UNIXTIME(?))`,[id,company,lead,channel,key(),JSON.stringify(meta),(now-5000)/1000]);
+  return id;
+ };
+ const email=await saveTimed('EMAIL',{verifiedEmailReply:true,emailOccurredAtMs:early-500});
+ const whatsapp=await saveTimed('WHATSAPP',{verifiedProviderTime:true,providerOccurredAtMs:early-1000});
+ const timed=await readSourceOutcomeEvidence(pool,users.owner,company);
+ const projected=timed.report.rows.find(row=>row.leadId===lead)!;
+ assert.equal(projected.firstKnown.source,'WhatsApp');
+ assert.equal(projected.firstKnown.atMs,early-1000);
+ assert.equal(projected.lastKnown.atMs,later);
+ assert.equal(timed.costEvidence.length,Object.keys(timed.report.declaredCostMinor).length);
+ assert.ok(timed.costEvidence.every(cost=>cost.revision==='1'));
+ assert.ok(!sourceOutcomeCostsCsv(timed.costEvidence,timed.report).includes('PRIVATE_'));
+ const untimed=await saveTimed('EMAIL',{verifiedEmailReply:true,emailOccurredAtMs:String(early)});
+ const withheld=(await readSourceOutcomeReport(pool,users.owner,company)).rows.find(row=>row.leadId===lead)!;
+ assert.equal(withheld.attributionState,'UNTIMED_HISTORY');
+ await pool.query('DELETE FROM sales_inbox_messages WHERE company_id=? AND id IN (?,?,?)',[company,email,whatsapp,untimed]);
+ console.log('Source evidence SQL: verified event order, untimed withholding and declared-cost revision provenance passed.');
+
  stage='bounded-history';const values:string[]=[],args:any[]=[];for(let i=0;i<5001;i++){values.push('(?,?,?,?,?,?,?,?,?,FROM_UNIXTIME(?))');args.push(key(),company,lead,'WHATSAPP','INBOUND',key(),'PRIVATE','PRIVATE','{}',later/1000);}await pool.query('INSERT INTO sales_inbox_messages(id,company_id,lead_id,channel,direction,contact_hash,provider_ref,body,metadata_json,created_at) VALUES '+values.join(','),args);const bounded=await readSourceOutcomeEvidence(pool,users.owner,company);report=bounded.report;assert.equal(report.historyComplete,false);
  assert.equal(bounded.appointments.status,'READY');
  if(bounded.appointments.status==='READY')assert.equal(bounded.appointments.lastBeforeBooking.find(b=>b.source==='Unknown')?.counts.booked,4);assert.equal(report.rows.every(r=>r.firstKnown.atMs===null&&r.lastKnown.atMs===null&&r.attributionState==='INCOMPLETE_HISTORY'),true);assert.equal(report.manualWonMinor.INR,'10000');

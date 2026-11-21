@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. P08-05 meets local source-to-outcome acceptance. Verified inbound occurrence time is used for recovered WhatsApp and email evidence. Declared cost totals reconcile to a private revision-bound export. Verified finance and ROI stay unavailable. Tracker totals are 63 validated, 15 in progress, 14 planned and one blocked. P07-08 and P08-04 remain open. [Source attribution acceptance](SOURCE_ATTRIBUTION_ACCEPTANCE.md)
+
 21 November 2026 IST. P09-01 advances through 99 critical alert reporting and verification items. The dashboard and CSV add 72 reservation outcome metrics and 18 current incident metrics across six signals. Manual and scheduled captures write V19. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily critical alert outcomes](CRITICAL_ALERT_DAILY_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 45 notification eligibility history items. The dashboard and CSV add 33 observed eligibility and exclusion indicators. A bounded observation cursor advances independently of selection. Manual and scheduled captures write V18. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification eligibility history](NOTIFICATION_ELIGIBILITY_HISTORY.md)
