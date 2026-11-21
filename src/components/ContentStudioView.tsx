@@ -1,3 +1,4 @@
+import {platformDateKey} from '../../shared/platformTime';
 import { GOOGLE_POST_UNAVAILABLE } from '../../shared/publicationAvailability';
 import {AssetLibraryPanel} from './AssetLibraryPanel';
 import {RenderOperationsPanel} from './RenderOperationsPanel';
@@ -317,8 +318,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
   // Scheduling State
   const [scheduleDate, setScheduleDate] = useState(() => {
-    const tomorrow = new Date(Date.now() + 86400000);
-    return tomorrow.toISOString().split('T')[0];
+    return platformDateKey(Date.now() + 86400000);
   });
   const [scheduleTimeSlot, setScheduleTimeSlot] = useState('11:00 AM');
 
@@ -1454,16 +1454,16 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-[11px]">
                     <Clock className="w-3 h-3 text-slate-400" />
                     <input
-                      type="date"
+                      type="date" aria-label="Schedule date (IST)"
                       value={scheduleDate}
                       onChange={(e) => setScheduleDate(e.target.value)}
                       className="bg-transparent border-none text-slate-700 font-medium focus:outline-none text-[11px]"
                     />
                     <select
-                      value={scheduleTimeSlot}
+                      aria-label="Schedule time (IST)" value={scheduleTimeSlot}
                       onChange={(e) => setScheduleTimeSlot(e.target.value)}
                       className="bg-transparent border-none text-slate-700 font-medium focus:outline-none text-[11px]"
                     >

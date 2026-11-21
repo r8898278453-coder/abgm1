@@ -16,8 +16,8 @@ import {GROWTH_ACTIVITY,GROWTH_BACKLOG} from './growthReporting';
 import {SALES_ACTIVITY} from './salesActivityReporting';
 import {CAPTURE_ACTIVITY,CAPTURE_BACKLOG} from './reportCaptureReporting';
 import {MANUAL_TELEGRAM_ACTIVITY,MANUAL_TELEGRAM_BACKLOG} from './manualTelegramReporting';
-import {IST_OFFSET_MS} from './platformTime';
-export function platformDateKey(now=Date.now()):string{return new Date(now+IST_OFFSET_MS).toISOString().slice(0,10);}
+import {IST_OFFSET_MS,platformDateKey} from './platformTime';
+export {platformDateKey} from './platformTime';
 export function platformDayBounds(date:string):{start:number;end:number}{
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('INVALID_REPORT_DATE');
  const [year,month,day]=date.split('-').map(Number);const instant=Date.UTC(year,month-1,day);const check=new Date(instant);

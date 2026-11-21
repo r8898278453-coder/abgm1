@@ -7,14 +7,27 @@ assert.equal(await page.getByRole('img',{name:'Diagnostics Lab',exact:true}).cou
 await page.getByRole('button',{name:'Sync from Places API',exact:true}).click();
 await page.getByText('Review import was not confirmed.',{exact:true}).waitFor();
 assert.equal(await page.getByRole('button',{name:'Save & Push to Google',exact:true}).count(),0);await page.getByRole('button',{name:'Prepare profile-text template',exact:true}).click();await page.getByText(/No AI call, verification or Google update occurred/).waitFor();await page.getByRole('button',{name:'Apply profile edits',exact:true}).click();await page.getByText(/Google was not updated/).waitFor();assert.equal(await page.evaluate(()=>(window as any).applied),1);assert.equal(writes,0);await page.getByRole('button',{name:'Sync Ad Telemetry',exact:true}).click();await page.getByText('Partial sync: 1 campaign observations saved; other results remain unavailable.',{exact:true}).waitFor();sync='MALFORMED';await page.getByRole('button',{name:'Sync Ad Telemetry',exact:true}).click();await page.getByText(/Sync unconfirmed or unavailable/).waitFor();assert.equal(await page.getByText(/99 verified/).count(),0);const readsBeforeEmailCheck=writes;
-await page.getByText('Client email sending and reply tracking are unavailable.',{exact:true}).waitFor();
+await page.getByText('Review individual emails in the Sales workspace. Delivery and reply tracking are pending.',{exact:true}).waitFor();
 assert.equal(await page.getByRole('button',{name:'Send Test Email',exact:true}).count(),0);
 assert.equal(await page.getByRole('button',{name:'Send Live Test Email',exact:true}).count(),0);
 assert.equal(writes,readsBeforeEmailCheck);
 const sample=async(baseline:boolean)=>{const values:number[]=[];for(let i=0;i<5;i++){await page.evaluate((old)=>{(window as any).measureEnd=0;(window as any).measureStart=performance.now();const b=old?document.getElementById('baselineApply'):Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Apply profile edits');b!.click();},baseline);await page.waitForFunction(()=>(window as any).measureEnd>=(window as any).measureStart);values.push(await page.evaluate(()=>(window as any).measureEnd-(window as any).measureStart));}return values;};const before=await sample(true),after=await sample(false),median=(v:number[])=>[...v].sort((a,b)=>a-b)[2];assert.ok(median(before)>=550);assert.ok(median(after)<200);fs.writeFileSync('/tmp/readiness-ui-performance.json',JSON.stringify({method:'Chromium DOM click to workspace callback; five samples per mode',beforeReference:'Isolated reproduction of f3fb13a GoogleProfileView handleSave 600ms timer',beforeMs:before,afterMs:after,beforeMedianMs:median(before),afterMedianMs:median(after),durableSaveLatencyMeasured:false,hostingLatencyMeasured:false,providerRequests:0},null,2)+'\n');const resetPage=await context.newPage();await resetPage.addInitScript(()=>{localStorage.setItem('abga_auth_token','fixture-session');(window as any).resetCalls=0;});await resetPage.goto(origin+'/reset');await resetPage.getByRole('button',{name:'Start Fresh',exact:true}).click();await resetPage.getByText(/Live database reset is unavailable here/).waitFor();await resetPage.getByRole('button',{name:'Load local example',exact:true}).click();await resetPage.getByText('Demo data cannot replace a live workspace. No data changed.',{exact:true}).waitFor();await resetPage.locator('input[type=file]').setInputFiles({name:'snapshot.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({business:{name:'Foreign preview'}}))});await resetPage.getByText(/Live database restore is unavailable here/).waitFor();assert.equal(await resetPage.evaluate(()=>(window as any).resetCalls),0);const studioPage=await context.newPage();
+await studioPage.clock.setFixedTime(new Date('2026-11-21T19:00:00Z'));
 await studioPage.goto(origin+'/studio');
 await studioPage.getByRole('button',{name:'Google draft',exact:true}).waitFor();
 await studioPage.getByText('Google Business Profile publishing is unavailable. You can prepare a draft for Google.',{exact:true}).waitFor();
 assert.equal(await studioPage.getByPlaceholder('Enter a topic or the details of an approved offer').inputValue(),'');
 assert.equal(await studioPage.getByText(/exclusive offer|special 20% off|limited-time special offer/i).count(),0);
+assert.equal(await studioPage.getByLabel('Schedule date (IST)').inputValue(),'2026-11-23');
+const saved = studioPage.waitForRequest(req=>req.url().endsWith('/api/content-posts') && req.method()==='POST');
+await studioPage.getByRole('button',{name:'Save for Approval'}).click();
+const post = (await saved).postDataJSON();
+assert.equal(post.scheduled_date,'2026-11-23');
+assert.equal(post.status,'pending_approval');
+assert.equal('image_url' in post,false);
+await studioPage.route('**/api/ai/generate-content', route=>route.fulfill({json:{headline:'New clinic headline',caption:'New clinic caption',callToAction:'Request availability'}}));
+const rendered = studioPage.waitForRequest(req=>req.url().endsWith('/api/ai/render-creative'));
+await studioPage.getByRole('button',{name:'Generate with LocalPulse AI'}).click();
+const creative = (await rendered).postDataJSON();
+assert.deepEqual([creative.companyId,creative.headline,creative.caption,creative.ctaText],['A','New clinic headline','New clinic caption','Request availability']);
 console.log('Readiness browser: no fabricated Google score/OAuth/AI/push, local edit acknowledgement, true partial/malformed Ads result and unavailable tenant email with no delivery claim passed.');}finally{if(browser)await browser.close();await vite.close();}

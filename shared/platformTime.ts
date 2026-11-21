@@ -5,3 +5,4 @@ export function formatPlatformDateTime(value: string | number | Date): string {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? `${date.toLocaleString('en-IN', { timeZone: PLATFORM_TIME_ZONE })} IST` : 'Time unavailable';
 }
+export function platformDateKey(now=Date.now()):string{return new Date(now+IST_OFFSET_MS).toISOString().slice(0,10);}

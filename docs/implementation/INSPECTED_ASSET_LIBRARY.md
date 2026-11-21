@@ -54,3 +54,5 @@ See [INSPECTED_ASSET_BATCHES.csv](INSPECTED_ASSET_BATCHES.csv) and [evidence/ins
 ## Content Studio draft rendering, 21 November 2026 IST
 
 Automatic template rendering receives the headline, caption and CTA from the same generation response shown to the editor. A slower earlier render cannot replace a later render result. Scheduling a text-only draft preserves its empty image field. Removing the last selected uploaded photo clears that selection. Editors can still choose stock imagery explicitly. Template success feedback identifies the template render. P05-07 remains in progress pending creative policy and asset provenance acceptance.
+
+Chromium verification at 00:30 IST on 22 November confirmed that the Content Studio date picker and approval request both select 23 November. The picker is available on mobile and its controls identify IST. The isolated browser fixture checked that the text-only approval request omitted the image field and that the template request carried the current client, generated headline, caption and CTA. Live provider rendering and concurrent response ordering are outside this fixture.
