@@ -1,0 +1,46 @@
+item,work,parent,verification
+NS01,Daily digest selected by scheduler,P09-01,Native SQL and Chromium
+NS02,Review reminder selected by scheduler,P09-01,Native SQL and Chromium
+NS03,Critical alert selected by scheduler,P09-01,Native SQL and Chromium
+NS04,Notification workspace active,P09-01,Native SQL and Chromium
+NS05,Notification workspace archived,P09-01,Native SQL and Chromium
+NS06,Notification workspace operations missing,P09-01,Native SQL and Chromium
+NS07,Notification workspace has another operations status,P09-01,Native SQL and Chromium
+NS08,Telegram connection recorded as connected,P09-01,Native SQL and Chromium
+NS09,Telegram connection exists without connected status,P09-01,Native SQL and Chromium
+NS10,Telegram connection missing,P09-01,Native SQL and Chromium
+NS11,Daily digest policy missing,P09-01,Native SQL and Chromium
+NS12,Daily digest policy disabled,P09-01,Native SQL and Chromium
+NS13,Daily digest policy enabled,P09-01,Native SQL and Chromium
+NS14,Daily digest currently eligible for scheduler selection,P09-01,Native SQL and Chromium
+NS15,Daily digest stored scheduler rotation head,P09-01,Native SQL and Chromium
+NS16,Daily digest enabled policy first due time pending,P09-01,Native SQL and Chromium
+NS17,Daily digest enabled policy first due time reached,P09-01,Native SQL and Chromium
+NS18,Daily digest enabled policy first due time missing,P09-01,Native SQL and Chromium
+NS19,Review reminder policy missing,P09-01,Native SQL and Chromium
+NS20,Review reminder policy disabled,P09-01,Native SQL and Chromium
+NS21,Review reminder policy enabled,P09-01,Native SQL and Chromium
+NS22,Review reminder currently eligible for scheduler selection,P09-01,Native SQL and Chromium
+NS23,Review reminder stored scheduler rotation head,P09-01,Native SQL and Chromium
+NS24,Review reminder enabled policy first due time pending,P09-01,Native SQL and Chromium
+NS25,Review reminder enabled policy first due time reached,P09-01,Native SQL and Chromium
+NS26,Review reminder enabled policy first due time missing,P09-01,Native SQL and Chromium
+NS27,Critical alert policy missing,P09-01,Native SQL and Chromium
+NS28,Critical alert policy disabled,P09-01,Native SQL and Chromium
+NS29,Critical alert policy enabled,P09-01,Native SQL and Chromium
+NS30,Critical alert currently eligible for scheduler selection,P09-01,Native SQL and Chromium
+NS31,Critical alert stored scheduler rotation head,P09-01,Native SQL and Chromium
+NS32,Critical alert enabled policy first due time pending,P09-01,Native SQL and Chromium
+NS33,Critical alert enabled policy first due time reached,P09-01,Native SQL and Chromium
+NS34,Critical alert enabled policy first due time missing,P09-01,Native SQL and Chromium
+NS35,Reuse saved workspace and connection predicates in selector and report,P09-01,Native SQL
+NS36,Selection evidence deduplicated across rotating batches,P09-01,Native SQL
+NS37,Evidence write failure preserves core selection,P09-01,Native SQL
+NS38,Independent per-kind rotation and cursor rollback,P09-01,Native SQL
+NS39,Tenant isolation and private count projection,P09-01,Native SQL
+NS40,Dashboard labels and values,P09-01,Chromium
+NS41,Private live CSV,P09-01,Regression
+NS42,Manual V17 captures and version-matched comparison,P09-01,Native SQL and Chromium
+NS43,Scheduled V17 capture,P09-01,Native SQL
+NS44,V1–V16 historical replay and hash compatibility,P09-01,Native SQL and regression
+NS45,Approved client-report metrics kept private by default,P09-01,Regression and Chromium

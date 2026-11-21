@@ -58,7 +58,8 @@ try{
    assert.ok(!JSON.stringify(report).includes('Private test declaration'));
    if (company===emptyClient) {
      assert.ok(Object.values(report.activity).every(count=>count===0));
-     assert.ok(Object.values(report.backlog).every(count=>count===0));
+     const expectedSelection=new Set(['notificationWorkspaceActive','notificationTelegramMissing','digestPolicyMissing','reviewPolicyMissing','criticalPolicyMissing']);
+     for(const [key,count] of Object.entries(report.backlog))assert.equal(count,expectedSelection.has(key)?1:0,key);
    }
  }
  assert.equal((await call('viewer',workReport(a),200)).report.activity.growthCostsRecorded,1);

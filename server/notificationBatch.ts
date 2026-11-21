@@ -1,3 +1,5 @@
+import {recordNotificationDecision} from './notificationDecisionReporting';
+import {NOTIFICATION_CONNECTED_SQL,NOTIFICATION_ACTIVE_SQL,NOTIFICATION_ENABLED_SQL} from './notificationSelectionSql';
 import type { Pool } from 'mysql2/promise';
 import type { DbCompany } from './db';
 import type { NotificationKind } from './notificationOccurrences';
@@ -12,14 +14,23 @@ export async function selectNotificationCompanyBatch(pool: Pool, kind: Notificat
       ON DUPLICATE KEY UPDATE notification_kind = VALUES(notification_kind)`, [kind]);
     const [cursor]: any = await connection.query('SELECT last_company_id FROM notification_dispatch_cursors WHERE notification_kind = ? FOR UPDATE', [kind]);
     const last = cursor[0].last_company_id;
-    const eligible = `EXISTS (SELECT 1 FROM company_integrations i WHERE i.company_id = c.id AND i.provider = 'telegram_bot' AND i.status = 'connected') AND EXISTS (SELECT 1 FROM client_operations o WHERE o.company_id=c.id AND o.status='ACTIVE') AND EXISTS (SELECT 1 FROM notification_policies p WHERE p.company_id=c.id AND p.notification_kind=? AND p.enabled=1)`;
+    const eligible=`${NOTIFICATION_CONNECTED_SQL} AND ${NOTIFICATION_ACTIVE_SQL} AND ${NOTIFICATION_ENABLED_SQL}`;
     const [ahead]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} ${last ? 'AND c.id > ?' : ''} ORDER BY c.id LIMIT ?`, last ? [kind,last,limit] : [kind,limit]);
     let companies: DbCompany[] = ahead;
     if (last && companies.length < limit) {
       const [wrapped]: any = await connection.query(`SELECT c.* FROM companies c WHERE ${eligible} AND c.id <= ? ORDER BY c.id LIMIT ?`, [kind,last,limit - companies.length]);
       companies = [...companies, ...wrapped];
     }
-    if (companies.length) await connection.query('UPDATE notification_dispatch_cursors SET last_company_id = ? WHERE notification_kind = ?', [companies[0].id, kind]);
+    if (companies.length) {
+      await connection.query('UPDATE notification_dispatch_cursors SET last_company_id = ? WHERE notification_kind = ?', [companies[0].id, kind]);
+      await connection.query('SAVEPOINT notification_selection_evidence');
+      try {
+        const [[{nowMs}]]:any=await connection.query('SELECT UNIX_TIMESTAMP()*1000 nowMs');
+        for(const company of companies)await recordNotificationDecision(connection,company.id,kind,'Selected',Number(nowMs));
+      } catch {
+        await connection.query('ROLLBACK TO SAVEPOINT notification_selection_evidence');
+      }
+    }
     await connection.commit();
     return companies;
   } catch (error) { await connection.rollback(); throw error; }

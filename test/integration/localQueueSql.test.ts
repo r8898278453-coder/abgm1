@@ -1,3 +1,4 @@
+import {NOTIFICATION_SELECTION_ACTIVITY,NOTIFICATION_SELECTION_BACKLOG} from '../../shared/notificationSelectionReporting';
 import {NOTIFICATION_DECISION_ACTIVITY} from '../../shared/notificationDecisionReporting';
 import {NOTIFICATION_DAILY_ACTIVITY,NOTIFICATION_DAILY_BACKLOG} from '../../shared/notificationDailyReporting';
 import {CALENDAR_PLAN_DAILY_ACTIVITY} from '../../shared/calendarPlanDailyReporting';
@@ -24,7 +25,7 @@ import {saveReviewReplySql,deleteReviewSql} from '../../server/reviewMutationSql
 import {readPublicationControlHistory} from '../../server/publicationControlHistory';
 import {readScopedPublicationControls,updateScopedPublicationControls,checkScopedPublicationControls} from '../../server/publicationScopedControls';
 import {readDailyWorkReport} from '../../server/dailyWorkReport';
-import {platformDayBounds} from '../../shared/dailyWorkReport';
+import {platformDateKey,platformDayBounds} from '../../shared/dailyWorkReport';
 import {deferSqlJob} from '../../server/queueSql';
 import {readAutomaticPublishingControls,readPublicationExecutionBlock} from '../../server/publishingExecutionControls';
 import {readPublicationWorkflowHistory} from '../../server/publicationWorkflowHistory';
@@ -547,6 +548,60 @@ try {
   await pool.query("INSERT INTO notification_policies(company_id,notification_kind,enabled) VALUES ('batch-off-disabled','daily_digest',0),('batch-archived','daily_digest',1),('batch-ops-missing','daily_digest',1),('batch-other-kind','review_reminder',1)");
   const gatedDigest=await selectNotificationCompanyBatch(pool,'daily_digest',10);assert.equal(gatedDigest.length,7);assert.equal(gatedDigest.some(c=>batchGateIds.includes(c.id)),false);
   const gatedReminders=await selectNotificationCompanyBatch(pool,'review_reminder',10);assert.equal(gatedReminders.length,7);assert.ok(gatedReminders.some(c=>c.id==='batch-other-kind'));assert.equal(gatedReminders.some(c=>c.id==='batch-0'),false);
+  const observedSelectionDay=platformDateKey();
+  const batchReport=async(company:string)=>readDailyWorkReport(pool!,company,observedSelectionDay);
+  const selected=(await batchReport('batch-1'));
+  assert.equal(selected.activity.digestSelected,1);
+  assert.equal(selected.activity.reviewSelected,1);
+  assert.equal(selected.activity.criticalSelected,0);
+  assert.equal(selected.backlog.notificationWorkspaceActive,1);
+  assert.equal(selected.backlog.notificationTelegramConnected,1);
+  assert.equal(selected.backlog.digestPolicyEnabled,1);
+  assert.equal(selected.backlog.digestSelectionEligible,1);
+  assert.equal(selected.backlog.digestFirstDueMissing,1);
+  assert.equal((await batchReport('batch-7')).backlog.notificationTelegramDisconnected,1);
+  assert.equal((await batchReport('batch-8')).backlog.notificationTelegramMissing,1);
+  assert.equal((await batchReport('batch-off-no-policy')).backlog.digestPolicyMissing,1);
+  assert.equal((await batchReport('batch-off-disabled')).backlog.digestPolicyDisabled,1);
+  assert.equal((await batchReport('batch-archived')).backlog.notificationWorkspaceArchived,1);
+  assert.equal((await batchReport('batch-archived')).backlog.digestSelectionEligible,0);
+  assert.equal((await batchReport('batch-ops-missing')).backlog.notificationWorkspaceOperationsMissing,1);
+  assert.equal((await batchReport('batch-off-disabled')).activity.digestSelected,0);
+  assert.ok(!JSON.stringify(selected).includes('batch-1'));
+  const [rotationHead]:any=await pool.query("SELECT last_company_id FROM notification_dispatch_cursors WHERE notification_kind='daily_digest'");
+  assert.equal((await batchReport(rotationHead[0].last_company_id)).backlog.digestRotationHead,1);
+
+  for(const [kind,prefix] of [['daily_digest','digest'],['review_reminder','review'],['critical_alert','critical']] as const){
+   await pool.query("INSERT INTO notification_policies(company_id,notification_kind,enabled,first_due_ms) VALUES ('batch-1',?,1,(UNIX_TIMESTAMP()+3600)*1000) ON DUPLICATE KEY UPDATE first_due_ms=VALUES(first_due_ms)",[kind]);
+   const future=(await batchReport('batch-1')).backlog;
+   assert.equal(future[prefix+'FirstDuePending' as keyof typeof future],1);
+   assert.equal(future[prefix+'SelectionEligible' as keyof typeof future],1);
+   await pool.query("UPDATE notification_policies SET first_due_ms=1 WHERE company_id='batch-1' AND notification_kind=?",[kind]);
+   const reached=(await batchReport('batch-1')).backlog;
+   assert.equal(reached[prefix+'FirstDueReached' as keyof typeof reached],1);
+   assert.equal(reached[prefix+'FirstDueMissing' as keyof typeof reached],0);
+  }
+  await selectNotificationCompanyBatch(pool,'critical_alert');
+  assert.equal((await batchReport('batch-1')).activity.criticalSelected,1);
+  await pool.query("UPDATE client_operations SET status='PAUSED' WHERE company_id='batch-8'");
+  assert.equal((await batchReport('batch-8')).backlog.notificationWorkspaceOtherStatus,1);
+  await pool.query("UPDATE client_operations SET status='ACTIVE' WHERE company_id='batch-8'");
+  const brokenSelectionEvidencePool={getConnection:async()=>{
+   const connection=await pool!.getConnection();
+   return new Proxy(connection,{get(target,property){
+    if(property==='query')return async(sql:string,values:unknown[])=>{
+     if(sql.startsWith('INSERT INTO autonomous_audit_logs'))throw new Error('SELECTION_EVIDENCE_FIXTURE_FAILURE');
+     return target.query(sql,values);
+    };
+    const value=Reflect.get(target,property);return typeof value==='function'?value.bind(target):value;
+   }});
+  }} as unknown as mysql.Pool;
+  const evidenceFailureBatch=await selectNotificationCompanyBatch(brokenSelectionEvidencePool,'daily_digest');
+  assert.ok(evidenceFailureBatch.length>0);
+  assert.equal((await batchReport(evidenceFailureBatch[0].id)).backlog.digestRotationHead,1);
+  const emptyBatchReport=await batchReport('empty-selection-workspace');
+  for(const key of Object.keys(NOTIFICATION_SELECTION_BACKLOG))assert.equal(emptyBatchReport.backlog[key as keyof typeof emptyBatchReport.backlog],0,key);
+  console.log('Notification selection SQL: selected history, rotation head, candidate prerequisites, first due states, daily dedupe and tenant scope passed.');
   for(const id of batchGateIds){await pool.query('DELETE FROM notification_policies WHERE company_id=?',[id]);await pool.query('DELETE FROM company_integrations WHERE company_id=?',[id]);await pool.query('DELETE FROM client_operations WHERE company_id=?',[id]);await pool.query('DELETE FROM companies WHERE id=?',[id]);}
   await pool.query("DELETE FROM notification_policies WHERE company_id LIKE 'batch-%'");
 
@@ -1205,8 +1260,8 @@ try {
   await pool.query("UPDATE job_queue SET scheduled_for=DATE_SUB(NOW(),INTERVAL 1 HOUR) WHERE id='report-b'");
   await pool.query("UPDATE job_queue SET locked_at=NULL WHERE id='report-web-running'");
   const dayReport=await readDailyWorkReport(pool,'report-company','2026-11-03');
-  assert.deepEqual(dayReport.activity,{...Object.fromEntries(Object.keys(NOTIFICATION_DECISION_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(NOTIFICATION_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(CALENDAR_PLAN_DAILY_ACTIVITY).map(key=>[key,0])),legacyPlans:0,legacySameDayAdmission:0,legacyOtherDayAdmission:0,legacyWithoutAdmission:0,legacyScheduledWithoutAdmission:0,legacyApprovalWithoutAdmission:0,scheduleRevisions:2,scheduleRevisedPosts:1,scheduleRevisionsFromScheduled:1,scheduleRevisionsFromApproval:1,scheduleRevisionsToApproval:2,...Object.fromEntries(Object.keys(PUBLISHING_RECONCILIATION_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(PLATFORM_DAILY_ACTIVITY).map(key=>[key,0])),admissionPublished:0,admissionFailed:0,admissionUnconfirmed:0,admissionInProgress:0,admissionStale:0,admissionMissingClaim:0,admissionDifferentClaim:1,admissionOther:0,queueAdmitted:1,queueClaimed:0,queueRetryFailed:2,queueTerminalFailed:1,queueExhausted:1,queueCancelled:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_ACTIVITY).map(key=>[key,0])),appointmentBookingRevisions:0,appointmentCancellations:0,appointmentOutcomesRecorded:0,appointmentOutcomesCorrected:0,growthAssessmentsSaved:0,growthSignalsSaved:0,growthEnrichmentsSaved:0,growthExperimentsDrafted:0,growthCostsRecorded:0,growthExperimentEdits:0,growthExperimentApprovals:0,growthExperimentsStarted:0,growthObservationsRecorded:0,growthExperimentsStopped:0,growthExperimentsCompleted:0,growthCostsVoided:0,prospectImportBatches:0,prospectRowsImported:0,prospectRowsNotImported:0,salesInboundRecorded:0,salesInboundAmbiguous:0,salesInboundOptOut:0,salesQualificationsRecorded:0,salesQualificationsReview:0,salesOpportunitiesUpdated:0,salesPermissionsUpdated:0,salesPoliciesUpdated:0,completedJobs:2,failedJobs:3,pausedJobs:2,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1,websiteImportsQueued:1,websiteImportsCommitted:1,websiteImportsWithFailures:2,websiteImportsPaused:1,websiteImportsCancelled:1,telegramManualRecorded:0,telegramManualStarted:0,telegramManualAccepted:0,telegramManualUnknown:0,telegramManualPaused:0,telegramManualCancelled:0,reportSnapshotsStored:0,reportSnapshotAmendments:0,reportCapturesAdmitted:0,reportCapturesCompleted:0,reportCapturesSkipped:0,reportCapturesCancelled:0,reportCapturesRecoveryFailed:0,reportCapturePolicyChanges:0});
-  assert.deepEqual(dayReport.backlog,{...Object.fromEntries(Object.keys(NOTIFICATION_DAILY_BACKLOG).map(key=>[key,0])),queueDue:1,queueScheduled:1,queueRetryDue:0,queueRetryScheduled:0,queueStaleLease:0,queueMissingLease:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_BACKLOG).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_BACKLOG).map(key=>[key,0])),appointmentOutcomesAwaiting:0,growthExperimentsDraft:0,growthExperimentsApproved:0,growthExperimentsRunning:0,growthEvidenceStale:0,waitingJobs:2,runningJobs:2,failedJobs:2,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:1,websiteImportsRunning:1,websiteImportsFailed:1,telegramManualPrepared:0,telegramManualSending:0,telegramManualUnknown:0,reportCapturesPending:0,reportCapturesRunning:0,reportCapturesFailed:0,reportCapturesRecoveryNeeded:0});
+  assert.deepEqual(dayReport.activity,{...Object.fromEntries(Object.keys(NOTIFICATION_SELECTION_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(NOTIFICATION_DECISION_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(NOTIFICATION_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(CALENDAR_PLAN_DAILY_ACTIVITY).map(key=>[key,0])),legacyPlans:0,legacySameDayAdmission:0,legacyOtherDayAdmission:0,legacyWithoutAdmission:0,legacyScheduledWithoutAdmission:0,legacyApprovalWithoutAdmission:0,scheduleRevisions:2,scheduleRevisedPosts:1,scheduleRevisionsFromScheduled:1,scheduleRevisionsFromApproval:1,scheduleRevisionsToApproval:2,...Object.fromEntries(Object.keys(PUBLISHING_RECONCILIATION_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(PLATFORM_DAILY_ACTIVITY).map(key=>[key,0])),admissionPublished:0,admissionFailed:0,admissionUnconfirmed:0,admissionInProgress:0,admissionStale:0,admissionMissingClaim:0,admissionDifferentClaim:1,admissionOther:0,queueAdmitted:1,queueClaimed:0,queueRetryFailed:2,queueTerminalFailed:1,queueExhausted:1,queueCancelled:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_ACTIVITY).map(key=>[key,0])),appointmentBookingRevisions:0,appointmentCancellations:0,appointmentOutcomesRecorded:0,appointmentOutcomesCorrected:0,growthAssessmentsSaved:0,growthSignalsSaved:0,growthEnrichmentsSaved:0,growthExperimentsDrafted:0,growthCostsRecorded:0,growthExperimentEdits:0,growthExperimentApprovals:0,growthExperimentsStarted:0,growthObservationsRecorded:0,growthExperimentsStopped:0,growthExperimentsCompleted:0,growthCostsVoided:0,prospectImportBatches:0,prospectRowsImported:0,prospectRowsNotImported:0,salesInboundRecorded:0,salesInboundAmbiguous:0,salesInboundOptOut:0,salesQualificationsRecorded:0,salesQualificationsReview:0,salesOpportunitiesUpdated:0,salesPermissionsUpdated:0,salesPoliciesUpdated:0,completedJobs:2,failedJobs:3,pausedJobs:2,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1,websiteImportsQueued:1,websiteImportsCommitted:1,websiteImportsWithFailures:2,websiteImportsPaused:1,websiteImportsCancelled:1,telegramManualRecorded:0,telegramManualStarted:0,telegramManualAccepted:0,telegramManualUnknown:0,telegramManualPaused:0,telegramManualCancelled:0,reportSnapshotsStored:0,reportSnapshotAmendments:0,reportCapturesAdmitted:0,reportCapturesCompleted:0,reportCapturesSkipped:0,reportCapturesCancelled:0,reportCapturesRecoveryFailed:0,reportCapturePolicyChanges:0});
+  assert.deepEqual(Object.fromEntries(Object.entries(dayReport.backlog).filter(([key])=>!Object.hasOwn(NOTIFICATION_SELECTION_BACKLOG,key))),{...Object.fromEntries(Object.keys(NOTIFICATION_DAILY_BACKLOG).map(key=>[key,0])),queueDue:1,queueScheduled:1,queueRetryDue:0,queueRetryScheduled:0,queueStaleLease:0,queueMissingLease:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_BACKLOG).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_BACKLOG).map(key=>[key,0])),appointmentOutcomesAwaiting:0,growthExperimentsDraft:0,growthExperimentsApproved:0,growthExperimentsRunning:0,growthEvidenceStale:0,waitingJobs:2,runningJobs:2,failedJobs:2,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:1,websiteImportsRunning:1,websiteImportsFailed:1,telegramManualPrepared:0,telegramManualSending:0,telegramManualUnknown:0,reportCapturesPending:0,reportCapturesRunning:0,reportCapturesFailed:0,reportCapturesRecoveryNeeded:0});
   assert.ok(!JSON.stringify(dayReport).includes('private'));assert.ok(!JSON.stringify(dayReport).includes('https://'));assert.equal(dayReport.activity.websiteImportsCommitted,1,'source rows are not required to preserve committed import history');
   await pool.query("UPDATE job_queue SET status='RETRY_WAIT' WHERE id IN ('report-b','report-web-wait')");
   await pool.query("UPDATE job_queue SET locked_at=DATE_SUB(NOW(),INTERVAL 6 MINUTE) WHERE id='report-running'");
