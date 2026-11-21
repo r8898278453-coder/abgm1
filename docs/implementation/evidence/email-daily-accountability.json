@@ -1,0 +1,27 @@
+{
+  "date_ist": "2026-11-21",
+  "batch_items": 26,
+  "advanced_tasks": ["P09-01"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "schema": {"migration": "064_sales_email_reply_intakes", "canonical_tables": 108, "new_migrations": 0},
+  "coverage": {
+    "time_zone": "Asia/Kolkata",
+    "added_activity_metrics": 14,
+    "added_current_backlog_metrics": 2,
+    "new_snapshot_version": 6,
+    "legacy_snapshot_versions": [1, 2, 3, 4, 5],
+    "telegram_digest_maximum_count_characters": 3883,
+    "telegram_message_limit": 4096
+  },
+  "verification": {
+    "default_regression_programs": 159,
+    "native_sql_suite": "passed",
+    "native_sql_fixtures": ["reportSnapshotsSql", "reportCaptureScheduleSql", "clientReportsSql", "localQueueSql"],
+    "browser_fixtures": ["clientReportPublic", "clientReportPortal", "reportSnapshots", "reportCaptureSchedule", "salesActivityReport"],
+    "typecheck": "passed",
+    "release_build": "passed",
+    "tracker_and_capability_checks": "passed",
+    "live_provider_requests": 0
+  },
+  "pending": ["Full cross-module daily reconciliation", "Live Resend acceptance", "Attachment intake", "Terminal retry tooling", "Approved outbound sequences", "Production rollout"]
+}

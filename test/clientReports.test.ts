@@ -12,3 +12,7 @@ console.log('Client reports: fixed mandatory failures/backlog, strict frozen sou
 const fromV5=projectClientReport({...s,schemaVersion:5},'A','=Business',p);
 assert.deepEqual(fromV5,{...r,coverageVersion:5});
 assert.throws(()=>projectClientReport({...s,schemaVersion:5},'A','Business',{...p,optionalMetrics:['appointmentOutcomesRecorded']}));
+
+const fromV6=projectClientReport({...s,schemaVersion:6},'A','=Business',p);
+assert.deepEqual(fromV6,{...fromV5,coverageVersion:6});
+assert.throws(()=>projectClientReport({...s,schemaVersion:6},'A','Business',{...p,optionalMetrics:['emailDelivered']}));

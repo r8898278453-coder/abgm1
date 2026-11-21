@@ -1,0 +1,27 @@
+item,work,parent,verification
+ED01,Signed emails sent,P09-01,Native SQL
+ED02,Signed delivery delays,P09-01,Native SQL
+ED03,Signed deliveries,P09-01,Native SQL
+ED04,Signed delivery failures,P09-01,Native SQL
+ED05,Signed bounces,P09-01,Native SQL
+ED06,Signed suppressions,P09-01,Native SQL
+ED07,Signed spam complaints,P09-01,Native SQL
+ED08,Verified CRM replies,P09-01,Native SQL
+ED09,Verified reply opt-outs,P09-01,Native SQL
+ED10,Queued recovery admissions,P09-01,Native SQL
+ED11,Recorded recovery outcomes,P09-01,Native SQL
+ED12,Ignored recovery outcomes,P09-01,Native SQL
+ED13,Failed recovery outcomes,P09-01,Native SQL
+ED14,Expired recovery outcomes,P09-01,Native SQL
+ED15,Current unexpired pending intakes,P09-01,Native SQL
+ED16,Current unexpired running intakes,P09-01,Native SQL
+ED17,Exact IST day boundaries,P09-01,Native SQL
+ED18,Distinct dispatch per receipt state,P09-01,Native SQL
+ED19,Tenant scoping and private field exclusion,P09-01,Native SQL and regression
+ED20,Private dashboard metric display,P09-01,Chromium
+ED21,Private CSV schema and display of counts,P09-01,Regression and Chromium
+ED22,Telegram digest and 4096-character ceiling,P09-01,Regression
+ED23,Fixed V6 manual captures and amendment deltas,P09-01,Native SQL and Chromium
+ED24,Scheduled V6 captures,P09-01,Native SQL and Chromium
+ED25,Frozen V1 to V5 replay and mixed-version rejection,P09-01,Native SQL and regression
+ED26,Public projection from V6 uses existing approved metrics,P09-01,Regression and Chromium

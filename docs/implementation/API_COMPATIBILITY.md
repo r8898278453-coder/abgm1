@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. The private daily-work response and CSV add 14 email activity metrics and two recovery backlog metrics. New manual and scheduled captures write frozen coverage V6. Existing V1–V5 captures retain their read and replay contracts. Client publication accepts V6 source metadata with its existing public metric list. Storage schema stays at 064. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
+
 21 November 2026 IST. The signed Resend callback can return `queued` for a committed reply intake. Private `GET /api/companies/:companyId/sales/email-reply-intake` adds sanitized keyset history, and the IST Sales report adds `emailReplyIntake`. See [email reply recovery](SALES_EMAIL_REPLY_RECOVERY.md).
 
 21 November 2026 IST. The existing Resend callback accepts `email.received` when reply intake is enabled. Inbox and conversation responses add optional linked-reply metadata. The IST Sales report adds `emailReplies` with reply and opt-out counts. CRM email capability is now `LINKED_REPLIES` for historical reads. See [Sales email replies](SALES_EMAIL_REPLIES.md).

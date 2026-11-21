@@ -1,6 +1,8 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
-21 November 2026 IST. P06-04, P01-06 and P09-01 advance through 28 email reply recovery and accountability items. Signed replies can be durably queued, retried with bounded leases, and monitored through private intake history and the IST Sales report. Migration 064 adds the encrypted intake journal and brings the target to 108 tables. Live provider acceptance, attachments, sequences and frozen daily work coverage remain open. See SALES_EMAIL_REPLY_RECOVERY.md.
+21 November 2026 IST. P09-01 advances through 26 daily email accountability items. The private dashboard, CSV and Telegram digest include 14 IST email activity counters and two current intake backlog counters. Manual and scheduled snapshots write V6 and preserve existing V1–V5 captures. The client portal keeps its approved metric list. Tracker remains 62 validated, 16 in progress, 14 planned and one blocked. Full cross-module reconciliation and production acceptance remain open. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
+
+21 November 2026 IST. P06-04, P01-06 and P09-01 advance through 28 email reply recovery and accountability items. Signed replies can be durably queued, retried with bounded leases, and monitored through private intake history and the IST Sales report. Migration 064 adds the encrypted intake journal and brings the target to 108 tables. Live provider acceptance, attachments and sequences remained open at that stage. See SALES_EMAIL_REPLY_RECOVERY.md.
 
 21 November 2026 IST. P06-04, P01-05 and P09-01 advance through 26 linked email reply and opt-out work items. New eligible sends use a private Reply-To address. A signed reply and matching provider read link the incoming message to the original CRM conversation, and explicit reply opt-outs block future email. The IST Sales report counts replies and opt-outs. Schema 063 remains the source target. Live Resend DNS and mailbox acceptance, reply recovery and outbound sequence integration remain open. See SALES_EMAIL_REPLIES.md.
 
@@ -177,7 +179,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.92 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.93 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

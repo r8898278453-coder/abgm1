@@ -1,5 +1,7 @@
 # Immutable daily report captures — 17 November 2026 IST
 
+21 November 2026 IST. New private captures write V6 with fixed email delivery, linked reply and recovery coverage. Existing V1–V5 captures retain their payloads and hashes. Comparisons require equal coverage, and client publication from V6 uses the existing approved metric list. Upgrade readers and workers together before writing V6 captures. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
+
 21 November 2026 IST. New private captures use fixed V5 coverage for appointment ledger activity and outstanding outcomes. V1–V4 retain their original coverage, comparison rules, stored bytes, hashes and replay. Amendments can be captured for older versions as V5, and deltas require equal coverage. The client portal accepts V5 source metadata and continues to project its existing approved metric list. Older binaries cannot read new V5 captures. Upgrade readers, workers and writers together before enabling capture on the target environment. [Appointment report evidence](evidence/appointment-daily-report.json)
 
 Operations continuation (17 November2026 IST): [OPERATIONS_COMPLETION_GROUP.md](OPERATIONS_COMPLETION_GROUP.md) adds frozen V2, agency model3, explicit Telegram identity proof and recovery consistency. Schema047/84 unchanged. Historical notes below retain their checkpoint scope; no parent/phase acceptance.
