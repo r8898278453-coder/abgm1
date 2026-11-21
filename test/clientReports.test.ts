@@ -22,3 +22,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:7},'A','Business',{...
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:8},'A','=Business',p),{...fromV6,coverageVersion:8});
 assert.throws(()=>projectClientReport({...s,schemaVersion:8},'A','Business',{...p,optionalMetrics:['queueRetryDue']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:9},'A','=Business',p),{...fromV6,coverageVersion:9});
+assert.throws(()=>projectClientReport({...s,schemaVersion:9},'A','Business',{...p,optionalMetrics:['admissionPublished']}));

@@ -1,3 +1,4 @@
+import {PUBLICATION_ADMISSION_OUTCOMES} from '../shared/publicationDailyReporting';
 import {readSalesWorkflowReport} from './salesWorkflowReporting';
 import {readEmailWorkReporting} from './emailWorkReporting';
 import {readAppointmentReporting} from './appointmentOutcomes';
@@ -34,7 +35,24 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
     COUNT(DISTINCT CASE WHEN change_kind = 'RESCHEDULE' THEN post_id END) AS rescheduledPosts
     FROM publication_workflow_audit WHERE company_id = ? AND recorded_at >= FROM_UNIXTIME(?) AND recorded_at < FROM_UNIXTIME(?)`,[company,start/1000,end/1000]);
   // Admissions are assigned to the reserved IST day, not inferred from mutable post status.
-  const [admissions]:any=await sql.query('SELECT COUNT(*) AS admittedPosts FROM publication_admission_reservations WHERE company_id = ? AND quota_day = ?',[company,date]);
+  const [admissions]:any=await sql.query(`SELECT COUNT(*) AS admittedPosts,
+    COUNT(CASE WHEN matched=1 AND claimState='PUBLISHED' THEN 1 END) AS admissionPublished,
+    COUNT(CASE WHEN matched=1 AND claimState='FAILED' THEN 1 END) AS admissionFailed,
+    COUNT(CASE WHEN matched=1 AND claimState='UNKNOWN' THEN 1 END) AS admissionUnconfirmed,
+    COUNT(CASE WHEN matched=1 AND claimState='IN_PROGRESS' AND started_at>=DATE_SUB(NOW(),INTERVAL 5 MINUTE) THEN 1 END) AS admissionInProgress,
+    COUNT(CASE WHEN matched=1 AND claimState='IN_PROGRESS' AND (started_at IS NULL OR started_at<DATE_SUB(NOW(),INTERVAL 5 MINUTE)) THEN 1 END) AS admissionStale,
+    COUNT(CASE WHEN claimId IS NULL THEN 1 END) AS admissionMissingClaim,
+    COUNT(CASE WHEN claimId IS NOT NULL AND matched=0 THEN 1 END) AS admissionDifferentClaim,
+    COUNT(CASE WHEN matched=1 AND claimState NOT IN ('PUBLISHED','FAILED','UNKNOWN','IN_PROGRESS') THEN 1 END) AS admissionOther
+    FROM (
+      SELECT c.post_id AS claimId, BINARY c.status AS claimState,c.started_at,
+             COALESCE(BINARY c.claim_token=BINARY r.claim_token,0) AS matched
+      FROM publication_admission_reservations r
+      LEFT JOIN publishing_dispatch_claims c ON c.company_id=r.company_id AND c.post_id=r.post_id
+      WHERE r.company_id=? AND r.quota_day=?
+    ) cohort`,[company,date]);
+  const reconciledAdmissions=Object.keys(PUBLICATION_ADMISSION_OUTCOMES).reduce((total,key)=>total+Number(admissions[0][key]),0);
+  if(reconciledAdmissions!==Number(admissions[0].admittedPosts))throw new Error('PUBLICATION_ADMISSION_COHORT_INVALID');
   const [controls]:any=await sql.query('SELECT COUNT(*) AS controlChanges FROM publication_control_audit WHERE company_id = ? AND recorded_at >= FROM_UNIXTIME(?) AND recorded_at < FROM_UNIXTIME(?)',[company,start/1000,end/1000]);
   const [requests]:any=await sql.query('SELECT COUNT(*) AS messageRequests FROM message_dispatch_intents WHERE company_id=? AND created_at>=FROM_UNIXTIME(?) AND created_at<FROM_UNIXTIME(?)',[company,start/1000,end/1000]);
   const [accepted]:any=await sql.query("SELECT COUNT(*) AS apiAcceptedMessages FROM message_dispatch_intents WHERE company_id=? AND status='API_ACCEPTED' AND updated_at>=FROM_UNIXTIME(?) AND updated_at<FROM_UNIXTIME(?)",[company,start/1000,end/1000]);

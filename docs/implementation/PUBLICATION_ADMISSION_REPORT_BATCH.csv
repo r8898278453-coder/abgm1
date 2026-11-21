@@ -1,0 +1,23 @@
+item,work,parent,verification
+PA01,Admissions with recorded publish success,P09-01,Native SQL and Chromium
+PA02,Admissions with recorded publish failure,P09-01,Native SQL and Chromium
+PA03,Admissions with unconfirmed publication,P09-01,Native SQL and Chromium
+PA04,Admissions with an active claim,P09-01,Native SQL and Chromium
+PA05,Admissions with a stale or undated claim,P09-01,Native SQL and Chromium
+PA06,Admissions without a current claim,P09-01,Native SQL and Chromium
+PA07,Admissions with a different current claim,P09-01,Native SQL and Chromium
+PA08,Admissions with another claim state,P09-01,Native SQL and Chromium
+PA09,Counts reconcile exactly to admissions,P09-01,Native SQL
+PA10,Selected IST quota day scope,P09-01,Native SQL
+PA11,Same-workspace claim matching,P09-01,Native SQL
+PA12,Exact claim token matching,P09-01,Native SQL
+PA13,Stale and undated claim handling,P09-01,Native SQL
+PA14,Aggregate output excludes claim tokens,P09-01,Native SQL
+PA15,Private dashboard labels,P09-01,Chromium
+PA16,Live CSV metric keys,P09-01,Regression
+PA17,Telegram publish success summary with size bound,P09-01,Regression
+PA18,V9 manual captures and comparison,P09-01,Native SQL and Chromium
+PA19,V9 scheduled captures,P09-01,Native SQL
+PA20,V9 frozen CSV and input validation,P09-01,Regression
+PA21,V1–V8 replay and mixed-version refusal,P09-01,Native SQL and regression
+PA22,Client portal metric allowlist compatibility,P09-01,Regression and Chromium
