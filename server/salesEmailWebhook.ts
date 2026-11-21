@@ -1,3 +1,4 @@
+import {admitSalesEmailReply,tenantEmailReplyRecoveryEnabled} from './salesEmailReplyIntakes';
 import {resendWebhookSecretFormat} from '../shared/tenantEmailDomain';
 import {parseSalesEmailReply,recordSalesEmailReply,tenantEmailRepliesEnabled} from './salesEmailReplies';
 import express,{type Express,type Request,type RequestHandler} from 'express';
@@ -56,7 +57,8 @@ export function registerSalesEmailWebhook(app:Express,deps:{pool:()=>Promise<Poo
    try{payload=JSON.parse(request.raw.toString('utf8'));}catch{throw new EmailReceiptError(400,'EMAIL_WEBHOOK_INPUT_INVALID');}
    const reply=tenantEmailRepliesEnabled()?parseSalesEmailReply(payload,now):undefined;
    if(reply!==undefined){
-    const status=reply?await recordSalesEmailReply(pool,company,reply,secret,deps.replyTransport):'ignored';
+    const status=reply?await (tenantEmailReplyRecoveryEnabled()?admitSalesEmailReply(pool,company,reply,secret):
+     recordSalesEmailReply(pool,company,reply,secret,deps.replyTransport)):'ignored';
     res.json({status});
     return;
    }

@@ -1,5 +1,7 @@
 # Immutable migration authoring — 10 November 2026 IST
 
+21 November 2026 IST. Migration 064 adds the encrypted Sales email reply intake journal. Client and lifecycle indexes cover bounded admission, retry leases, expiry cleanup and private report reads. The canonical target is 108 tables.
+
 21 November 2026 IST. Migration 063 adds the tenant Sales email receipt journal with a per-client event key and indexes for dispatch, IST reporting and suppression. The canonical target is 107 tables.
 
 20 November 2026 IST. Migration 062 adds sales_appointment_outcomes with per-booking revision and per-company request uniqueness. A booking-end index supports the IST report. The canonical target is 106 tables.

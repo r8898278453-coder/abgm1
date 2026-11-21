@@ -1,3 +1,4 @@
+import {salesEmailReplyIntakes,EMAIL_REPLY_INTAKE_CHECKS,EMAIL_REPLY_INTAKE_COLUMNS,EMAIL_REPLY_INTAKE_INDEXES,EMAIL_REPLY_INTAKE_TABLE} from './migrations/064_sales_email_reply_intakes';
 import {salesEmailReceipts,EMAIL_RECEIPT_CHECKS,EMAIL_RECEIPT_COLUMNS,EMAIL_RECEIPT_INDEXES,EMAIL_RECEIPT_TABLE} from './migrations/063_sales_email_receipts';
 import {appointmentOutcomes,appointmentOutcomeColumns,appointmentOutcomeChecks} from './migrations/062_appointment_outcomes';
 import {calendarPushLifecycle,calendarPushLifecycleColumns,calendarPushJobColumns} from './migrations/061_calendar_push_lifecycle';
@@ -96,6 +97,7 @@ export interface VerificationResult {
 
 // Canonical List of Required Database Tables for Production Multi-Tenant Platform
 export const CANONICAL_REQUIRED_TABLES = [
+  EMAIL_REPLY_INTAKE_TABLE,
   EMAIL_RECEIPT_TABLE,
   'sales_appointment_outcomes',
   'calendar_push_channels',
@@ -180,6 +182,7 @@ export const CANONICAL_REQUIRED_TABLES = [
 
 // Canonical List of Expected Critical Table Indexes
 export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
+  [EMAIL_REPLY_INTAKE_TABLE]:['PRIMARY',...Object.keys(EMAIL_REPLY_INTAKE_INDEXES)],
   [EMAIL_RECEIPT_TABLE]:['PRIMARY',...Object.keys(EMAIL_RECEIPT_INDEXES)],
   sales_appointment_outcomes:['PRIMARY','uq_appointment_outcome_request','uq_appointment_outcome_revision'],
   calendar_push_jobs:['PRIMARY','idx_calendar_push_jobs_company','idx_calendar_push_jobs_due'],
@@ -247,6 +250,7 @@ export const CANONICAL_EXPECTED_INDEXES: Record<string, string[]> = {
 
 // Canonical List of Expected Critical Table Constraints
 export const CANONICAL_EXPECTED_CONSTRAINTS: Record<string, string[]> = {
+  [EMAIL_REPLY_INTAKE_TABLE]:['PRIMARY'],
   [EMAIL_RECEIPT_TABLE]:['PRIMARY'],
   sales_appointment_outcomes:['PRIMARY','uq_appointment_outcome_request','uq_appointment_outcome_revision'],
   calendar_push_jobs:['PRIMARY'],
@@ -912,6 +916,7 @@ export const MIGRATIONS: MigrationDefinition[] = [
   calendarPushLifecycle,
   appointmentOutcomes,
   salesEmailReceipts,
+  salesEmailReplyIntakes,
 ];
 
 // Frozen legacy definitions remain compatible;030+ identities come from immutable manifest data.
@@ -1302,6 +1307,12 @@ export async function verifySchema(dbPool: mysql.Pool,registry:readonly Migratio
       for(const check of calendarReconciliationChecks){
        const [bad]:any=await conn.query(check.sql);
        if(bad.length)missingConstraints.push('calendar_reconciliation.shape');
+      }
+      const [emailIntakeColumns]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[EMAIL_REPLY_INTAKE_TABLE]);
+      for(const name of Object.keys(EMAIL_REPLY_INTAKE_COLUMNS))if(!emailIntakeColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push(EMAIL_REPLY_INTAKE_TABLE+'.'+name);
+      for(const check of EMAIL_REPLY_INTAKE_CHECKS){
+       const [bad]:any=await conn.query(check.sql);
+       if(bad.length)missingConstraints.push('sales_email_reply_intakes.shape');
       }
       const [emailReceiptColumns]:any=await conn.query('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[EMAIL_RECEIPT_TABLE]);
       for(const name of Object.keys(EMAIL_RECEIPT_COLUMNS))if(!emailReceiptColumns.some((r:any)=>r.COLUMN_NAME===name))missingColumns.push(EMAIL_RECEIPT_TABLE+'.'+name);

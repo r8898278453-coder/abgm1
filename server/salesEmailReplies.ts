@@ -40,13 +40,13 @@ export function parseSalesEmailReply(payload:unknown,now:number){
  return dispatchKey?{providerId:data.email_id,from,to,dispatchKey,occurredAtMs}:null;
 }
 
-type Reply=NonNullable<ReturnType<typeof parseSalesEmailReply>>;
+export type SalesEmailReply=NonNullable<ReturnType<typeof parseSalesEmailReply>>;
 type Match={id:string;lead_id:string;providerRef:string};
 function checkSecret(config:Record<string,unknown>|null,secret:string){
  if(!config||config.resendWebhookSecret!==secret)throw new EmailReceiptError(409,'EMAIL_WEBHOOK_SECRET_CHANGED');
 }
 
-async function findTarget(sql:ReadOnlySql,company:string,reply:Reply):Promise<Match|null>{
+export async function findSalesEmailReplyTarget(sql:ReadOnlySql,company:string,reply:SalesEmailReply,allowPending=false):Promise<Match|null>{
  const original=salesHash('tenant-sales-email:'+company+':'+reply.dispatchKey);
  const [[row]]=await sql.query(`SELECT m.id,m.lead_id,m.contact_hash,i.status,i.provider_id providerRef,
    UNIX_TIMESTAMP(m.created_at)*1000 createdAtMs,
@@ -59,6 +59,7 @@ async function findTarget(sql:ReadOnlySql,company:string,reply:Reply):Promise<Ma
    AND BINARY m.direction='OUTBOUND' AND i.sender_id IS NULL`,[company,original,reply.dispatchKey]);
  if(!row||row.contact_hash!==contactHash('EMAIL',reply.from)||row.replyHash!==contactHash('EMAIL',reply.to)||
     reply.occurredAtMs<Number(row.createdAtMs)-maxSkewMs)return null;
+ if(allowPending)return row;
  if(row.status!=='API_ACCEPTED'||typeof row.providerRef!=='string'||!idPattern.test(row.providerRef)){
   throw new EmailReceiptError(503,'EMAIL_REPLY_DISPATCH_UNCONFIRMED');
  }
@@ -73,7 +74,7 @@ async function replay(sql:ReadOnlySql,company:string,id:string,inputHash:string)
  return true;
 }
 
-async function fetchReply(reply:Reply,key:string,transport:typeof fetch){
+async function fetchReply(reply:SalesEmailReply,key:string,transport:typeof fetch){
  try{
   const response=await transport('https://api.resend.com/emails/receiving/'+reply.providerId,{
    method:'GET',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(5000),
@@ -97,7 +98,7 @@ async function fetchReply(reply:Reply,key:string,transport:typeof fetch){
  }catch{throw new EmailReceiptError(503,'EMAIL_REPLY_PROVIDER_UNCONFIRMED');}
 }
 
-export async function recordSalesEmailReply(pool:Pool,company:string,reply:Reply,secret:string,transport:typeof fetch=fetch){
+export async function recordSalesEmailReply(pool:Pool,company:string,reply:SalesEmailReply,secret:string,transport:typeof fetch=fetch,beforeCommit?:(sql:ReadOnlySql)=>Promise<void>){
  if(!tenantEmailRepliesEnabled())return 'ignored';
  const id=salesHash('tenant-email-reply:'+company+':'+reply.providerId);
  // The provider message ID and addressing define retry identity even if the provider reissues a webhook at a new time.
@@ -106,7 +107,7 @@ export async function recordSalesEmailReply(pool:Pool,company:string,reply:Reply
   const config=await readTenantResendSettings(sql,company);
   checkSecret(config,secret);
   if(await replay(sql,company,id,inputHash))return 'duplicate' as const;
-  const found=await findTarget(sql,company,reply);
+  const found=await findSalesEmailReplyTarget(sql,company,reply);
   if(!found)return null;
   const key=config?.apiKey;
   if(typeof key!=='string'||!apiKeyPattern.test(key))throw new EmailReceiptError(503,'EMAIL_REPLY_PROVIDER_UNCONFIRMED');
@@ -123,12 +124,13 @@ export async function recordSalesEmailReply(pool:Pool,company:string,reply:Reply
   if(scope?.id!==company||!tenantEmailRepliesEnabled())throw new EmailReceiptError(503,'EMAIL_REPLY_UNAVAILABLE');
   const config=await readTenantResendSettings(sql,company,true);
   checkSecret(config,secret);
+  if(beforeCommit)await beforeCommit(sql);
   if(config?.apiKey!==target.key)throw new EmailReceiptError(409,'EMAIL_REPLY_CONFIGURATION_CHANGED');
   if(await replay(sql,company,id,inputHash)){
    await sql.commit();
    return 'duplicate';
   }
-  const current=await findTarget(sql,company,reply);
+  const current=await findSalesEmailReplyTarget(sql,company,reply);
   if(!current||current.id!==target.found.id||current.lead_id!==target.found.lead_id||current.providerRef!==target.found.providerRef){
    throw new EmailReceiptError(503,'EMAIL_REPLY_THREAD_CHANGED');
   }

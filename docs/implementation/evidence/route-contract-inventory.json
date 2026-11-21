@@ -592,6 +592,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/companies/:companyId/sales/email-reply-intake",
+      "owner": "server/salesRoutes.ts#registerSalesRoutes"
+    },
+    {
+      "method": "GET",
       "path": "/api/companies/:companyId/sales/growth-records",
       "owner": "server/growthOperationRoutes.ts#registerGrowthOperations"
     },

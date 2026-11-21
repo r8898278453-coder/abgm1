@@ -1,0 +1,29 @@
+item,work,parent,verification
+RR01,Independent default-off recovery flag,P06-04,SQL
+RR02,Existing signed callback durably admits replies,P06-04,HTTP and SQL
+RR03,Queued callback avoids synchronous provider fetch,P06-04,HTTP and SQL
+RR04,Exact active tenant and outbound reply-route admission,P06-04,SQL
+RR05,Pending outbound acceptance can enter durable intake,P01-06,SQL
+RR06,Encrypted normalized payload storage,P01-06,SQL
+RR07,Explicit tenant and intake identity binding inside envelope,P01-06,SQL
+RR08,Reject substituted encrypted payload,P01-06,SQL
+RR09,Concurrent repeated admissions deduplicate,P01-06,SQL
+RR10,Conflicting address evidence refuses reused inbound ID,P06-04,SQL
+RR11,Per-client active intake capacity,P01-06,SQL
+RR12,Bounded worker batch and cooperative budget,P01-06,SQL
+RR13,Default-off worker guard,P06-04,SQL
+RR14,Archived client claim exclusion,P06-04,SQL
+RR15,Eight concurrent workers claim one intake,P01-06,SQL
+RR16,Transient failure backoff and no early retry,P01-06,SQL
+RR17,Six-attempt cap and terminal failure,P01-06,SQL
+RR18,Stale lease reclamation,P01-06,SQL
+RR19,Fence CRM writes by the current lease token,P01-06,SQL
+RR20,Recover lost queue settlement using confirmed CRM dedupe,P01-06,SQL
+RR21,Fence a changed saved signing secret,P06-04,SQL
+RR22,Expiry and terminal ciphertext scrubbing,P01-06,SQL
+RR23,Redacted retry and failure reason codes,P09-01,SQL and browser
+RR24,Private intake status excludes provider IDs and ciphertext,P09-01,SQL
+RR25,Stable pagination and foreign cursor refusal,P09-01,SQL
+RR26,IST admission and settlement counts with current backlog,P09-01,SQL and browser
+RR27,Workspace recovery history and state rendering,P09-01,browser
+RR28,Forward migration parity and legacy export restore,P01-06,SQL and restore

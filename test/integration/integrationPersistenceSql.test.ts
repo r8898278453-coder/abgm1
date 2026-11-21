@@ -1,3 +1,4 @@
+import {admitSalesEmailReply,recoverSalesEmailReplies,readSalesEmailIntakes} from '../../server/salesEmailReplyIntakes';
 import express from 'express';
 import {registerSalesEmailWebhook,salesEmailWebhookBodyParser} from '../../server/salesEmailWebhook';
 import {parseSalesEmailReply,recordSalesEmailReply} from '../../server/salesEmailReplies';
@@ -312,6 +313,131 @@ try{
  assert.deepEqual((await readSalesReport(pool,a,platformDateKey(now))).emailReplies,{replies:4,optOuts:1});
  assert.deepEqual((await readSalesReport(pool,b,platformDateKey(now))).emailReplies,{replies:0,optOuts:0});
  assert.equal(sends,2);
+ stage='tenant-sales-email-recovery';
+ const queuedId=crypto.randomUUID(),queuedReply=parseSalesEmailReply(envelope(queuedId),now)!;
+ const admit=(candidate=queuedReply)=>admitSalesEmailReply(pool,a,candidate,webhookSecret);
+ const worker=(fetcher:typeof fetch=receiver(queuedId,'Recovered reply.'))=>recoverSalesEmailReplies(pool,()=>true,fetcher);
+ await assert.rejects(admit(),{code:'EMAIL_REPLY_RECOVERY_UNAVAILABLE'});
+ process.env.ENABLE_TENANT_EMAIL_REPLY_RECOVERY='true';
+
+ await pool.query("UPDATE message_dispatch_intents SET status='IN_PROGRESS' WHERE company_id=? AND request_key=?",[a,providerKey]);
+ const queueApp=express();
+ queueApp.use('/api/webhooks/resend/:companyId',salesEmailWebhookBodyParser);
+ registerSalesEmailWebhook(queueApp,{pool:async()=>pool,clock:()=>now,replyTransport:async()=>{throw new Error('No synchronous provider fetch');}});
+ const queueServer=queueApp.listen(0,'127.0.0.1');
+ await new Promise<void>(resolve=>queueServer.once('listening',resolve));
+ try{
+  const body=JSON.stringify(envelope(queuedId)),stamp=String(Math.floor(now/1000)),eventId='msg_queued_reply_fixture';
+  const signature=crypto.createHmac('sha256',Buffer.from(webhookSecret.slice(6),'base64')).update(eventId+'.'+stamp+'.'+body).digest('base64');
+  const response=await fetch('http://127.0.0.1:'+(queueServer.address() as {port:number}).port+'/api/webhooks/resend/'+a,{
+   method:'POST',headers:{'content-type':'application/json','svix-id':eventId,'svix-timestamp':stamp,'svix-signature':'v1,'+signature},body,
+  });
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{status:'queued'});
+ }finally{await new Promise<void>(resolve=>queueServer.close(()=>resolve()));}
+ assert.deepEqual(await Promise.all(Array.from({length:8},()=>admit())),Array(8).fill('duplicate'));
+ await assert.rejects(admit(parseSalesEmailReply(envelope(queuedId,recipient,providerKey+'@wrong.example.invalid'),now)!),{code:'EMAIL_REPLY_CONFLICT'});
+ const [startRow]:any=await pool.query("SELECT id,payload_cipher FROM sales_email_reply_intakes WHERE company_id=? AND state='PENDING'",[a]);
+ assert.equal(startRow.length,1);
+ assert.match(startRow[0].payload_cipher,/^enc:v1:/);
+ assert.equal(startRow[0].payload_cipher.includes(recipient),false);
+ assert.equal(startRow[0].payload_cipher.includes(replyAlias),false);
+ const queuedIntake=startRow[0];
+ const intakeStatus=()=>readSalesEmailIntakes(pool,a);
+ assert.equal((await intakeStatus()).items[0].state,'PENDING');
+ assert.equal((await readSalesEmailIntakes(pool,b)).items.length,0);
+ for(const hidden of [recipient,replyAlias,queuedId,'payload_cipher','input_hash','secret_hash','claim_token']){
+  assert.equal(JSON.stringify(await intakeStatus()).includes(hidden),false);
+ }
+ assert.equal((await readSalesReport(pool,a,platformDateKey(Date.now()))).emailReplyIntake.backlog.pending,1);
+ assert.equal((await recoverSalesEmailReplies(pool,()=>false)).state,'IDLE');
+ delete process.env.ENABLE_TENANT_EMAIL_REPLY_RECOVERY;
+ assert.equal((await worker()).state,'IDLE');
+ process.env.ENABLE_TENANT_EMAIL_REPLY_RECOVERY='true';
+ await pool.query("UPDATE client_operations SET status='ARCHIVED' WHERE company_id=?",[a]);
+ assert.equal((await worker()).state,'IDLE');
+ await pool.query("UPDATE client_operations SET status='ACTIVE' WHERE company_id=?",[a]);
+ const beforeFailure=reads;
+ assert.equal((await worker()).state,'PENDING');
+ assert.equal((await intakeStatus()).items[0].reason,'DISPATCH_UNCONFIRMED');
+ assert.equal(reads,beforeFailure);
+ await pool.query("UPDATE message_dispatch_intents SET status='API_ACCEPTED' WHERE company_id=? AND request_key=?",[a,providerKey]);
+ await pool.query('UPDATE sales_email_reply_intakes SET due_at_ms=0 WHERE id=?',[queuedIntake.id]);
+ assert.equal((await worker(async()=>{reads++;throw new Error('PRIVATE_NETWORK_ERROR');})).state,'PENDING');
+ assert.equal((await intakeStatus()).items[0].reason,'PROVIDER_UNAVAILABLE');
+ assert.equal((await worker()).state,'IDLE');
+ assert.equal(reads,beforeFailure+1);
+ const due=(id=queuedIntake.id)=>pool.query('UPDATE sales_email_reply_intakes SET due_at_ms=0 WHERE id=?',[id]);
+ await due();
+ const contenders=await Promise.all(Array.from({length:8},()=>worker()));
+ assert.equal(contenders.filter(result=>result.state==='RECORDED').length,1);
+ assert.equal(reads,beforeFailure+2);
+ const [settledRows]:any=await pool.query('SELECT state,payload_cipher,claim_token FROM sales_email_reply_intakes WHERE id=?',[queuedIntake.id]);
+ assert.deepEqual(settledRows,[{state:'RECORDED',payload_cipher:null,claim_token:null}]);
+ await pool.query("UPDATE sales_email_reply_intakes SET state='RUNNING',payload_cipher=?,due_at_ms=0,attempts=6 WHERE id=?",[queuedIntake.payload_cipher,queuedIntake.id]);
+ assert.equal((await worker()).state,'RECORDED');
+ assert.equal(reads,beforeFailure+2);
+
+ const intakeId=(id:string)=>crypto.createHash('sha256').update('email-reply-intake:'+a+':'+id).digest('hex');
+ const staleId=crypto.randomUUID();
+ await admit(parseSalesEmailReply(envelope(staleId),now)!);
+ assert.equal((await worker(async(url,options)=>{
+  await due(intakeId(staleId));
+  return receiver(staleId,'Stale response must not write.')(url,options);
+ })).state,'IDLE');
+ assert.equal((await readSalesInbox(pool,a)).messages.some(row=>row.body==='Stale response must not write.'),false);
+ assert.equal((await worker(receiver(staleId,'Reclaimed reply.'))).state,'RECORDED');
+
+ const budgetId=crypto.randomUUID();
+ await admit(parseSalesEmailReply(envelope(budgetId),now)!);
+ await pool.query('UPDATE sales_email_reply_intakes SET attempts=5 WHERE id=?',[intakeId(budgetId)]);
+ assert.equal((await worker(async()=>{throw new Error('PRIVATE_NETWORK_ERROR');})).state,'FAILED');
+ const [failedRows]:any=await pool.query('SELECT payload_cipher,reason FROM sales_email_reply_intakes WHERE id=?',[intakeId(budgetId)]);
+ assert.deepEqual(failedRows,[{payload_cipher:null,reason:'PROVIDER_UNAVAILABLE'}]);
+
+ const expiryId=crypto.randomUUID();
+ await admit(parseSalesEmailReply(envelope(expiryId),now)!);
+ await pool.query('UPDATE sales_email_reply_intakes SET expires_at_ms=1 WHERE id=?',[intakeId(expiryId)]);
+ assert.equal((await worker()).state,'EXPIRED');
+ const [expiredRows]:any=await pool.query('SELECT payload_cipher,reason FROM sales_email_reply_intakes WHERE id=?',[intakeId(expiryId)]);
+ assert.deepEqual(expiredRows,[{payload_cipher:null,reason:'EXPIRED'}]);
+ const rotationId=crypto.randomUUID();
+ await admit(parseSalesEmailReply(envelope(rotationId),now)!);
+ await save({resendWebhookSecret:'whsec_'+crypto.randomBytes(32).toString('base64')});
+ assert.equal((await worker(receiver(rotationId,'Rotated secret must not write.'))).state,'FAILED');
+ const [changedRows]:any=await pool.query('SELECT reason,payload_cipher FROM sales_email_reply_intakes WHERE id=?',[intakeId(rotationId)]);
+ assert.deepEqual(changedRows,[{reason:'CONFIGURATION_CHANGED',payload_cipher:null}]);
+ await save();
+ const tamperId=crypto.randomUUID();
+ await admit(parseSalesEmailReply(envelope(tamperId),now)!);
+ await pool.query('UPDATE sales_email_reply_intakes SET payload_cipher=? WHERE id=?',[queuedIntake.payload_cipher,intakeId(tamperId)]);
+ assert.equal((await worker(receiver(tamperId,'Swapped payload must not write.'))).state,'FAILED');
+ const [swappedRows]:any=await pool.query('SELECT reason,payload_cipher FROM sales_email_reply_intakes WHERE id=?',[intakeId(tamperId)]);
+ assert.deepEqual(swappedRows,[{reason:'PAYLOAD_INVALID',payload_cipher:null}]);
+
+ const activity=(await readSalesReport(pool,a,platformDateKey(Date.now()))).emailReplyIntake;
+ assert.equal(activity.activity.admitted,6);
+ assert.equal(activity.activity.recorded,2);
+ assert.equal(activity.activity.failed,3);
+ assert.equal(activity.activity.expired,1);
+ assert.deepEqual(activity.backlog,{pending:0,running:0});
+ assert.deepEqual((await readSalesReport(pool,b,platformDateKey(Date.now()))).emailReplyIntake.backlog,{pending:0,running:0});
+ await assert.rejects(readSalesEmailIntakes(pool,b,queuedIntake.id),{code:'EMAIL_REPLY_CURSOR_CHANGED'});
+ const capacityValues:string[]=[],capacityArgs:any[]=[];
+ for(let i=0;i<100;i++){
+  capacityValues.push("(?,?,? ,?,?,'PENDING',0,?,?,?)");
+  capacityArgs.push(crypto.randomBytes(32).toString('hex'),a,'a'.repeat(64),'b'.repeat(64),queuedIntake.payload_cipher,
+   Date.now()+600000,Date.now()+1200000,Date.now());
+ }
+ await pool.query('INSERT INTO sales_email_reply_intakes(id,company_id,input_hash,secret_hash,payload_cipher,state,attempts,due_at_ms,expires_at_ms,admitted_at_ms) VALUES '+capacityValues.join(','),capacityArgs);
+ await assert.rejects(admit(parseSalesEmailReply(envelope(crypto.randomUUID()),now)!),{code:'EMAIL_REPLY_CAPACITY'});
+ const firstPage=await intakeStatus();
+ assert.equal(firstPage.items.length,20);
+ assert.ok(firstPage.nextBefore);
+ const secondPage=await readSalesEmailIntakes(pool,a,firstPage.nextBefore);
+ assert.equal(secondPage.items.length,20);
+ assert.equal(secondPage.items.some(row=>firstPage.items.some(prev=>prev.id===row.id)),false);
+ console.log('Sales Email recovery SQL: signed queue admission, encrypted scope, duplicate conflict, disabled/budget/archive gates, backoff and bounded retries, eight concurrent claims, stale write fencing, lost settlement recovery, expiry scrub, rotated secret, swapped cipher, private status and IST report passed.');
  console.log('Sales Email replies SQL: feature gate, outbound reply address, signed and independently fetched scope, early retry, canonical thread, eight-way replay, opt-out fencing, text bounds, privacy and IST counts passed.');
  console.log('Sales Email receipts SQL: duplicates and conflicts, exact accepted dispatch and tenant, sender and recipient fences, provider time, secret rotation, inbox status, IST aggregation, hard and soft bounce, independent suppression and privacy passed.');
  console.log('Sales Email SQL: default off, saved tenant sender, explicit consent and opt-out, exact approved recipient and observation, eight contenders, IST cap, inbox threading anchor, accepted receipt and no resend of uncertain outcomes passed.');
@@ -321,8 +447,9 @@ finally{
  delete process.env.ENABLE_TENANT_SALES_EMAIL;
  delete process.env.ENABLE_TENANT_EMAIL_WEBHOOKS;
  delete process.env.ENABLE_TENANT_EMAIL_REPLIES;
+ delete process.env.ENABLE_TENANT_EMAIL_REPLY_RECOVERY;
  for(const id of [a,b]){
-  for(const table of ['sales_email_receipts','message_dispatch_intents','sales_inbox_messages','sales_contact_permissions','sales_client_policies','leads','company_integrations','autonomous_audit_logs','company_profiles_data','client_operations','agency_clients']){
+  for(const table of ['sales_email_reply_intakes','sales_email_receipts','message_dispatch_intents','sales_inbox_messages','sales_contact_permissions','sales_client_policies','leads','company_integrations','autonomous_audit_logs','company_profiles_data','client_operations','agency_clients']){
    await pool.query(`DELETE FROM ${table} WHERE company_id=?`,[id]);
   }
   await pool.query('DELETE FROM companies WHERE id=?',[id]);
