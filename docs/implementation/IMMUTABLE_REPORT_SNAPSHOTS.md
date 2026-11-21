@@ -1,5 +1,7 @@
 # Immutable daily report captures — 17 November 2026 IST
 
+21 November 2026 IST. P09-01 advances through 27 platform outcome items. The publishing worker records claim-bound outcome events atomically with settlement. Private daily reports, CSV and new V10 snapshots include fifteen platform outcome counts and two partial-claim counts. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Platform outcome reporting](PLATFORM_OUTCOME_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 22 publishing admission reporting items. Private daily reports reconcile each IST admission with its matching current publishing claim. New manual and scheduled snapshots write V9. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Publishing admission reporting](PUBLICATION_ADMISSION_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 22 queue accountability items. Private daily reports distinguish admitted, claimed, cancelled, retryable, terminal and exhausted work, and current retry timing and lease exceptions. New manual and scheduled captures write V8. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily queue accountability](QUEUE_DAILY_ACCOUNTABILITY.md)

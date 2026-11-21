@@ -547,7 +547,7 @@ export async function executePublishingJob(
       overallJobStatus = 'FAILED';
     }
 
-    settled = await settlePublishingDispatch(dispatchClaim, overallJobStatus);
+    settled = await settlePublishingDispatch(dispatchClaim, overallJobStatus, platformResults);
     if (!settled) {
       return {postId:post.id,companyId,status:'UNKNOWN',overallStatus:'UNKNOWN',finalPostStatus:post.status,platformResults,
         message:'Publishing claim settlement unconfirmed; provider outcomes require reconciliation',executedAt:new Date().toISOString()};

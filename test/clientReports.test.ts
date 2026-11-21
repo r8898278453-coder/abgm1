@@ -25,3 +25,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:8},'A','Business',{...
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:9},'A','=Business',p),{...fromV6,coverageVersion:9});
 assert.throws(()=>projectClientReport({...s,schemaVersion:9},'A','Business',{...p,optionalMetrics:['admissionPublished']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:10},'A','=Business',p),{...fromV6,coverageVersion:10});
+assert.throws(()=>projectClientReport({...s,schemaVersion:10},'A','Business',{...p,optionalMetrics:['facebookPublished']}));

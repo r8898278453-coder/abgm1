@@ -1,3 +1,4 @@
+import {recordPlatformSettlement,type PlatformOutcome} from './platformDailyReporting';
 import {reservePublicationQuota} from './publicationQuota';
 import {readScopedPublicationControlsFromSql,scopedPublicationBlock} from './publicationScopedControls';
 import {loadPublicationPolicy,publicationNeedsApproval} from './publicationPolicy';
@@ -46,7 +47,7 @@ export async function ownsSqlPublishing(pool: Pool, claim: PublishingClaim): Pro
   const [rows]: any = await pool.query("SELECT post_id FROM publishing_dispatch_claims WHERE post_id = ? AND company_id = ? AND claim_token = ? AND status = 'IN_PROGRESS'",[claim.postId,claim.companyId,claim.token]);
   return rows.length===1;
 }
-export async function settleSqlPublishing(pool: Pool, claim: PublishingClaim, status: 'PUBLISHED'|'FAILED'|'UNKNOWN'): Promise<boolean> {
+export async function settleSqlPublishing(pool: Pool, claim: PublishingClaim, status: 'PUBLISHED'|'FAILED'|'UNKNOWN',outcomes:readonly PlatformOutcome[]=[]): Promise<boolean> {
   if(!['PUBLISHED','FAILED','UNKNOWN'].includes(status)) throw new Error('INVALID_PUBLISHING_SETTLEMENT');
   const connection=await pool.getConnection();
   try {
@@ -56,6 +57,7 @@ export async function settleSqlPublishing(pool: Pool, claim: PublishingClaim, st
     const [result]:any=await connection.query("UPDATE publishing_dispatch_claims SET status = ? WHERE post_id = ? AND company_id = ? AND claim_token = ? AND status = 'IN_PROGRESS'",[status,claim.postId,claim.companyId,claim.token]);
     if(result.affectedRows!==1){await connection.commit();return false;}
     await connection.query('UPDATE content_posts SET status = ? WHERE id = ? AND company_id = ?',[status.toLowerCase(),claim.postId,claim.companyId]);
+    await recordPlatformSettlement(connection,claim,outcomes);
     await connection.commit();return true;
   } catch(error){await connection.rollback();throw error;} finally{connection.release();}
 }

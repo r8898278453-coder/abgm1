@@ -1,3 +1,4 @@
+import {PLATFORM_DAILY_ACTIVITY} from '../shared/platformDailyReporting';
 import {PUBLICATION_ADMISSION_OUTCOMES} from '../shared/publicationDailyReporting';
 import {QUEUE_DAILY_ACTIVITY,QUEUE_DAILY_BACKLOG} from '../shared/queueDailyReporting';
 import {WORKFLOW_DAILY_ACTIVITY,WORKFLOW_DAILY_BACKLOG} from '../shared/workflowDailyReporting';
@@ -11,7 +12,7 @@ import {canonicalSnapshotReportV2,SNAPSHOT_METRICS_V2} from '../shared/reportSna
 import {reportSnapshotCoverage} from '../shared/reportSnapshotCoverage';
 import {compareReportSnapshots,reportSnapshotCsv,validateReportSnapshot} from '../shared/reportSnapshots';
 const source={date:'2026-11-16',timeZone:'Asia/Kolkata',generatedAt:'2026-11-17T03:00:00Z',activity:Object.fromEntries(DAILY_WORK_METRICS.activity.map(k=>[k,1])),backlog:Object.fromEntries(DAILY_WORK_METRICS.backlog.map(k=>[k,2])),privateBody:'PRIVATE'};
-const old=canonicalSnapshotReportV1(source),current=canonicalSnapshotReportV2(source);assert.equal('reportSnapshotsStored' in old.activity,false);assert.equal(current.activity.reportSnapshotsStored,1);assert.ok(!JSON.stringify(current).includes('PRIVATE'));assert.equal(SNAPSHOT_METRICS_V2.activity.length,SNAPSHOT_METRICS_V1.activity.length+8);assert.equal(SNAPSHOT_METRICS_V2.backlog.length,SNAPSHOT_METRICS_V1.backlog.length+4);assert.throws(()=>reportSnapshotCoverage(10));
+const old=canonicalSnapshotReportV1(source),current=canonicalSnapshotReportV2(source);assert.equal('reportSnapshotsStored' in old.activity,false);assert.equal(current.activity.reportSnapshotsStored,1);assert.ok(!JSON.stringify(current).includes('PRIVATE'));assert.equal(SNAPSHOT_METRICS_V2.activity.length,SNAPSHOT_METRICS_V1.activity.length+8);assert.equal(SNAPSHOT_METRICS_V2.backlog.length,SNAPSHOT_METRICS_V1.backlog.length+4);assert.throws(()=>reportSnapshotCoverage(11));
 for(const key of SNAPSHOT_METRICS_V2.activity.filter(k=>!SNAPSHOT_METRICS_V1.activity.includes(k)))for(const v of [undefined,-1,1.5,'1'])assert.throws(()=>canonicalSnapshotReportV2({...source,activity:{...source.activity,[key]:v}}));
 const meta={id:'rps_'+'a'.repeat(32),companyId:'A',date:source.date,revision:1,reason:'BASELINE',capturedAtMs:Date.now(),sourceGeneratedAtMs:Date.parse(source.generatedAt),contentHash:'a'.repeat(64),immutable:true,backlogDefinition:'AT_CAPTURE'};
 const v1={...meta,schemaVersion:1,report:old},v2={...meta,schemaVersion:2,report:current};validateReportSnapshot(v1,'A');validateReportSnapshot(v2,'A');assert.equal(reportSnapshotCsv(v1).includes('reportCapturesPending'),false);assert.match(reportSnapshotCsv(v2),/"2","1","2026-11-16"/);assert.ok(reportSnapshotCsv(v2).includes('reportCapturesPending'));assert.throws(()=>compareReportSnapshots(v1,{...v2,revision:2,reason:'REVIEW'}),/COVERAGE_MISMATCH/);assert.deepEqual(compareReportSnapshots(v2,{...v2,revision:2,reason:'REVIEW',report:{...current,activity:{...current.activity,reportCapturesCompleted:3}}}).map(d=>[d.metric,d.delta]),[['reportCapturesCompleted',2]]);
@@ -85,3 +86,14 @@ for(const key of Object.keys(PUBLICATION_ADMISSION_OUTCOMES)){
  }
 }
 assert.throws(()=>compareReportSnapshots(v8,{...v9,revision:2,reason:'REVIEW'}),/COVERAGE_MISMATCH/);
+
+const v10={...meta,schemaVersion:10,report:reportSnapshotCoverage(10).canonical(source)};
+validateReportSnapshot(v10,'A');
+for(const key of Object.keys(PLATFORM_DAILY_ACTIVITY)){
+ assert.equal(key in v9.report.activity,false);
+ assert.ok(reportSnapshotCsv(v10).includes('"'+key+'"'));
+ for(const value of [undefined,-1,'1',Number.MAX_SAFE_INTEGER+1]){
+  assert.throws(()=>reportSnapshotCoverage(10).canonical({...source,activity:{...source.activity,[key]:value}}));
+ }
+}
+assert.throws(()=>compareReportSnapshots(v9,{...v10,revision:2,reason:'REVIEW'}),/COVERAGE_MISMATCH/);

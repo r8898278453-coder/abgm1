@@ -1,0 +1,28 @@
+item,work,parent,verification
+PO01,Google Business recorded API successes,P09-01,Native SQL and Chromium
+PO02,Google Business recorded failures,P09-01,Native SQL and Chromium
+PO03,Google Business unconfirmed outcomes,P09-01,Native SQL and Chromium
+PO04,Facebook recorded API successes,P09-01,Native SQL and Chromium
+PO05,Facebook recorded failures,P09-01,Native SQL and Chromium
+PO06,Facebook unconfirmed outcomes,P09-01,Native SQL and Chromium
+PO07,Instagram recorded API successes,P09-01,Native SQL and Chromium
+PO08,Instagram recorded failures,P09-01,Native SQL and Chromium
+PO09,Instagram unconfirmed outcomes,P09-01,Native SQL and Chromium
+PO10,WhatsApp recorded API successes,P09-01,Native SQL and Chromium
+PO11,WhatsApp recorded failures,P09-01,Native SQL and Chromium
+PO12,WhatsApp unconfirmed outcomes,P09-01,Native SQL and Chromium
+PO13,Telegram recorded API successes,P09-01,Native SQL and Chromium
+PO14,Telegram recorded failures,P09-01,Native SQL and Chromium
+PO15,Telegram unconfirmed outcomes,P09-01,Native SQL and Chromium
+PO16,Publishing claims with success and failure,P09-01,Native SQL and Chromium
+PO17,Publishing claims with success and an unconfirmed target,P09-01,Native SQL and Chromium
+PO18,Atomic evidence and claim settlement,P09-01,Native SQL
+PO19,Stale claim and replay fencing,P09-01,Native SQL
+PO20,Tenant and IST day isolation,P09-01,Native SQL
+PO21,Aggregate output and private evidence fields,P09-01,Native SQL
+PO22,Daily dashboard labels and values,P09-01,Chromium
+PO23,Private CSV metric keys,P09-01,Regression
+PO24,V10 manual capture and deltas,P09-01,Native SQL and Chromium
+PO25,V10 scheduled capture,P09-01,Native SQL
+PO26,V1–V9 replay and equal-coverage comparison,P09-01,Native SQL and regression
+PO27,Client portal metric allowlist compatibility,P09-01,Regression and Chromium

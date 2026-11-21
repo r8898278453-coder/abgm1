@@ -1,3 +1,4 @@
+import type {PlatformOutcome} from './platformDailyReporting';
 import type {OPERATION_STATES} from '../shared/operationStates';
 import {integrationDefinition} from '../shared/integrationRegistry';
 import {IntegrationAccessError} from './integrationAccess';
@@ -2078,8 +2079,8 @@ export async function ownsPublishingDispatch(claim:PublishingClaim) {
   const current=inMemoryPublishingClaims.get(claim.postId);
   return current?.companyId===claim.companyId && current.token===claim.token && current.status==='IN_PROGRESS';
 }
-export async function settlePublishingDispatch(claim:PublishingClaim,status:'PUBLISHED'|'FAILED'|'UNKNOWN') {
-  const db=await getDbPool();if(db)return settleSqlPublishing(db,claim,status);
+export async function settlePublishingDispatch(claim:PublishingClaim,status:'PUBLISHED'|'FAILED'|'UNKNOWN',outcomes?:readonly PlatformOutcome[]) {
+  const db=await getDbPool();if(db)return settleSqlPublishing(db,claim,status,outcomes);
   assertNotProductionFallback('settlePublishingDispatch');
   const current=inMemoryPublishingClaims.get(claim.postId);
   if(current?.companyId!==claim.companyId || current.token!==claim.token || current.status!=='IN_PROGRESS')return false;

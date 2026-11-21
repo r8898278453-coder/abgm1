@@ -1,3 +1,4 @@
+import {PLATFORM_DAILY_ACTIVITY} from '../../shared/platformDailyReporting';
 import {WORKFLOW_DAILY_ACTIVITY,WORKFLOW_DAILY_BACKLOG} from '../../shared/workflowDailyReporting';
 import {EMAIL_WORK_ACTIVITY,EMAIL_WORK_BACKLOG} from '../../shared/emailWorkReporting';
 import {verifyManifestMigrationSql} from './manifestMigrationSql';
@@ -717,6 +718,47 @@ try {
   await assert.rejects(claimSqlPublishing(pool,{postId:'missing-source-post',companyId:'atomic-client',token:'no-source'}),/SCOPE_MISMATCH/);
   console.log('Atomic publishing SQL: eight contenders have one owner, wrong/stale tokens fenced, known failed retry safe, completed replay blocked and crash stays UNKNOWN without takeover.');
 
+  const settlementPlatforms=['google','facebook','instagram','whatsapp','telegram'];
+  const settlementStates=['PUBLISHED','FAILED','UNKNOWN'];
+  const platformCompany='atomic-client';
+  const publishedEvidence={platform:'facebook',status:'PUBLISHED',providerPostId:'PRIVATE_PROVIDER'};
+  assert.equal(await settleSqlPublishing(pool,owner,'PUBLISHED',[publishedEvidence]),false);
+  for(let index=0;index<4;index++){
+   const claim={postId:'platform-fixture-'+index,companyId:platformCompany,token:'private-platform-token-'+index};
+   await pool.query("INSERT INTO content_posts(id,company_id,caption,status) VALUES (?,?,'private caption','scheduled')",[claim.postId,platformCompany]);
+   assert.equal((await claimSqlPublishing(pool,claim)).acquired,true);
+   const results=index===3?[publishedEvidence,{platform:'instagram',status:'FAILED'}]:settlementPlatforms.map((platform,n)=>({platform,status:settlementStates[(index+n)%3]}));
+   if(index===3){
+    const auditFault={getConnection:async()=>{
+     const connection=await pool!.getConnection();
+     return new Proxy(connection,{get(target,property){
+      if(property==='query')return async(sql:string,values:unknown[])=>{
+       if(sql.startsWith('INSERT INTO autonomous_audit_logs'))throw new Error('PLATFORM_AUDIT_FIXTURE_FAILURE');
+       return target.query(sql,values);
+      };
+      const value=Reflect.get(target,property);return typeof value==='function'?value.bind(target):value;
+     }});
+    }} as unknown as mysql.Pool;
+    await assert.rejects(settleSqlPublishing(auditFault,claim,'FAILED',results),/PLATFORM_AUDIT_FIXTURE_FAILURE/);
+    assert.equal(await ownsSqlPublishing(pool,claim),true);
+   }
+   const finalState=index===3?'FAILED':'UNKNOWN';
+   assert.equal(await settleSqlPublishing(pool,claim,finalState,results),true);
+   assert.equal(await settleSqlPublishing(pool,claim,finalState,results),false);
+  }
+  const platformDay=platformDayBounds('2026-11-03');
+  await pool.query("UPDATE autonomous_audit_logs SET timestamp=FROM_UNIXTIME(?) WHERE company_id=? AND event_type LIKE 'PUBLISHING_OUTCOME_%'",[platformDay.start/1000,platformCompany]);
+  const platformReport=(await readDailyWorkReport(pool,platformCompany,'2026-11-03')).activity;
+  for(const key of Object.keys(PLATFORM_DAILY_ACTIVITY)){
+   const expected=key==='publishPartialUnknown'?3:key==='facebookPublished'||key==='instagramFailed'?2:1;
+   assert.equal(platformReport[key as keyof typeof PLATFORM_DAILY_ACTIVITY],expected,key);
+  }
+  assert.equal((await readDailyWorkReport(pool,platformCompany,'2026-11-04')).activity.facebookPublished,0);
+  assert.equal((await readDailyWorkReport(pool,'report-other','2026-11-03')).activity.facebookPublished,0);
+  const [platformAudit]:any=await pool.query("SELECT details FROM autonomous_audit_logs WHERE company_id=? AND event_type LIKE 'PUBLISHING_OUTCOME_%'",[platformCompany]);
+  assert.ok(platformAudit.every((row:any)=>row.details==='{}'));
+  console.log('Platform outcomes SQL: all outcome metrics, atomic audit, stale and repeat fencing, tenant scope, IST boundaries and private projection passed.');
+
   const [sourceRows]:any=await pool.query("SELECT * FROM content_posts WHERE id = 'atomic-publishing-post'");
   const sourceVersion=publishingSourceVersion(sourceRows[0]);
   await pool.query("UPDATE content_posts SET caption = 'concurrent source edit' WHERE id = 'atomic-publishing-post'");
@@ -1159,7 +1201,7 @@ try {
   await pool.query("UPDATE job_queue SET scheduled_for=DATE_SUB(NOW(),INTERVAL 1 HOUR) WHERE id='report-b'");
   await pool.query("UPDATE job_queue SET locked_at=NULL WHERE id='report-web-running'");
   const dayReport=await readDailyWorkReport(pool,'report-company','2026-11-03');
-  assert.deepEqual(dayReport.activity,{admissionPublished:0,admissionFailed:0,admissionUnconfirmed:0,admissionInProgress:0,admissionStale:0,admissionMissingClaim:0,admissionDifferentClaim:1,admissionOther:0,queueAdmitted:1,queueClaimed:0,queueRetryFailed:2,queueTerminalFailed:1,queueExhausted:1,queueCancelled:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_ACTIVITY).map(key=>[key,0])),appointmentBookingRevisions:0,appointmentCancellations:0,appointmentOutcomesRecorded:0,appointmentOutcomesCorrected:0,growthAssessmentsSaved:0,growthSignalsSaved:0,growthEnrichmentsSaved:0,growthExperimentsDrafted:0,growthCostsRecorded:0,growthExperimentEdits:0,growthExperimentApprovals:0,growthExperimentsStarted:0,growthObservationsRecorded:0,growthExperimentsStopped:0,growthExperimentsCompleted:0,growthCostsVoided:0,prospectImportBatches:0,prospectRowsImported:0,prospectRowsNotImported:0,salesInboundRecorded:0,salesInboundAmbiguous:0,salesInboundOptOut:0,salesQualificationsRecorded:0,salesQualificationsReview:0,salesOpportunitiesUpdated:0,salesPermissionsUpdated:0,salesPoliciesUpdated:0,completedJobs:2,failedJobs:3,pausedJobs:2,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1,websiteImportsQueued:1,websiteImportsCommitted:1,websiteImportsWithFailures:2,websiteImportsPaused:1,websiteImportsCancelled:1,telegramManualRecorded:0,telegramManualStarted:0,telegramManualAccepted:0,telegramManualUnknown:0,telegramManualPaused:0,telegramManualCancelled:0,reportSnapshotsStored:0,reportSnapshotAmendments:0,reportCapturesAdmitted:0,reportCapturesCompleted:0,reportCapturesSkipped:0,reportCapturesCancelled:0,reportCapturesRecoveryFailed:0,reportCapturePolicyChanges:0});
+  assert.deepEqual(dayReport.activity,{...Object.fromEntries(Object.keys(PLATFORM_DAILY_ACTIVITY).map(key=>[key,0])),admissionPublished:0,admissionFailed:0,admissionUnconfirmed:0,admissionInProgress:0,admissionStale:0,admissionMissingClaim:0,admissionDifferentClaim:1,admissionOther:0,queueAdmitted:1,queueClaimed:0,queueRetryFailed:2,queueTerminalFailed:1,queueExhausted:1,queueCancelled:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_ACTIVITY).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_ACTIVITY).map(key=>[key,0])),appointmentBookingRevisions:0,appointmentCancellations:0,appointmentOutcomesRecorded:0,appointmentOutcomesCorrected:0,growthAssessmentsSaved:0,growthSignalsSaved:0,growthEnrichmentsSaved:0,growthExperimentsDrafted:0,growthCostsRecorded:0,growthExperimentEdits:0,growthExperimentApprovals:0,growthExperimentsStarted:0,growthObservationsRecorded:0,growthExperimentsStopped:0,growthExperimentsCompleted:0,growthCostsVoided:0,prospectImportBatches:0,prospectRowsImported:0,prospectRowsNotImported:0,salesInboundRecorded:0,salesInboundAmbiguous:0,salesInboundOptOut:0,salesQualificationsRecorded:0,salesQualificationsReview:0,salesOpportunitiesUpdated:0,salesPermissionsUpdated:0,salesPoliciesUpdated:0,completedJobs:2,failedJobs:3,pausedJobs:2,approvedPosts:1,rescheduledPosts:1,admittedPosts:1,controlChanges:2,messageRequests:1,apiAcceptedMessages:1,websiteInquiries:2,inquiryAlertsAccepted:2,knowledgeStored:1,knowledgeExtractionsSettled:2,knowledgeExtractionsBlocked:1,knowledgeApprovals:1,knowledgeWithdrawals:1,knowledgeDeleted:1,websiteImportsQueued:1,websiteImportsCommitted:1,websiteImportsWithFailures:2,websiteImportsPaused:1,websiteImportsCancelled:1,telegramManualRecorded:0,telegramManualStarted:0,telegramManualAccepted:0,telegramManualUnknown:0,telegramManualPaused:0,telegramManualCancelled:0,reportSnapshotsStored:0,reportSnapshotAmendments:0,reportCapturesAdmitted:0,reportCapturesCompleted:0,reportCapturesSkipped:0,reportCapturesCancelled:0,reportCapturesRecoveryFailed:0,reportCapturePolicyChanges:0});
   assert.deepEqual(dayReport.backlog,{queueDue:1,queueScheduled:1,queueRetryDue:0,queueRetryScheduled:0,queueStaleLease:0,queueMissingLease:1,...Object.fromEntries(Object.keys(WORKFLOW_DAILY_BACKLOG).map(key=>[key,0])),...Object.fromEntries(Object.keys(EMAIL_WORK_BACKLOG).map(key=>[key,0])),appointmentOutcomesAwaiting:0,growthExperimentsDraft:0,growthExperimentsApproved:0,growthExperimentsRunning:0,growthEvidenceStale:0,waitingJobs:2,runningJobs:2,failedJobs:2,pendingApprovals:1,uncertainPublications:2,unconfirmedMessages:1,inquiryAlertsNotAttempted:1,inquiryAlertsUnconfirmed:2,knowledgeAwaitingApproval:0,knowledgeExtractionRunning:0,knowledgeExtractionBlocked:0,websiteImportsWaiting:1,websiteImportsRunning:1,websiteImportsFailed:1,telegramManualPrepared:0,telegramManualSending:0,telegramManualUnknown:0,reportCapturesPending:0,reportCapturesRunning:0,reportCapturesFailed:0,reportCapturesRecoveryNeeded:0});
   assert.ok(!JSON.stringify(dayReport).includes('private'));assert.ok(!JSON.stringify(dayReport).includes('https://'));assert.equal(dayReport.activity.websiteImportsCommitted,1,'source rows are not required to preserve committed import history');
   await pool.query("UPDATE job_queue SET status='RETRY_WAIT' WHERE id IN ('report-b','report-web-wait')");

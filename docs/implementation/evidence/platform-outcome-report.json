@@ -1,0 +1,16 @@
+{
+  "date_ist": "2026-11-21",
+  "batch_items": 27,
+  "advanced_tasks": ["P09-01"],
+  "tracker": {"validated": 62, "in_progress": 16, "planned": 14, "blocked": 1},
+  "coverage": {"platform_outcomes": 15, "partial_settlement_metrics": 2, "snapshot_version": 10, "sql_schema": 64},
+  "verification": {
+    "default_regression_programs": 159,
+    "native_sql_suite": "passed on standalone rerun",
+    "browser_fixtures": ["reportSnapshots", "reportCaptureSchedule", "clientReportPublic", "clientReportPortal", "salesActivityReport"],
+    "typecheck": "passed",
+    "release_build": "passed",
+    "tracker_and_capability_checks": "passed"
+  },
+  "pending": ["Provider read-back reporting", "Plans that never reached admission", "Production deployment"]
+}
