@@ -52,3 +52,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:17},'A','Business',{..
 
 assert.deepEqual(projectClientReport({...s,schemaVersion:18},'A','=Business',p),{...fromV6,coverageVersion:18});
 assert.throws(()=>projectClientReport({...s,schemaVersion:18},'A','Business',{...p,optionalMetrics:['digestObservedArchived']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:19},'A','=Business',p),{...fromV6,coverageVersion:19});
+assert.throws(()=>projectClientReport({...s,schemaVersion:19},'A','Business',{...p,optionalMetrics:['critical_failedJobs_Open']}));

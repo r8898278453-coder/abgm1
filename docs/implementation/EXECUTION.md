@@ -1,5 +1,7 @@
 # Encrypted intake recovery — 14 November2026 IST
 
+21 November 2026 IST. P09-01 advances through 99 critical alert reporting and verification items. The dashboard and CSV add 72 reservation outcome metrics and 18 current incident metrics across six signals. Manual and scheduled captures write V19. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily critical alert outcomes](CRITICAL_ALERT_DAILY_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 45 notification eligibility history items. The dashboard and CSV add 33 observed eligibility and exclusion indicators. A bounded observation cursor advances independently of selection. Manual and scheduled captures write V18. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification eligibility history](NOTIFICATION_ELIGIBILITY_HISTORY.md)
 
 21 November 2026 IST. P09-01 advances through 45 notification selection work and verification items. The private daily report adds three recorded selection indicators and 31 current workspace, connection, policy, first-due and rotation indicators. Manual and scheduled captures write V17. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Notification selection reporting](NOTIFICATION_SELECTION_REPORT.md)

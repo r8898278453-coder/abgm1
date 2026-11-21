@@ -1,0 +1,100 @@
+item,work,parent,verification
+CA01,Unconfirmed outbound messages · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA02,Unconfirmed outbound messages · initial reservation · running,P09-01,Native SQL and Chromium
+CA03,Unconfirmed outbound messages · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA04,Unconfirmed outbound messages · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA05,Unconfirmed outbound messages · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA06,Unconfirmed outbound messages · first escalation · running,P09-01,Native SQL and Chromium
+CA07,Unconfirmed outbound messages · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA08,Unconfirmed outbound messages · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA09,Unconfirmed outbound messages · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA10,Unconfirmed outbound messages · second escalation · running,P09-01,Native SQL and Chromium
+CA11,Unconfirmed outbound messages · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA12,Unconfirmed outbound messages · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA13,Unconfirmed publishing attempts · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA14,Unconfirmed publishing attempts · initial reservation · running,P09-01,Native SQL and Chromium
+CA15,Unconfirmed publishing attempts · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA16,Unconfirmed publishing attempts · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA17,Unconfirmed publishing attempts · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA18,Unconfirmed publishing attempts · first escalation · running,P09-01,Native SQL and Chromium
+CA19,Unconfirmed publishing attempts · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA20,Unconfirmed publishing attempts · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA21,Unconfirmed publishing attempts · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA22,Unconfirmed publishing attempts · second escalation · running,P09-01,Native SQL and Chromium
+CA23,Unconfirmed publishing attempts · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA24,Unconfirmed publishing attempts · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA25,Failed or dead-letter inbound intakes · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA26,Failed or dead-letter inbound intakes · initial reservation · running,P09-01,Native SQL and Chromium
+CA27,Failed or dead-letter inbound intakes · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA28,Failed or dead-letter inbound intakes · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA29,Failed or dead-letter inbound intakes · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA30,Failed or dead-letter inbound intakes · first escalation · running,P09-01,Native SQL and Chromium
+CA31,Failed or dead-letter inbound intakes · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA32,Failed or dead-letter inbound intakes · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA33,Failed or dead-letter inbound intakes · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA34,Failed or dead-letter inbound intakes · second escalation · running,P09-01,Native SQL and Chromium
+CA35,Failed or dead-letter inbound intakes · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA36,Failed or dead-letter inbound intakes · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA37,Capture runs needing queue reconciliation · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA38,Capture runs needing queue reconciliation · initial reservation · running,P09-01,Native SQL and Chromium
+CA39,Capture runs needing queue reconciliation · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA40,Capture runs needing queue reconciliation · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA41,Capture runs needing queue reconciliation · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA42,Capture runs needing queue reconciliation · first escalation · running,P09-01,Native SQL and Chromium
+CA43,Capture runs needing queue reconciliation · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA44,Capture runs needing queue reconciliation · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA45,Capture runs needing queue reconciliation · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA46,Capture runs needing queue reconciliation · second escalation · running,P09-01,Native SQL and Chromium
+CA47,Capture runs needing queue reconciliation · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA48,Capture runs needing queue reconciliation · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA49,Unresolved inbound event conflicts · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA50,Unresolved inbound event conflicts · initial reservation · running,P09-01,Native SQL and Chromium
+CA51,Unresolved inbound event conflicts · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA52,Unresolved inbound event conflicts · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA53,Unresolved inbound event conflicts · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA54,Unresolved inbound event conflicts · first escalation · running,P09-01,Native SQL and Chromium
+CA55,Unresolved inbound event conflicts · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA56,Unresolved inbound event conflicts · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA57,Unresolved inbound event conflicts · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA58,Unresolved inbound event conflicts · second escalation · running,P09-01,Native SQL and Chromium
+CA59,Unresolved inbound event conflicts · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA60,Unresolved inbound event conflicts · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA61,Retained failed queue jobs · initial reservation · API accepted,P09-01,Native SQL and Chromium
+CA62,Retained failed queue jobs · initial reservation · running,P09-01,Native SQL and Chromium
+CA63,Retained failed queue jobs · initial reservation · unconfirmed,P09-01,Native SQL and Chromium
+CA64,Retained failed queue jobs · initial reservation · missing occurrence,P09-01,Native SQL and Chromium
+CA65,Retained failed queue jobs · first escalation · API accepted,P09-01,Native SQL and Chromium
+CA66,Retained failed queue jobs · first escalation · running,P09-01,Native SQL and Chromium
+CA67,Retained failed queue jobs · first escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA68,Retained failed queue jobs · first escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA69,Retained failed queue jobs · second escalation · API accepted,P09-01,Native SQL and Chromium
+CA70,Retained failed queue jobs · second escalation · running,P09-01,Native SQL and Chromium
+CA71,Retained failed queue jobs · second escalation · unconfirmed,P09-01,Native SQL and Chromium
+CA72,Retained failed queue jobs · second escalation · missing occurrence,P09-01,Native SQL and Chromium
+CA73,Unconfirmed outbound messages · last observed affected records,P09-01,Native SQL and Chromium
+CA74,Unconfirmed outbound messages · open observed episode,P09-01,Native SQL and Chromium
+CA75,Unconfirmed outbound messages · retained alert reservations,P09-01,Native SQL and Chromium
+CA76,Unconfirmed publishing attempts · last observed affected records,P09-01,Native SQL and Chromium
+CA77,Unconfirmed publishing attempts · open observed episode,P09-01,Native SQL and Chromium
+CA78,Unconfirmed publishing attempts · retained alert reservations,P09-01,Native SQL and Chromium
+CA79,Failed or dead-letter inbound intakes · last observed affected records,P09-01,Native SQL and Chromium
+CA80,Failed or dead-letter inbound intakes · open observed episode,P09-01,Native SQL and Chromium
+CA81,Failed or dead-letter inbound intakes · retained alert reservations,P09-01,Native SQL and Chromium
+CA82,Capture runs needing queue reconciliation · last observed affected records,P09-01,Native SQL and Chromium
+CA83,Capture runs needing queue reconciliation · open observed episode,P09-01,Native SQL and Chromium
+CA84,Capture runs needing queue reconciliation · retained alert reservations,P09-01,Native SQL and Chromium
+CA85,Unresolved inbound event conflicts · last observed affected records,P09-01,Native SQL and Chromium
+CA86,Unresolved inbound event conflicts · open observed episode,P09-01,Native SQL and Chromium
+CA87,Unresolved inbound event conflicts · retained alert reservations,P09-01,Native SQL and Chromium
+CA88,Retained failed queue jobs · last observed affected records,P09-01,Native SQL and Chromium
+CA89,Retained failed queue jobs · open observed episode,P09-01,Native SQL and Chromium
+CA90,Retained failed queue jobs · retained alert reservations,P09-01,Native SQL and Chromium
+CA91,Tenant-safe occurrence linkage and shared notifications,P09-01,Native SQL
+CA92,Half-open IST reservation day boundaries,P09-01,Native SQL
+CA93,Private dashboard section and accurate metric labels,P09-01,Chromium
+CA94,Private live CSV for activity and current incident evidence,P09-01,Regression
+CA95,Manual V19 capture and same-version change comparison,P09-01,Native SQL and Chromium
+CA96,Scheduled V19 capture,P09-01,Native SQL
+CA97,V1–V18 replay and hash compatibility,P09-01,Native SQL and regression
+CA98,Public client report allowlist compatibility,P09-01,Regression and Chromium
+CA99,Invalid frozen metric refusal and mixed-version refusal,P09-01,Regression

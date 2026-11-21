@@ -1,3 +1,4 @@
+import {readCriticalAlertDailyReporting} from './criticalAlertDailyReporting';
 import {readNotificationDailyReporting} from './notificationDailyReporting';
 import {readCalendarPlanDailyReporting} from './calendarPlanDailyReporting';
 import {readPublishingReconciliation} from './publishingReconciliationReporting';
@@ -113,6 +114,7 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   const reconciliation=await readPublishingReconciliation(sql,company,date,start,end);
   const calendarPlans=await readCalendarPlanDailyReporting(sql,company,date,start,end);
   const notifications=await readNotificationDailyReporting(sql,company,start,end);
+  const criticalAlerts=await readCriticalAlertDailyReporting(sql,company,start,end);
   const workflows=await readSalesWorkflowReport(sql,company,start,end);
   const workflowBacklog={
    workflowDrafts:workflows.backlog.drafts,
@@ -124,6 +126,6 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
    workflowExpiredOpen:workflows.backlog.expiredOpen,
   };
   const counts=(row:any)=>Object.fromEntries(Object.entries(row).map(([key,value])=>{const count=Number(value);if(!Number.isSafeInteger(count)||count<0)throw new Error('INVALID_REPORT_COUNT');return [key,count];}));
-  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0]),...counts(telegramActivity[0]),...counts(capture.activity),...counts(sales),...counts(growth.activity),...counts(appointments.activity),...counts(email.activity),...workflows.activity,...counts(platformActivity),...counts(reconciliation),...counts(calendarPlans),...counts(notifications.activity)},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0]),...counts(manualBacklog),...counts(capture.backlog),...counts(growth.backlog),...counts(appointments.backlog),...counts(email.backlog),...workflowBacklog,...counts(notifications.backlog)}} as DailyWorkReport;
+  return {date,timeZone:'Asia/Kolkata',generatedAt:new Date().toISOString(),activity:{...counts(jobs[0]),...counts(approvals[0]),...counts(admissions[0]),...counts(controls[0]),...counts(requests[0]),...counts(accepted[0]),...counts(intakes[0]),...counts(intakeAccepted[0]),...counts(sourceActivity[0]),...counts(websiteActivity[0]),...counts(telegramActivity[0]),...counts(capture.activity),...counts(sales),...counts(growth.activity),...counts(appointments.activity),...counts(email.activity),...workflows.activity,...counts(platformActivity),...counts(reconciliation),...counts(calendarPlans),...counts(notifications.activity),...counts(criticalAlerts.activity)},backlog:{...counts(backlog[0]),...counts(pending[0]),...counts(uncertain[0]),...counts(unconfirmed[0]),...counts(intakeBacklog[0]),...counts(knowledge[0]),...counts(manualBacklog),...counts(capture.backlog),...counts(growth.backlog),...counts(appointments.backlog),...counts(email.backlog),...workflowBacklog,...counts(notifications.backlog),...counts(criticalAlerts.backlog)}} as DailyWorkReport;
  });
 }
