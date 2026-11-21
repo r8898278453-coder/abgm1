@@ -70,6 +70,12 @@ interface ContentStudioViewProps {
   onUpdateBusiness?: (updated: BusinessProfile) => void;
 }
 
+const studioLanguages = ['Hinglish', 'English', 'Hindi', 'Marathi', 'Gujarati', 'Tamil', 'Telugu', 'Bengali', 'Kannada', 'Malayalam', 'Punjabi'] as const;
+
+function savedStudioLanguage(value?: string) {
+  return studioLanguages.find(language => language.toLowerCase() === value?.trim().toLowerCase()) ?? 'Hinglish';
+}
+
 function makeServiceIntroDraft(business: BusinessProfile): Partial<ContentPost> {
   const name = business.name?.trim();
   const service = business.services?.[0]?.trim() || business.category?.trim();
@@ -118,9 +124,10 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
   const [contentType, setContentType] = useState<'offer' | 'festival' | 'service' | 'educational'>('offer');
   const [targetPlatform, setTargetPlatform] = useState<'google' | 'instagram' | 'whatsapp'>('google');
-  const [language, setLanguage] = useState<
-    'Hinglish' | 'English' | 'Hindi' | 'Marathi' | 'Gujarati' | 'Tamil' | 'Telugu' | 'Bengali' | 'Kannada' | 'Malayalam' | 'Punjabi'
-  >('Hinglish');
+  const [language, setLanguage] = useState(() => savedStudioLanguage(business.brandKit?.preferredLanguage));
+  useEffect(() => {
+    setLanguage(savedStudioLanguage(business.brandKit?.preferredLanguage));
+  }, [business.brandKit?.preferredLanguage]);
 
   // Brand Kit Identity State
   const [primaryColor, setPrimaryColor] = useState(business.brandKit?.primaryColor || '#4f46e5');
@@ -130,13 +137,11 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
   const [isSavingBrandKit, setIsSavingBrandKit] = useState(false);
 
   useEffect(() => {
-    if (business.brandKit) {
-      if (business.brandKit.primaryColor) setPrimaryColor(business.brandKit.primaryColor);
-      if (business.brandKit.secondaryColor) setSecondaryColor(business.brandKit.secondaryColor);
-      if (business.brandKit.tagline) setBrandTagline(business.brandKit.tagline);
-      if (business.brandKit.brandTone) setBrandTone(business.brandKit.brandTone);
-    }
-  }, [business.brandKit]);
+    setPrimaryColor(business.brandKit?.primaryColor || '#4f46e5');
+    setSecondaryColor(business.brandKit?.secondaryColor || '#06b6d4');
+    setBrandTagline(business.brandKit?.tagline || '');
+    setBrandTone(business.brandKit?.brandTone || 'Professional');
+  }, [business.brandKit?.primaryColor, business.brandKit?.secondaryColor, business.brandKit?.tagline, business.brandKit?.brandTone]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'copywriter' | 'creative' | 'reel' | 'posts' | 'assets'>('copywriter');
@@ -220,7 +225,8 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
 
   const uploadedPhotos = assets.filter((a) => a.asset_type === 'photo');
   const uploadedLogo = assets.find((a) => a.asset_type === 'logo');
-  const activeLogoUrl = uploadedLogo?.url || business.brandKit?.logoUrl || '/logo.png';
+  const clientLogoUrl = uploadedLogo?.url || (business.brandKit?.logoUrl === '/logo.png' ? undefined : business.brandKit?.logoUrl);
+  const activeLogoUrl = clientLogoUrl || '/logo.png';
 
   // Automatically adopt the first real uploaded photo if current post is using stock fallback
   useEffect(() => {
@@ -355,26 +361,25 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
         companyId: effectiveCompanyId,
         companyName: business.name,
         photoUrl: photoToUse,
-        logoUrl: activeLogoUrl,
+        logoUrl: clientLogoUrl,
         primaryColor,
         secondaryColor,
         tag: contentType.toUpperCase(),
       });
 
       if (!mounted.current || request !== creativeRequest.current) return;
-      if (res?.imageUrl) {
-        if (res.templateId) setSelectedTemplateId(res.templateId);
-        setRenderedTemplateName(res.templateName || activeTemplate?.name || 'Branded Template');
-        if (res.paletteName) setRenderedPaletteName(res.paletteName);
-        if (res.paletteColors) setRenderedPaletteColors(res.paletteColors);
+      if (res?.success !== true || !res.imageUrl) throw new Error('Template render unconfirmed.');
+      if (res.templateId) setSelectedTemplateId(res.templateId);
+      setRenderedTemplateName(res.templateName || activeTemplate?.name || 'Branded Template');
+      if (res.paletteName) setRenderedPaletteName(res.paletteName);
+      if (res.paletteColors) setRenderedPaletteColors(res.paletteColors);
 
-        setGeneratedPost((prev) => ({
-          ...prev,
-          imageUrl: res.imageUrl,
-        }));
-        setScheduleSuccessToast(`Branded template rendered: "${res.templateName}" • "${res.paletteName || 'Dynamic Brand Theme'}"!`);
-        setTimeout(() => setScheduleSuccessToast(null), 4000);
-      }
+      setGeneratedPost((prev) => ({
+        ...prev,
+        imageUrl: res.imageUrl,
+      }));
+      setScheduleSuccessToast(`Branded template rendered: "${res.templateName}" • "${res.paletteName || 'Dynamic Brand Theme'}"!`);
+      setTimeout(() => setScheduleSuccessToast(null), 4000);
     } catch (err: any) {
       if (!mounted.current || request !== creativeRequest.current) return;
       console.error('Failed to render creative:', err);
@@ -406,7 +411,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
           secondaryColor,
           tagline: brandTagline,
           brandTone,
-          logoUrl: activeLogoUrl,
+          logoUrl: clientLogoUrl || '',
         },
       };
       onUpdateBusiness?.(updatedBusiness);
@@ -1324,6 +1329,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 {(['Hinglish', 'English', 'Hindi', 'Marathi'] as const).map((lang) => (
                   <button
                     key={lang}
+                    aria-pressed={language === lang}
                     onClick={() => setLanguage(lang)}
                     className={`px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
                       language === lang
@@ -1336,9 +1342,10 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 ))}
                 {/* Additional Regional Languages */}
                 <select
+                  aria-label="Regional language"
                   value={['Hinglish', 'English', 'Hindi', 'Marathi'].includes(language) ? '' : language}
                   onChange={(e) => {
-                    if (e.target.value) setLanguage(e.target.value as any);
+                    if (e.target.value) setLanguage(savedStudioLanguage(e.target.value));
                   }}
                   className={`px-2.5 py-1 rounded-xl font-bold text-xs border bg-slate-50 text-slate-700 border-slate-200 focus:outline-none focus:border-indigo-500 ${
                     !['Hinglish', 'English', 'Hindi', 'Marathi'].includes(language) ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : ''
