@@ -13,7 +13,13 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   const [jobs]:any=await sql.query(`SELECT
     COUNT(DISTINCT CASE WHEN event_type = 'JOB_SUCCEEDED' THEN job_id END) AS completedJobs,
     COUNT(DISTINCT CASE WHEN event_type IN ('JOB_FAILED','JOB_ATTEMPTS_EXHAUSTED') THEN job_id END) AS failedJobs,
-    COUNT(DISTINCT CASE WHEN event_type = 'JOB_DEFERRED' THEN job_id END) AS pausedJobs
+    COUNT(DISTINCT CASE WHEN event_type = 'JOB_DEFERRED' THEN job_id END) AS pausedJobs,
+    COUNT(DISTINCT CASE WHEN BINARY event_type='JOB_QUEUED' THEN job_id END) AS queueAdmitted,
+    COUNT(DISTINCT CASE WHEN BINARY event_type='JOB_CLAIMED' THEN job_id END) AS queueClaimed,
+    COUNT(DISTINCT CASE WHEN BINARY event_type='JOB_FAILED' AND BINARY job_status='RETRY_WAIT' THEN job_id END) AS queueRetryFailed,
+    COUNT(DISTINCT CASE WHEN (BINARY event_type='JOB_FAILED' AND BINARY job_status='FAILED') OR BINARY event_type='JOB_ATTEMPTS_EXHAUSTED' THEN job_id END) AS queueTerminalFailed,
+    COUNT(DISTINCT CASE WHEN BINARY event_type='JOB_ATTEMPTS_EXHAUSTED' THEN job_id END) AS queueExhausted,
+    COUNT(DISTINCT CASE WHEN BINARY event_type='JOB_CANCELLED' THEN job_id END) AS queueCancelled
     FROM job_action_events WHERE company_id = ? AND recorded_at >= FROM_UNIXTIME(?) AND recorded_at < FROM_UNIXTIME(?)`,[company,start/1000,end/1000]);
   const [websiteActivity]:any=await sql.query(`SELECT
     COUNT(DISTINCT CASE WHEN e.event_type='JOB_QUEUED' THEN e.job_id END) websiteImportsQueued,
@@ -40,6 +46,12 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
     COUNT(CASE WHEN status IN ('QUEUED','RETRY_WAIT') THEN 1 END) AS waitingJobs,
     COUNT(CASE WHEN status = 'RUNNING' THEN 1 END) AS runningJobs,
     COUNT(CASE WHEN status = 'FAILED' THEN 1 END) AS failedJobs,
+    COUNT(CASE WHEN BINARY status='QUEUED' AND scheduled_for<=NOW() THEN 1 END) AS queueDue,
+    COUNT(CASE WHEN BINARY status='QUEUED' AND scheduled_for>NOW() THEN 1 END) AS queueScheduled,
+    COUNT(CASE WHEN BINARY status='RETRY_WAIT' AND scheduled_for<=NOW() THEN 1 END) AS queueRetryDue,
+    COUNT(CASE WHEN BINARY status='RETRY_WAIT' AND scheduled_for>NOW() THEN 1 END) AS queueRetryScheduled,
+    COUNT(CASE WHEN BINARY status='RUNNING' AND locked_at<DATE_SUB(NOW(),INTERVAL 5 MINUTE) THEN 1 END) AS queueStaleLease,
+    COUNT(CASE WHEN BINARY status='RUNNING' AND locked_at IS NULL THEN 1 END) AS queueMissingLease,
     COUNT(CASE WHEN job_type='website_import' AND status IN ('QUEUED','RETRY_WAIT') THEN 1 END) websiteImportsWaiting,
     COUNT(CASE WHEN job_type='website_import' AND status='RUNNING' THEN 1 END) websiteImportsRunning,
     COUNT(CASE WHEN job_type='website_import' AND status='FAILED' THEN 1 END) websiteImportsFailed FROM job_queue WHERE company_id = ?`,[company]);

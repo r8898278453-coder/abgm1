@@ -1,0 +1,23 @@
+item,work,parent,verification
+QD01,Queue jobs admitted,P09-01,Native SQL and Chromium
+QD02,Queue jobs claimed,P09-01,Native SQL and Chromium
+QD03,Queue jobs with retryable failures,P09-01,Native SQL and Chromium
+QD04,Queue jobs with terminal failures,P09-01,Native SQL and Chromium
+QD05,Queue jobs with exhausted attempts,P09-01,Native SQL and Chromium
+QD06,Queue jobs cancelled,P09-01,Native SQL and Chromium
+QD07,Queued jobs due,P09-01,Native SQL and Chromium
+QD08,Queued jobs scheduled for later,P09-01,Native SQL and Chromium
+QD09,Retries due,P09-01,Native SQL and Chromium
+QD10,Retries scheduled for later,P09-01,Native SQL and Chromium
+QD11,Running jobs with expired leases,P09-01,Native SQL and Chromium
+QD12,Running jobs missing lease timestamps,P09-01,Native SQL and Chromium
+QD13,Shared IST event window,P09-01,Native SQL
+QD14,Distinct jobs across repeated transitions,P09-01,Native SQL
+QD15,Tenant and private field boundaries,P09-01,Native SQL
+QD16,Daily dashboard labels,P09-01,Chromium
+QD17,Live private CSV,P09-01,Regression
+QD18,Telegram overdue-work summary and length limit,P09-01,Regression
+QD19,Manual V8 capture and comparison,P09-01,Native SQL and Chromium
+QD20,Scheduled V8 capture,P09-01,Native SQL
+QD21,V1–V7 replay and equal-version comparison,P09-01,Native SQL and regression
+QD22,Public portal allowlist compatibility,P09-01,Regression and Chromium
