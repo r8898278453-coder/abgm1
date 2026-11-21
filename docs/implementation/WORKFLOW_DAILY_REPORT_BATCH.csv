@@ -1,0 +1,29 @@
+item,work,parent,verification
+WD01,SALES_WORKFLOW_SAVED · Workflow drafts saved,P09-01,Chromium and regression
+WD02,SALES_WORKFLOW_APPROVED · Workflow revisions approved,P09-01,Chromium and regression
+WD03,SALES_WORKFLOW_RETIRED · Workflows retired,P09-01,Chromium and regression
+WD04,SALES_WORKFLOW_ENROLLED · Sales enrollments recorded,P09-01,Chromium and regression
+WD05,SALES_APPOINTMENT_REMINDER_SCHEDULED · Appointment reminders scheduled,P09-01,Chromium and regression
+WD06,SALES_WORKFLOW_REVIEW_CREATED · Sales reviews created,P09-01,Chromium and regression
+WD07,SALES_APPOINTMENT_REMINDER_REVIEW_READY · Appointment reminder reviews ready,P09-01,Chromium and regression
+WD08,SALES_WORKFLOW_REVIEW_COMPLETED · Manual reviews completed,P09-01,Chromium and regression
+WD09,SALES_WORKFLOW_MESSAGE_ACCEPTED · Workflow messages accepted by provider API,P09-01,Chromium and regression
+WD10,SALES_WORKFLOW_EXITED · Enrollments exited,P09-01,Chromium and regression
+WD11,SALES_WORKFLOW_OPERATOR_EXIT · Operator exit decisions recorded,P09-01,Chromium and regression
+WD12,SALES_WORKFLOW_REVIEW_EXIT · Reviewer exit decisions recorded,P09-01,Chromium and regression
+WD13,SALES_APPOINTMENT_REMINDER_EXITED · Appointment reminder enrollments exited,P09-01,Chromium and regression
+WD14,workflowDrafts · Draft definitions,P09-01,Chromium and regression
+WD15,workflowApproved · Approved definitions,P09-01,Chromium and regression
+WD16,workflowRetired · Retired definitions,P09-01,Chromium and regression
+WD17,workflowActive · Active enrollments,P09-01,Chromium and regression
+WD18,workflowWaitingReview · Enrollments waiting for review,P09-01,Chromium and regression
+WD19,workflowWaitingSend · Enrollments waiting for send settlement,P09-01,Chromium and regression
+WD20,workflowExpiredOpen · Expired enrollments awaiting cleanup,P09-01,Chromium and regression
+WD21,Dashboard display and labels,P09-01,Chromium
+WD22,Private live CSV,P09-01,Regression
+WD23,Bounded Telegram summary,P09-01,Regression
+WD24,Manual V7 and immutable inventory,P09-01,Native SQL
+WD25,Scheduled V7 capture,P09-01,Native SQL
+WD26,V1 to V6 replay and mixed coverage rejection,P09-01,Native SQL and regression
+WD27,Public portal existing metric allowlist,P09-01,Regression and Chromium
+WD28,V7 frozen CSV and deltas,P09-01,Native SQL and Chromium

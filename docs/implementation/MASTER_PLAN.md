@@ -1,5 +1,7 @@
 # ABGM1 agency marketing and sales platform — master implementation plan
 
+21 November 2026 IST. P09-01 advances through 28 workflow accountability items. The private daily dashboard and CSV include thirteen workflow activity metrics and seven current inventory metrics. Telegram summarizes five operational counts. Manual and scheduled frozen captures write V7 and retain V1–V6 history. Remaining cross-module reconciliation stays open. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily workflow reporting](WORKFLOW_DAILY_REPORT.md)
+
 21 November 2026 IST. P09-01 advances through 27 Sales workflow reporting items. The private Sales report adds 13 recorded workflow event counts and seven current inventory counts. Workflow reconciliation across the daily work report, frozen captures and other modules remains in progress. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Workflow reporting](SALES_WORKFLOW_REPORT.md)
 
 21 November 2026 IST. P09-01 advances through 26 daily email accountability items. The private dashboard, CSV and Telegram digest include 14 IST email activity counters and two current intake backlog counters. Manual and scheduled snapshots write V6 and preserve existing V1–V5 captures. The client portal keeps its approved metric list. Tracker remains 62 validated, 16 in progress, 14 planned and one blocked. Full cross-module reconciliation and production acceptance remain open. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
@@ -181,7 +183,7 @@ Latest durable-render delivery (12 November2026 IST): [DURABLE_REELS.md](DURABLE
 
 Latest render-input continuation (12 November2026 IST): [RENDER_INPUT_BOUNDARIES.md](RENDER_INPUT_BOUNDARIES.md). Strict owned raster inputs and canonical identity; creative/reel route module extracted; reel capability defaults off. Durable reel queue and asset approval remain pending. Schema035/63 unchanged; STATUS.md is authoritative for current counts. No new parent or phase acceptance.
 
-Version 1.94 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
+Version 1.95 • updated 21 November 2026 IST • Implementation in progress (original plan: 2 November 2026)
 Baseline repository: /workspace/abgm1 at 0424dbe52944165b38abe509ecc27a0aeb94e04d
 Owner objective: one agency account serving many isolated clients across industries, with reliable marketing, lead acquisition, sales assistance/automation and complete daily accountability. Billing implementation excluded.
 

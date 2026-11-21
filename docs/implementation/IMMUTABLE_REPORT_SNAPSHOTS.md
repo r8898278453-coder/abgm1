@@ -1,5 +1,7 @@
 # Immutable daily report captures — 17 November 2026 IST
 
+21 November 2026 IST. P09-01 advances through 28 workflow accountability items. The private daily dashboard and CSV include thirteen workflow activity metrics and seven current inventory metrics. Telegram summarizes five operational counts. Manual and scheduled frozen captures write V7 and retain V1–V6 history. Remaining cross-module reconciliation stays open. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily workflow reporting](WORKFLOW_DAILY_REPORT.md)
+
 21 November 2026 IST. New private captures write V6 with fixed email delivery, linked reply and recovery coverage. Existing V1–V5 captures retain their payloads and hashes. Comparisons require equal coverage, and client publication from V6 uses the existing approved metric list. Upgrade readers and workers together before writing V6 captures. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
 
 21 November 2026 IST. New private captures use fixed V5 coverage for appointment ledger activity and outstanding outcomes. V1–V4 retain their original coverage, comparison rules, stored bytes, hashes and replay. Amendments can be captured for older versions as V5, and deltas require equal coverage. The client portal accepts V5 source metadata and continues to project its existing approved metric list. Older binaries cannot read new V5 captures. Upgrade readers, workers and writers together before enabling capture on the target environment. [Appointment report evidence](evidence/appointment-daily-report.json)

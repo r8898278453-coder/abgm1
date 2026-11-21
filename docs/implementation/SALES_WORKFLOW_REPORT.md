@@ -8,6 +8,6 @@ The report uses the selected `Asia/Kolkata` day with an inclusive start and excl
 
 Current inventory includes seven counters for drafts, approved definitions, retired definitions, active enrollments, review, send settlement and expired open enrollments. The enrollment counts use the current database clock across all dates. Expired open enrollments appear in the cleanup count. Terminal enrollments are outside current workload.
 
-The existing private Sales report route reads these counts in the same read-only snapshot as its other sections. Operators see aggregate counts for the selected client. Audit notes, contact identities and message content stay outside the new projection. Database schema remains 064. The main daily work report and frozen captures require additional integration to include workflow counters.
+The existing private Sales report route reads these counts in the same read-only snapshot as its other sections. Operators see aggregate counts for the selected client. Audit notes, contact identities and message content stay outside the new projection. Database schema remains 064. The [daily work report and V7 frozen captures](WORKFLOW_DAILY_REPORT.md) also include workflow counts.
 
 [27-item checklist](SALES_WORKFLOW_REPORT_BATCH.csv) · [Verification](evidence/sales-workflow-report.json) · [Main tracker](STATUS.md)

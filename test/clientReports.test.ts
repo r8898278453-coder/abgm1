@@ -16,3 +16,6 @@ assert.throws(()=>projectClientReport({...s,schemaVersion:5},'A','Business',{...
 const fromV6=projectClientReport({...s,schemaVersion:6},'A','=Business',p);
 assert.deepEqual(fromV6,{...fromV5,coverageVersion:6});
 assert.throws(()=>projectClientReport({...s,schemaVersion:6},'A','Business',{...p,optionalMetrics:['emailDelivered']}));
+
+assert.deepEqual(projectClientReport({...s,schemaVersion:7},'A','=Business',p),{...fromV6,coverageVersion:7});
+assert.throws(()=>projectClientReport({...s,schemaVersion:7},'A','Business',{...p,optionalMetrics:['workflowWaitingReview']}));

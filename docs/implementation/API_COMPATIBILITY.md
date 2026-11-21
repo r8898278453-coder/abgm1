@@ -1,5 +1,7 @@
 # Route and state ownership review — 9 November 2026 IST
 
+21 November 2026 IST. P09-01 advances through 28 workflow accountability items. The private daily dashboard and CSV include thirteen workflow activity metrics and seven current inventory metrics. Telegram summarizes five operational counts. Manual and scheduled frozen captures write V7 and retain V1–V6 history. Remaining cross-module reconciliation stays open. Tracker totals remain 62 validated, 16 in progress, 14 planned and one blocked. [Daily workflow reporting](WORKFLOW_DAILY_REPORT.md)
+
 21 November 2026 IST. The private Sales report adds a fixed numeric `workflows` section with `activity` and `backlog`. See [Sales workflow reporting](SALES_WORKFLOW_REPORT.md).
 
 21 November 2026 IST. The private daily-work response and CSV add 14 email activity metrics and two recovery backlog metrics. New manual and scheduled captures write frozen coverage V6. Existing V1–V5 captures retain their read and replay contracts. Client publication accepts V6 source metadata with its existing public metric list. Storage schema stays at 064. [Daily email accountability](EMAIL_DAILY_ACCOUNTABILITY.md)
