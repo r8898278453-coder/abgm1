@@ -1,23 +1,16 @@
+import {bookingRead, calendarWriteReceipt, type BookingRecord} from '../../shared/bookingEvidence';
 import { bookingSlot, DEFAULT_BOOKING_POLICY, type BookingPolicy } from '../../shared/bookingPolicy';
 import React, { useEffect, useRef, useState } from 'react';
 import { apiRequest, ApiRequestError, getStoredToken } from '../services/authService';
 import { calendarCheckResult } from '../../shared/bookingCalendar';
-import { formatPlatformDateTime } from '../../shared/platformTime';
+import { formatPlatformDateTime, IST_OFFSET_MS } from '../../shared/platformTime';
 
 const istToIso = (value: string) => value + (value.length === 16 ? ':00' : '') + '+05:30';
-const toIstInput = (value: number) => new Date(value + 19800000).toISOString().slice(0,23).replace(/\.000$/, '');
+const toIstInput = (value: number) => new Date(value + IST_OFFSET_MS).toISOString().slice(0,23).replace(/\.000$/, '');
 
 const newRequestKey = () => Array.from(crypto.getRandomValues(new Uint8Array(32)),
   value => value.toString(16).padStart(2,'0')).join('');
 
-type Booking = {
-  version: string;
-  state: 'CONFIRMED' | 'CANCELLED';
-  externalEventId: string;
-  startAtMs: number;
-  endAtMs: number;
-  source: 'OPERATOR_RECORDED' | 'GOOGLE_CALENDAR_VERIFIED';
-};
 type Command = {
   operation: 'CONFIRM' | 'RESCHEDULE' | 'CANCEL';
   requestKey: string;
@@ -28,7 +21,7 @@ type Command = {
 };
 
 export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string; canWrite: boolean; policy?: BookingPolicy }> = ({ companyId, leadId, canWrite, policy=DEFAULT_BOOKING_POLICY }) => {
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +49,7 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
   }, [start, end, eventId, booking?.version, policy]);
 
   const base = `/api/companies/${encodeURIComponent(companyId)}/sales/leads/${encodeURIComponent(leadId)}/booking-evidence`;
-  function show(value: Booking | null, session: string | null) {
+  function show(value: BookingRecord | null, session: string | null) {
     acceptedSession.current = session;
     setBooking(value);
     setEventId(value?.externalEventId || '');
@@ -86,17 +79,22 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
     else setLoaded(false);
     const current = () => !controller.signal.aborted && session === getStoredToken();
     try {
-      const response = await apiRequest<{success: boolean; companyId: string; booking: Booking | null;
+      const response = await apiRequest<{success: boolean; companyId: string; booking: BookingRecord | null;
         calendarCreateEnabled?: boolean; pendingCalendarRequestId?: string | null}>(
         base, { signal: controller.signal, ...(command ? {method:'POST',body:JSON.stringify(command)} : {}) },
       );
       if (!current()) return;
-      if (!response.success || response.companyId !== companyId || response.booking === undefined) throw Error();
-      show(response.booking, session);
+      if (response.success !== true || response.companyId !== companyId) throw Error();
+      const saved = bookingRead.parse(response);
+      if (command && (!saved.booking ||
+          saved.booking.version !== String(BigInt(command.expectedVersion) + 1n) ||
+          saved.booking.state !== (command.operation === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED') ||
+          saved.booking.externalEventId !== (command.externalEventId ?? booking?.externalEventId))) throw Error();
+      show(saved.booking, session);
       setCalendarNotice(notice);
       if (!command) {
-        setCreateEnabled(response.calendarCreateEnabled === true);
-        setCalendarIntent(response.pendingCalendarRequestId ?? null);
+        setCreateEnabled(saved.calendarCreateEnabled === true);
+        setCalendarIntent(saved.pendingCalendarRequestId ?? null);
       }
       if (command) {
         // An exact retry may return the original receipt after a newer revision was committed.
@@ -209,12 +207,15 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
         success: boolean; companyId: string; calendarIntent: { requestId: string; state: string };
       }>(base.replace(/booking-evidence$/, action), {method:'POST',body,signal:controller.signal});
       if (!current()) return;
-      if (!result.success || result.companyId !== companyId) throw Error();
-      if (result.calendarIntent.state === 'PENDING_REVIEW') {
-        setCalendarIntent(result.calendarIntent.requestId);
+      if (result.success !== true || result.companyId !== companyId) throw Error();
+      const receipt = calendarWriteReceipt.parse(result.calendarIntent);
+      if (operation === 'VERIFY' && receipt.requestId !== calendarIntent) throw Error();
+      if ((operation === 'RESCHEDULE' || operation === 'CANCEL') && receipt.eventId !== booking?.externalEventId) throw Error();
+      if (receipt.state === 'PENDING_REVIEW') {
+        setCalendarIntent(receipt.requestId);
       } else {
         await call();
-        if (result.calendarIntent.state === 'REJECTED') setError('Google Calendar did not accept the request.');
+        if (receipt.state === 'REJECTED') setError('Google Calendar did not accept the request.');
       }
     } catch (cause) {
       if (!current()) return;
@@ -285,9 +286,9 @@ export const BookingEvidencePanel: React.FC<{ companyId: string; leadId: string;
         {calendarError && <p role="alert">{calendarError}</p>}
         {calendar && <div role="status">
           {calendar.kind === 'AVAILABILITY' ? (
-            <p>{calendar.status === 'FREE' ? 'Calendar reported this window free' : calendar.source==='WORKSPACE_BOOKINGS' ? 'A saved booking or pending request conflicts with this window' : 'Calendar reported a conflict'} · {formatPlatformDateTime(calendar.observedAtMs)} IST. Availability can change before booking.</p>
+            <p>{calendar.status === 'FREE' ? 'Calendar reported this window free' : calendar.source==='WORKSPACE_BOOKINGS' ? 'A saved booking or pending request conflicts with this window' : 'Calendar reported a conflict'} · {formatPlatformDateTime(calendar.observedAtMs)}. Availability can change before booking.</p>
           ) : <>
-            <p>Calendar confirmed this event · {formatPlatformDateTime(calendar.startAtMs)} to {formatPlatformDateTime(calendar.endAtMs)} IST.</p>
+            <p>Calendar confirmed this event · {formatPlatformDateTime(calendar.startAtMs)} to {formatPlatformDateTime(calendar.endAtMs)}.</p>
             <button onClick={() => {setStart(toIstInput(calendar.startAtMs));setEnd(toIstInput(calendar.endAtMs));}}>Use calendar event times</button>
           </>}
         </div>}

@@ -65,13 +65,13 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
    assert.equal(command.startAt,undefined);
    booking={...booking,version:'4',state:'CANCELLED'};
   }
-  body={...body,calendarIntent:{requestId:'d'.repeat(64),state:'CONFIRMED'}};
+  body={...body,calendarIntent:{requestId:'d'.repeat(64),state:'CONFIRMED',eventId:'VerifiedFixture'}};
  }
  else if(url.pathname.endsWith('/calendar-intents/'+ 'c'.repeat(64) +'/reconcile')){
   assert.equal(company,'A');
   calendarPending=false;
   booking={version:'1',state:'CONFIRMED',externalEventId:'VerifiedFixture',startAtMs:Date.parse('2027-01-01T10:00:00+05:30'),endAtMs:Date.parse('2027-01-01T10:30:00+05:30'),source:'GOOGLE_CALENDAR_VERIFIED'};
-  body={...body,calendarIntent:{requestId:'c'.repeat(64),state:'CONFIRMED'}};
+  body={...body,calendarIntent:{requestId:'c'.repeat(64),state:'CONFIRMED',eventId:'VerifiedFixture'}};
  }
  else if(url.pathname.endsWith('/booking-evidence')){
   assert.equal(company,'A');
@@ -153,6 +153,13 @@ await context.route('**/*',async route=>{const url=new URL(route.request().url()
 
 
  const appointment = page.getByRole('region',{name:'Appointment evidence'});
+ await page.route('**/booking-evidence',route=>route.fulfill({json:{
+  success:true,companyId:'A',booking:{version:'1',state:'CONFIRMED',externalEventId:'',
+   startAtMs:5000,endAtMs:4000,source:'GOOGLE_CALENDAR_VERIFIED'}
+ }}),{times:1});
+ await appointment.getByRole('button',{name:'Load appointment record'}).click();
+ await appointment.getByRole('alert').filter({hasText:'Appointment record unavailable'}).waitFor();
+ assert.equal(await appointment.getByRole('button',{name:'Cancel on Google Calendar'}).count(),0);
  await appointment.getByRole('button',{name:'Load appointment record'}).click();
  await appointment.getByText('No appointment recorded.',{exact:true}).waitFor();
  await appointment.getByLabel('External appointment reference').fill('CalendarFixture');

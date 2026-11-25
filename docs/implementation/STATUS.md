@@ -1,10 +1,10 @@
 # Current implementation and acceptance status
 
-Generated from TASKS.csv — 2026-11-21 IST. Do not edit counts manually; run npm run docs:status.
+Generated from TASKS.csv — 2026-11-26 IST. Do not edit counts manually; run npm run docs:status.
 
 Schema target: 065_render_license_expiry; 108 canonical tables. Registered default regression programs: 159 (registry size is not proof of a fresh passing run; see EXECUTION.md and evidence).
 
-Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 65 / 13 / 1 / 14.
+Tasks: 93. Validated locally / in progress / explicitly blocked / planned: 66 / 12 / 1 / 14.
 
 Local validation does not accept prerequisite phases, production hosting, provider behavior or deployment. The tracker includes implementation foundations inside later unaccepted phases. Billing is excluded. Production release is separately authorized.
 
@@ -19,7 +19,7 @@ Local validation does not accept prerequisite phases, production hosting, provid
 | P04 | 8 | 1 | 0 | 0 |
 | P05 | 7 | 2 | 0 | 2 |
 | P06 | 8 | 0 | 0 | 0 |
-| P07 | 6 | 1 | 0 | 1 |
+| P07 | 7 | 0 | 0 | 1 |
 | P08 | 6 | 0 | 0 | 4 |
 | P09 | 7 | 1 | 0 | 0 |
 | P10 | 3 | 0 | 0 | 5 |
@@ -115,8 +115,8 @@ Immediate prerequisites shown below are not yet validated. A dash means no unres
 | P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments | — |
 | P07-03 | validated | Execute workflow steps through existing queue and policy | — |
 | P07-04 | validated | Handle reply opt-out booking and outcome exit races | — |
-| P07-05 | in_progress | Integrate actual calendar availability booking and reminders | — |
-| P07-06 | validated | Add retention aftercare review-request and repeat-business templates | P07-05 |
+| P07-05 | validated | Integrate actual calendar availability booking and reminders | — |
+| P07-06 | validated | Add retention aftercare review-request and repeat-business templates | — |
 | P07-07 | validated | Expose review and bounded autopilot controls | — |
 | P07-08 | planned | Marketing-to-appointment pilot gate | — |
 | P08-01 | validated | Build client ICP exclusions prospect imports and source contracts | P07-08 |

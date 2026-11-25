@@ -2,7 +2,7 @@
 
 Source/local acceptance and production activation are separate. Activation labels describe source defaults/review policy, not an inspection of runtime configuration. Credentials, Place IDs, passing mocks and local validation never prove hosted/provider acceptance.
 
-Original tasks: 93; validated 65, in progress 13, planned 14, blocked 1. Billing excluded. No production acceptance.
+Original tasks: 93; validated 66, in progress 12, planned 14, blocked 1. Billing excluded. No production acceptance.
 
 | Area | Local acceptance | Activation scope | Remaining prerequisite |
 | --- | --- | --- | --- |
@@ -91,7 +91,7 @@ Original tasks: 93; validated 65, in progress 13, planned 14, blocked 1. Billing
 | P07-02 | validated | Build versioned bounded sales workflow definitions and enrollments |
 | P07-03 | validated | Execute workflow steps through existing queue and policy |
 | P07-04 | validated | Handle reply opt-out booking and outcome exit races |
-| P07-05 | in_progress | Integrate actual calendar availability booking and reminders |
+| P07-05 | validated | Integrate actual calendar availability booking and reminders |
 | P07-06 | validated | Add retention aftercare review-request and repeat-business templates |
 | P07-07 | validated | Expose review and bounded autopilot controls |
 | P07-08 | planned | Marketing-to-appointment pilot gate |

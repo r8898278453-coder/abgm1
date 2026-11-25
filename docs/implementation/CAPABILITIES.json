@@ -2,8 +2,8 @@
   "model": 1,
   "timeZone": "Asia/Kolkata",
   "counts": {
-    "validated": 65,
-    "in_progress": 13,
+    "validated": 66,
+    "in_progress": 12,
     "planned": 14,
     "blocked": 1
   },
@@ -773,7 +773,7 @@
       "id": "P07-05",
       "phase": "P07",
       "title": "Integrate actual calendar availability booking and reminders",
-      "state": "in_progress",
+      "state": "validated",
       "acceptance": "External event ID required; concurrent slots/cancel/reschedule/timezones/reminder retries tested"
     },
     {
