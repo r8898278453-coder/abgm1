@@ -1153,3 +1153,5 @@ Chromium verifies the V18 baseline to V19 amendment workflow. The comparison use
 26 November 2026 IST. The daily work report evaluates saved growth signal and enrichment expiry at the database timestamp captured for the report. Evidence with an expiry equal to that timestamp counts as stale. The SQL regression checks the parameter against the report clock.
 
 26 November 2026 IST. The live daily report reconciles the waiting queue total with four due and scheduled counts. The difference appears as unclassified waiting jobs. A legacy waiting job with a missing schedule is one way this occurs. A breakdown exceeding its total is treated as invalid and cannot be exported from the live report. Frozen snapshot coverage remains as recorded.
+
+26 November 2026 IST. The database report reader and browser use the same waiting queue reconciliation rule. An impossible breakdown fails before downstream consumers can capture it. Exact totals and unclassified schedules remain valid.

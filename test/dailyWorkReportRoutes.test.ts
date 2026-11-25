@@ -1,3 +1,4 @@
+import {unclassifiedWaitingJobs} from '../shared/queueDailyReporting';
 import {CRITICAL_ALERT_DAILY_ACTIVITY,CRITICAL_ALERT_DAILY_BACKLOG} from '../shared/criticalAlertDailyReporting';
 import {NOTIFICATION_ELIGIBILITY_HISTORY} from '../shared/notificationEligibilityHistory';
 import {NOTIFICATION_SELECTION_ACTIVITY,NOTIFICATION_SELECTION_BACKLOG} from '../shared/notificationSelectionReporting';
@@ -129,3 +130,8 @@ assert.match(csv,/"activity","digestObservedArchived","1"/);
 
 assert.match(csv,/"activity","critical_failedJobs_InitialAccepted","1"/);
 assert.match(csv,/"current_backlog","critical_failedJobs_Open","1"/);
+
+const scheduleCounts = {queueDue:2,queueScheduled:1,queueRetryDue:0,queueRetryScheduled:1};
+assert.equal(unclassifiedWaitingJobs({...scheduleCounts,waitingJobs:5}),1);
+assert.equal(unclassifiedWaitingJobs({...scheduleCounts,waitingJobs:4}),0);
+assert.throws(()=>unclassifiedWaitingJobs({...scheduleCounts,waitingJobs:3}),/INVALID_WAITING_QUEUE_BREAKDOWN/);

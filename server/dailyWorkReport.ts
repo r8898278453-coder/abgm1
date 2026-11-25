@@ -1,3 +1,4 @@
+import {WAITING_SCHEDULE_KEYS,unclassifiedWaitingJobs} from '../shared/queueDailyReporting';
 import {readCriticalAlertDailyReporting} from './criticalAlertDailyReporting';
 import {readNotificationDailyReporting} from './notificationDailyReporting';
 import {readCalendarPlanDailyReporting} from './calendarPlanDailyReporting';
@@ -83,6 +84,8 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
     COUNT(CASE WHEN job_type='website_import' AND status IN ('QUEUED','RETRY_WAIT') THEN 1 END) websiteImportsWaiting,
     COUNT(CASE WHEN job_type='website_import' AND status='RUNNING' THEN 1 END) websiteImportsRunning,
     COUNT(CASE WHEN job_type='website_import' AND status='FAILED' THEN 1 END) websiteImportsFailed FROM job_queue WHERE company_id = ?`,[observedAt,observedAt,observedAt,observedAt,staleBefore,company]);
+  const waitingCounts = Object.fromEntries(['waitingJobs', ...WAITING_SCHEDULE_KEYS].map(key=>[key,Number(backlog[0][key])]));
+  unclassifiedWaitingJobs(waitingCounts as Parameters<typeof unclassifiedWaitingJobs>[0]);
   const [pending]:any=await sql.query("SELECT COUNT(*) AS pendingApprovals FROM content_posts WHERE company_id = ? AND status = 'pending_approval'",[company]);
   const [uncertain]:any=await sql.query("SELECT COUNT(*) AS uncertainPublications FROM publishing_dispatch_claims WHERE company_id = ? AND (status = 'UNKNOWN' OR (status = 'IN_PROGRESS' AND started_at < FROM_UNIXTIME(?)))",[company,staleBefore]);
   const [knowledge]:any=await sql.query("SELECT COUNT(CASE WHEN extraction_state='EXTRACTED' AND approved_at IS NULL THEN 1 END) knowledgeAwaitingApproval,COUNT(CASE WHEN extraction_state='PROCESSING' THEN 1 END) knowledgeExtractionRunning,COUNT(CASE WHEN extraction_state IN ('STORED','QUEUED','FAILED','UNSUPPORTED','NEEDS_OCR') THEN 1 END) knowledgeExtractionBlocked FROM knowledge_sources WHERE company_id=?",[company]);

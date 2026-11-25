@@ -1,3 +1,4 @@
+import {WAITING_SCHEDULE_KEYS,unclassifiedWaitingJobs} from '../../shared/queueDailyReporting';
 import {PLATFORM_DAILY_ACTIVITY} from '../../shared/platformDailyReporting';
 import {PUBLICATION_ADMISSION_OUTCOMES} from '../../shared/publicationDailyReporting';
 import {CALENDAR_PLAN_DAILY_ACTIVITY} from '../../shared/calendarPlanDailyReporting';
@@ -9,10 +10,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {apiRequest,ApiRequestError,getStoredToken} from '../services/authService';
 import {dailyWorkReportCsv,platformDateKey,type DailyWorkReport as Report} from '../../shared/dailyWorkReport';
 import {formatPlatformDateTime} from '../../shared/platformTime';
-const waitingScheduleKeys = ['queueDue','queueScheduled','queueRetryDue','queueRetryScheduled'] as const;
-const waitingBreakdownKeys = ['waitingJobs', ...waitingScheduleKeys] as const;
-const classifiedWaiting = (backlog: Report['backlog']) =>
- waitingScheduleKeys.reduce((total,key)=>total+backlog[key],0);
+const waitingBreakdownKeys = ['waitingJobs', ...WAITING_SCHEDULE_KEYS] as const;
 export const DailyWorkReport:React.FC<{companyId:string}>=p=><ClientWorkReport key={p.companyId} {...p}/>;
 const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
  const [date,setDate]=useState(platformDateKey()),[report,setReport]=useState<Report|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
@@ -25,7 +23,7 @@ const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
    if(controller.signal.aborted)return;
    if(token!==getStoredToken())throw new Error('Session changed');
    if(result.success!==true || result.companyId!==companyId || result.report?.date!==date || result.report.timeZone!=='Asia/Kolkata' || !result.report.activity || !result.report.backlog || !Number.isFinite(Date.parse(result.report.generatedAt)) || !Object.keys(dayLabels).every(key=>Number.isSafeInteger(result.report.activity[key as keyof Report['activity']]) && result.report.activity[key as keyof Report['activity']]>=0) || !Object.keys(backlogLabels).every(key=>Number.isSafeInteger(result.report.backlog[key as keyof Report['backlog']]) && result.report.backlog[key as keyof Report['backlog']]>=0))throw new Error('Invalid report');
-   if(classifiedWaiting(result.report.backlog)>result.report.backlog.waitingJobs)throw new Error('Invalid queue breakdown');
+   unclassifiedWaitingJobs(result.report.backlog);
    acceptedToken.current=token;setReport(result.report);
   }catch(cause){if(!controller.signal.aborted)setError(cause instanceof ApiRequestError && [401,403,404].includes(cause.status)?'This workspace report is unavailable.':'Recorded work report unavailable. Retry after the connection recovers.');}
   finally{if(!controller.signal.aborted)setLoading(false);}
@@ -96,7 +94,7 @@ const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
       <div key={key}><dt>{backlogLabels[key]}</dt><dd aria-label={backlogLabels[key]} className="font-bold">{report.backlog[key]}</dd></div>
      )}
      <div><dt>Waiting jobs with unclassified schedules</dt><dd className="font-bold">{
-      report.backlog.waitingJobs - classifiedWaiting(report.backlog)
+      unclassifiedWaitingJobs(report.backlog)
      }</dd></div>
     </dl>
    </section>
