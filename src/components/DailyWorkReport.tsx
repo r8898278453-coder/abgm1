@@ -14,10 +14,10 @@ const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
   request.current?.abort();setReport(null);acceptedToken.current=undefined;setError('');if(!date)return;
   const token=getStoredToken(),controller=new AbortController();request.current=controller;setLoading(true);
   try{
-   const result=await apiRequest<{success:boolean;report:Report}>(`/api/companies/${encodeURIComponent(companyId)}/daily-work-report?date=${encodeURIComponent(date)}`,{signal:controller.signal});
+   const result=await apiRequest<{success:boolean;companyId:string;report:Report}>(`/api/companies/${encodeURIComponent(companyId)}/daily-work-report?date=${encodeURIComponent(date)}`,{signal:controller.signal});
    if(controller.signal.aborted)return;
    if(token!==getStoredToken())throw new Error('Session changed');
-   if(!result.success || result.report?.date!==date || result.report.timeZone!=='Asia/Kolkata' || !result.report.activity || !result.report.backlog || !Number.isFinite(Date.parse(result.report.generatedAt)) || !Object.keys(dayLabels).every(key=>Number.isSafeInteger(result.report.activity[key as keyof Report['activity']]) && result.report.activity[key as keyof Report['activity']]>=0) || !Object.keys(backlogLabels).every(key=>Number.isSafeInteger(result.report.backlog[key as keyof Report['backlog']]) && result.report.backlog[key as keyof Report['backlog']]>=0))throw new Error('Invalid report');
+   if(result.success!==true || result.companyId!==companyId || result.report?.date!==date || result.report.timeZone!=='Asia/Kolkata' || !result.report.activity || !result.report.backlog || !Number.isFinite(Date.parse(result.report.generatedAt)) || !Object.keys(dayLabels).every(key=>Number.isSafeInteger(result.report.activity[key as keyof Report['activity']]) && result.report.activity[key as keyof Report['activity']]>=0) || !Object.keys(backlogLabels).every(key=>Number.isSafeInteger(result.report.backlog[key as keyof Report['backlog']]) && result.report.backlog[key as keyof Report['backlog']]>=0))throw new Error('Invalid report');
    acceptedToken.current=token;setReport(result.report);
   }catch(cause){if(!controller.signal.aborted)setError(cause instanceof ApiRequestError && [401,403,404].includes(cause.status)?'This workspace report is unavailable.':'Recorded work report unavailable. Retry after the connection recovers.');}
   finally{if(!controller.signal.aborted)setLoading(false);}

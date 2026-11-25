@@ -14,8 +14,9 @@ export function registerDailyWorkReport(app:Express,deps:{
    const access=await deps.verifyCompanyWorkspaceAccess(user,req.params.companyId);if(!access.authorized){res.status(access.status).json({success:false,error:access.error});return;}
    const date=req.query.date ?? platformDateKey();
    try{if(typeof date!=='string'||Object.keys(req.query).some(key=>key!=='date'))throw new Error();platformDayBounds(date);}catch{res.status(400).json({success:false,error:'Valid YYYY-MM-DD report date required'});return;}
-   res.set('Cache-Control','no-store');
-   res.json({success:true,report:await deps.read(req.params.companyId,date as string)});
+   const report=await deps.read(req.params.companyId,date as string);
+   if(report.date!==date||report.timeZone!=='Asia/Kolkata')throw new Error('Mismatched report period');
+   res.json({success:true,companyId:req.params.companyId,report});
   }catch{res.status(503).json({success:false,error:'Recorded work report unavailable'});}
  });
 }

@@ -67,7 +67,7 @@ try{
  async function get(company:string,query:string,status:number,auth=true){const response=await fetch(`http://127.0.0.1:${port}/api/companies/${company}/daily-work-report${query}`,{headers:auth?{Authorization:'fixture'}:{}});assert.equal(response.status,status);return response.json();}
  await get('owned','',401,false);await get('foreign','?date=2026-11-03',403);
  for(const query of ['?date=bad','?date=2026-02-30','?date=2026-11-03&date=2026-11-04','?date=2026-11-03&actor=forged'])await get('owned',query,400);
- assert.equal(calls,0);assert.equal((await get('owned','?date=2026-11-03',200)).report.date,'2026-11-03');
+ assert.equal(calls,0);const scoped=await get('owned','?date=2026-11-03',200);assert.equal(scoped.companyId,'owned');assert.equal(scoped.report.date,'2026-11-03');
  assert.equal((await get('owned','',200)).report.date,platformDateKey());
  fail=true;assert.ok(!JSON.stringify(await get('owned','?date=2026-11-03',503)).includes('private-database-value'));
  console.log('Daily work report: fixed IST boundaries, strict dates, auth/workspace scope, query rejection, default date and redacted unavailability passed.');
