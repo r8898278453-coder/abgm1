@@ -118,9 +118,9 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   const platformActivity=await readPlatformDailyReporting(sql,company,start,end);
   const reconciliation=await readPublishingReconciliation(sql,company,date,start,end);
   const calendarPlans=await readCalendarPlanDailyReporting(sql,company,date,start,end);
-  const notifications=await readNotificationDailyReporting(sql,company,start,end);
+  const notifications=await readNotificationDailyReporting(sql,company,start,end,observedAtMs);
   const criticalAlerts=await readCriticalAlertDailyReporting(sql,company,start,end);
-  const workflows=await readSalesWorkflowReport(sql,company,start,end);
+  const workflows=await readSalesWorkflowReport(sql,company,start,end,observedAtMs);
   const workflowBacklog={
    workflowDrafts:workflows.backlog.drafts,
    workflowApproved:workflows.backlog.approved,

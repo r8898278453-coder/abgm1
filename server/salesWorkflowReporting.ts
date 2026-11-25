@@ -1,7 +1,7 @@
 import {WORKFLOW_REPORT_ACTIVITY,WORKFLOW_REPORT_BACKLOG,workflowReportCounts} from '../shared/salesWorkflowReporting';
 import type {ReadOnlySql} from './readOnlySqlDeadline';
 
-export async function readSalesWorkflowReport(sql:ReadOnlySql,company:string,start:number,end:number){
+export async function readSalesWorkflowReport(sql:ReadOnlySql,company:string,start:number,end:number,observedAtMs?:number){
  const types=Object.keys(WORKFLOW_REPORT_ACTIVITY);
  const [events]=await sql.query(
   `SELECT BINARY event_type eventType,COUNT(*) total FROM autonomous_audit_logs
@@ -18,11 +18,11 @@ export async function readSalesWorkflowReport(sql:ReadOnlySql,company:string,sta
           COUNT(CASE WHEN BINARY state='RETIRED' THEN 1 END) retired
    FROM sales_workflow_definitions WHERE company_id=?`,[company]);
  const [[enrollments]]=await sql.query(
-  `SELECT COUNT(CASE WHEN BINARY state='ACTIVE' AND expires_at>NOW() THEN 1 END) active,
-          COUNT(CASE WHEN BINARY state='WAITING_REVIEW' AND expires_at>NOW() THEN 1 END) waitingReview,
-          COUNT(CASE WHEN BINARY state='WAITING_SEND' AND expires_at>NOW() THEN 1 END) waitingSend,
-          COUNT(CASE WHEN expires_at<=NOW() THEN 1 END) expiredOpen
-   FROM sales_workflow_enrollments WHERE company_id=? AND BINARY state IN ('ACTIVE','WAITING_REVIEW','WAITING_SEND')`,[company]);
+  `SELECT COUNT(CASE WHEN BINARY state='ACTIVE' AND expires_at>COALESCE(FROM_UNIXTIME(?),NOW()) THEN 1 END) active,
+          COUNT(CASE WHEN BINARY state='WAITING_REVIEW' AND expires_at>COALESCE(FROM_UNIXTIME(?),NOW()) THEN 1 END) waitingReview,
+          COUNT(CASE WHEN BINARY state='WAITING_SEND' AND expires_at>COALESCE(FROM_UNIXTIME(?),NOW()) THEN 1 END) waitingSend,
+          COUNT(CASE WHEN expires_at<=COALESCE(FROM_UNIXTIME(?),NOW()) THEN 1 END) expiredOpen
+   FROM sales_workflow_enrollments WHERE company_id=? AND BINARY state IN ('ACTIVE','WAITING_REVIEW','WAITING_SEND')`,[...Array(4).fill(observedAtMs===undefined?null:observedAtMs/1000),company]);
  const backlog=Object.fromEntries(Object.entries({...definitions,...enrollments}).map(([key,value])=>[key,Number(value)]));
  return {activity:workflowReportCounts(WORKFLOW_REPORT_ACTIVITY,counts),backlog:workflowReportCounts(WORKFLOW_REPORT_BACKLOG,backlog)};
 }
