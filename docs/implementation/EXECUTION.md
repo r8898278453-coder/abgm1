@@ -1139,3 +1139,5 @@ Verification included 159 credential-isolated default regression programs, the c
 26 November 2026 IST. Private frozen report inspection can compare a late amendment against an earlier revision with different report coverage. Deltas include only metrics present in both coverage definitions. Missing metrics never enter the comparison as zero. Each stored revision keeps its original coverage and export.
 
 Chromium verifies the V18 baseline to V19 amendment workflow. The comparison uses coverage read from both validated revision payloads, shows the shared-metrics notice and omits V19-only critical alert counts from the delta list.
+
+26 November 2026 IST. The live daily dashboard shows the selected day's publishing reservations beside the eight mutually exclusive retained claim outcomes. A reservation can outlast the claim that first held it. Per-platform and partial publication activity uses separate transition evidence and does not contribute to this reservation total.
