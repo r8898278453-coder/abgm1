@@ -1143,3 +1143,5 @@ Chromium verifies the V18 baseline to V19 amendment workflow. The comparison use
 26 November 2026 IST. The live daily dashboard shows the selected day's publishing reservations beside the eight mutually exclusive retained claim outcomes. A reservation can outlast the claim that first held it. Per-platform and partial publication activity uses separate transition evidence and does not contribute to this reservation total.
 
 26 November 2026 IST. The live daily dashboard groups platform-specific results and partial claims. The partial outcome rule gives unconfirmed targets priority when a claim has both a confirmed success and an unconfirmed result. This preserves the recorded meaning of the existing activity metrics.
+
+26 November 2026 IST. Daily work aggregation uses the existing read-only repeatable-read transaction. The SQL regression commits a website-import completion between the general queue count and the website-specific count. Both totals stay consistent in the active read and include the new event after refresh. This verifies row consistency across queries. Time-based backlog classifications still use the clock of each query.
