@@ -1141,3 +1141,5 @@ Verification included 159 credential-isolated default regression programs, the c
 Chromium verifies the V18 baseline to V19 amendment workflow. The comparison uses coverage read from both validated revision payloads, shows the shared-metrics notice and omits V19-only critical alert counts from the delta list.
 
 26 November 2026 IST. The live daily dashboard shows the selected day's publishing reservations beside the eight mutually exclusive retained claim outcomes. A reservation can outlast the claim that first held it. Per-platform and partial publication activity uses separate transition evidence and does not contribute to this reservation total.
+
+26 November 2026 IST. The live daily dashboard groups platform-specific results and partial claims. The partial outcome rule gives unconfirmed targets priority when a claim has both a confirmed success and an unconfirmed result. This preserves the recorded meaning of the existing activity metrics.
