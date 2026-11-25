@@ -9,6 +9,10 @@ import React,{useEffect,useRef,useState} from 'react';
 import {apiRequest,ApiRequestError,getStoredToken} from '../services/authService';
 import {dailyWorkReportCsv,platformDateKey,type DailyWorkReport as Report} from '../../shared/dailyWorkReport';
 import {formatPlatformDateTime} from '../../shared/platformTime';
+const waitingScheduleKeys = ['queueDue','queueScheduled','queueRetryDue','queueRetryScheduled'] as const;
+const waitingBreakdownKeys = ['waitingJobs', ...waitingScheduleKeys] as const;
+const classifiedWaiting = (backlog: Report['backlog']) =>
+ waitingScheduleKeys.reduce((total,key)=>total+backlog[key],0);
 export const DailyWorkReport:React.FC<{companyId:string}>=p=><ClientWorkReport key={p.companyId} {...p}/>;
 const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
  const [date,setDate]=useState(platformDateKey()),[report,setReport]=useState<Report|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
@@ -21,6 +25,7 @@ const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
    if(controller.signal.aborted)return;
    if(token!==getStoredToken())throw new Error('Session changed');
    if(result.success!==true || result.companyId!==companyId || result.report?.date!==date || result.report.timeZone!=='Asia/Kolkata' || !result.report.activity || !result.report.backlog || !Number.isFinite(Date.parse(result.report.generatedAt)) || !Object.keys(dayLabels).every(key=>Number.isSafeInteger(result.report.activity[key as keyof Report['activity']]) && result.report.activity[key as keyof Report['activity']]>=0) || !Object.keys(backlogLabels).every(key=>Number.isSafeInteger(result.report.backlog[key as keyof Report['backlog']]) && result.report.backlog[key as keyof Report['backlog']]>=0))throw new Error('Invalid report');
+   if(classifiedWaiting(result.report.backlog)>result.report.backlog.waitingJobs)throw new Error('Invalid queue breakdown');
    acceptedToken.current=token;setReport(result.report);
   }catch(cause){if(!controller.signal.aborted)setError(cause instanceof ApiRequestError && [401,403,404].includes(cause.status)?'This workspace report is unavailable.':'Recorded work report unavailable. Retry after the connection recovers.');}
   finally{if(!controller.signal.aborted)setLoading(false);}
@@ -82,7 +87,19 @@ const ClientWorkReport:React.FC<{companyId:string}>=({companyId})=>{
      )}
     </dl>
    </section>
-   <h3 className="font-semibold">Current backlog</h3><p className="text-sm text-slate-500">Current saved states across all dates, read at {formatPlatformDateTime(report.generatedAt)}.</p><dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{Object.entries(backlogLabels).filter(([key])=>!Object.hasOwn(CRITICAL_ALERT_DAILY_BACKLOG,key)).map(([key,label])=><div key={key}><dt>{label}</dt><dd aria-label={label} className="font-bold">{report.backlog[key as keyof Report['backlog']]}</dd></div>)}</dl>
+   <h3 className="font-semibold">Current backlog</h3><p className="text-sm text-slate-500">Current saved states across all dates, read at {formatPlatformDateTime(report.generatedAt)}.</p><dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{Object.entries(backlogLabels).filter(([key])=>!Object.hasOwn(CRITICAL_ALERT_DAILY_BACKLOG,key)&&!waitingBreakdownKeys.some(waitingKey=>waitingKey===key)).map(([key,label])=><div key={key}><dt>{label}</dt><dd aria-label={label} className="font-bold">{report.backlog[key as keyof Report['backlog']]}</dd></div>)}</dl>
+   <section aria-label="Waiting queue reconciliation" className="rounded border p-3">
+    <h3 className="font-semibold">Waiting queue breakdown</h3>
+    <p className="text-sm">The due and scheduled counts use the report observation time. Waiting jobs without a usable schedule remain unclassified.</p>
+    <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+     {waitingBreakdownKeys.map(key=>
+      <div key={key}><dt>{backlogLabels[key]}</dt><dd aria-label={backlogLabels[key]} className="font-bold">{report.backlog[key]}</dd></div>
+     )}
+     <div><dt>Waiting jobs with unclassified schedules</dt><dd className="font-bold">{
+      report.backlog.waitingJobs - classifiedWaiting(report.backlog)
+     }</dd></div>
+    </dl>
+   </section>
    <details className="rounded border p-3">
     <summary className="cursor-pointer font-semibold">Critical alert outcomes</summary>
     <p className="text-sm text-slate-500">Reservations are grouped by their recorded IST day and the current state of their notification. Multiple reservations can share one notification. API acceptance records provider acknowledgment. Incident counts reflect the latest saved observation.</p>
