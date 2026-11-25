@@ -1335,6 +1335,9 @@ try {
         if (sql.includes(' notificationsStale')) {
           assert.equal(values?.[0],(reportObservedAt-300000)/1000);
         }
+        if (sql.includes(' growthEvidenceStale')) {
+          assert.equal(values?.[0],reportObservedAt);
+        }
         if (sql.includes(' expiredOpen')) {
           assert.deepEqual(values?.slice(0,4),Array(4).fill(reportObservedAt/1000));
         }

@@ -1,5 +1,5 @@
 /** Called in the canonical report's read-only consistent transaction/deadline. */
-export async function readGrowthReporting(sql:{query:Function},company:string,start:number,end:number){const [rows]:any=await sql.query(`SELECT
+export async function readGrowthReporting(sql:{query:Function},company:string,start:number,end:number,observedAtMs:number){const [rows]:any=await sql.query(`SELECT
  COUNT(CASE WHEN BINARY event_type='AGENCY_SALES_GROWTH_CREATED' AND BINARY JSON_UNQUOTE(JSON_EXTRACT(details,'$.kind'))='ASSESSMENT' THEN 1 END) growthAssessmentsSaved,
  COUNT(CASE WHEN BINARY event_type='AGENCY_SALES_GROWTH_CREATED' AND BINARY JSON_UNQUOTE(JSON_EXTRACT(details,'$.kind'))='SIGNAL' THEN 1 END) growthSignalsSaved,
  COUNT(CASE WHEN BINARY event_type='AGENCY_SALES_GROWTH_CREATED' AND BINARY JSON_UNQUOTE(JSON_EXTRACT(details,'$.kind'))='ENRICHMENT' THEN 1 END) growthEnrichmentsSaved,
@@ -17,6 +17,6 @@ export async function readGrowthReporting(sql:{query:Function},company:string,st
  COUNT(CASE WHEN BINARY kind='EXPERIMENT' AND BINARY state='DRAFT' THEN 1 END) growthExperimentsDraft,
  COUNT(CASE WHEN BINARY kind='EXPERIMENT' AND BINARY state='APPROVED' THEN 1 END) growthExperimentsApproved,
  COUNT(CASE WHEN BINARY kind='EXPERIMENT' AND BINARY state='RUNNING' THEN 1 END) growthExperimentsRunning,
- COUNT(CASE WHEN BINARY kind IN ('SIGNAL','ENRICHMENT') AND CAST(JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.expiresAtMs')) AS UNSIGNED)<=UNIX_TIMESTAMP(NOW(3))*1000 THEN 1 END) growthEvidenceStale,
+ COUNT(CASE WHEN BINARY kind IN ('SIGNAL','ENRICHMENT') AND CAST(JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.expiresAtMs')) AS UNSIGNED)<=? THEN 1 END) growthEvidenceStale,
  COUNT(CASE WHEN BINARY kind NOT IN ('ASSESSMENT','SIGNAL','ENRICHMENT','EXPERIMENT','COST') OR(BINARY kind IN ('ASSESSMENT','SIGNAL','ENRICHMENT') AND BINARY state<>'RECORDED') OR(BINARY kind='EXPERIMENT' AND BINARY state NOT IN ('DRAFT','APPROVED','RUNNING','COMPLETED','STOPPED')) OR(BINARY kind='COST' AND BINARY state NOT IN ('RECORDED','VOIDED')) OR(BINARY kind IN ('SIGNAL','ENRICHMENT') AND (JSON_EXTRACT(payload_json,'$.expiresAtMs') IS NULL OR JSON_TYPE(JSON_EXTRACT(payload_json,'$.expiresAtMs'))<>'INTEGER' OR JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.expiresAtMs')) NOT REGEXP '^(0|[1-9][0-9]{0,15})$' OR CAST(JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.expiresAtMs')) AS UNSIGNED)>8640000000000000)) THEN 1 END) invalidStates
- FROM growth_operation_records WHERE company_id=?`,[company]);if(Number(backlog[0].invalidStates)!==0)throw new Error('GROWTH_REPORT_STATE_INVALID');const {invalidStates,...b}=backlog[0];return{activity:rows[0],backlog:b};}
+ FROM growth_operation_records WHERE company_id=?`,[observedAtMs,company]);if(Number(backlog[0].invalidStates)!==0)throw new Error('GROWTH_REPORT_STATE_INVALID');const {invalidStates,...b}=backlog[0];return{activity:rows[0],backlog:b};}

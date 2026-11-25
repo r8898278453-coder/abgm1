@@ -1149,3 +1149,5 @@ Chromium verifies the V18 baseline to V19 amendment workflow. The comparison use
 26 November 2026 IST. The daily report reads the database clock once at the start. The displayed observation time, queue due and scheduled splits, stale queue leases and age-based publishing claim counts use that timestamp. Notification and workflow readers retain their own time checks.
 
 26 November 2026 IST. Daily work reporting also uses its captured database timestamp for active and stale notification occurrence counts and open sales workflow expiration. The separate Sales report still evaluates expiration at query time. Selected-day activity retains its existing IST bounds.
+
+26 November 2026 IST. The daily work report evaluates saved growth signal and enrichment expiry at the database timestamp captured for the report. Evidence with an expiry equal to that timestamp counts as stale. The SQL regression checks the parameter against the report clock.

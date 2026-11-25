@@ -112,7 +112,7 @@ export async function readDailyWorkReport(pool:Pool,company:string,date:string):
   const {invalidStates,...manualBacklog}=telegramBacklog[0];
   const capture=await readCaptureReporting(sql,company,start,end);
   const sales=await readSalesActivity(sql,company,start,end);
-  const growth=await readGrowthReporting(sql,company,start,end);
+  const growth=await readGrowthReporting(sql,company,start,end,observedAtMs);
   const appointments=await readAppointmentReporting(sql,company,start,end);
   const email=await readEmailWorkReporting(sql,company,start,end);
   const platformActivity=await readPlatformDailyReporting(sql,company,start,end);
