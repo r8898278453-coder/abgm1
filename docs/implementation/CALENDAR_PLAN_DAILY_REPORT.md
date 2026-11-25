@@ -9,3 +9,5 @@ Eight selected-day slot counts use the current plan records for that date. They 
 Plan, post and claim joins respect the selected client. The report exposes aggregate counts and leaves topics, captions, revision manifests, photo details and provider identifiers in their source records. Current slot states and links can change between live reads. Manual and scheduled V13 snapshots preserve the counts observed at capture. V1–V12 retain their original payloads and hashes. Public client reports continue to use their approved metric allowlist. The database schema remains 064.
 
 [26-item checklist](CALENDAR_PLAN_DAILY_REPORT_BATCH.csv) · [Verification](evidence/calendar-plan-daily-report.json) · [Main tracker](STATUS.md)
+
+26 November 2026 IST. The live dashboard groups the five mutually exclusive current slot states and shows their sum for the selected date. Missing linked posts, publishing admissions and published claims appear under saved drafts. These evidence counts can overlap. CSV and frozen reports retain their existing metric definitions.
