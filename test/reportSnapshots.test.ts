@@ -4,3 +4,13 @@ const app=express();app.use(express.json());let captures=0;registerReportSnapsho
 console.log('Frozen reports: fixed private-field exclusion, strict scope/coverage, signed metric deltas, frozen-backlog CSV, read/manage HTTP permissions and no-store passed.');
 
 (DAILY_WORK_METRICS.activity as any).push('futureLiveMetric');try{assert.equal(validateReportSnapshot(first,'A').report.activity.completedJobs,0);}finally{(DAILY_WORK_METRICS.activity as any).pop();}
+
+const newerCoverage = {
+ ...second, schemaVersion:19,
+ report:{...second.report,activity:{...report.activity,...second.report.activity,calendarSlotSaved:5}},
+};
+assert.throws(()=>compareReportSnapshots(first,newerCoverage), /REPORT_SNAPSHOT_COVERAGE_MISMATCH/);
+const comparable = compareReportSnapshots(first,newerCoverage,true);
+assert.ok(comparable.some(row=>row.metric==='completedJobs'&&row.delta===3));
+assert.ok(comparable.every(row=>row.metric!=='calendarSlotSaved'));
+assert.throws(()=>compareReportSnapshots(newerCoverage,first,true), /REPORT_SNAPSHOT_ORDER_INVALID/);

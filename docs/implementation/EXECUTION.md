@@ -1135,3 +1135,5 @@ Verification included 159 credential-isolated default regression programs, the c
 26 November 2026 IST. P09-01 daily-report scope verification now checks the requested IST date at the HTTP boundary and the workspace ID in the browser. A mismatched workspace response clears the report and suppresses CSV export until a matching response loads. This applies to live reports. Historical snapshot formats and plan-to-outcome reconciliation are tracked separately.
 
 26 November 2026 IST. Frozen report inspection holds both revision selectors steady while it loads the selected report and any earlier comparison. The browser regression checks the selectors during a delayed response and confirms that switching clients discards that response. P09-01 remains in progress for cross-module reconciliation.
+
+26 November 2026 IST. Private frozen report inspection can compare a late amendment against an earlier revision with different report coverage. Deltas include only metrics present in both coverage definitions. Missing metrics never enter the comparison as zero. Each stored revision keeps its original coverage and export.
