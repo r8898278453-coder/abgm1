@@ -1145,3 +1145,5 @@ Chromium verifies the V18 baseline to V19 amendment workflow. The comparison use
 26 November 2026 IST. The live daily dashboard groups platform-specific results and partial claims. The partial outcome rule gives unconfirmed targets priority when a claim has both a confirmed success and an unconfirmed result. This preserves the recorded meaning of the existing activity metrics.
 
 26 November 2026 IST. Daily work aggregation uses the existing read-only repeatable-read transaction. The SQL regression commits a website-import completion between the general queue count and the website-specific count. Both totals stay consistent in the active read and include the new event after refresh. This verifies row consistency across queries. Time-based backlog classifications still use the clock of each query.
+
+26 November 2026 IST. The daily report reads the database clock once at the start. The displayed observation time, queue due and scheduled splits, stale queue leases and age-based publishing claim counts use that timestamp. Notification and workflow readers retain their own time checks.

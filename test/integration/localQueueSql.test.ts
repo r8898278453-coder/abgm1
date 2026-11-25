@@ -1316,11 +1316,22 @@ try {
   // A worker settles a website import after the report reads the general queue
   // counters but before it reads the website-specific counters.
   let publishedDuringReport = false;
+  let reportObservedAt = 0;
   const reportPool = { async getConnection() {
     const connection = await pool!.getConnection();
     return new Proxy(connection, {get(target, property) {
       if (property === 'query') return async (sql: string, values?: any[]) => {
         const result = await target.query(sql, values);
+        if (sql.includes('AS observedAtMs')) {
+          const [clockRows] = result as any;
+          reportObservedAt = Number(clockRows[0].observedAtMs);
+        }
+        if (sql.includes('AS queueDue')) {
+          assert.deepEqual(values?.slice(0,5),[
+            reportObservedAt/1000,reportObservedAt/1000,reportObservedAt/1000,reportObservedAt/1000,
+            (reportObservedAt-300000)/1000,
+          ]);
+        }
         if (!publishedDuringReport && sql.includes('AS completedJobs')) {
           publishedDuringReport = true;
           await pool!.query(
@@ -1336,6 +1347,7 @@ try {
   }} as unknown as mysql.Pool;
   const stableReport = await readDailyWorkReport(reportPool,'report-company','2026-11-03');
   assert.ok(publishedDuringReport);
+  assert.equal(Date.parse(stableReport.generatedAt),reportObservedAt);
   assert.equal(stableReport.activity.completedJobs,dayReport.activity.completedJobs);
   assert.equal(stableReport.activity.websiteImportsCommitted,dayReport.activity.websiteImportsCommitted);
   const refreshedReport = await readDailyWorkReport(pool,'report-company','2026-11-03');
